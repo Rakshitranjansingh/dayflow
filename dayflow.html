@@ -1,0 +1,1752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="DayFlow">
+<title>DayFlow</title>
+<style>
+  :root {
+    --bg: #F8F8F6;
+    --surface: #FFFFFF;
+    --surface2: #F2F2F0;
+    --border: #E8E8E4;
+    --text: #1A1A18;
+    --text2: #6B6B65;
+    --text3: #A8A8A0;
+    --accent: #2D6BE4;
+    --accent-soft: #EBF1FD;
+    --green: #22C55E;
+    --green-soft: #DCFCE7;
+    --red: #EF4444;
+    --red-soft: #FEE2E2;
+    --orange: #F97316;
+    --orange-soft: #FFEDD5;
+    --purple: #8B5CF6;
+    --purple-soft: #EDE9FE;
+    --yellow: #EAB308;
+    --yellow-soft: #FEF9C3;
+    --radius: 14px;
+    --radius-sm: 8px;
+    --shadow: 0 2px 16px rgba(0,0,0,0.07);
+    --shadow-lg: 0 8px 40px rgba(0,0,0,0.13);
+    --panel-width: 88vw;
+    --font: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+  /* ONBOARDING */
+  #onboarding { position: fixed; inset: 0; background: var(--surface); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; }
+  .ob-step { display: none; flex-direction: column; align-items: center; text-align: center; width: 100%; max-width: 360px; }
+  .ob-step.active { display: flex; }
+  .ob-logo { font-size: 48px; margin-bottom: 8px; }
+  .ob-title { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px; }
+  .ob-sub { font-size: 15px; color: var(--text2); margin-bottom: 32px; line-height: 1.5; }
+  .ob-input { width: 100%; padding: 14px 16px; border: 1.5px solid var(--border); border-radius: var(--radius); font-size: 16px; font-family: var(--font); background: var(--bg); color: var(--text); outline: none; margin-bottom: 12px; transition: border-color 0.2s; }
+  .ob-input:focus { border-color: var(--accent); }
+  .ob-hint { font-size: 13px; color: var(--text3); margin-bottom: 24px; }
+  .ob-hint a { color: var(--accent); text-decoration: none; }
+  .ob-btn { width: 100%; padding: 15px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius); font-size: 16px; font-weight: 600; font-family: var(--font); cursor: pointer; transition: opacity 0.2s; margin-bottom: 12px; }
+  .ob-btn:active { opacity: 0.85; }
+  .ob-btn-ghost { background: transparent; color: var(--text2); border: 1.5px solid var(--border); }
+  .ob-progress { display: flex; gap: 6px; margin-bottom: 40px; }
+  .ob-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: background 0.3s; }
+  .ob-dot.active { background: var(--accent); width: 18px; border-radius: 3px; }
+  .ob-icon-big { font-size: 56px; margin-bottom: 16px; }
+  .ob-security { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text3); background: var(--surface2); padding: 8px 12px; border-radius: 20px; margin-bottom: 24px; }
+  .ob-verify { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--green); margin-bottom: 16px; display: none; }
+
+  /* MAIN APP */
+  #app { display: none; min-height: 100vh; }
+
+  /* HEADER */
+  .app-header { background: var(--surface); padding: 16px 20px 12px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+  .header-greeting { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-date { font-size: 13px; color: var(--text2); margin-top: 2px; }
+  .header-settings { width: 36px; height: 36px; border-radius: 50%; background: var(--surface2); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+
+  /* DATE STRIP */
+  .date-strip-wrap { overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
+  .date-strip-wrap::-webkit-scrollbar { display: none; }
+  .date-strip { display: flex; gap: 6px; padding: 2px 0; width: max-content; }
+  .date-item { display: flex; flex-direction: column; align-items: center; padding: 6px 10px; border-radius: 10px; cursor: pointer; min-width: 44px; transition: background 0.15s; }
+  .date-item:active { opacity: 0.7; }
+  .date-item .d-name { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+  .date-item .d-num { font-size: 17px; font-weight: 600; color: var(--text2); }
+  .date-item .d-dot { width: 4px; height: 4px; border-radius: 50%; background: transparent; margin-top: 3px; }
+  .date-item.has-data .d-dot { background: var(--accent); }
+  .date-item.selected { background: var(--accent); }
+  .date-item.selected .d-name { color: rgba(255,255,255,0.7); }
+  .date-item.selected .d-num { color: #fff; }
+  .date-item.selected .d-dot { background: rgba(255,255,255,0.7); }
+  .date-item.today .d-num { color: var(--accent); }
+  .date-item.today.selected .d-num { color: #fff; }
+
+  /* STATS BAR */
+  .stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 16px 20px; }
+  .stat-card { background: var(--surface); border-radius: var(--radius-sm); padding: 10px 8px; text-align: center; cursor: pointer; border: 1px solid var(--border); transition: transform 0.15s; }
+  .stat-card:active { transform: scale(0.96); }
+  .stat-icon { font-size: 16px; margin-bottom: 3px; }
+  .stat-val { font-size: 13px; font-weight: 700; color: var(--text); }
+  .stat-lbl { font-size: 10px; color: var(--text3); margin-top: 1px; }
+
+  /* ALERT BAR */
+  .alert-bar { margin: 0 20px 12px; background: var(--orange-soft); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--orange); cursor: pointer; display: none; }
+  .alert-bar.show { display: flex; }
+
+  /* TOOL GRID */
+  .tool-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 4px 20px 20px; }
+  .tool-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 8px; background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); cursor: pointer; transition: all 0.15s; position: relative; }
+  .tool-btn:active { transform: scale(0.94); background: var(--surface2); }
+  .tool-icon { font-size: 22px; }
+  .tool-name { font-size: 10px; color: var(--text2); text-align: center; font-weight: 500; line-height: 1.2; }
+  .tool-badge { position: absolute; top: 6px; right: 6px; background: var(--red); color: #fff; font-size: 9px; font-weight: 700; border-radius: 8px; padding: 1px 5px; min-width: 16px; text-align: center; }
+
+  /* DATA SECTION */
+  .data-section { padding: 0 20px 32px; }
+  .data-row { display: flex; gap: 10px; }
+  .data-btn { flex: 1; display: flex; align-items: center; gap: 8px; padding: 13px 14px; background: var(--surface); border-radius: var(--radius-sm); border: 1px solid var(--border); cursor: pointer; font-size: 13px; color: var(--text2); font-family: var(--font); transition: all 0.15s; }
+  .data-btn:active { background: var(--surface2); }
+  .data-btn-danger { color: var(--red); border-color: var(--red-soft); background: var(--red-soft); }
+
+  /* SIDE PANEL */
+  .panel-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+  .panel-overlay.show { opacity: 1; pointer-events: all; }
+  .side-panel { position: fixed; top: 0; right: -100%; width: var(--panel-width); max-width: 480px; height: 100vh; background: var(--surface); z-index: 201; transition: right 0.3s cubic-bezier(0.34, 1.1, 0.64, 1); overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }
+  .side-panel.open { right: 0; }
+  .panel-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 10; }
+  .panel-close { width: 32px; height: 32px; border-radius: 50%; background: var(--surface2); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .panel-title { font-size: 17px; font-weight: 700; flex: 1; }
+  .panel-body { padding: 20px; flex: 1; }
+
+  /* SHARED UI COMPONENTS */
+  .btn { padding: 12px 18px; border-radius: var(--radius-sm); border: none; font-size: 14px; font-weight: 600; font-family: var(--font); cursor: pointer; transition: opacity 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+  .btn:active { opacity: 0.8; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-success { background: var(--green); color: #fff; }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-sm { padding: 8px 12px; font-size: 12px; }
+  .btn-full { width: 100%; justify-content: center; }
+  .input { width: 100%; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 15px; font-family: var(--font); background: var(--bg); color: var(--text); outline: none; transition: border-color 0.2s; }
+  .input:focus { border-color: var(--accent); }
+  .textarea { resize: none; min-height: 100px; line-height: 1.5; }
+  .label { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+  .field { margin-bottom: 16px; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 16px; }
+  .chip { padding: 6px 12px; border-radius: 20px; border: 1.5px solid var(--border); font-size: 13px; cursor: pointer; background: var(--surface); color: var(--text2); transition: all 0.15s; font-family: var(--font); white-space: nowrap; }
+  .chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .chip:active { opacity: 0.7; }
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text3); }
+  .empty-state .e-icon { font-size: 40px; margin-bottom: 10px; }
+  .empty-state .e-text { font-size: 14px; }
+  .result-box { background: var(--surface2); border-radius: var(--radius-sm); padding: 14px; margin-top: 14px; font-size: 14px; line-height: 1.6; color: var(--text); border: 1px solid var(--border); position: relative; }
+  .copy-btn { position: absolute; top: 8px; right: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer; color: var(--text2); font-family: var(--font); }
+  .loading { display: flex; align-items: center; gap: 8px; color: var(--text3); font-size: 13px; padding: 16px 0; }
+  .spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--text); color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 13px; z-index: 999; transition: transform 0.3s; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* TABS */
+  .tab-bar { display: flex; background: var(--surface2); border-radius: var(--radius-sm); padding: 3px; margin-bottom: 16px; }
+  .tab { flex: 1; padding: 8px; text-align: center; font-size: 13px; font-weight: 500; color: var(--text2); border-radius: 9px; cursor: pointer; transition: all 0.2s; border: none; background: transparent; font-family: var(--font); }
+  .tab.active { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+
+  /* TODO */
+  .todo-item { display: flex; align-items: flex-start; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .todo-check { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: all 0.2s; margin-top: 1px; }
+  .todo-check.done { background: var(--green); border-color: var(--green); }
+  .todo-check.done::after { content: '✓'; color: #fff; font-size: 11px; font-weight: 700; }
+  .todo-text { flex: 1; font-size: 14px; line-height: 1.4; }
+  .todo-text.done { text-decoration: line-through; color: var(--text3); }
+  .todo-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .todo-source { font-size: 10px; color: var(--accent); background: var(--accent-soft); padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 3px; }
+  .todo-del { color: var(--text3); font-size: 16px; cursor: pointer; padding: 0 4px; }
+
+  /* HABITS */
+  .habit-category { margin-bottom: 20px; }
+  .habit-cat-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .habit-cat-icon { font-size: 18px; }
+  .habit-cat-name { font-size: 15px; font-weight: 600; }
+  .habit-cat-streak { font-size: 12px; color: var(--orange); background: var(--orange-soft); padding: 2px 8px; border-radius: 10px; margin-left: auto; }
+  .habit-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .habit-name { flex: 1; font-size: 14px; }
+  .habit-toggle { width: 44px; height: 26px; border-radius: 13px; background: var(--border); border: none; cursor: pointer; position: relative; transition: background 0.2s; flex-shrink: 0; }
+  .habit-toggle.on { background: var(--green); }
+  .habit-toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
+  .habit-toggle.on::after { left: 21px; }
+  .add-habit-row { display: flex; gap: 8px; margin-top: 10px; }
+
+  /* NUTRITION */
+  .nutrition-summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
+  .nutr-card { background: var(--surface2); border-radius: var(--radius-sm); padding: 12px; text-align: center; border: 1px solid var(--border); }
+  .nutr-val { font-size: 20px; font-weight: 700; }
+  .nutr-lbl { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .nutr-cal { grid-column: span 2; background: var(--accent-soft); border-color: var(--accent); }
+  .nutr-cal .nutr-val { color: var(--accent); font-size: 26px; }
+  .meal-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .meal-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .meal-time { font-size: 12px; color: var(--text3); }
+  .meal-name { font-size: 14px; font-weight: 500; flex: 1; }
+  .meal-cal { font-size: 13px; color: var(--accent); font-weight: 600; }
+  .meal-macros { font-size: 12px; color: var(--text3); }
+  .meal-del { color: var(--text3); cursor: pointer; font-size: 14px; }
+  .photo-upload { border: 2px dashed var(--border); border-radius: var(--radius); padding: 28px; text-align: center; cursor: pointer; background: var(--bg); transition: border-color 0.2s; }
+  .photo-upload:hover { border-color: var(--accent); }
+  .photo-upload input { display: none; }
+
+  /* SLEEP */
+  .sleep-display { text-align: center; padding: 24px 0; }
+  .sleep-duration { font-size: 48px; font-weight: 700; letter-spacing: -2px; color: var(--accent); }
+  .sleep-label { font-size: 14px; color: var(--text3); margin-top: 4px; }
+  .time-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .time-field { background: var(--surface2); border-radius: var(--radius-sm); padding: 14px; text-align: center; border: 1px solid var(--border); }
+  .time-field label { font-size: 11px; color: var(--text3); display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .time-field input { font-size: 22px; font-weight: 600; font-family: var(--font); border: none; background: transparent; text-align: center; color: var(--text); outline: none; width: 100%; }
+
+  /* EXPENSES */
+  .expense-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .exp-card { background: var(--surface2); border-radius: var(--radius-sm); padding: 12px; border: 1px solid var(--border); }
+  .exp-val { font-size: 20px; font-weight: 700; color: var(--text); }
+  .exp-lbl { font-size: 11px; color: var(--text3); }
+  .expense-item { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .exp-cat-icon { font-size: 20px; width: 36px; height: 36px; background: var(--surface2); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .exp-name { flex: 1; }
+  .exp-name .name { font-size: 14px; }
+  .exp-name .meta { font-size: 11px; color: var(--text3); }
+  .exp-amount { font-size: 15px; font-weight: 600; }
+  .exp-del { color: var(--text3); cursor: pointer; font-size: 14px; }
+  .cat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .cat-chip { padding: 5px 10px; border-radius: 16px; border: 1.5px solid var(--border); font-size: 12px; cursor: pointer; background: var(--surface); transition: all 0.15s; }
+  .cat-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* JOURNAL */
+  .journal-entries { margin-bottom: 16px; }
+  .journal-entry { background: var(--surface2); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 10px; border: 1px solid var(--border); }
+  .journal-entry-time { font-size: 11px; color: var(--text3); margin-bottom: 6px; }
+  .journal-entry-text { font-size: 14px; line-height: 1.6; }
+  .journal-entry-todos { margin-top: 8px; }
+  .journal-todo-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; background: var(--accent-soft); color: var(--accent); padding: 3px 8px; border-radius: 10px; margin: 2px; cursor: pointer; }
+  .record-btn { width: 72px; height: 72px; border-radius: 50%; background: var(--red); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 16px; transition: transform 0.2s; box-shadow: 0 4px 16px rgba(239,68,68,0.3); }
+  .record-btn.recording { animation: pulse 1s ease-in-out infinite; background: var(--red); }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+  .record-status { text-align: center; font-size: 13px; color: var(--text2); margin-bottom: 16px; }
+
+  /* FOCUS */
+  .focus-display { text-align: center; padding: 20px 0; }
+  .focus-time { font-size: 56px; font-weight: 700; letter-spacing: -2px; font-variant-numeric: tabular-nums; }
+  .focus-controls { display: flex; justify-content: center; gap: 12px; margin: 16px 0; }
+  .focus-mode-bar { display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; }
+  .focus-mode-btn { padding: 7px 16px; border-radius: 20px; border: 1.5px solid var(--border); font-size: 13px; cursor: pointer; background: var(--surface); color: var(--text2); font-family: var(--font); transition: all 0.15s; }
+  .focus-mode-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .pomodoro-count { font-size: 13px; color: var(--text2); text-align: center; margin-top: 8px; }
+
+  /* TEXT FORMATTER */
+  .action-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+  .action-chip { padding: 7px 14px; border-radius: 20px; border: 1.5px solid var(--border); font-size: 13px; cursor: pointer; background: var(--surface); color: var(--text2); font-family: var(--font); transition: all 0.15s; }
+  .action-chip.active { background: var(--purple); color: #fff; border-color: var(--purple); }
+  .modifier-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .modifier-chip { padding: 5px 10px; border-radius: 12px; border: 1.5px solid var(--border); font-size: 12px; cursor: pointer; background: var(--surface); color: var(--text2); font-family: var(--font); }
+  .modifier-chip.active { background: var(--surface2); border-color: var(--text2); color: var(--text); font-weight: 600; }
+
+  /* CHAT */
+  .chat-messages { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; min-height: 200px; max-height: 50vh; overflow-y: auto; }
+  .chat-msg { max-width: 85%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.5; }
+  .chat-msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+  .chat-msg.ai { align-self: flex-start; background: var(--surface2); color: var(--text); border-bottom-left-radius: 4px; border: 1px solid var(--border); }
+  .chat-input-row { display: flex; gap: 8px; }
+  .chat-insight-note { font-size: 11px; color: var(--text3); text-align: center; margin-top: 8px; }
+
+  /* DAILY LOG */
+  .log-list { display: flex; flex-direction: column; gap: 10px; }
+  .log-item { background: var(--surface2); border-radius: var(--radius-sm); padding: 14px; border: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
+  .log-item:active { background: var(--border); }
+  .log-item-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .log-date { font-size: 14px; font-weight: 600; flex: 1; }
+  .log-score { font-size: 13px; font-weight: 700; color: var(--accent); }
+  .log-stats { display: flex; gap: 10px; font-size: 12px; color: var(--text3); }
+  .blog-view { font-size: 14px; line-height: 1.7; }
+  .blog-section { margin-bottom: 18px; }
+  .blog-section h3 { font-size: 14px; font-weight: 700; margin-bottom: 6px; color: var(--text2); }
+  .blog-score-badge { display: inline-block; background: var(--accent-soft); color: var(--accent); font-size: 20px; font-weight: 700; padding: 8px 20px; border-radius: 20px; margin: 10px 0; }
+  .vlog-script { background: var(--surface2); border-radius: var(--radius-sm); padding: 16px; border: 1px solid var(--border); font-size: 14px; line-height: 1.8; white-space: pre-wrap; }
+  .vlog-section { margin-bottom: 14px; }
+  .vlog-time { font-size: 11px; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+
+  /* SETTINGS */
+  .settings-section { margin-bottom: 24px; }
+  .settings-section h3 { font-size: 13px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .settings-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .settings-row-icon { font-size: 18px; width: 32px; text-align: center; }
+  .settings-row-content { flex: 1; }
+  .settings-row-label { font-size: 14px; font-weight: 500; }
+  .settings-row-sub { font-size: 12px; color: var(--text3); margin-top: 1px; }
+  .settings-row-action { color: var(--accent); font-size: 13px; cursor: pointer; }
+  .drive-status { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+  .drive-dot { width: 8px; height-8px; border-radius: 50%; }
+  .drive-dot.connected { background: var(--green); width: 8px; height: 8px; border-radius: 50%; }
+  .drive-dot.disconnected { background: var(--text3); width: 8px; height: 8px; border-radius: 50%; }
+
+  /* MONTH NAV */
+  .month-nav { display: flex; align-items: center; justify-content: space-between; padding: 0 0 10px; }
+  .month-nav-btn { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text2); padding: 4px 8px; }
+  .month-nav-label { font-size: 14px; font-weight: 600; }
+
+  /* MISC */
+  .section-label { font-size: 12px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 20px 8px; }
+</style>
+</head>
+<body>
+
+<!-- ONBOARDING -->
+<div id="onboarding">
+  <div class="ob-progress">
+    <div class="ob-dot active" id="od1"></div>
+    <div class="ob-dot" id="od2"></div>
+    <div class="ob-dot" id="od3"></div>
+    <div class="ob-dot" id="od4"></div>
+  </div>
+
+  <!-- Step 1: Welcome -->
+  <div class="ob-step active" id="ob-step-1">
+    <div class="ob-logo">🌊</div>
+    <div class="ob-title">Welcome to DayFlow</div>
+    <div class="ob-sub">Your intelligent daily companion. Track habits, journal your day, and grow — all in one place.</div>
+    <button class="ob-btn" onclick="obNext(2)">Get Started →</button>
+  </div>
+
+  <!-- Step 2: Name -->
+  <div class="ob-step" id="ob-step-2">
+    <div class="ob-icon-big">👋</div>
+    <div class="ob-title">What should we call you?</div>
+    <div class="ob-sub">We'll personalise your experience.</div>
+    <input class="ob-input" id="ob-name" type="text" placeholder="Your name..." maxlength="30">
+    <button class="ob-btn" onclick="obSaveName()">Continue →</button>
+  </div>
+
+  <!-- Step 3: API Key -->
+  <div class="ob-step" id="ob-step-3">
+    <div class="ob-icon-big">🔑</div>
+    <div class="ob-title">Gemini API Key</div>
+    <div class="ob-sub">DayFlow uses Google Gemini for all AI features. Your key is stored only on this device.</div>
+    <input class="ob-input" id="ob-apikey" type="password" placeholder="Paste your API key...">
+    <div class="ob-hint">Get a free key at <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a></div>
+    <div class="ob-security">🔒 Never leaves your device</div>
+    <div class="ob-verify" id="ob-verify-msg">✅ Key verified!</div>
+    <button class="ob-btn" id="ob-verify-btn" onclick="obVerifyKey()">Verify & Continue →</button>
+    <button class="ob-btn ob-btn-ghost" onclick="obSkipKey()">Skip for now</button>
+  </div>
+
+  <!-- Step 4: Google Drive -->
+  <div class="ob-step" id="ob-step-4">
+    <div class="ob-icon-big">☁️</div>
+    <div class="ob-title">Connect Google Drive</div>
+    <div class="ob-sub">Auto-backup your data to a DayFlow folder in your Drive. Sync across all your devices.</div>
+    <div class="ob-security">🔒 We only access files DayFlow creates</div>
+    <button class="ob-btn" onclick="obConnectDrive()">Connect Google Drive</button>
+    <button class="ob-btn ob-btn-ghost" onclick="obNext(5)">Skip for now</button>
+  </div>
+
+  <!-- Step 5: Done -->
+  <div class="ob-step" id="ob-step-5">
+    <div class="ob-icon-big">🎉</div>
+    <div class="ob-title" id="ob-done-title">You're all set!</div>
+    <div class="ob-sub">Add DayFlow to your home screen for the best experience.<br><br>Safari → Share → Add to Home Screen</div>
+    <button class="ob-btn" onclick="startApp()">Start Using DayFlow →</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <!-- Header -->
+  <div class="app-header">
+    <div class="header-top">
+      <div>
+        <div class="header-greeting" id="hdr-greeting">Good morning!</div>
+        <div class="header-date" id="hdr-date"></div>
+      </div>
+      <button class="header-settings" onclick="openPanel('settings')">⚙️</button>
+    </div>
+    <div class="month-nav">
+      <button class="month-nav-btn" onclick="shiftMonth(-1)">‹</button>
+      <div class="month-nav-label" id="month-label"></div>
+      <button class="month-nav-btn" onclick="shiftMonth(1)">›</button>
+    </div>
+    <div class="date-strip-wrap">
+      <div class="date-strip" id="date-strip"></div>
+    </div>
+  </div>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div class="stat-card" onclick="openPanel('sleep')">
+      <div class="stat-icon">😴</div>
+      <div class="stat-val" id="stat-sleep">—</div>
+      <div class="stat-lbl">Sleep</div>
+    </div>
+    <div class="stat-card" onclick="openPanel('habits')">
+      <div class="stat-icon">🔥</div>
+      <div class="stat-val" id="stat-habits">0/0</div>
+      <div class="stat-lbl">Habits</div>
+    </div>
+    <div class="stat-card" onclick="openPanel('nutrition')">
+      <div class="stat-icon">🍎</div>
+      <div class="stat-val" id="stat-cal">0</div>
+      <div class="stat-lbl">Cal</div>
+    </div>
+    <div class="stat-card" onclick="openPanel('expenses')">
+      <div class="stat-icon">💸</div>
+      <div class="stat-val" id="stat-exp">₹0</div>
+      <div class="stat-lbl">Today</div>
+    </div>
+  </div>
+
+  <!-- Alert Bar -->
+  <div class="alert-bar" id="alert-bar" onclick="openPanel('todo')">
+    ⚠️ <span id="alert-text"></span>
+  </div>
+
+  <!-- Tool Grid -->
+  <div class="section-label">Tools</div>
+  <div class="tool-grid">
+    <div class="tool-btn" onclick="openPanel('chat')"><div class="tool-icon">💬</div><div class="tool-name">Chat</div></div>
+    <div class="tool-btn" onclick="openPanel('formatter')"><div class="tool-icon">📝</div><div class="tool-name">Text Format</div></div>
+    <div class="tool-btn" onclick="openPanel('nutrition')"><div class="tool-icon">🍎</div><div class="tool-name">Nutrition</div></div>
+    <div class="tool-btn" onclick="openPanel('habits')"><div class="tool-icon">📈</div><div class="tool-name">Habits</div></div>
+    <div class="tool-btn" onclick="openPanel('journal')"><div class="tool-icon">🎙️</div><div class="tool-name">Journal</div></div>
+    <div class="tool-btn" onclick="openPanel('todo')">
+      <div class="tool-icon">✅</div><div class="tool-name">To-Do</div>
+      <div class="tool-badge" id="todo-badge" style="display:none"></div>
+    </div>
+    <div class="tool-btn" onclick="openPanel('expenses')"><div class="tool-icon">💸</div><div class="tool-name">Expenses</div></div>
+    <div class="tool-btn" onclick="openPanel('log')"><div class="tool-icon">📖</div><div class="tool-name">Daily Log</div></div>
+    <div class="tool-btn" onclick="openPanel('sleep')"><div class="tool-icon">😴</div><div class="tool-name">Sleep</div></div>
+    <div class="tool-btn" onclick="openPanel('focus')"><div class="tool-icon">⏱️</div><div class="tool-name">Focus</div></div>
+  </div>
+
+  <!-- Data Section -->
+  <div class="section-label">Data</div>
+  <div class="data-section">
+    <div class="data-row" style="margin-bottom:8px">
+      <button class="data-btn" onclick="exportData()">📤 Export All Data</button>
+      <button class="data-btn" onclick="document.getElementById('import-file').click()">📥 Import Data</button>
+    </div>
+    <div class="data-row">
+      <button class="data-btn data-btn-danger" onclick="clearAllData()">🗑️ Clear All Data</button>
+    </div>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+  </div>
+</div>
+
+<!-- SIDE PANEL -->
+<div class="panel-overlay" id="panel-overlay" onclick="closePanel()"></div>
+<div class="side-panel" id="side-panel">
+  <div class="panel-header">
+    <button class="panel-close" onclick="closePanel()">✕</button>
+    <div class="panel-title" id="panel-title"></div>
+    <div id="panel-header-extra"></div>
+  </div>
+  <div class="panel-body" id="panel-body"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// STATE & STORAGE
+// ============================================================
+const DB_KEY = 'dayflow_v1';
+let state = {
+  name: '',
+  apiKey: '',
+  driveConnected: false,
+  selectedDate: todayStr(),
+  currentMonth: { y: new Date().getFullYear(), m: new Date().getMonth() },
+  sleep: {},      // { "2026-06-29": { wake: "06:45", sleep: "23:00" } }
+  habits: {       // { categories: [{name,icon,items:[{name,done:{date:bool}}]}] }
+    categories: [
+      { id: 'skill', name: 'Skill', icon: '🧠', items: [
+        { id: 's1', name: 'Read / Learn', done: {} },
+        { id: 's2', name: 'Practice skill', done: {} }
+      ]},
+      { id: 'body', name: 'Body', icon: '💪', items: [
+        { id: 'b1', name: 'Exercise', done: {} },
+        { id: 'b2', name: 'Drink water', done: {} }
+      ]},
+      { id: 'money', name: 'Money', icon: '💰', items: [
+        { id: 'm1', name: 'Track expenses', done: {} },
+        { id: 'm2', name: 'Save / Invest', done: {} }
+      ]}
+    ]
+  },
+  nutrition: {},  // { "date": [{id, name, cal, carbs, protein, fat, time, mealType}] }
+  expenses: {},   // { "date": [{id, amount, category, note, time}] }
+  todos: [],      // [{id, text, done, date, source, createdDate}]
+  journal: {},    // { "date": [{id, text, time, audioUrl}] }
+  chatInsights: [], // [{date, text}]
+  dailyLogs: {},  // { "date": { blog, vlog, score } }
+  chatHistory: [] // [{role, content}]
+};
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function loadState() {
+  try {
+    const s = localStorage.getItem(DB_KEY);
+    if (s) { const parsed = JSON.parse(s); state = { ...state, ...parsed }; }
+  } catch(e) {}
+}
+
+function saveState() {
+  try { localStorage.setItem(DB_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+// ============================================================
+// ONBOARDING
+// ============================================================
+let obStep = 1;
+function obNext(step) {
+  document.getElementById(`ob-step-${obStep}`).classList.remove('active');
+  obStep = step;
+  document.getElementById(`ob-step-${obStep}`).classList.add('active');
+  document.querySelectorAll('.ob-dot').forEach((d,i) => {
+    d.classList.toggle('active', i < step);
+  });
+}
+
+function obSaveName() {
+  const n = document.getElementById('ob-name').value.trim();
+  if (!n) { showToast('Please enter your name'); return; }
+  state.name = n; saveState(); obNext(3);
+}
+
+async function obVerifyKey() {
+  const k = document.getElementById('ob-apikey').value.trim();
+  if (!k) { showToast('Please enter your API key'); return; }
+  document.getElementById('ob-verify-btn').textContent = 'Verifying...';
+  try {
+    const ok = await testGeminiKey(k);
+    if (ok) {
+      state.apiKey = k; saveState();
+      document.getElementById('ob-verify-msg').style.display = 'flex';
+      setTimeout(() => obNext(4), 800);
+    } else { showToast('Invalid key. Please check and try again.'); }
+  } catch(e) { showToast('Could not verify. Check your key.'); }
+  document.getElementById('ob-verify-btn').textContent = 'Verify & Continue →';
+}
+
+function obSkipKey() { obNext(4); }
+
+async function testGeminiKey(key) {
+  try {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: 'Hi' }] }] })
+    });
+    return r.ok;
+  } catch(e) { return false; }
+}
+
+function obConnectDrive() {
+  showToast('Google Drive: Connect after deploying to GitHub Pages');
+  state.driveConnected = false; saveState(); obNext(5);
+}
+
+function startApp() {
+  document.getElementById('onboarding').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  state.setupDone = true; saveState(); initApp();
+}
+
+// ============================================================
+// INIT APP
+// ============================================================
+function initApp() {
+  updateGreeting();
+  renderDateStrip();
+  updateStats();
+  updateAlertBar();
+  updateTodoBadge();
+}
+
+function updateGreeting() {
+  const h = new Date().getHours();
+  const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  document.getElementById('hdr-greeting').textContent = `${g}, ${state.name || 'there'}! 👋`;
+  const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  document.getElementById('hdr-date').textContent = new Date().toLocaleDateString('en-IN', opts);
+}
+
+// ============================================================
+// DATE STRIP
+// ============================================================
+function renderDateStrip() {
+  const strip = document.getElementById('date-strip');
+  const { y, m } = state.currentMonth;
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const today = todayStr();
+  document.getElementById('month-label').textContent =
+    new Date(y, m, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+
+  strip.innerHTML = '';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dateObj = new Date(y, m, d);
+    const dayName = days[dateObj.getDay()];
+    const hasData = hasDataForDate(dateStr);
+    const isToday = dateStr === today;
+    const isSelected = dateStr === state.selectedDate;
+    const isFuture = dateStr > today;
+
+    const el = document.createElement('div');
+    el.className = `date-item${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}${hasData ? ' has-data' : ''}${isFuture ? ' future' : ''}`;
+    el.innerHTML = `<div class="d-name">${dayName}</div><div class="d-num">${d}</div><div class="d-dot"></div>`;
+    if (!isFuture) el.onclick = () => selectDate(dateStr);
+    el.style.opacity = isFuture ? '0.35' : '1';
+    strip.appendChild(el);
+  }
+
+  // Scroll to selected
+  setTimeout(() => {
+    const sel = strip.querySelector('.selected');
+    if (sel) sel.scrollIntoView({ inline: 'center', behavior: 'smooth' });
+  }, 100);
+}
+
+function shiftMonth(dir) {
+  let { y, m } = state.currentMonth;
+  m += dir;
+  if (m < 0) { m = 11; y--; }
+  if (m > 11) { m = 0; y++; }
+  state.currentMonth = { y, m };
+  renderDateStrip();
+}
+
+function selectDate(dateStr) {
+  state.selectedDate = dateStr;
+  saveState();
+  renderDateStrip();
+  updateStats();
+  // If a panel is open, refresh it
+  if (currentPanel) openPanel(currentPanel);
+}
+
+function hasDataForDate(dateStr) {
+  return !!(state.sleep[dateStr] ||
+    (state.nutrition[dateStr]?.length) ||
+    (state.expenses[dateStr]?.length) ||
+    (state.journal[dateStr]?.length) ||
+    state.habits.categories.some(c => c.items.some(it => it.done[dateStr])));
+}
+
+// ============================================================
+// STATS BAR
+// ============================================================
+function updateStats() {
+  const d = state.selectedDate;
+  // Sleep
+  const sl = state.sleep[d];
+  if (sl && sl.wake && sl.sleep) {
+    document.getElementById('stat-sleep').textContent = calcSleepDur(sl.wake, sl.sleep);
+  } else { document.getElementById('stat-sleep').textContent = '—'; }
+
+  // Habits
+  let done = 0, total = 0;
+  state.habits.categories.forEach(c => c.items.forEach(it => { total++; if (it.done[d]) done++; }));
+  document.getElementById('stat-habits').textContent = `${done}/${total}`;
+
+  // Calories
+  const meals = state.nutrition[d] || [];
+  const totalCal = meals.reduce((s, m) => s + (m.cal || 0), 0);
+  document.getElementById('stat-cal').textContent = totalCal || 0;
+
+  // Expenses
+  const exps = state.expenses[d] || [];
+  const totalExp = exps.reduce((s, e) => s + (e.amount || 0), 0);
+  document.getElementById('stat-exp').textContent = `₹${totalExp.toFixed(0)}`;
+}
+
+function updateAlertBar() {
+  const pending = state.todos.filter(t => !t.done);
+  const bar = document.getElementById('alert-bar');
+  if (pending.length > 0) {
+    bar.classList.add('show');
+    document.getElementById('alert-text').textContent = `${pending.length} task${pending.length>1?'s':''} pending`;
+  } else { bar.classList.remove('show'); }
+}
+
+function updateTodoBadge() {
+  const pending = state.todos.filter(t => !t.done).length;
+  const badge = document.getElementById('todo-badge');
+  if (pending > 0) { badge.style.display = 'block'; badge.textContent = pending; }
+  else { badge.style.display = 'none'; }
+}
+
+// ============================================================
+// PANEL SYSTEM
+// ============================================================
+let currentPanel = null;
+const panelTitles = {
+  chat: '💬 Chat', formatter: '📝 Text Formatter', nutrition: '🍎 Nutrition',
+  habits: '📈 Habits', journal: '🎙️ Journal', todo: '✅ To-Do',
+  expenses: '💸 Expenses', log: '📖 Daily Log', sleep: '😴 Sleep',
+  focus: '⏱️ Focus', settings: '⚙️ Settings'
+};
+
+function openPanel(name) {
+  currentPanel = name;
+  document.getElementById('panel-title').textContent = panelTitles[name] || name;
+  document.getElementById('panel-header-extra').innerHTML = '';
+  document.getElementById('panel-body').innerHTML = renderPanel(name);
+  document.getElementById('panel-overlay').classList.add('show');
+  document.getElementById('side-panel').classList.add('open');
+  initPanelJS(name);
+}
+
+function closePanel() {
+  currentPanel = null;
+  document.getElementById('panel-overlay').classList.remove('show');
+  document.getElementById('side-panel').classList.remove('open');
+}
+
+// ============================================================
+// PANEL RENDERERS
+// ============================================================
+function renderPanel(name) {
+  switch(name) {
+    case 'chat': return renderChat();
+    case 'formatter': return renderFormatter();
+    case 'nutrition': return renderNutrition();
+    case 'habits': return renderHabits();
+    case 'journal': return renderJournal();
+    case 'todo': return renderTodo();
+    case 'expenses': return renderExpenses();
+    case 'log': return renderLog();
+    case 'sleep': return renderSleep();
+    case 'focus': return renderFocus();
+    case 'settings': return renderSettings();
+    default: return '';
+  }
+}
+
+// ---- CHAT ----
+function renderChat() {
+  const msgs = state.chatHistory.map(m => `
+    <div class="chat-msg ${m.role === 'user' ? 'user' : 'ai'}">${m.content.replace(/\n/g,'<br>')}</div>
+  `).join('');
+  return `
+    <div class="chat-messages" id="chat-msgs">${msgs || '<div class="empty-state"><div class="e-icon">💬</div><div class="e-text">Ask me anything. Key insights will be saved to your journal.</div></div>'}</div>
+    <div class="chat-input-row">
+      <input class="input" id="chat-input" placeholder="Ask anything..." style="flex:1" onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="btn btn-primary" onclick="sendChat()">→</button>
+    </div>
+    <div class="chat-insight-note">💡 Key insights auto-saved to journal</div>
+  `;
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text || !state.apiKey) { if(!state.apiKey) showToast('Add API key in Settings'); return; }
+  input.value = '';
+  state.chatHistory.push({ role: 'user', content: text });
+  renderChatMsgs();
+  const loadEl = document.createElement('div');
+  loadEl.className = 'loading'; loadEl.innerHTML = '<div class="spinner"></div> Thinking...';
+  document.getElementById('chat-msgs').appendChild(loadEl);
+  scrollChatToBottom();
+
+  try {
+    const response = await callGemini(
+      state.chatHistory.map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.content }] })),
+      `You are a helpful AI assistant inside DayFlow, a personal productivity app. Be concise and friendly. Today is ${state.selectedDate}.`
+    );
+    loadEl.remove();
+    state.chatHistory.push({ role: 'assistant', content: response });
+
+    // Extract insight
+    const insightPrompt = `In 1-2 lines, extract the key insight or new thing learned from this conversation exchange. If nothing notable, return "NONE".\nUser: ${text}\nAI: ${response}`;
+    const insight = await callGemini([{role:'user',parts:[{text:insightPrompt}]}]);
+    if (insight && insight !== 'NONE' && !insight.startsWith('NONE')) {
+      if (!state.journal[state.selectedDate]) state.journal[state.selectedDate] = [];
+      state.journal[state.selectedDate].push({ id: Date.now()+'', text: `💬 ${insight}`, time: new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}), source: 'chat' });
+    }
+    saveState(); renderChatMsgs(); scrollChatToBottom();
+  } catch(e) { loadEl.remove(); showToast('AI error. Check API key.'); }
+}
+
+function renderChatMsgs() {
+  const msgs = state.chatHistory.map(m => `
+    <div class="chat-msg ${m.role === 'user' ? 'user' : 'ai'}">${m.content.replace(/\n/g,'<br>')}</div>
+  `).join('');
+  const el = document.getElementById('chat-msgs');
+  if (el) el.innerHTML = msgs || '<div class="empty-state"><div class="e-icon">💬</div><div class="e-text">Ask me anything.</div></div>';
+}
+
+function scrollChatToBottom() {
+  const el = document.getElementById('chat-msgs');
+  if (el) el.scrollTop = el.scrollHeight;
+}
+
+// ---- TEXT FORMATTER ----
+function renderFormatter() {
+  return `
+    <div class="field">
+      <label class="label">Your Text</label>
+      <textarea class="input textarea" id="fmt-input" placeholder="Paste or type your text here..." rows="5"></textarea>
+    </div>
+    <div class="field">
+      <label class="label">Action</label>
+      <div class="action-chips" id="fmt-actions">
+        <button class="action-chip active" data-action="rewrite" onclick="selectFmtAction(this,'rewrite')">✏️ Rewrite</button>
+        <button class="action-chip" data-action="summarize" onclick="selectFmtAction(this,'summarize')">📋 Summarize</button>
+        <button class="action-chip" data-action="email" onclick="selectFmtAction(this,'email')">✉️ Write Email</button>
+        <button class="action-chip" data-action="lines" onclick="selectFmtAction(this,'lines')">¶ Para→Lines</button>
+      </div>
+    </div>
+    <div class="field">
+      <label class="label">Tone</label>
+      <div class="chip-row" id="fmt-tones">
+        <button class="chip" onclick="toggleChip(this,'fmt-tones')">💼 Formal</button>
+        <button class="chip active" onclick="toggleChip(this,'fmt-tones')">📧 Email</button>
+        <button class="chip" onclick="toggleChip(this,'fmt-tones')">😊 Friendly</button>
+        <button class="chip" onclick="toggleChip(this,'fmt-tones')">👨‍👩‍👧 Family</button>
+        <button class="chip" onclick="toggleChip(this,'fmt-tones')">⚡ Casual</button>
+        <button class="chip" onclick="toggleChip(this,'fmt-tones')">🎯 Professional</button>
+        <button class="chip" onclick="toggleChip(this,'fmt-tones')">💡 Creative</button>
+        <button class="chip" onclick="toggleChip(this,'fmt-tones')">🤝 Persuasive</button>
+      </div>
+    </div>
+    <div class="field">
+      <label class="label">Also Apply</label>
+      <div class="modifier-row">
+        <button class="modifier-chip active" onclick="this.classList.toggle('active')">✅ Fix Grammar</button>
+        <button class="modifier-chip active" onclick="this.classList.toggle('active')">✅ Improve Clarity</button>
+        <button class="modifier-chip" onclick="this.classList.toggle('active')">✂️ Shorten</button>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="runFormatter()">✨ Format Now</button>
+    <div id="fmt-result"></div>
+  `;
+}
+
+let fmtAction = 'rewrite';
+function selectFmtAction(btn, action) {
+  document.querySelectorAll('.action-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active'); fmtAction = action;
+}
+
+function toggleChip(btn, groupId) {
+  const group = document.getElementById(groupId);
+  group.querySelectorAll('.chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+async function runFormatter() {
+  const text = document.getElementById('fmt-input').value.trim();
+  if (!text) { showToast('Please enter some text'); return; }
+  if (!state.apiKey) { showToast('Add API key in Settings'); return; }
+
+  const tone = document.querySelector('#fmt-tones .chip.active')?.textContent?.replace(/[^\w\s]/g,'').trim() || 'Friendly';
+  const modifiers = [...document.querySelectorAll('.modifier-chip.active')].map(b => b.textContent.replace(/[^\w\s]/g,'').trim()).join(', ');
+
+  const prompts = {
+    rewrite: `Rewrite this text in a ${tone} tone. ${modifiers ? 'Also: ' + modifiers + '.' : ''} Return only the rewritten text.\n\n${text}`,
+    summarize: `Summarize this text in ${tone} tone, keeping key points. Return only the summary.\n\n${text}`,
+    email: `Write a professional email based on this text/context. Tone: ${tone}. Include Subject line. Return only the email.\n\n${text}`,
+    lines: `Split this paragraph into separate lines with a blank line between each. Fix grammar if needed. Return only the formatted text.\n\n${text}`
+  };
+
+  const resultEl = document.getElementById('fmt-result');
+  resultEl.innerHTML = '<div class="loading"><div class="spinner"></div> Formatting...</div>';
+
+  try {
+    const result = await callGemini([{role:'user',parts:[{text:prompts[fmtAction]}]}]);
+    resultEl.innerHTML = `
+      <div class="result-box">
+        <button class="copy-btn" onclick="copyText('fmt-result-text')">Copy</button>
+        <div id="fmt-result-text">${result.replace(/\n/g,'<br>')}</div>
+      </div>`;
+  } catch(e) { resultEl.innerHTML = '<div class="loading">Error. Check API key.</div>'; }
+}
+
+// ---- NUTRITION ----
+function renderNutrition() {
+  const d = state.selectedDate;
+  const meals = state.nutrition[d] || [];
+  const totCal = meals.reduce((s,m) => s+(m.cal||0),0);
+  const totCarbs = meals.reduce((s,m) => s+(m.carbs||0),0);
+  const totProt = meals.reduce((s,m) => s+(m.protein||0),0);
+  const totFat = meals.reduce((s,m) => s+(m.fat||0),0);
+
+  const mealList = meals.length ? meals.map(m => `
+    <div class="meal-item">
+      <div class="meal-header">
+        <span class="meal-time">${m.time || ''} · ${m.mealType || 'Meal'}</span>
+        <span class="meal-name">${m.name}</span>
+        <span class="meal-cal">${m.cal} cal</span>
+        <span class="meal-del" onclick="deleteMeal('${m.id}')">✕</span>
+      </div>
+      <div class="meal-macros">Carbs ${m.carbs}g · Protein ${m.protein}g · Fat ${m.fat}g</div>
+    </div>`).join('') : '<div class="empty-state"><div class="e-icon">🍽️</div><div class="e-text">No meals logged today. Add a photo!</div></div>';
+
+  return `
+    <div class="nutrition-summary">
+      <div class="nutr-card nutr-cal"><div class="nutr-val">${totCal}</div><div class="nutr-lbl">Total Calories</div></div>
+      <div class="nutr-card"><div class="nutr-val" style="color:var(--orange)">${totCarbs}g</div><div class="nutr-lbl">Carbs</div></div>
+      <div class="nutr-card"><div class="nutr-val" style="color:var(--green)">${totProt}g</div><div class="nutr-lbl">Protein</div></div>
+      <div class="nutr-card"><div class="nutr-val" style="color:var(--purple)">${totFat}g</div><div class="nutr-lbl">Fat</div></div>
+    </div>
+    <label class="photo-upload" id="nutr-upload-label">
+      <input type="file" accept="image/*" capture="environment" onchange="analyzeFood(event)">
+      <div style="font-size:28px;margin-bottom:6px">📸</div>
+      <div style="font-size:14px;color:var(--text2);font-weight:500">Take photo or upload meal</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px">AI will analyze calories & macros</div>
+    </label>
+    <div id="nutr-loading"></div>
+    <div class="divider"></div>
+    <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px">Today's Meals</div>
+    <div id="nutr-meal-list">${mealList}</div>
+  `;
+}
+
+async function analyzeFood(event) {
+  const file = event.target.files[0];
+  if (!file || !state.apiKey) { if(!state.apiKey) showToast('Add API key in Settings'); return; }
+  const loadEl = document.getElementById('nutr-loading');
+  loadEl.innerHTML = '<div class="loading"><div class="spinner"></div> Analyzing your meal...</div>';
+
+  try {
+    const base64 = await fileToBase64(file);
+    const prompt = `Analyze this food image and estimate nutritional content. Return ONLY valid JSON in this exact format, no other text:
+{"name":"food name","cal":number,"carbs":number,"protein":number,"fat":number,"mealType":"Breakfast/Lunch/Snack/Dinner"}`;
+    const result = await callGeminiVision(base64, file.type, prompt);
+    const cleaned = result.replace(/```json\n?|\n?```/g,'').trim();
+    const data = JSON.parse(cleaned);
+    const now = new Date();
+    const meal = { id: Date.now()+'', ...data,
+      time: now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) };
+    if (!state.nutrition[state.selectedDate]) state.nutrition[state.selectedDate] = [];
+    state.nutrition[state.selectedDate].push(meal);
+    saveState(); updateStats(); loadEl.innerHTML = '';
+    openPanel('nutrition');
+    showToast(`✅ ${data.name} logged — ${data.cal} cal`);
+  } catch(e) {
+    loadEl.innerHTML = '';
+    showToast('Could not analyze image. Try again.');
+    console.error(e);
+  }
+}
+
+function deleteMeal(id) {
+  const d = state.selectedDate;
+  state.nutrition[d] = (state.nutrition[d]||[]).filter(m => m.id !== id);
+  saveState(); updateStats(); openPanel('nutrition');
+}
+
+// ---- HABITS ----
+function renderHabits() {
+  const d = state.selectedDate;
+  const cats = state.habits.categories.map(cat => {
+    const streak = calcStreak(cat);
+    const items = cat.items.map(item => `
+      <div class="habit-item">
+        <span class="habit-name">${item.name}</span>
+        <button class="habit-toggle ${item.done[d]?'on':''}" onclick="toggleHabit('${cat.id}','${item.id}')"></button>
+      </div>`).join('');
+    return `
+      <div class="habit-category">
+        <div class="habit-cat-header">
+          <span class="habit-cat-icon">${cat.icon}</span>
+          <span class="habit-cat-name">${cat.name}</span>
+          ${streak>0?`<span class="habit-cat-streak">🔥 ${streak} day streak</span>`:''}
+        </div>
+        ${items}
+        <div class="add-habit-row">
+          <input class="input" id="new-habit-${cat.id}" placeholder="Add habit..." style="font-size:13px">
+          <button class="btn btn-secondary btn-sm" onclick="addHabit('${cat.id}')">+ Add</button>
+        </div>
+      </div>`;
+  }).join('');
+  return `<div>${cats}</div>`;
+}
+
+function toggleHabit(catId, itemId) {
+  const d = state.selectedDate;
+  const cat = state.habits.categories.find(c => c.id === catId);
+  const item = cat.items.find(i => i.id === itemId);
+  item.done[d] = !item.done[d];
+  saveState(); updateStats(); openPanel('habits');
+}
+
+function addHabit(catId) {
+  const input = document.getElementById(`new-habit-${catId}`);
+  const name = input.value.trim();
+  if (!name) return;
+  const cat = state.habits.categories.find(c => c.id === catId);
+  cat.items.push({ id: Date.now()+'', name, done: {} });
+  saveState(); openPanel('habits');
+}
+
+function calcStreak(cat) {
+  let streak = 0, d = new Date();
+  while (true) {
+    const ds = d.toISOString().split('T')[0];
+    const anyDone = cat.items.some(it => it.done[ds]);
+    if (!anyDone) break;
+    streak++; d.setDate(d.getDate()-1);
+  }
+  return streak;
+}
+
+// ---- SLEEP ----
+function renderSleep() {
+  const d = state.selectedDate;
+  const sl = state.sleep[d] || {};
+  const dur = sl.wake && sl.sleep ? calcSleepDur(sl.wake, sl.sleep) : '—';
+  const logs = Object.entries(state.sleep).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,7);
+  const history = logs.map(([date, s]) => `
+    <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <span style="color:var(--text2)">${formatDateShort(date)}</span>
+      <span>🌅 ${s.wake||'—'} · 🌙 ${s.sleep||'—'}</span>
+      <span style="color:var(--accent);font-weight:600">${s.wake&&s.sleep?calcSleepDur(s.wake,s.sleep):'—'}</span>
+    </div>`).join('');
+
+  return `
+    <div class="sleep-display">
+      <div class="sleep-duration">${dur}</div>
+      <div class="sleep-label">hours of sleep</div>
+    </div>
+    <div class="time-inputs">
+      <div class="time-field">
+        <label>🌅 Wake Up</label>
+        <input type="time" id="wake-time" value="${sl.wake||''}" onchange="saveSleep()">
+      </div>
+      <div class="time-field">
+        <label>🌙 Bed Time</label>
+        <input type="time" id="sleep-time" value="${sl.sleep||''}" onchange="saveSleep()">
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px">Recent Sleep Log</div>
+    ${history || '<div class="empty-state"><div class="e-text">No sleep data yet</div></div>'}
+  `;
+}
+
+function saveSleep() {
+  const wake = document.getElementById('wake-time')?.value;
+  const sleep = document.getElementById('sleep-time')?.value;
+  state.sleep[state.selectedDate] = { wake, sleep };
+  saveState(); updateStats();
+  const dur = wake && sleep ? calcSleepDur(wake, sleep) : '';
+  if (dur) showToast(`😴 Sleep duration: ${dur}`);
+}
+
+function calcSleepDur(wake, sleep) {
+  const [wh, wm] = wake.split(':').map(Number);
+  const [sh, sm] = sleep.split(':').map(Number);
+  let wakeMin = wh * 60 + wm;
+  let sleepMin = sh * 60 + sm;
+  if (sleepMin > wakeMin) wakeMin += 24 * 60;
+  const diff = wakeMin - sleepMin;
+  const h = Math.floor(diff / 60), m = diff % 60;
+  return `${h}h${m > 0 ? ` ${m}m` : ''}`;
+}
+
+// ---- JOURNAL ----
+function renderJournal() {
+  const d = state.selectedDate;
+  const entries = state.journal[d] || [];
+  const entryList = entries.map(e => {
+    const todos = e.todos || [];
+    return `
+    <div class="journal-entry">
+      <div class="journal-entry-time">${e.time}${e.source==='chat'?' · 💬 from Chat':''}</div>
+      <div class="journal-entry-text">${e.text.replace(/\n/g,'<br>')}</div>
+      ${todos.length ? `<div class="journal-entry-todos">${todos.map(t=>`<span class="journal-todo-tag" onclick="addTodoFromJournal('${t.replace(/'/g,"\\'")}')">+ ${t}</span>`).join('')}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  return `
+    <div style="text-align:center;margin-bottom:8px">
+      <button class="record-btn" id="record-btn" onclick="toggleRecording()">🎙️</button>
+      <div class="record-status" id="record-status">Tap to record</div>
+    </div>
+    <div class="field">
+      <label class="label">Or type your journal entry</label>
+      <textarea class="input textarea" id="journal-text" placeholder="What's on your mind today..." rows="4"></textarea>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="saveJournalEntry()" style="margin-bottom:16px">Save & Analyse →</button>
+    <div id="journal-loading"></div>
+    <div class="divider"></div>
+    <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px">Today's Entries</div>
+    <div class="journal-entries">${entryList || '<div class="empty-state"><div class="e-icon">📓</div><div class="e-text">No entries yet. Record or type your thoughts.</div></div>'}</div>
+  `;
+}
+
+let mediaRecorder = null, audioChunks = [], isRecording = false;
+
+function toggleRecording() {
+  if (isRecording) stopRecording();
+  else startRecording();
+}
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = processAudio;
+    mediaRecorder.start();
+    isRecording = true;
+    document.getElementById('record-btn').classList.add('recording');
+    document.getElementById('record-btn').textContent = '⏹️';
+    document.getElementById('record-status').textContent = 'Recording... Tap to stop';
+  } catch(e) { showToast('Microphone access denied'); }
+}
+
+function stopRecording() {
+  if (mediaRecorder) { mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t => t.stop()); }
+  isRecording = false;
+  document.getElementById('record-btn').classList.remove('recording');
+  document.getElementById('record-btn').textContent = '🎙️';
+  document.getElementById('record-status').textContent = 'Processing...';
+}
+
+async function processAudio() {
+  const loadEl = document.getElementById('journal-loading');
+  loadEl.innerHTML = '<div class="loading"><div class="spinner"></div> Transcribing & analysing...</div>';
+  // Use Web Speech API for transcription fallback
+  showToast('Audio recorded! Type or use Speech-to-Text in supported browsers.');
+  document.getElementById('record-status').textContent = 'Tap to record';
+  loadEl.innerHTML = '';
+}
+
+async function saveJournalEntry() {
+  const text = document.getElementById('journal-text').value.trim();
+  if (!text) { showToast('Please write something first'); return; }
+  if (!state.apiKey) { showToast('Add API key in Settings'); return; }
+
+  const loadEl = document.getElementById('journal-loading');
+  loadEl.innerHTML = '<div class="loading"><div class="spinner"></div> Analysing entry...</div>';
+
+  try {
+    const prompt = `Analyse this journal entry and return ONLY valid JSON (no markdown):
+{
+  "summary": "Clean formatted summary in 3-5 sentences",
+  "mood": "one word mood",
+  "todos": ["extracted action items as array, max 5"],
+  "insights": "key insight in one line"
+}
+
+Journal entry: ${text}`;
+    const result = await callGemini([{role:'user',parts:[{text:prompt}]}]);
+    const cleaned = result.replace(/```json\n?|\n?```/g,'').trim();
+    const analysis = JSON.parse(cleaned);
+    const now = new Date();
+    const entry = {
+      id: Date.now()+'',
+      text: analysis.summary,
+      mood: analysis.mood,
+      todos: analysis.todos || [],
+      time: now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}),
+      source: 'journal'
+    };
+    if (!state.journal[state.selectedDate]) state.journal[state.selectedDate] = [];
+    state.journal[state.selectedDate].push(entry);
+    // Auto-add todos
+    (analysis.todos||[]).forEach(t => {
+      state.todos.push({ id: Date.now()+Math.random()+'', text: t, done: false,
+        createdDate: state.selectedDate, source: 'journal' });
+    });
+    saveState(); loadEl.innerHTML = ''; updateTodoBadge(); updateAlertBar();
+    document.getElementById('journal-text').value = '';
+    openPanel('journal');
+    showToast(`✅ Entry saved · Mood: ${analysis.mood}`);
+  } catch(e) {
+    // Fallback: save as-is
+    const now = new Date();
+    if (!state.journal[state.selectedDate]) state.journal[state.selectedDate] = [];
+    state.journal[state.selectedDate].push({ id: Date.now()+'', text, time: now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}), source: 'journal', todos: [] });
+    saveState(); loadEl.innerHTML = ''; openPanel('journal');
+  }
+}
+
+function addTodoFromJournal(text) {
+  state.todos.push({ id: Date.now()+'', text, done: false, createdDate: state.selectedDate, source: 'journal' });
+  saveState(); updateTodoBadge(); updateAlertBar(); showToast(`✅ Added to To-Do`);
+}
+
+// ---- TODO ----
+let todoTab = 'today';
+function renderTodo() {
+  const d = state.selectedDate;
+  const todayTodos = state.todos.filter(t => t.createdDate === d);
+  const pendingTodos = state.todos.filter(t => !t.done && t.createdDate !== d);
+  const pendingCount = state.todos.filter(t => !t.done).length;
+
+  const renderTodoList = (todos, showDate=false) => todos.length ? todos.map(t => `
+    <div class="todo-item">
+      <div class="todo-check ${t.done?'done':''}" onclick="toggleTodo('${t.id}')"></div>
+      <div style="flex:1">
+        <div class="todo-text ${t.done?'done':''}">${t.text}</div>
+        ${showDate?`<div class="todo-meta">${formatDateShort(t.createdDate)}</div>`:''}
+        ${t.source==='journal'?'<span class="todo-source">🎙️ from journal</span>':''}
+      </div>
+      <span class="todo-del" onclick="deleteTodo('${t.id}')">✕</span>
+    </div>`).join('') : '<div class="empty-state"><div class="e-icon">✅</div><div class="e-text">All clear!</div></div>';
+
+  return `
+    <div class="tab-bar">
+      <button class="tab ${todoTab==='today'?'active':''}" onclick="switchTodoTab('today')">📅 Today</button>
+      <button class="tab ${todoTab==='pending'?'active':''}" onclick="switchTodoTab('pending')">⏳ Pending ${pendingCount>0?`(${pendingCount})`:''}</button>
+    </div>
+    <div id="todo-tab-content">
+      ${todoTab === 'today' ? `
+        <div class="chat-input-row" style="margin-bottom:16px">
+          <input class="input" id="todo-input" placeholder="Add a task..." style="flex:1" onkeydown="if(event.key==='Enter')addTodo()">
+          <button class="btn btn-primary" onclick="addTodo()">+</button>
+        </div>
+        ${renderTodoList(todayTodos)}
+        ${todayTodos.length ? `<div style="text-align:center;font-size:12px;color:var(--text3);margin-top:12px">${todayTodos.filter(t=>t.done).length} done · ${todayTodos.filter(t=>!t.done).length} remaining</div>` : ''}
+      ` : `
+        ${pendingTodos.length ? `<button class="btn btn-danger btn-sm" onclick="clearPendingTodos()" style="margin-bottom:12px">Clear All Pending</button>` : ''}
+        ${renderTodoList(pendingTodos, true)}
+      `}
+    </div>
+  `;
+}
+
+function switchTodoTab(tab) {
+  todoTab = tab; openPanel('todo');
+}
+
+function addTodo() {
+  const input = document.getElementById('todo-input');
+  const text = input.value.trim();
+  if (!text) return;
+  state.todos.push({ id: Date.now()+'', text, done: false, createdDate: state.selectedDate, source: 'manual' });
+  input.value = ''; saveState(); updateTodoBadge(); updateAlertBar(); openPanel('todo');
+}
+
+function toggleTodo(id) {
+  const t = state.todos.find(t => t.id === id);
+  if (t) { t.done = !t.done; saveState(); updateTodoBadge(); updateAlertBar(); openPanel('todo'); }
+}
+
+function deleteTodo(id) {
+  state.todos = state.todos.filter(t => t.id !== id);
+  saveState(); updateTodoBadge(); updateAlertBar(); openPanel('todo');
+}
+
+function clearPendingTodos() {
+  state.todos = state.todos.filter(t => t.done || t.createdDate === state.selectedDate);
+  saveState(); updateTodoBadge(); updateAlertBar(); openPanel('todo');
+}
+
+// ---- EXPENSES ----
+const expCats = [
+  {icon:'🍔',name:'Food'},{icon:'🚗',name:'Transport'},{icon:'🛍️',name:'Shopping'},
+  {icon:'💊',name:'Health'},{icon:'🎮',name:'Entertainment'},{icon:'📦',name:'Other'}
+];
+let selExpCat = 'Food';
+
+function renderExpenses() {
+  const d = state.selectedDate;
+  const exps = state.expenses[d] || [];
+  const todayTotal = exps.reduce((s,e) => s+e.amount, 0);
+  const monthTotal = Object.entries(state.expenses)
+    .filter(([date]) => date.startsWith(`${state.currentMonth.y}-${String(state.currentMonth.m+1).padStart(2,'0')}`))
+    .reduce((s,[,arr]) => s + arr.reduce((a,e) => a+e.amount,0), 0);
+
+  const expList = exps.length ? [...exps].reverse().map(e => {
+    const cat = expCats.find(c => c.name === e.category) || expCats[5];
+    return `
+    <div class="expense-item">
+      <div class="exp-cat-icon">${cat.icon}</div>
+      <div class="exp-name"><div class="name">${e.note||e.category}</div><div class="meta">${e.time} · ${e.category}</div></div>
+      <div class="exp-amount">₹${e.amount.toFixed(0)}</div>
+      <span class="exp-del" onclick="deleteExpense('${e.id}')">✕</span>
+    </div>`;
+  }).join('') : '<div class="empty-state"><div class="e-icon">💸</div><div class="e-text">No expenses logged today.</div></div>';
+
+  return `
+    <div class="expense-summary">
+      <div class="exp-card"><div class="exp-val">₹${todayTotal.toFixed(0)}</div><div class="exp-lbl">Today</div></div>
+      <div class="exp-card"><div class="exp-val">₹${monthTotal.toFixed(0)}</div><div class="exp-lbl">This Month</div></div>
+    </div>
+    <div class="field">
+      <label class="label">Amount (₹)</label>
+      <input class="input" id="exp-amount" type="number" placeholder="0" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label class="label">Category</label>
+      <div class="cat-chips" id="exp-cats">
+        ${expCats.map(c=>`<button class="cat-chip ${selExpCat===c.name?'active':''}" onclick="selectExpCat('${c.name}',this)">${c.icon} ${c.name}</button>`).join('')}
+      </div>
+    </div>
+    <div class="field">
+      <label class="label">Note (optional)</label>
+      <input class="input" id="exp-note" placeholder="e.g. Lunch at café...">
+    </div>
+    <button class="btn btn-primary btn-full" onclick="addExpense()" style="margin-bottom:16px">Add Expense</button>
+    <div class="divider"></div>
+    <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px">Today's Expenses</div>
+    ${expList}
+  `;
+}
+
+function selectExpCat(name, btn) {
+  selExpCat = name;
+  document.querySelectorAll('.cat-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function addExpense() {
+  const amount = parseFloat(document.getElementById('exp-amount').value);
+  if (!amount || amount <= 0) { showToast('Enter a valid amount'); return; }
+  const note = document.getElementById('exp-note').value.trim();
+  const now = new Date();
+  const exp = { id: Date.now()+'', amount, category: selExpCat, note,
+    time: now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) };
+  if (!state.expenses[state.selectedDate]) state.expenses[state.selectedDate] = [];
+  state.expenses[state.selectedDate].push(exp);
+  saveState(); updateStats(); openPanel('expenses');
+  showToast(`✅ ₹${amount} added`);
+}
+
+function deleteExpense(id) {
+  const d = state.selectedDate;
+  state.expenses[d] = (state.expenses[d]||[]).filter(e => e.id !== id);
+  saveState(); updateStats(); openPanel('expenses');
+}
+
+// ---- FOCUS ----
+let focusMode = 'stopwatch', timerRunning = false, timerInterval = null, timerSeconds = 0, pomCount = 0;
+const focusModes = { stopwatch: 0, timer: 25*60, pomodoro: 25*60 };
+
+function renderFocus() {
+  const disp = formatTime(timerSeconds);
+  return `
+    <div class="focus-mode-bar">
+      <button class="focus-mode-btn ${focusMode==='stopwatch'?'active':''}" onclick="setFocusMode('stopwatch')">⏱ Stopwatch</button>
+      <button class="focus-mode-btn ${focusMode==='timer'?'active':''}" onclick="setFocusMode('timer')">⏲ Timer</button>
+      <button class="focus-mode-btn ${focusMode==='pomodoro'?'active':''}" onclick="setFocusMode('pomodoro')">🍅 Pomodoro</button>
+    </div>
+    <div class="focus-display">
+      <div class="focus-time" id="focus-display">${disp}</div>
+      ${focusMode==='timer'?`<div style="margin-top:10px"><input class="input" id="timer-min" type="number" placeholder="Minutes" style="width:100px;text-align:center;display:inline-block" value="25"> min</div>`:''}
+      ${focusMode==='pomodoro'?`<div class="pomodoro-count">🍅 ${pomCount} sessions done today</div>`:''}
+    </div>
+    <div class="focus-controls">
+      <button class="btn btn-${timerRunning?'danger':'success'}" onclick="toggleFocus()">${timerRunning?'⏹ Stop':'▶ Start'}</button>
+      <button class="btn btn-secondary" onclick="resetFocus()">↺ Reset</button>
+    </div>
+  `;
+}
+
+function setFocusMode(mode) {
+  focusMode = mode; timerRunning = false; clearInterval(timerInterval);
+  timerSeconds = focusModes[mode]; openPanel('focus');
+}
+
+function toggleFocus() {
+  if (timerRunning) {
+    clearInterval(timerInterval); timerRunning = false; openPanel('focus');
+  } else {
+    if (focusMode === 'timer') {
+      const min = parseInt(document.getElementById('timer-min')?.value||25);
+      timerSeconds = min * 60;
+    }
+    timerRunning = true;
+    timerInterval = setInterval(() => {
+      if (focusMode === 'stopwatch') { timerSeconds++; }
+      else { timerSeconds--; if (timerSeconds <= 0) { clearInterval(timerInterval); timerRunning = false; if(focusMode==='pomodoro'){pomCount++;} showToast('⏰ Time is up!'); timerSeconds = 0; } }
+      const el = document.getElementById('focus-display');
+      if (el) el.textContent = formatTime(timerSeconds);
+    }, 1000);
+    openPanel('focus');
+  }
+}
+
+function resetFocus() {
+  clearInterval(timerInterval); timerRunning = false;
+  timerSeconds = focusModes[focusMode]; openPanel('focus');
+}
+
+function formatTime(s) {
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+  if (h > 0) return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+// ---- DAILY LOG ----
+function renderLog() {
+  const logs = Object.entries(state.dailyLogs).sort((a,b) => b[0].localeCompare(a[0]));
+  if (logs.length === 0) {
+    return `<div class="empty-state"><div class="e-icon">📖</div><div class="e-text">No daily logs yet. Generate your first one!</div></div>
+    <button class="btn btn-primary btn-full" onclick="generateDailyLog()" style="margin-top:16px">✨ Generate Today's Blog</button>`;
+  }
+
+  // Check if viewing a specific log
+  if (window._viewingLog) {
+    const [date, log] = window._viewingLog;
+    return renderBlogView(date, log);
+  }
+
+  const logList = logs.map(([date, log]) => `
+    <div class="log-item" onclick="viewLog('${date}')">
+      <div class="log-item-header">
+        <span class="log-date">📖 ${formatDateShort(date)}</span>
+        <span class="log-score">⭐ ${log.score}/100</span>
+      </div>
+      <div class="log-stats">
+        <span>✅ ${log.todosCount||0} todos</span>
+        <span>🍎 ${log.cal||0} cal</span>
+        <span>💸 ₹${log.exp||0}</span>
+        <span>😴 ${log.sleep||'—'}</span>
+      </div>
+    </div>`).join('');
+
+  return `
+    <button class="btn btn-primary btn-full" onclick="generateDailyLog()" style="margin-bottom:16px">✨ Generate Today's Blog</button>
+    <div id="log-gen-status"></div>
+    <div class="log-list">${logList}</div>
+  `;
+}
+
+function viewLog(date) {
+  window._viewingLog = [date, state.dailyLogs[date]];
+  openPanel('log');
+}
+
+function renderBlogView(date, log) {
+  return `
+    <button class="btn btn-secondary btn-sm" onclick="window._viewingLog=null;openPanel('log')" style="margin-bottom:16px">← Back to Logs</button>
+    <div class="blog-view">
+      <h2 style="font-size:18px;font-weight:700;margin-bottom:4px">${formatDateShort(date)}</h2>
+      <div class="blog-score-badge">⭐ ${log.score}/100</div>
+      <div style="white-space:pre-wrap;font-size:14px;line-height:1.7;margin-bottom:16px">${log.blog}</div>
+    </div>
+    <div class="divider"></div>
+    <div style="font-size:14px;font-weight:600;margin-bottom:12px">🎬 1-Min Vlog Script</div>
+    ${log.vlog ? `
+      <div class="vlog-script">${log.vlog}</div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-secondary btn-sm" onclick="copyVlogScript()">📋 Copy Script</button>
+        <button class="btn btn-primary btn-sm" onclick="regenVlog('${date}')">🔄 Regenerate</button>
+      </div>
+    ` : `<button class="btn btn-primary btn-sm" onclick="generateVlogScript('${date}')">🎬 Generate Vlog Script</button>`}
+    <div id="vlog-gen"></div>
+  `;
+}
+
+async function generateDailyLog() {
+  if (!state.apiKey) { showToast('Add API key in Settings'); return; }
+  const d = state.selectedDate;
+  const statusEl = document.getElementById('log-gen-status');
+  if (statusEl) statusEl.innerHTML = '<div class="loading"><div class="spinner"></div> Generating your daily blog...</div>';
+
+  const sl = state.sleep[d] || {};
+  const meals = state.nutrition[d] || [];
+  const exps = state.expenses[d] || [];
+  const todos = state.todos.filter(t => t.createdDate === d);
+  const journals = state.journal[d] || [];
+  const insights = state.chatInsights.filter(i => i.date === d);
+
+  const data = {
+    date: d, sleep: sl, meals, expenses: exps, todos,
+    journals: journals.map(j=>j.text), insights: insights.map(i=>i.text)
+  };
+
+  const prompt = `You are generating a personal daily blog entry for a productivity app called DayFlow.
+Based on this data, write a warm, personal, first-person blog entry. Use the EXACT format below.
+Also return a day score out of 100 based on productivity, health, and habits.
+
+Data: ${JSON.stringify(data)}
+
+Return ONLY valid JSON (no markdown):
+{
+  "blog": "Full blog with these sections separated by newlines:\\n🌅 MORNING\\n[sleep/wake info]\\n\\n🧠 WHAT I LEARNED TODAY\\n[insights from chat/journal]\\n\\n✅ WHAT I DID\\n[todos, habits]\\n\\n🍎 HOW I FUELLED\\n[nutrition summary]\\n\\n💸 MONEY\\n[expenses]\\n\\n🌙 REFLECTION\\n[journal summary, mood]",
+  "score": 75,
+  "summary": "one line summary"
+}`;
+
+  try {
+    const result = await callGemini([{role:'user',parts:[{text:prompt}]}]);
+    const cleaned = result.replace(/```json\n?|\n?```/g,'').trim();
+    const parsed = JSON.parse(cleaned);
+    const todosCount = todos.filter(t=>t.done).length;
+    const cal = meals.reduce((s,m)=>s+(m.cal||0),0);
+    const exp = exps.reduce((s,e)=>s+e.amount,0);
+    const sleep = sl.wake&&sl.sleep ? calcSleepDur(sl.wake,sl.sleep) : '—';
+
+    state.dailyLogs[d] = { blog: parsed.blog, score: parsed.score, todosCount, cal, exp: exp.toFixed(0), sleep };
+    saveState();
+    await generateVlogScriptInternal(d);
+    window._viewingLog = [d, state.dailyLogs[d]];
+    openPanel('log');
+  } catch(e) {
+    if (statusEl) statusEl.innerHTML = '';
+    showToast('Error generating blog. Try again.');
+    console.error(e);
+  }
+}
+
+async function generateVlogScriptInternal(date) {
+  const log = state.dailyLogs[date];
+  if (!log || !state.apiKey) return;
+  const prompt = `Generate a 1-minute vlog script in natural Hinglish for a daily vlogger.
+IMPORTANT rules:
+- Hindi words MUST be written in Devanagari script (not romanized)
+- English words in English
+- Natural code-switching like Indians actually speak
+- Start with a 2-5 second HOOK to grab attention
+- Keep it energetic and personal
+- Based on this blog: ${log.blog}
+
+Return ONLY the script text with these time markers:
+⏱️ 0:00-0:05 | HOOK
+⏱️ 0:05-0:15 | INTRO
+⏱️ 0:15-0:30 | DAY HIGHLIGHTS  
+⏱️ 0:30-0:45 | FOOD & MONEY
+⏱️ 0:45-1:00 | OUTRO + CTA`;
+
+  try {
+    const vlog = await callGemini([{role:'user',parts:[{text:prompt}]}]);
+    state.dailyLogs[date].vlog = vlog;
+    saveState();
+  } catch(e) {}
+}
+
+async function generateVlogScript(date) {
+  document.getElementById('vlog-gen').innerHTML = '<div class="loading"><div class="spinner"></div> Writing your script...</div>';
+  await generateVlogScriptInternal(date);
+  window._viewingLog = [date, state.dailyLogs[date]];
+  openPanel('log');
+}
+
+async function regenVlog(date) {
+  state.dailyLogs[date].vlog = null;
+  await generateVlogScript(date);
+}
+
+function copyVlogScript() {
+  const script = state.dailyLogs[window._viewingLog?.[0]]?.vlog || '';
+  navigator.clipboard.writeText(script).then(() => showToast('Script copied!'));
+}
+
+// ---- SETTINGS ----
+function renderSettings() {
+  return `
+    <div class="settings-section">
+      <h3>Profile</h3>
+      <div class="settings-row">
+        <div class="settings-row-icon">👤</div>
+        <div class="settings-row-content">
+          <div class="settings-row-label">Your Name</div>
+          <input class="input" id="s-name" value="${state.name||''}" placeholder="Your name" style="margin-top:6px;font-size:14px" onchange="state.name=this.value;saveState();updateGreeting()">
+        </div>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h3>AI</h3>
+      <div class="settings-row">
+        <div class="settings-row-icon">🔑</div>
+        <div class="settings-row-content">
+          <div class="settings-row-label">Gemini API Key</div>
+          <input class="input" id="s-apikey" type="password" value="${state.apiKey||''}" placeholder="Paste API key..." style="margin-top:6px;font-size:14px" onchange="state.apiKey=this.value;saveState()">
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">Get free key at aistudio.google.com</div>
+        </div>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h3>Google Drive</h3>
+      <div class="settings-row">
+        <div class="settings-row-icon">☁️</div>
+        <div class="settings-row-content">
+          <div class="settings-row-label">Backup to Drive</div>
+          <div class="drive-status">
+            <div class="drive-dot ${state.driveConnected?'connected':'disconnected'}"></div>
+            <span style="font-size:12px;color:var(--text3);margin-left:4px">${state.driveConnected?'Connected':'Not connected'}</span>
+          </div>
+        </div>
+        <div class="settings-row-action" onclick="showToast('Deploy to GitHub Pages first, then connect Drive')">Connect</div>
+      </div>
+      <div style="font-size:12px;color:var(--text3);padding:8px 0;line-height:1.5">
+        After deploying to GitHub Pages, Google Drive auto-backup will work. Deploy instructions in the README.
+      </div>
+    </div>
+    <div class="settings-section">
+      <h3>About</h3>
+      <div class="settings-row">
+        <div class="settings-row-icon">🌊</div>
+        <div class="settings-row-content">
+          <div class="settings-row-label">DayFlow</div>
+          <div class="settings-row-sub">Your intelligent daily companion · v1.0</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// GEMINI API
+// ============================================================
+async function callGemini(messages, systemInstruction = '') {
+  const body = {
+    contents: messages,
+    generationConfig: { maxOutputTokens: 2048, temperature: 0.7 }
+  };
+  if (systemInstruction) {
+    body.systemInstruction = { parts: [{ text: systemInstruction }] };
+  }
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${state.apiKey}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error(`API error ${r.status}`);
+  const data = await r.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+async function callGeminiVision(base64, mimeType, prompt) {
+  const body = {
+    contents: [{ parts: [
+      { inlineData: { mimeType, data: base64 } },
+      { text: prompt }
+    ]}],
+    generationConfig: { maxOutputTokens: 512, temperature: 0.3 }
+  };
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${state.apiKey}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error(`API error ${r.status}`);
+  const data = await r.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(',')[1]);
+    r.onerror = () => rej(new Error('Read failed'));
+    r.readAsDataURL(file);
+  });
+}
+
+function formatDateShort(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function copyText(elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const text = el.innerText;
+  navigator.clipboard.writeText(text).then(() => showToast('Copied!'));
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ============================================================
+// EXPORT / IMPORT
+// ============================================================
+function exportData() {
+  const exportState = { ...state };
+  delete exportState.apiKey; // Security: never export API key
+  const blob = new Blob([JSON.stringify(exportState, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `dayflow-${todayStr()}.json`;
+  a.click();
+  showToast('✅ Data exported!');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      const apiKey = state.apiKey; // Keep current API key
+      state = { ...state, ...imported, apiKey };
+      saveState(); initApp();
+      showToast('✅ Data imported!');
+    } catch(err) { showToast('Invalid file. Please use a DayFlow export.'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function clearAllData() {
+  const confirmed = window.confirm('Type DELETE to confirm — this will erase all your DayFlow data permanently.');
+  if (!confirmed) return;
+  const apiKey = state.apiKey, name = state.name;
+  localStorage.removeItem(DB_KEY);
+  state = { name, apiKey, driveConnected: false, selectedDate: todayStr(),
+    currentMonth: { y: new Date().getFullYear(), m: new Date().getMonth() },
+    sleep: {}, habits: { categories: [
+      { id: 'skill', name: 'Skill', icon: '🧠', items: [
+        { id: 's1', name: 'Read / Learn', done: {} },
+        { id: 's2', name: 'Practice skill', done: {} }
+      ]},
+      { id: 'body', name: 'Body', icon: '💪', items: [
+        { id: 'b1', name: 'Exercise', done: {} },
+        { id: 'b2', name: 'Drink water', done: {} }
+      ]},
+      { id: 'money', name: 'Money', icon: '💰', items: [
+        { id: 'm1', name: 'Track expenses', done: {} },
+        { id: 'm2', name: 'Save / Invest', done: {} }
+      ]}
+    ]}, nutrition: {}, expenses: {}, todos: [], journal: {},
+    chatInsights: [], dailyLogs: {}, chatHistory: [], setupDone: true };
+  saveState(); initApp(); showToast('All data cleared.');
+}
+
+// ============================================================
+// PANEL JS INIT (for dynamic interactions)
+// ============================================================
+function initPanelJS(name) {
+  // nothing extra needed — all handled via onclick
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+loadState();
+if (state.setupDone) {
+  document.getElementById('onboarding').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  // Always select today on open
+  state.selectedDate = todayStr();
+  state.currentMonth = { y: new Date().getFullYear(), m: new Date().getMonth() };
+  initApp();
+} else {
+  // Pre-fill name if exists
+  if (state.name) document.getElementById('ob-name').value = state.name;
+}
+</script>
+</body>
+</html>
