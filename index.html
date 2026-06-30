@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="DayFlow">
 <title>DayFlow</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root {
     --bg: #F8F8F6;
@@ -349,7 +350,8 @@
     <div class="ob-title">Connect Google Drive</div>
     <div class="ob-sub">Auto-backup your data to a DayFlow folder in your Drive. Sync across all your devices.</div>
     <div class="ob-security">🔒 We only access files DayFlow creates</div>
-    <button class="ob-btn" onclick="obConnectDrive()">Connect Google Drive</button>
+    <div id="ob-drive-status" style="font-size:13px;color:var(--green);margin-bottom:12px;display:none">✅ Google Drive connected!</div>
+    <button class="ob-btn" id="ob-drive-btn" onclick="obConnectDrive()">Connect Google Drive</button>
     <button class="ob-btn ob-btn-ghost" onclick="obNext(5)">Skip for now</button>
   </div>
 
@@ -558,10 +560,145 @@ async function testGeminiKey(key) {
   } catch(e) { return false; }
 }
 
-function obConnectDrive() {
-  showToast('Google Drive: Connect after deploying to GitHub Pages');
-  state.driveConnected = false; saveState(); obNext(5);
+// ============================================================
+// GOOGLE DRIVE OAUTH & API
+// ============================================================
+const GOOGLE_CLIENT_ID = '852975752976-hoeb7acq7caan225i4kjp4t4an58dno5.apps.googleusercontent.com';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+let driveAccessToken = null;
+let driveTokenClient = null;
+
+function obConnectDrive() { connectDrive(true); }
+
+function connectDrive(fromOnboarding = false) {
+  if (!window.google) {
+    showToast('Google Sign-In is loading, please try again in a moment.');
+    setTimeout(() => connectDrive(fromOnboarding), 1500);
+    return;
+  }
+  if (!driveTokenClient) { initDriveClient(fromOnboarding); return; }
+  driveTokenClient.requestAccessToken({ prompt: '' });
 }
+
+function initDriveClient(fromOnboarding = false) {
+  if (!window.google) return;
+  driveTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: DRIVE_SCOPE,
+    callback: async (resp) => {
+      if (resp.error) { showToast('Drive connection failed. Try again.'); return; }
+      driveAccessToken = resp.access_token;
+      state.driveConnected = true;
+      saveState();
+      // Update onboarding UI
+      const obStatus = document.getElementById('ob-drive-status');
+      const obBtn = document.getElementById('ob-drive-btn');
+      if (obStatus) obStatus.style.display = 'block';
+      if (obBtn) { obBtn.textContent = '✅ Connected! Continue →'; obBtn.onclick = () => obNext(5); }
+      showToast('✅ Google Drive connected!');
+      await ensureDriveFolder();
+      await backupToDrive();
+      if (currentPanel === 'settings') openPanel('settings');
+    }
+  });
+  driveTokenClient.requestAccessToken({ prompt: 'consent' });
+}
+
+function disconnectDrive() {
+  if (driveAccessToken && window.google) {
+    google.accounts.oauth2.revoke(driveAccessToken, () => {});
+  }
+  driveAccessToken = null;
+  driveTokenClient = null;
+  state.driveConnected = false;
+  state.driveFolderId = null;
+  saveState();
+  showToast('Google Drive disconnected.');
+  if (currentPanel === 'settings') openPanel('settings');
+}
+
+async function ensureDriveFolder() {
+  if (!driveAccessToken) return;
+  try {
+    const q = encodeURIComponent(`name='DayFlow' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`,
+      { headers: { Authorization: `Bearer ${driveAccessToken}` } });
+    const data = await res.json();
+    if (data.files?.length > 0) {
+      state.driveFolderId = data.files[0].id; saveState(); return;
+    }
+    const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${driveAccessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'DayFlow', mimeType: 'application/vnd.google-apps.folder' })
+    });
+    const folder = await createRes.json();
+    state.driveFolderId = folder.id; saveState();
+    showToast('📁 DayFlow folder created in your Drive!');
+  } catch(e) { console.error('Drive folder error:', e); }
+}
+
+async function backupToDrive() {
+  if (!state.driveConnected) { showToast('Connect Google Drive first in Settings'); return; }
+  if (!driveAccessToken) {
+    // Re-authenticate silently
+    connectDrive(false);
+    showToast('Reconnecting Drive...'); return;
+  }
+  if (!state.driveFolderId) await ensureDriveFolder();
+  if (!state.driveFolderId) { showToast('Could not access DayFlow folder in Drive'); return; }
+  try {
+    const exportState = { ...state };
+    delete exportState.apiKey;
+    const content = JSON.stringify(exportState, null, 2);
+    const q = encodeURIComponent(`name='backup.json' and '${state.driveFolderId}' in parents and trashed=false`);
+    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`,
+      { headers: { Authorization: `Bearer ${driveAccessToken}` } });
+    const searchData = await searchRes.json();
+    const existingId = searchData.files?.[0]?.id;
+    if (existingId) {
+      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=media`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${driveAccessToken}`, 'Content-Type': 'application/json' },
+        body: content
+      });
+    } else {
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify({ name: 'backup.json', parents: [state.driveFolderId] })], { type: 'application/json' }));
+      form.append('file', new Blob([content], { type: 'application/json' }));
+      await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST', headers: { Authorization: `Bearer ${driveAccessToken}` }, body: form
+      });
+    }
+    state.lastDriveBackup = new Date().toLocaleString('en-IN'); saveState();
+    showToast('✅ Backed up to Google Drive!');
+  } catch(e) { console.error('Backup error:', e); showToast('Backup failed. Try reconnecting Drive.'); }
+}
+
+async function restoreFromDrive() {
+  if (!driveAccessToken) { connectDrive(false); showToast('Reconnecting Drive, try again in a moment'); return; }
+  if (!state.driveFolderId) await ensureDriveFolder();
+  try {
+    const q = encodeURIComponent(`name='backup.json' and '${state.driveFolderId}' in parents and trashed=false`);
+    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`,
+      { headers: { Authorization: `Bearer ${driveAccessToken}` } });
+    const searchData = await searchRes.json();
+    const fileId = searchData.files?.[0]?.id;
+    if (!fileId) { showToast('No backup found in Drive'); return; }
+    const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      { headers: { Authorization: `Bearer ${driveAccessToken}` } });
+    const restored = await fileRes.json();
+    const apiKey = state.apiKey;
+    state = { ...state, ...restored, apiKey, driveConnected: true };
+    saveState(); initApp();
+    showToast('✅ Data restored from Google Drive!');
+  } catch(e) { showToast('Restore failed. Try again.'); }
+}
+
+// Init Drive client when Google GSI library loads
+window.addEventListener('load', () => {
+  setTimeout(() => { if (window.google) initDriveClient(); }, 500);
+});
 
 function startApp() {
   document.getElementById('onboarding').style.display = 'none';
@@ -1579,16 +1716,24 @@ function renderSettings() {
         <div class="settings-row-icon">☁️</div>
         <div class="settings-row-content">
           <div class="settings-row-label">Backup to Drive</div>
-          <div class="drive-status">
-            <div class="drive-dot ${state.driveConnected?'connected':'disconnected'}"></div>
-            <span style="font-size:12px;color:var(--text3);margin-left:4px">${state.driveConnected?'Connected':'Not connected'}</span>
+          <div class="drive-status" style="margin-top:4px">
+            <div class="drive-dot ${state.driveConnected ? 'connected' : 'disconnected'}"></div>
+            <span style="font-size:12px;color:var(--text3);margin-left:4px">${state.driveConnected ? '✅ Connected — auto-syncing' : 'Not connected'}</span>
           </div>
         </div>
-        <div class="settings-row-action" onclick="showToast('Deploy to GitHub Pages first, then connect Drive')">Connect</div>
+        <div class="settings-row-action" onclick="${state.driveConnected ? 'disconnectDrive()' : 'connectDrive()'}">${state.driveConnected ? 'Disconnect' : 'Connect'}</div>
       </div>
+      ${state.driveConnected ? `
       <div style="font-size:12px;color:var(--text3);padding:8px 0;line-height:1.5">
-        After deploying to GitHub Pages, Google Drive auto-backup will work. Deploy instructions in the README.
-      </div>
+        📁 Data is being backed up to <b>DayFlow/</b> folder in your Google Drive.
+        <br><span style="color:var(--accent);cursor:pointer" onclick="backupToDrive()">Backup now →</span>
+        &nbsp;·&nbsp;
+        <span style="color:var(--accent);cursor:pointer" onclick="restoreFromDrive()">Restore from Drive →</span>
+        ${state.lastDriveBackup ? `<br><span style="color:var(--text3)">Last backup: ${state.lastDriveBackup}</span>` : ''}
+      </div>` : `
+      <div style="font-size:12px;color:var(--text3);padding:8px 0;line-height:1.5">
+        Connect your Google Drive to auto-backup all your data and sync across devices.
+      </div>`}
     </div>
     <div class="settings-section">
       <h3>About</h3>
