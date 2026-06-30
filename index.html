@@ -535,16 +535,29 @@ function obSaveName() {
 async function obVerifyKey() {
   const k = document.getElementById('ob-apikey').value.trim();
   if (!k) { showToast('Please enter your API key'); return; }
-  document.getElementById('ob-verify-btn').textContent = 'Verifying...';
+  const btn = document.getElementById('ob-verify-btn');
+  btn.textContent = 'Verifying...';
+  btn.disabled = true;
   try {
     const ok = await testGeminiKey(k);
+    state.apiKey = k; saveState();
     if (ok) {
-      state.apiKey = k; saveState();
       document.getElementById('ob-verify-msg').style.display = 'flex';
+      showToast('✅ API key verified!');
       setTimeout(() => obNext(4), 800);
-    } else { showToast('Invalid key. Please check and try again.'); }
-  } catch(e) { showToast('Could not verify. Check your key.'); }
-  document.getElementById('ob-verify-btn').textContent = 'Verify & Continue →';
+    } else {
+      // Save key anyway and let user proceed — might still work
+      showToast('⚠️ Could not verify key, but saved. Continuing...');
+      setTimeout(() => obNext(4), 1200);
+    }
+  } catch(e) {
+    // Network error — save key and continue anyway
+    state.apiKey = k; saveState();
+    showToast('⚠️ Network error during verify. Saved and continuing...');
+    setTimeout(() => obNext(4), 1200);
+  }
+  btn.textContent = 'Verify & Continue →';
+  btn.disabled = false;
 }
 
 function obSkipKey() { obNext(4); }
@@ -1332,19 +1345,19 @@ let todoTab = 'today';
 function renderTodo() {
   const d = state.selectedDate;
   const todayTodos = state.todos.filter(t => t.createdDate === d);
-  const pendingTodos = state.todos.filter(t => !t.done && t.createdDate !== d);
-  const pendingCount = state.todos.filter(t => !t.done).length;
+  const pendingTodos = state.todos.filter(t => !t.done); // ALL incomplete tasks across ALL days
+  const pendingCount = pendingTodos.length;
 
   const renderTodoList = (todos, showDate=false) => todos.length ? todos.map(t => `
     <div class="todo-item">
       <div class="todo-check ${t.done?'done':''}" onclick="toggleTodo('${t.id}')"></div>
       <div style="flex:1">
         <div class="todo-text ${t.done?'done':''}">${t.text}</div>
-        ${showDate?`<div class="todo-meta">${formatDateShort(t.createdDate)}</div>`:''}
-        ${t.source==='journal'?'<span class="todo-source">🎙️ from journal</span>':''}
+        ${showDate?`<div class="todo-meta">📅 ${formatDateShort(t.createdDate)}</div>`:''}
+        ${t.source==='journal'?'<span class="todo-source">🎙️ from journal</span>':t.source==='chat'?'<span class="todo-source">💬 from chat</span>':''}
       </div>
       <span class="todo-del" onclick="deleteTodo('${t.id}')">✕</span>
-    </div>`).join('') : '<div class="empty-state"><div class="e-icon">✅</div><div class="e-text">All clear!</div></div>';
+    </div>`).join('') : `<div class="empty-state"><div class="e-icon">✅</div><div class="e-text">${todoTab==='pending'?'All tasks completed! Great job!':'No tasks yet. Add one above.'}</div></div>`;
 
   return `
     <div class="tab-bar">
@@ -1390,7 +1403,8 @@ function deleteTodo(id) {
 }
 
 function clearPendingTodos() {
-  state.todos = state.todos.filter(t => t.done || t.createdDate === state.selectedDate);
+  if (!confirm('Clear all incomplete tasks?')) return;
+  state.todos = state.todos.filter(t => t.done);
   saveState(); updateTodoBadge(); updateAlertBar(); openPanel('todo');
 }
 
