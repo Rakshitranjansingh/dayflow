@@ -14,7 +14,7 @@
   :root {
     --bg: #F8F8F6;
     --surface: #FFFFFF;
-    --surface2: #F2F2F0;a
+    --surface2: #F2F2F0;
     --border: #E8E8E4;
     --text: #1A1A18;
     --text2: #6B6B65;
@@ -464,17 +464,22 @@
 
 <script>
 // ============================================================
-// STATE & STORAGE
+// STATE & STORAGE & DRIVE SYNC DECLARATIONS
 // ============================================================
 const DB_KEY = 'dayflow_v1';
+const GOOGLE_CLIENT_ID = ''; // Drive Client ID placeholder 
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+let driveTokenClient = null;
+let driveAccessToken = null;
+
 let state = {
   name: '',
   apiKey: '',
   driveConnected: false,
   selectedDate: todayStr(),
   currentMonth: { y: new Date().getFullYear(), m: new Date().getMonth() },
-  sleep: {},      // { "2026-06-29": { wake: "06:45", sleep: "23:00" } }
-  habits: {       // { categories: [{name,icon,items:[{name,done:{date:bool}}]}] }
+  sleep: {},      
+  habits: {       
     categories: [
       { id: 'skill', name: 'Skill', icon: '🧠', items: [
         { id: 's1', name: 'Read / Learn', done: {} },
@@ -490,14 +495,18 @@ let state = {
       ]}
     ]
   },
-  nutrition: {},  // { "date": [{id, name, cal, carbs, protein, fat, time, mealType}] }
-  expenses: {},   // { "date": [{id, amount, category, note, time}] }
-  todos: [],      // [{id, text, done, date, source, createdDate}]
-  journal: {},    // { "date": [{id, text, time, audioUrl}] }
-  chatInsights: [], // [{date, text}]
-  dailyLogs: {},  // { "date": { blog, vlog, score } }
-  chatHistory: [] // [{role, content}]
+  nutrition: {},  
+  expenses: {},   
+  todos: [],      
+  journal: {},    
+  chatInsights: [], 
+  dailyLogs: {},  
+  chatHistory: [] 
 };
+
+// Double-tap Confirmation states instead of forbidden alert/confirm APIs
+let pendingTodoConfirmActive = false;
+let clearAllConfirmActive = false;
 
 // Global error boundary to capture and output errors cleanly inside sandboxes
 window.onerror = function(message, source, lineno, colno, error) {
@@ -516,15 +525,13 @@ function getActiveApiKey() {
   return state.apiKey;
 }
 
-// Dynamically resolves available models based on standard Developer APIs vs Workspace Credentials
+// Dynamically resolves available models
 function getModelList() {
   const activeKey = getActiveApiKey();
   if (!activeKey || activeKey === "") {
-    // Workspace-only models
-    return ['gemini-2.5-flash-preview-09-2025'];
+    return ['gemini-2.5-flash']; // Use standard active generation endpoints
   }
-  // Standard production list for custom keys
-  return ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+  return ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
 }
 
 function todayStr() {
@@ -605,9 +612,7 @@ async function obVerifyKey() {
 function obSkipKey() { obNext(4); }
 
 async function testGeminiKey(key) {
-  const targetModels = (!key || key === "") 
-    ? ['gemini-2.5-flash-preview-09-2025'] 
-    : ['gemini-2.5-flash', 'gemini-1.5-flash'];
+  const targetModels = ['gemini-2.5-flash', 'gemini-1.5-flash'];
   
   for (const model of targetModels) {
     try {
@@ -650,7 +655,6 @@ function connectDrive() {
   requestDriveToken(true);
 }
 
-// Initialize client silently without invoking authentication popup on page load
 function initDriveClient() {
   if (!window.google || driveTokenClient) return;
   try {
@@ -683,7 +687,7 @@ function initDriveClient() {
       }
     });
   } catch (e) {
-    console.warn("Google Client registration disabled (Standard behavior for local offline standard execution):", e);
+    console.warn("Google Client registration disabled:", e);
   }
 }
 
@@ -715,7 +719,7 @@ function disconnectDrive() {
 async function ensureDriveFolder() {
   if (!driveAccessToken) return;
   try {
-    const q = encodeURIComponent(`name='DayFlow' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    const q = encodeURIComponent("name='DayFlow' and mimeType='application/vnd.google-apps.folder' and trashed=false");
     const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`,
       { headers: { Authorization: `Bearer ${driveAccessToken}` } });
     const data = await res.json();
@@ -932,6 +936,23 @@ const panelTitles = {
   focus: '⏱️ Focus', settings: '⚙️ Settings'
 };
 
+function renderPanel(name) {
+  switch (name) {
+    case 'chat': return renderChat();
+    case 'formatter': return renderFormatter();
+    case 'nutrition': return renderNutrition();
+    case 'habits': return renderHabits();
+    case 'journal': return renderJournal();
+    case 'todo': return renderTodo();
+    case 'expenses': return renderExpenses();
+    case 'log': return renderLog();
+    case 'sleep': return renderSleep();
+    case 'focus': return renderFocus();
+    case 'settings': return renderSettings();
+    default: return '<div class="empty-state">Panel content not found.</div>';
+  }
+}
+
 function openPanel(name) {
   currentPanel = name;
   document.getElementById('panel-title').textContent = panelTitles[name] || name;
@@ -1007,8 +1028,8 @@ async function sendChat() {
     const systemCtx = `[Context: You are a helpful AI assistant in DayFlow productivity app. Be concise and friendly. Today: ${state.selectedDate}]\n\n`;
 
     const contents = state.chatHistory.map((m, i) => ({
-      role: m.role === 'user' ? 'user' : 'model',
-      parts: [{ text: i === 0 && m.role === 'user' ? systemCtx + m.content : m.content }]
+      role: m.role === 'assistant' ? 'model' : (m.role || 'user'),
+      parts: m.parts ? m.parts : [{ text: i === 0 && m.role === 'user' ? systemCtx + m.content : m.content }]
     }));
 
     contents[contents.length - 1].parts[0].text +=
@@ -1300,7 +1321,7 @@ async function analyzeFoodText() {
 
   const activeMealType = document.querySelector('#nutr-meal-type .chip.active')?.textContent || 'Meal';
   const loadEl = document.getElementById('nutr-loading');
-  loadEl.innerHTML = '<div class="loading"><div class="spinner"></div> Analyzing nutrition values...</div>';
+  if (loadEl) loadEl.innerHTML = '<div class="loading"><div class="spinner"></div> Analyzing nutrition values...</div>';
 
   try {
     const prompt = `Analyze this meal description: "${text}" (classified as ${activeMealType}).
@@ -1309,18 +1330,7 @@ Return ONLY valid JSON in this exact format, no markdown wrapping, no extra conv
 {"name":"Cleaned meal name","cal":number,"carbs":number,"protein":number,"fat":number,"mealType":"${activeMealType}"}`;
 
     const result = await callGemini([{ role: 'user', parts: [{ text: prompt }] }]);
-    
-    let data;
-    try {
-      const jsonMatch = result.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        data = JSON.parse(jsonMatch[0]);
-      } else {
-        data = JSON.parse(result.replace(/```json\n?|\n?```/g,'').trim());
-      }
-    } catch (parseError) {
-      throw new Error("Could not parse estimated values. Please try clarifying portions.");
-    }
+    const data = cleanAndParseJSON(result);
 
     const now = new Date();
     const meal = {
@@ -1333,12 +1343,12 @@ Return ONLY valid JSON in this exact format, no markdown wrapping, no extra conv
     state.nutrition[state.selectedDate].push(meal);
     saveState();
     updateStats();
-    loadEl.innerHTML = '';
+    if (loadEl) loadEl.innerHTML = '';
     
     openPanel('nutrition');
     showToast(`✅ ${data.name} logged — ${data.cal} cal`);
   } catch (e) {
-    loadEl.innerHTML = '';
+    if (loadEl) loadEl.innerHTML = '';
     showToast(`❌ Error: ${e.message || 'AI analysis failed'}`);
     console.error(e);
   }
@@ -1382,7 +1392,7 @@ async function analyzeFood(event) {
   if (!activeKey) { showToast('Add API key in Settings'); return; }
   
   const loadEl = document.getElementById('nutr-loading');
-  loadEl.innerHTML = '<div class="loading"><div class="spinner"></div> Resizing & analyzing your meal...</div>';
+  if (loadEl) loadEl.innerHTML = '<div class="loading"><div class="spinner"></div> Resizing & analyzing your meal...</div>';
 
   try {
     const compressed = await resizeAndCompressImage(file);
@@ -1390,29 +1400,18 @@ async function analyzeFood(event) {
 {"name":"food name","cal":number,"carbs":number,"protein":number,"fat":number,"mealType":"Breakfast/Lunch/Snack/Dinner"}`;
     
     const result = await callGeminiVision(compressed.base64, compressed.mimeType, prompt);
-    
-    let data;
-    try {
-      const jsonMatch = result.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        data = JSON.parse(jsonMatch[0]);
-      } else {
-        data = JSON.parse(result.replace(/```json\n?|\n?```/g,'').trim());
-      }
-    } catch (parseError) {
-      throw new Error("Gemini returned invalid response text. Please try again.");
-    }
+    const data = cleanAndParseJSON(result);
     
     const now = new Date();
     const meal = { id: Date.now()+'', ...data,
       time: now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) };
     if (!state.nutrition[state.selectedDate]) state.nutrition[state.selectedDate] = [];
     state.nutrition[state.selectedDate].push(meal);
-    saveState(); updateStats(); loadEl.innerHTML = '';
+    saveState(); updateStats(); if (loadEl) loadEl.innerHTML = '';
     openPanel('nutrition');
     showToast(`✅ ${data.name} logged — ${data.cal} cal`);
   } catch(e) {
-    loadEl.innerHTML = '';
+    if (loadEl) loadEl.innerHTML = '';
     showToast(`❌ Error: ${e.message || 'Analysis failed. Please check internet connection.'}`);
     console.error(e);
   }
@@ -1536,6 +1535,10 @@ function renderJournal() {
     </div>`;
   }).join('');
 
+  // Retrieve cached transcription safely if user closed dynamic template mid-process
+  const cachedText = window._tempJournalText || '';
+  window._tempJournalText = '';
+
   return `
     <div style="text-align:center;margin-bottom:8px">
       <button class="record-btn" id="record-btn" onclick="toggleRecording()">🎙️</button>
@@ -1543,7 +1546,7 @@ function renderJournal() {
     </div>
     <div class="field">
       <label class="label">Or type your journal entry</label>
-      <textarea class="input textarea" id="journal-text" placeholder="What's on your mind today..." rows="4"></textarea>
+      <textarea class="input textarea" id="journal-text" placeholder="What's on your mind today..." rows="4">${cachedText}</textarea>
     </div>
     <button class="btn btn-primary btn-full" onclick="saveJournalEntry()" style="margin-bottom:16px">Save & Analyse →</button>
     <div id="journal-loading"></div>
@@ -1567,9 +1570,13 @@ function initSpeechEngine() {
 
     recognition.onstart = () => {
       speechRecognitionActive = true;
-      document.getElementById('record-btn').classList.add('recording');
-      document.getElementById('record-btn').textContent = '⏹️';
-      document.getElementById('record-status').textContent = 'Listening (Speak now)...';
+      const btn = document.getElementById('record-btn');
+      if (btn) {
+        btn.classList.add('recording');
+        btn.textContent = '⏹️';
+      }
+      const status = document.getElementById('record-status');
+      if (status) status.textContent = 'Listening (Speak now)...';
     };
 
     recognition.onresult = (event) => {
@@ -1583,8 +1590,11 @@ function initSpeechEngine() {
         }
       }
       const textInput = document.getElementById('journal-text');
+      const textToSave = finalTranscript || interimTranscript;
       if (textInput) {
-        textInput.value = finalTranscript || interimTranscript;
+        textInput.value = textToSave;
+      } else {
+        window._tempJournalText = textToSave; // Cache transcription safely if template closed
       }
     };
 
@@ -1645,26 +1655,35 @@ async function startMediaRecorderFallback() {
     mediaRecorder.onstop = processAudio;
     mediaRecorder.start(250); 
     
-    document.getElementById('record-btn').classList.add('recording');
-    document.getElementById('record-btn').textContent = '⏹️';
-    document.getElementById('record-status').textContent = 'Recording Audio... Tap to stop';
+    const btn = document.getElementById('record-btn');
+    if (btn) {
+      btn.classList.add('recording');
+      btn.textContent = '⏹️';
+    }
+    const status = document.getElementById('record-status');
+    if (status) status.textContent = 'Recording Audio... Tap to stop';
   } catch(e) {
     isRecording = false;
     showToast('🎙️ Microphone access denied or not supported.');
-    document.getElementById('record-status').textContent = 'Tap to record';
+    const status = document.getElementById('record-status');
+    if (status) status.textContent = 'Tap to record';
   }
 }
 
 function stopRecording() {
   isRecording = false;
-  document.getElementById('record-btn').classList.remove('recording');
-  document.getElementById('record-btn').textContent = '🎙️';
-  document.getElementById('record-status').textContent = 'Processing...';
+  const btn = document.getElementById('record-btn');
+  if (btn) {
+    btn.classList.remove('recording');
+    btn.textContent = '🎙️';
+  }
+  const status = document.getElementById('record-status');
+  if (status) status.textContent = 'Processing...';
 
   if (recognition && speechRecognitionActive) {
     speechRecognitionActive = false;
     try { recognition.stop(); } catch(e) {}
-    document.getElementById('record-status').textContent = 'Tap to record';
+    if (status) status.textContent = 'Tap to record';
     showToast('✅ Dictation finished!');
   } else if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     try {
@@ -1676,9 +1695,9 @@ function stopRecording() {
 
 async function processAudio() {
   const loadEl = document.getElementById('journal-loading');
-  if (!loadEl) return;
-  loadEl.innerHTML = '<div class="loading"><div class="spinner"></div> Transcribing audio with Gemini AI...</div>';
-  document.getElementById('record-status').textContent = 'Transcribing...';
+  if (loadEl) loadEl.innerHTML = '<div class="loading"><div class="spinner"></div> Transcribing audio with Gemini AI...</div>';
+  const status = document.getElementById('record-status');
+  if (status) status.textContent = 'Transcribing...';
 
   try {
     if (audioChunks.length === 0) {
@@ -1702,6 +1721,9 @@ async function processAudio() {
     if (textInput && cleanedResult) {
       textInput.value = cleanedResult;
       showToast('✅ Audio transcribed successfully!');
+    } else if (cleanedResult) {
+      window._tempJournalText = cleanedResult; // Safely save in-flight speech to register
+      showToast('✅ Audio transcribed successfully!');
     } else {
       showToast('⚠️ No words recognized in the recording.');
     }
@@ -1710,8 +1732,8 @@ async function processAudio() {
     console.error('Audio transcription error:', e);
     showToast(`❌ Audio error: ${e.message || 'Could not transcribe'}`);
   } finally {
-    loadEl.innerHTML = '';
-    document.getElementById('record-status').textContent = 'Tap to record';
+    if (loadEl) loadEl.innerHTML = '';
+    if (status) status.textContent = 'Tap to record';
   }
 }
 
@@ -1728,13 +1750,14 @@ function blobToBase64(blob) {
 }
 
 async function saveJournalEntry() {
-  const text = document.getElementById('journal-text').value.trim();
+  const textVal = document.getElementById('journal-text')?.value || window._tempJournalText || '';
+  const text = textVal.trim();
   const activeKey = getActiveApiKey();
   if (!text) { showToast('Please write something first'); return; }
   if (!activeKey) { showToast('Add API key in Settings'); return; }
 
   const loadEl = document.getElementById('journal-loading');
-  loadEl.innerHTML = '<div class="loading"><div class="spinner"></div> Analysing entry...</div>';
+  if (loadEl) loadEl.innerHTML = '<div class="loading"><div class="spinner"></div> Analysing entry...</div>';
 
   try {
     const prompt = `Analyse this journal entry and return ONLY valid JSON (no markdown):
@@ -1747,8 +1770,7 @@ async function saveJournalEntry() {
 
 Journal entry: ${text}`;
     const result = await callGemini([{role:'user',parts:[{text:prompt}]}]);
-    const cleaned = result.replace(/```json\n?|\n?```/g,'').trim();
-    const analysis = JSON.parse(cleaned);
+    const analysis = cleanAndParseJSON(result);
     const now = new Date();
     const entry = {
       id: Date.now()+'',
@@ -1764,15 +1786,17 @@ Journal entry: ${text}`;
       state.todos.push({ id: Date.now()+Math.random()+'', text: t, done: false,
         createdDate: state.selectedDate, source: 'journal' });
     });
-    saveState(); loadEl.innerHTML = ''; updateTodoBadge(); updateAlertBar();
-    document.getElementById('journal-text').value = '';
+    saveState(); if (loadEl) loadEl.innerHTML = ''; updateTodoBadge(); updateAlertBar();
+    const txtInput = document.getElementById('journal-text');
+    if (txtInput) txtInput.value = '';
+    window._tempJournalText = '';
     openPanel('journal');
     showToast(`✅ Entry saved · Mood: ${analysis.mood}`);
   } catch(e) {
     const now = new Date();
     if (!state.journal[state.selectedDate]) state.journal[state.selectedDate] = [];
     state.journal[state.selectedDate].push({ id: Date.now()+'', text, time: now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}), source: 'journal', todos: [] });
-    saveState(); loadEl.innerHTML = ''; openPanel('journal');
+    saveState(); if (loadEl) loadEl.innerHTML = ''; openPanel('journal');
   }
 }
 
@@ -1844,10 +1868,18 @@ function deleteTodo(id) {
   saveState(); updateTodoBadge(); updateAlertBar(); openPanel('todo');
 }
 
+// Safe Double-Tap Confirm implementation replacing native alert APIs
 function clearPendingTodos() {
-  if (!confirm('Clear all incomplete tasks?')) return;
+  if (!pendingTodoConfirmActive) {
+    pendingTodoConfirmActive = true;
+    showToast('⚠️ Tap again to confirm clearing all pending tasks.');
+    setTimeout(() => { pendingTodoConfirmActive = false; }, 3000);
+    return;
+  }
+  pendingTodoConfirmActive = false;
   state.todos = state.todos.filter(t => t.done);
   saveState(); updateTodoBadge(); updateAlertBar(); openPanel('todo');
+  showToast('Cleared pending tasks.');
 }
 
 // ---- EXPENSES ----
@@ -1898,7 +1930,7 @@ function renderExpenses() {
     <button class="btn btn-primary btn-full" onclick="addExpense()" style="margin-bottom:16px">Add Expense</button>
     <div class="divider"></div>
     <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px">Today's Expenses</div>
-    \${expList}
+    ${expList}
   `;
 }
 
@@ -2035,13 +2067,13 @@ function renderBlogView(date, log) {
     </div>
     <div class="divider"></div>
     <div style="font-size:14px;font-weight:600;margin-bottom:12px">🎬 1-Min Vlog Script</div>
-    \${log.vlog ? \`
-      <div class="vlog-script">\${log.vlog}</div>
+    ${log.vlog ? `
+      <div class="vlog-script">${log.vlog}</div>
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn btn-secondary btn-sm" onclick="copyVlogScript()">📋 Copy Script</button>
-        <button class="btn btn-primary btn-sm" onclick="regenVlog('\${date}')">🔄 Regenerate</button>
+        <button class="btn btn-primary btn-sm" onclick="regenVlog('${date}')">🔄 Regenerate</button>
       </div>
-    \` : \`<button class="btn btn-primary btn-sm" onclick="generateVlogScript('\${date}')">🎬 Generate Vlog Script</button>\`}
+    ` : `<button class="btn btn-primary btn-sm" onclick="generateVlogScript('${date}')">🎬 Generate Vlog Script</button>`}
     <div id="vlog-gen"></div>
   `;
 }
@@ -2069,7 +2101,7 @@ async function generateDailyLog() {
 Based on this data, write a warm, personal, first-person blog entry. Use the EXACT format below.
 Also return a day score out of 100 based on productivity, health, and habits.
 
-Data: \${JSON.stringify(data)}
+Data: ${JSON.stringify(data)}
 
 Return ONLY valid JSON (no markdown):
 {
@@ -2080,8 +2112,7 @@ Return ONLY valid JSON (no markdown):
 
   try {
     const result = await callGemini([{role:'user',parts:[{text:prompt}]}]);
-    const cleaned = result.replace(/```json\\n?|\\n?```/g,'').trim();
-    const parsed = JSON.parse(cleaned);
+    const parsed = cleanAndParseJSON(result);
     const todosCount = todos.filter(t=>t.done).length;
     const cal = meals.reduce((s,m)=>s+(m.cal||0),0);
     const exp = exps.reduce((s,e)=>s+e.amount,0);
@@ -2110,7 +2141,7 @@ IMPORTANT rules:
 - Natural code-switching like Indians actually speak
 - Start with a 2-5 second HOOK to grab attention
 - Keep it energetic and personal
-- Based on this blog: \${log.blog}
+- Based on this blog: ${log.blog}
 
 Return ONLY the script text with these time markers:
 ⏱️ 0:00-0:05 | HOOK
@@ -2155,7 +2186,7 @@ function renderSettings() {
         <div class="settings-row-icon">👤</div>
         <div class="settings-row-content">
           <div class="settings-row-label">Your Name</div>
-          <input class="input" id="s-name" value="\${state.name||''}" placeholder="Your name" style="margin-top:6px;font-size:14px" onchange="state.name=this.value;saveState();updateGreeting()">
+          <input class="input" id="s-name" value="${state.name||''}" placeholder="Your name" style="margin-top:6px;font-size:14px" onchange="state.name=this.value;saveState();updateGreeting()">
         </div>
       </div>
     </div>
@@ -2166,10 +2197,10 @@ function renderSettings() {
         <div class="settings-row-content">
           <div class="settings-row-label">Gemini API Key</div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
-            <div style="width:8px;height:8px;border-radius:50%;background:\${displayDotColor}"></div>
-            <span style="font-size:12px;color:var(--text3)">\${displayKeyStatus}</span>
+            <div style="width:8px;height:8px;border-radius:50%;background:${displayDotColor}"></div>
+            <span style="font-size:12px;color:var(--text3)">${displayKeyStatus}</span>
           </div>
-          <input class="input" id="s-apikey" type="password" value="\${state.apiKey||''}" placeholder="Paste Gemini API key..." style="margin-top:8px;font-size:14px" onchange="updateApiKey(this.value)">
+          <input class="input" id="s-apikey" type="password" value="${state.apiKey||''}" placeholder="Paste Gemini API key..." style="margin-top:8px;font-size:14px" onchange="updateApiKey(this.value)">
           <div style="font-size:11px;color:var(--text3);margin-top:4px">Free key at <a href="https://aistudio.google.com" target="_blank" style="color:var(--accent)">aistudio.google.com</a></div>
         </div>
       </div>
@@ -2183,23 +2214,23 @@ function renderSettings() {
         <div class="settings-row-content">
           <div class="settings-row-label">Backup to Drive</div>
           <div class="drive-status" style="margin-top:4px">
-            <div class="drive-dot \${state.driveConnected ? 'connected' : 'disconnected'}"></div>
-            <span style="font-size:12px;color:var(--text3);margin-left:4px">\${state.driveConnected ? '✅ Connected — auto-syncing' : 'Not connected'}</span>
+            <div class="drive-dot ${state.driveConnected ? 'connected' : 'disconnected'}"></div>
+            <span style="font-size:12px;color:var(--text3);margin-left:4px">${state.driveConnected ? '✅ Connected — auto-syncing' : 'Not connected'}</span>
           </div>
         </div>
-        <div class="settings-row-action" onclick="\${state.driveConnected ? 'disconnectDrive()' : 'connectDrive()'}">\${state.driveConnected ? 'Disconnect' : 'Connect'}</div>
+        <div class="settings-row-action" onclick="${state.driveConnected ? 'disconnectDrive()' : 'connectDrive()'}">${state.driveConnected ? 'Disconnect' : 'Connect'}</div>
       </div>
-      \${state.driveConnected ? \`
+      ${state.driveConnected ? `
       <div style="font-size:12px;color:var(--text3);padding:8px 0;line-height:1.5">
         📁 Data is being backed up to <b>DayFlow/</b> folder in your Google Drive.
         <br><span style="color:var(--accent);cursor:pointer" onclick="backupToDrive()">Backup now →</span>
         &nbsp;·&nbsp;
         <span style="color:var(--accent);cursor:pointer" onclick="restoreFromDrive()">Restore from Drive →</span>
-        \${state.lastDriveBackup ? \`<br><span style="color:var(--text3)">Last backup: \${state.lastDriveBackup}</span>\` : ''}
-      </div>\` : \`
+        ${state.lastDriveBackup ? `<br><span style="color:var(--text3)">Last backup: ${state.lastDriveBackup}</span>` : ''}
+      </div>` : `
       <div style="font-size:12px;color:var(--text3);padding:8px 0;line-height:1.5">
         Connect your Google Drive to auto-backup all your data and sync across devices.
-      </div>\`}
+      </div>`}
     </div>
     <div class="settings-section">
       <h3>About</h3>
@@ -2232,13 +2263,13 @@ async function verifyApiKeyFromSettings() {
   if (statusEl) {
     if (result.valid) statusEl.innerHTML = '<span style="color:var(--green)">✅ Key is valid and working!</span>';
     else if (result.rateLimited) statusEl.innerHTML = '<span style="color:var(--orange)">✅ Key valid — temporarily rate limited</span>';
-    else statusEl.innerHTML = `<span style="color:var(--red)">\${result.error || '❌ Key invalid'}</span>`;
+    else statusEl.innerHTML = `<span style="color:var(--red)">${result.error || '❌ Key invalid'}</span>`;
   }
   setTimeout(() => { if (currentPanel === 'settings') openPanel('settings'); }, 1500);
 }
 
 // ============================================================
-// GEMINI API — with model fallback & rate limit handling
+// GEMINI API — with robust endpoints & fallbacks
 // ============================================================
 
 async function callGemini(messages, systemInstruction = '', modelIndex = 0) {
@@ -2267,7 +2298,7 @@ async function callGemini(messages, systemInstruction = '', modelIndex = 0) {
   try {
     const apiVersion = 'v1beta';
     r = await fetch(
-      `https://generativelanguage.googleapis.com/\${apiVersion}/models/\${model}:generateContent?key=\${activeKey}`,
+      `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${activeKey}`,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
     );
   } catch(networkErr) {
@@ -2279,7 +2310,7 @@ async function callGemini(messages, systemInstruction = '', modelIndex = 0) {
   }
 
   if (r.status === 429 && modelIndex + 1 < models.length) {
-    console.warn(`\${model} rate limited → trying fallback...`);
+    console.warn(`${model} rate limited → trying fallback...`);
     return callGemini(messages, systemInstruction, modelIndex + 1);
   }
   if (r.status >= 500 && modelIndex + 1 < models.length) {
@@ -2288,10 +2319,10 @@ async function callGemini(messages, systemInstruction = '', modelIndex = 0) {
   if (!r.ok) {
     const err = await r.json().catch(() => ({}));
     if ((r.status === 404 || r.status === 400) && modelIndex + 1 < models.length) {
-      console.warn(`\${model} unsupported status (\${r.status}) → trying fallback...`);
+      console.warn(`${model} unsupported status (${r.status}) → trying fallback...`);
       return callGemini(messages, systemInstruction, modelIndex + 1);
     }
-    throw new Error(err?.error?.message || `HTTP \${r.status}`);
+    throw new Error(err?.error?.message || `HTTP ${r.status}`);
   }
 
   const data = await r.json();
@@ -2319,7 +2350,7 @@ async function callGeminiVision(base64, mimeType, prompt, modelIndex = 0) {
   let r;
   try {
     r = await fetch(
-      `https://generativelanguage.googleapis.com/\${apiVersion}/models/\${model}:generateContent?key=\${activeKey}`,
+      `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${activeKey}`,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
     );
   } catch(e) {
@@ -2335,10 +2366,10 @@ async function callGeminiVision(base64, mimeType, prompt, modelIndex = 0) {
   if (!r.ok) {
     const err = await r.json().catch(() => ({}));
     if ((r.status === 404 || r.status === 400) && modelIndex + 1 < models.length) {
-      console.warn(`\${model} vision failed (\${r.status}) → trying fallback model...`);
+      console.warn(`${model} vision failed (${r.status}) → trying fallback model...`);
       return callGeminiVision(base64, mimeType, prompt, modelIndex + 1);
     }
-    throw new Error(err?.error?.message || `HTTP \${r.status}`);
+    throw new Error(err?.error?.message || `HTTP ${r.status}`);
   }
 
   const data = await r.json();
@@ -2348,6 +2379,72 @@ async function callGeminiVision(base64, mimeType, prompt, modelIndex = 0) {
 // ============================================================
 // UTILITIES
 // ============================================================
+
+/**
+ * Safely parses JSON returned from Gemini. Handles markdown code blocks 
+ * and repairs unescaped control characters/literal newlines inside string parameters.
+ */
+function cleanAndParseJSON(rawText) {
+  let clean = rawText.trim();
+  
+  // 1. Strip markdown boundaries
+  if (clean.startsWith("```")) {
+    const firstNL = clean.indexOf('\n');
+    if (firstNL !== -1) {
+      clean = clean.substring(firstNL + 1);
+    }
+    if (clean.endsWith("```")) {
+      clean = clean.substring(0, clean.length - 3);
+    } else if (clean.includes("```")) {
+      const lastTick = clean.lastIndexOf("```");
+      clean = clean.substring(0, lastTick);
+    }
+    clean = clean.trim();
+  }
+
+  // 2. Extract potential inner JSON structure
+  const startBrace = clean.indexOf('{');
+  const endBrace = clean.lastIndexOf('}');
+  if (startBrace !== -1 && endBrace !== -1 && endBrace > startBrace) {
+    clean = clean.substring(startBrace, endBrace + 1);
+  }
+
+  // 3. Attempt natural parse
+  try {
+    return JSON.parse(clean);
+  } catch (e) {
+    console.warn("Standard JSON parse failed. Attempting to escape unescaped control characters...", e);
+  }
+
+  // 4. Fallback repair: Escape literal inside-string newlines
+  let repaired = "";
+  let inString = false;
+  let escapeActive = false;
+  for (let i = 0; i < clean.length; i++) {
+    let char = clean[i];
+    if (char === '"' && !escapeActive) {
+      inString = !inString;
+    }
+    if (inString && (char === '\n' || char === '\r')) {
+      repaired += "\\n"; // Replace literal newline inside JSON double quotes with string format
+    } else {
+      repaired += char;
+    }
+    if (char === '\\' && inString) {
+      escapeActive = !escapeActive;
+    } else {
+      escapeActive = false;
+    }
+  }
+
+  try {
+    return JSON.parse(repaired);
+  } catch (e2) {
+    console.error("Critical JSON Parsing failure. Sanitized String:", repaired);
+    throw new Error("Unable to parse AI response. Please try submitting again.");
+  }
+}
+
 function fileToBase64(file) {
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -2371,7 +2468,7 @@ function calcSleepDur(wake, sleep) {
   if (sleepMin > wakeMin) wakeMin += 24 * 60;
   const diff = wakeMin - sleepMin;
   const h = Math.floor(diff / 60), m = diff % 60;
-  return `\${h}h\${m > 0 ? \` \${m}m\` : ''}`;
+  return `${h}h${m > 0 ? ` ${m}m` : ''}`;
 }
 
 function copyText(elId) {
@@ -2396,7 +2493,7 @@ function exportData() {
   const blob = new Blob([JSON.stringify(exportState, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `dayflow-\${todayStr()}.json`;
+  a.download = `dayflow-${todayStr()}.json`;
   a.click();
   showToast('✅ Data exported!');
 }
@@ -2418,12 +2515,15 @@ function importData(event) {
   event.target.value = '';
 }
 
+// Safe Double-Tap Confirm implementation replacing native alert APIs
 function clearAllData() {
-  const userInput = window.prompt('Type DELETE to confirm — this will erase all your DayFlow data permanently.');
-  if (userInput !== 'DELETE') {
-    showToast('Deletion cancelled.');
+  if (!clearAllConfirmActive) {
+    clearAllConfirmActive = true;
+    showToast('⚠️ Tap again to confirm eracing all local data.');
+    setTimeout(() => { clearAllConfirmActive = false; }, 4000);
     return;
   }
+  clearAllConfirmActive = false;
   const apiKey = state.apiKey, name = state.name;
   localStorage.removeItem(DB_KEY);
   state = { name, apiKey, driveConnected: false, selectedDate: todayStr(),
