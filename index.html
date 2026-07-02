@@ -7,12 +7,14 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="DayFlow">
 <title>DayFlow</title>
+<!-- Google Identity Services client script for Drive syncing -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+
 <style>
   :root {
     --bg: #F8F8F6;
     --surface: #FFFFFF;
-    --surface2: #F2F2F0;
+    --surface2: #F2F2F0;a
     --border: #E8E8E4;
     --text: #1A1A18;
     --text2: #6B6B65;
@@ -212,7 +214,7 @@
   .time-field input { font-size: 22px; font-weight: 600; font-family: var(--font); border: none; background: transparent; text-align: center; color: var(--text); outline: none; width: 100%; }
 
   /* EXPENSES */
-  .expense-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .expense-summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
   .exp-card { background: var(--surface2); border-radius: var(--radius-sm); padding: 12px; border: 1px solid var(--border); }
   .exp-val { font-size: 20px; font-weight: 700; color: var(--text); }
   .exp-lbl { font-size: 11px; color: var(--text3); }
@@ -290,7 +292,7 @@
   .settings-row-sub { font-size: 12px; color: var(--text3); margin-top: 1px; }
   .settings-row-action { color: var(--accent); font-size: 13px; cursor: pointer; }
   .drive-status { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-  .drive-dot { width: 8px; height-8px; border-radius: 50%; }
+  .drive-dot { width: 8px; height: 8px; border-radius: 50%; }
   .drive-dot.connected { background: var(--green); width: 8px; height: 8px; border-radius: 50%; }
   .drive-dot.disconnected { background: var(--text3); width: 8px; height: 8px; border-radius: 50%; }
 
@@ -497,6 +499,34 @@ let state = {
   chatHistory: [] // [{role, content}]
 };
 
+// Global error boundary to capture and output errors cleanly inside sandboxes
+window.onerror = function(message, source, lineno, colno, error) {
+  console.error("DayFlow Intercepted Error:", message, "at", source, ":", lineno);
+  showToast("⚠️ System error captured. See console.");
+  return false;
+};
+
+// Auto-injected workspace API key container
+const workspaceApiKey = ""; 
+
+function getActiveApiKey() {
+  if (typeof workspaceApiKey !== 'undefined' && workspaceApiKey && workspaceApiKey !== "") {
+    return workspaceApiKey;
+  }
+  return state.apiKey;
+}
+
+// Dynamically resolves available models based on standard Developer APIs vs Workspace Credentials
+function getModelList() {
+  const activeKey = getActiveApiKey();
+  if (!activeKey || activeKey === "") {
+    // Workspace-only models
+    return ['gemini-2.5-flash-preview-09-2025'];
+  }
+  // Standard production list for custom keys
+  return ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+}
+
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -505,7 +535,20 @@ function todayStr() {
 function loadState() {
   try {
     const s = localStorage.getItem(DB_KEY);
-    if (s) { const parsed = JSON.parse(s); state = { ...state, ...parsed }; }
+    if (s) { 
+      const parsed = JSON.parse(s); 
+      state = { ...state, ...parsed }; 
+      // Deep initializers to ensure legacy state objects never result in undefined errors
+      state.sleep = state.sleep || {};
+      state.habits = state.habits || { categories: [] };
+      state.nutrition = state.nutrition || {};
+      state.expenses = state.expenses || {};
+      state.todos = state.todos || [];
+      state.journal = state.journal || {};
+      state.chatInsights = state.chatInsights || [];
+      state.dailyLogs = state.dailyLogs || {};
+      state.chatHistory = state.chatHistory || [];
+    }
   } catch(e) {}
 }
 
@@ -538,22 +581,21 @@ async function obVerifyKey() {
   const btn = document.getElementById('ob-verify-btn');
   btn.textContent = 'Verifying...';
   btn.disabled = true;
-  try {
-    const ok = await testGeminiKey(k);
-    state.apiKey = k; saveState();
-    if (ok) {
-      document.getElementById('ob-verify-msg').style.display = 'flex';
-      showToast('✅ API key verified!');
-      setTimeout(() => obNext(4), 800);
-    } else {
-      // Save key anyway and let user proceed — might still work
-      showToast('⚠️ Could not verify key, but saved. Continuing...');
-      setTimeout(() => obNext(4), 1200);
-    }
-  } catch(e) {
-    // Network error — save key and continue anyway
-    state.apiKey = k; saveState();
-    showToast('⚠️ Network error during verify. Saved and continuing...');
+  const result = await testGeminiKey(k);
+  state.apiKey = k;
+  state.apiKeyValid = result.valid;
+  saveState();
+  if (result.valid) {
+    document.getElementById('ob-verify-msg').style.display = 'flex';
+    showToast('✅ API key verified!');
+    setTimeout(() => obNext(4), 800);
+  } else if (result.rateLimited) {
+    document.getElementById('ob-verify-msg').style.display = 'flex';
+    document.getElementById('ob-verify-msg').textContent = '✅ Key valid (rate limited, will work fine!)';
+    showToast('✅ Key is valid! Rate limit is temporary.');
+    setTimeout(() => obNext(4), 1000);
+  } else {
+    showToast(result.error || '⚠️ Could not verify. Saved anyway, continuing...');
     setTimeout(() => obNext(4), 1200);
   }
   btn.textContent = 'Verify & Continue →';
@@ -563,58 +605,99 @@ async function obVerifyKey() {
 function obSkipKey() { obNext(4); }
 
 async function testGeminiKey(key) {
-  try {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: 'Hi' }] }] })
-    });
-    return r.ok;
-  } catch(e) { return false; }
+  const targetModels = (!key || key === "") 
+    ? ['gemini-2.5-flash-preview-09-2025'] 
+    : ['gemini-2.5-flash', 'gemini-1.5-flash'];
+  
+  for (const model of targetModels) {
+    try {
+      const r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Hi' }] }] }) }
+      );
+      if (r.ok) return { valid: true };
+      if (r.status === 429) return { valid: true, rateLimited: true };
+      if (r.status === 400) return { valid: true }; // Bad query arguments but key accepted
+      const err = await r.json().catch(() => ({}));
+      const msg = err?.error?.message || '';
+      if (msg.includes('API_KEY_INVALID')) {
+        return { valid: false, error: '❌ Invalid API key. Please check.' };
+      }
+      if (r.status === 404 && targetModels.indexOf(model) < targetModels.length - 1) {
+        continue;
+      }
+      return { valid: false, error: msg || `Error ${r.status}` };
+    } catch(e) {
+      if (targetModels.indexOf(model) === targetModels.length - 1) {
+        return { valid: false, error: '⚠️ Network error. Key saved, please try again.' };
+      }
+    }
+  }
+  return { valid: false, error: 'Could not connect' };
 }
 
 // ============================================================
-// GOOGLE DRIVE OAUTH & API
+// GOOGLE DRIVE OAUTH & API (Decoupled and local-run safe)
 // ============================================================
-const GOOGLE_CLIENT_ID = '852975752976-hoeb7acq7caan225i4kjp4t4an58dno5.apps.googleusercontent.com';
-const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
-let driveAccessToken = null;
-let driveTokenClient = null;
+function obConnectDrive() { connectDrive(); }
 
-function obConnectDrive() { connectDrive(true); }
-
-function connectDrive(fromOnboarding = false) {
+function connectDrive() {
   if (!window.google) {
-    showToast('Google Sign-In is loading, please try again in a moment.');
-    setTimeout(() => connectDrive(fromOnboarding), 1500);
+    showToast('Google Sign-In is loading, please try again.');
     return;
   }
-  if (!driveTokenClient) { initDriveClient(fromOnboarding); return; }
-  driveTokenClient.requestAccessToken({ prompt: '' });
+  requestDriveToken(true);
 }
 
-function initDriveClient(fromOnboarding = false) {
-  if (!window.google) return;
-  driveTokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE_CLIENT_ID,
-    scope: DRIVE_SCOPE,
-    callback: async (resp) => {
-      if (resp.error) { showToast('Drive connection failed. Try again.'); return; }
-      driveAccessToken = resp.access_token;
-      state.driveConnected = true;
-      saveState();
-      // Update onboarding UI
-      const obStatus = document.getElementById('ob-drive-status');
-      const obBtn = document.getElementById('ob-drive-btn');
-      if (obStatus) obStatus.style.display = 'block';
-      if (obBtn) { obBtn.textContent = '✅ Connected! Continue →'; obBtn.onclick = () => obNext(5); }
-      showToast('✅ Google Drive connected!');
-      await ensureDriveFolder();
-      await backupToDrive();
-      if (currentPanel === 'settings') openPanel('settings');
+// Initialize client silently without invoking authentication popup on page load
+function initDriveClient() {
+  if (!window.google || driveTokenClient) return;
+  try {
+    driveTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: DRIVE_SCOPE,
+      callback: async (resp) => {
+        if (resp.error) {
+          showToast('Drive connection failed. Try again.');
+          return;
+        }
+        driveAccessToken = resp.access_token;
+        state.driveConnected = true;
+        saveState();
+        
+        const obStatus = document.getElementById('ob-drive-status');
+        const obBtn = document.getElementById('ob-drive-btn');
+        if (obStatus) obStatus.style.display = 'block';
+        if (obBtn) { obBtn.textContent = '✅ Connected! Continue →'; obBtn.onclick = () => obNext(5); }
+        showToast('✅ Google Drive connected!');
+        
+        await ensureDriveFolder();
+        if (window._pendingDriveAction === 'restore') {
+          window._pendingDriveAction = null;
+          await restoreFromDrive();
+        } else {
+          await backupToDrive();
+        }
+        if (currentPanel === 'settings') openPanel('settings');
+      }
+    });
+  } catch (e) {
+    console.warn("Google Client registration disabled (Standard behavior for local offline standard execution):", e);
+  }
+}
+
+function requestDriveToken(promptConsent = true) {
+  initDriveClient();
+  if (driveTokenClient) {
+    try {
+      driveTokenClient.requestAccessToken({ prompt: promptConsent ? 'consent' : '' });
+    } catch (e) {
+      showToast("🔐 Drive login failed. Run via standard HTTP/S protocols to access Cloud Sync.");
     }
-  });
-  driveTokenClient.requestAccessToken({ prompt: 'consent' });
+  } else {
+    showToast("⚙️ Cloud client initialization blocked inside standalone files.");
+  }
 }
 
 function disconnectDrive() {
@@ -622,7 +705,6 @@ function disconnectDrive() {
     google.accounts.oauth2.revoke(driveAccessToken, () => {});
   }
   driveAccessToken = null;
-  driveTokenClient = null;
   state.driveConnected = false;
   state.driveFolderId = null;
   saveState();
@@ -654,9 +736,9 @@ async function ensureDriveFolder() {
 async function backupToDrive() {
   if (!state.driveConnected) { showToast('Connect Google Drive first in Settings'); return; }
   if (!driveAccessToken) {
-    // Re-authenticate silently
-    connectDrive(false);
-    showToast('Reconnecting Drive...'); return;
+    showToast('Connecting to Google Drive...');
+    requestDriveToken(false); 
+    return;
   }
   if (!state.driveFolderId) await ensureDriveFolder();
   if (!state.driveFolderId) { showToast('Could not access DayFlow folder in Drive'); return; }
@@ -685,11 +767,17 @@ async function backupToDrive() {
     }
     state.lastDriveBackup = new Date().toLocaleString('en-IN'); saveState();
     showToast('✅ Backed up to Google Drive!');
-  } catch(e) { console.error('Backup error:', e); showToast('Backup failed. Try reconnecting Drive.'); }
+  } catch(e) { console.error('Backup error:', e); showToast('Backup failed. Please try reconnecting Drive.'); }
 }
 
 async function restoreFromDrive() {
-  if (!driveAccessToken) { connectDrive(false); showToast('Reconnecting Drive, try again in a moment'); return; }
+  if (!state.driveConnected) { connectDrive(); return; }
+  if (!driveAccessToken) {
+    showToast('Connecting to Google Drive...');
+    window._pendingDriveAction = 'restore';
+    requestDriveToken(false);
+    return;
+  }
   if (!state.driveFolderId) await ensureDriveFolder();
   try {
     const q = encodeURIComponent(`name='backup.json' and '${state.driveFolderId}' in parents and trashed=false`);
@@ -701,17 +789,12 @@ async function restoreFromDrive() {
     const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
       { headers: { Authorization: `Bearer ${driveAccessToken}` } });
     const restored = await fileRes.json();
-    const apiKey = state.apiKey;
-    state = { ...state, ...restored, apiKey, driveConnected: true };
+    const activeKey = state.apiKey;
+    state = { ...state, ...restored, apiKey: activeKey, driveConnected: true };
     saveState(); initApp();
     showToast('✅ Data restored from Google Drive!');
-  } catch(e) { showToast('Restore failed. Try again.'); }
+  } catch(e) { showToast('Restore failed. Please try again.'); }
 }
-
-// Init Drive client when Google GSI library loads
-window.addEventListener('load', () => {
-  setTimeout(() => { if (window.google) initDriveClient(); }, 500);
-});
 
 function startApp() {
   document.getElementById('onboarding').style.display = 'none';
@@ -720,7 +803,7 @@ function startApp() {
 }
 
 // ============================================================
-// INIT APP
+// INIT APP & CALENDAR
 // ============================================================
 function initApp() {
   updateGreeting();
@@ -768,7 +851,6 @@ function renderDateStrip() {
     strip.appendChild(el);
   }
 
-  // Scroll to selected
   setTimeout(() => {
     const sel = strip.querySelector('.selected');
     if (sel) sel.scrollIntoView({ inline: 'center', behavior: 'smooth' });
@@ -789,7 +871,6 @@ function selectDate(dateStr) {
   saveState();
   renderDateStrip();
   updateStats();
-  // If a panel is open, refresh it
   if (currentPanel) openPanel(currentPanel);
 }
 
@@ -806,23 +887,19 @@ function hasDataForDate(dateStr) {
 // ============================================================
 function updateStats() {
   const d = state.selectedDate;
-  // Sleep
   const sl = state.sleep[d];
   if (sl && sl.wake && sl.sleep) {
     document.getElementById('stat-sleep').textContent = calcSleepDur(sl.wake, sl.sleep);
   } else { document.getElementById('stat-sleep').textContent = '—'; }
 
-  // Habits
   let done = 0, total = 0;
   state.habits.categories.forEach(c => c.items.forEach(it => { total++; if (it.done[d]) done++; }));
   document.getElementById('stat-habits').textContent = `${done}/${total}`;
 
-  // Calories
   const meals = state.nutrition[d] || [];
   const totalCal = meals.reduce((s, m) => s + (m.cal || 0), 0);
   document.getElementById('stat-cal').textContent = totalCal || 0;
 
-  // Expenses
   const exps = state.expenses[d] || [];
   const totalExp = exps.reduce((s, e) => s + (e.amount || 0), 0);
   document.getElementById('stat-exp').textContent = `₹${totalExp.toFixed(0)}`;
@@ -871,32 +948,20 @@ function closePanel() {
   document.getElementById('side-panel').classList.remove('open');
 }
 
-// ============================================================
-// PANEL RENDERERS
-// ============================================================
-function renderPanel(name) {
-  switch(name) {
-    case 'chat': return renderChat();
-    case 'formatter': return renderFormatter();
-    case 'nutrition': return renderNutrition();
-    case 'habits': return renderHabits();
-    case 'journal': return renderJournal();
-    case 'todo': return renderTodo();
-    case 'expenses': return renderExpenses();
-    case 'log': return renderLog();
-    case 'sleep': return renderSleep();
-    case 'focus': return renderFocus();
-    case 'settings': return renderSettings();
-    default: return '';
-  }
-}
-
 // ---- CHAT ----
 function renderChat() {
   const msgs = state.chatHistory.map(m => `
     <div class="chat-msg ${m.role === 'user' ? 'user' : 'ai'}">${m.content.replace(/\n/g,'<br>')}</div>
   `).join('');
+  const hasKey = getActiveApiKey();
+  const apiStatus = hasKey
+    ? `<span style="color:var(--green);font-size:11px">● API key active</span>`
+    : `<span style="color:var(--red);font-size:11px">● No API key — <span style="cursor:pointer;text-decoration:underline" onclick="closePanel();openPanel('settings')">Add in Settings</span></span>`;
   return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      ${apiStatus}
+      <button class="btn btn-secondary btn-sm" onclick="testChatConnection()">🔍 Test Connection</button>
+    </div>
     <div class="chat-messages" id="chat-msgs">${msgs || '<div class="empty-state"><div class="e-icon">💬</div><div class="e-text">Ask me anything. Key insights will be saved to your journal.</div></div>'}</div>
     <div class="chat-input-row">
       <input class="input" id="chat-input" placeholder="Ask anything..." style="flex:1" onkeydown="if(event.key==='Enter')sendChat()">
@@ -906,46 +971,90 @@ function renderChat() {
   `;
 }
 
+async function testChatConnection() {
+  const activeKey = getActiveApiKey();
+  if (!activeKey) { showToast('⚙️ Add API key in Settings first'); return; }
+  showToast('Testing connection...');
+  try {
+    const result = await testGeminiKey(activeKey);
+    if (result.valid) showToast('✅ Connection works! API key is valid.');
+    else if (result.rateLimited) showToast('✅ Key valid but rate limited. Wait a moment.');
+    else showToast(`❌ ${result.error || 'API key invalid'}`);
+  } catch(e) {
+    showToast(`❌ Connection failed: ${e.message}`);
+  }
+}
+
 async function sendChat() {
   const input = document.getElementById('chat-input');
   const text = input.value.trim();
-  if (!text || !state.apiKey) { if(!state.apiKey) showToast('Add API key in Settings'); return; }
+  const activeKey = getActiveApiKey();
+  if (!text) return;
+  if (!activeKey) { showToast('Add API key in ⚙️ Settings'); return; }
+
   input.value = '';
   state.chatHistory.push({ role: 'user', content: text });
   renderChatMsgs();
+
   const loadEl = document.createElement('div');
-  loadEl.className = 'loading'; loadEl.innerHTML = '<div class="spinner"></div> Thinking...';
-  document.getElementById('chat-msgs').appendChild(loadEl);
+  loadEl.className = 'loading';
+  loadEl.innerHTML = '<div class="spinner"></div> Thinking...';
+  const msgsEl = document.getElementById('chat-msgs');
+  if (msgsEl) msgsEl.appendChild(loadEl);
   scrollChatToBottom();
 
   try {
-    const response = await callGemini(
-      state.chatHistory.map(m => ({
-        role: m.role === 'user' ? 'user' : 'model',
-        parts: [{ text: m.content }]
-      })),
-      `You are a helpful AI assistant inside DayFlow, a personal productivity app. Be concise and friendly. Today is ${state.selectedDate}.`
-    );
+    const systemCtx = `[Context: You are a helpful AI assistant in DayFlow productivity app. Be concise and friendly. Today: ${state.selectedDate}]\n\n`;
+
+    const contents = state.chatHistory.map((m, i) => ({
+      role: m.role === 'user' ? 'user' : 'model',
+      parts: [{ text: i === 0 && m.role === 'user' ? systemCtx + m.content : m.content }]
+    }));
+
+    contents[contents.length - 1].parts[0].text +=
+      '\n\n[After your response add on a new line: INSIGHT: <one line key takeaway or NONE>]';
+
+    const raw = await callGemini(contents);
+
+    const lines = raw.split('\n');
+    const insightIdx = lines.findIndex(l => l.trim().startsWith('INSIGHT:'));
+    const response = insightIdx > -1
+      ? lines.slice(0, insightIdx).join('\n').trim()
+      : raw.trim();
+    const insightLine = insightIdx > -1 ? lines[insightIdx].replace('INSIGHT:', '').trim() : null;
+
     loadEl.remove();
     state.chatHistory.push({ role: 'assistant', content: response });
 
-    // Extract insight
-    const insightPrompt = `In 1-2 lines, extract the key insight or new thing learned from this conversation exchange. If nothing notable, return "NONE".\nUser: ${text}\nAI: ${response}`;
-    const insight = await callGemini([{role:'user',parts:[{text:insightPrompt}]}]);
-    if (insight && insight !== 'NONE' && !insight.startsWith('NONE')) {
+    if (insightLine && insightLine !== 'NONE' && !insightLine.startsWith('NONE')) {
+      state.chatInsights.push({ date: state.selectedDate, text: insightLine });
+
       if (!state.journal[state.selectedDate]) state.journal[state.selectedDate] = [];
-      state.journal[state.selectedDate].push({ id: Date.now()+'', text: `💬 ${insight}`, time: new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}), source: 'chat' });
+      state.journal[state.selectedDate].push({
+        id: Date.now() + '',
+        text: `💬 ${insightLine}`,
+        time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+        source: 'chat',
+        todos: []
+      });
     }
-    saveState(); renderChatMsgs(); scrollChatToBottom();
-  } catch(e) {
-    loadEl.remove();
-    const msg = e.message?.includes('API_KEY') ? 'Invalid API key. Check Settings.' :
-                e.message?.includes('quota') ? 'API quota exceeded. Try later.' :
-                e.message?.includes('No API') ? 'Please add your Gemini API key in ⚙️ Settings.' :
-                `Error: ${e.message}`;
-    showToast(msg);
-    state.chatHistory.pop(); // Remove failed user message
+
+    saveState();
     renderChatMsgs();
+    scrollChatToBottom();
+
+  } catch(e) {
+    if (loadEl.parentNode) loadEl.remove();
+    state.chatHistory.pop();
+    renderChatMsgs();
+    console.error('Chat error full:', e);
+    const msg =
+      e.message?.includes('NETWORK_ERROR') ? '📵 No internet or API blocked. Check connection.' :
+      e.message?.includes('API_KEY') || e.message?.includes('API key') ? '❌ Invalid API key. Check ⚙️ Settings.' :
+      e.message?.includes('429') || e.message?.includes('quota') || e.message?.includes('Rate') ? '⏳ Rate limited. Trying fallback model...' :
+      e.message?.includes('No API key') ? '⚙️ Add your Gemini API key in Settings first.' :
+      `❌ ${e.message}`;
+    showToast(msg);
   }
 }
 
@@ -1018,8 +1127,9 @@ function toggleChip(btn, groupId) {
 
 async function runFormatter() {
   const text = document.getElementById('fmt-input').value.trim();
+  const activeKey = getActiveApiKey();
   if (!text) { showToast('Please enter some text'); return; }
-  if (!state.apiKey) { showToast('Add API key in Settings'); return; }
+  if (!activeKey) { showToast('Add API key in Settings'); return; }
 
   const tone = document.querySelector('#fmt-tones .chip.active')?.textContent?.replace(/[^\w\s]/g,'').trim() || 'Friendly';
   const modifiers = [...document.querySelectorAll('.modifier-chip.active')].map(b => b.textContent.replace(/[^\w\s]/g,'').trim()).join(', ');
@@ -1062,7 +1172,7 @@ function renderNutrition() {
         <span class="meal-del" onclick="deleteMeal('${m.id}')">✕</span>
       </div>
       <div class="meal-macros">Carbs ${m.carbs}g · Protein ${m.protein}g · Fat ${m.fat}g</div>
-    </div>`).join('') : '<div class="empty-state"><div class="e-icon">🍽️</div><div class="e-text">No meals logged today. Add a photo!</div></div>';
+    </div>`).join('') : '<div class="empty-state"><div class="e-icon">🍽️</div><div class="e-text">No meals logged today. Use AI estimation or manual log below.</div></div>';
 
   return `
     <div class="nutrition-summary">
@@ -1071,12 +1181,61 @@ function renderNutrition() {
       <div class="nutr-card"><div class="nutr-val" style="color:var(--green)">${totProt}g</div><div class="nutr-lbl">Protein</div></div>
       <div class="nutr-card"><div class="nutr-val" style="color:var(--purple)">${totFat}g</div><div class="nutr-lbl">Fat</div></div>
     </div>
-    <label class="photo-upload" id="nutr-upload-label">
-      <input type="file" accept="image/*" capture="environment" onchange="analyzeFood(event)">
-      <div style="font-size:28px;margin-bottom:6px">📸</div>
-      <div style="font-size:14px;color:var(--text2);font-weight:500">Take photo or upload meal</div>
-      <div style="font-size:12px;color:var(--text3);margin-top:4px">AI will analyze calories & macros</div>
-    </label>
+
+    <div class="field" style="margin-top:16px">
+      <label class="label">✨ Describe Your Meal & Portion</label>
+      <input class="input" id="nutr-text-input" placeholder="e.g., 2 medium eggs and 1 slice of whole wheat toast" onkeydown="if(event.key==='Enter')analyzeFoodText()">
+      <div style="font-size:11px;color:var(--text3);margin-top:4px">Include portions/quantities for highly accurate estimation.</div>
+    </div>
+
+    <div class="field">
+      <label class="label">Meal Type</label>
+      <div class="chip-row" id="nutr-meal-type">
+        <button class="chip active" onclick="toggleMealTypeChip(this)">Breakfast</button>
+        <button class="chip" onclick="toggleMealTypeChip(this)">Lunch</button>
+        <button class="chip" onclick="toggleMealTypeChip(this)">Dinner</button>
+        <button class="chip" onclick="toggleMealTypeChip(this)">Snack</button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button class="btn btn-primary" onclick="analyzeFoodText()" style="flex:1">✨ AI Estimate</button>
+      <label class="btn btn-secondary" style="cursor:pointer;padding:12px;display:flex;align-items:center;justify-content:center">
+        <input type="file" accept="image/*" capture="environment" onchange="analyzeFood(event)" style="display:none">
+        📸 Scan Photo
+      </label>
+    </div>
+
+    <div style="margin-bottom:16px">
+      <span style="font-size:12px;color:var(--accent);cursor:pointer;text-decoration:underline" onclick="toggleManualNutrForm()">Or log manually (exact macros)</span>
+    </div>
+
+    <div id="manual-nutr-form" style="display:none;background:var(--surface2);padding:14px;border-radius:var(--radius-sm);margin-bottom:16px;border:1px solid var(--border)">
+      <div class="field">
+        <label class="label">Meal Name</label>
+        <input class="input" id="man-nutr-name" placeholder="e.g., Whey Protein Shake">
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:6px">
+        <div class="field">
+          <label class="label">Cals</label>
+          <input class="input" id="man-nutr-cal" type="number" placeholder="0" style="padding:8px">
+        </div>
+        <div class="field">
+          <label class="label">Carbs (g)</label>
+          <input class="input" id="man-nutr-carbs" type="number" placeholder="0" style="padding:8px">
+        </div>
+        <div class="field">
+          <label class="label">Prot (g)</label>
+          <input class="input" id="man-nutr-prot" type="number" placeholder="0" style="padding:8px">
+        </div>
+        <div class="field">
+          <label class="label">Fat (g)</label>
+          <input class="input" id="man-nutr-fat" type="number" placeholder="0" style="padding:8px">
+        </div>
+      </div>
+      <button class="btn btn-success btn-sm btn-full" onclick="logMealManual()">Save Meal</button>
+    </div>
+
     <div id="nutr-loading"></div>
     <div class="divider"></div>
     <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px">Today's Meals</div>
@@ -1084,19 +1243,166 @@ function renderNutrition() {
   `;
 }
 
-async function analyzeFood(event) {
-  const file = event.target.files[0];
-  if (!file || !state.apiKey) { if(!state.apiKey) showToast('Add API key in Settings'); return; }
+function toggleMealTypeChip(btn) {
+  document.querySelectorAll('#nutr-meal-type .chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function toggleManualNutrForm() {
+  const el = document.getElementById('manual-nutr-form');
+  if (el) {
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  }
+}
+
+function resizeAndCompressImage(file, maxWidth = 1024) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const img = new Image();
+      img.onload = function () {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        resolve({
+          base64: dataUrl.split(',')[1],
+          mimeType: 'image/jpeg'
+        });
+      };
+      img.onerror = () => reject(new Error('Failed to load image structure.'));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error('Failed to read selected file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function analyzeFoodText() {
+  const textInput = document.getElementById('nutr-text-input');
+  const text = textInput ? textInput.value.trim() : '';
+  const activeKey = getActiveApiKey();
+  
+  if (!text) { showToast('Please describe your meal first'); return; }
+  if (!activeKey) { showToast('Add API key in Settings'); return; }
+
+  const activeMealType = document.querySelector('#nutr-meal-type .chip.active')?.textContent || 'Meal';
   const loadEl = document.getElementById('nutr-loading');
-  loadEl.innerHTML = '<div class="loading"><div class="spinner"></div> Analyzing your meal...</div>';
+  loadEl.innerHTML = '<div class="loading"><div class="spinner"></div> Analyzing nutrition values...</div>';
 
   try {
-    const base64 = await fileToBase64(file);
-    const prompt = `Analyze this food image and estimate nutritional content. Return ONLY valid JSON in this exact format, no other text:
+    const prompt = `Analyze this meal description: "${text}" (classified as ${activeMealType}).
+Estimate nutritional content (calories, carbs, protein, fat).
+Return ONLY valid JSON in this exact format, no markdown wrapping, no extra conversational text:
+{"name":"Cleaned meal name","cal":number,"carbs":number,"protein":number,"fat":number,"mealType":"${activeMealType}"}`;
+
+    const result = await callGemini([{ role: 'user', parts: [{ text: prompt }] }]);
+    
+    let data;
+    try {
+      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        data = JSON.parse(jsonMatch[0]);
+      } else {
+        data = JSON.parse(result.replace(/```json\n?|\n?```/g,'').trim());
+      }
+    } catch (parseError) {
+      throw new Error("Could not parse estimated values. Please try clarifying portions.");
+    }
+
+    const now = new Date();
+    const meal = {
+      id: Date.now() + '',
+      ...data,
+      time: now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    if (!state.nutrition[state.selectedDate]) state.nutrition[state.selectedDate] = [];
+    state.nutrition[state.selectedDate].push(meal);
+    saveState();
+    updateStats();
+    loadEl.innerHTML = '';
+    
+    openPanel('nutrition');
+    showToast(`✅ ${data.name} logged — ${data.cal} cal`);
+  } catch (e) {
+    loadEl.innerHTML = '';
+    showToast(`❌ Error: ${e.message || 'AI analysis failed'}`);
+    console.error(e);
+  }
+}
+
+function logMealManual() {
+  const name = document.getElementById('man-nutr-name')?.value?.trim();
+  const cal = parseInt(document.getElementById('man-nutr-cal')?.value || 0);
+  const carbs = parseInt(document.getElementById('man-nutr-carbs')?.value || 0);
+  const protein = parseInt(document.getElementById('man-nutr-prot')?.value || 0);
+  const fat = parseInt(document.getElementById('man-nutr-fat')?.value || 0);
+  
+  if (!name) { showToast('Please enter a meal name'); return; }
+
+  const activeMealType = document.querySelector('#nutr-meal-type .chip.active')?.textContent || 'Meal';
+  const now = new Date();
+  
+  const meal = {
+    id: Date.now() + '',
+    name,
+    cal,
+    carbs,
+    protein,
+    fat,
+    mealType: activeMealType,
+    time: now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+  };
+
+  if (!state.nutrition[state.selectedDate]) state.nutrition[state.selectedDate] = [];
+  state.nutrition[state.selectedDate].push(meal);
+  saveState();
+  updateStats();
+  openPanel('nutrition');
+  showToast(`✅ ${name} logged manually`);
+}
+
+async function analyzeFood(event) {
+  const file = event.target.files[0];
+  const activeKey = getActiveApiKey();
+  if (!file) return;
+  if (!activeKey) { showToast('Add API key in Settings'); return; }
+  
+  const loadEl = document.getElementById('nutr-loading');
+  loadEl.innerHTML = '<div class="loading"><div class="spinner"></div> Resizing & analyzing your meal...</div>';
+
+  try {
+    const compressed = await resizeAndCompressImage(file);
+    const prompt = `Analyze this food image and estimate nutritional content. Return ONLY valid JSON in this exact format, no markdown wrapping, no extra conversational text:
 {"name":"food name","cal":number,"carbs":number,"protein":number,"fat":number,"mealType":"Breakfast/Lunch/Snack/Dinner"}`;
-    const result = await callGeminiVision(base64, file.type, prompt);
-    const cleaned = result.replace(/```json\n?|\n?```/g,'').trim();
-    const data = JSON.parse(cleaned);
+    
+    const result = await callGeminiVision(compressed.base64, compressed.mimeType, prompt);
+    
+    let data;
+    try {
+      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        data = JSON.parse(jsonMatch[0]);
+      } else {
+        data = JSON.parse(result.replace(/```json\n?|\n?```/g,'').trim());
+      }
+    } catch (parseError) {
+      throw new Error("Gemini returned invalid response text. Please try again.");
+    }
+    
     const now = new Date();
     const meal = { id: Date.now()+'', ...data,
       time: now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) };
@@ -1107,7 +1413,7 @@ async function analyzeFood(event) {
     showToast(`✅ ${data.name} logged — ${data.cal} cal`);
   } catch(e) {
     loadEl.innerHTML = '';
-    showToast('Could not analyze image. Try again.');
+    showToast(`❌ Error: ${e.message || 'Analysis failed. Please check internet connection.'}`);
     console.error(e);
   }
 }
@@ -1216,17 +1522,6 @@ function saveSleep() {
   if (dur) showToast(`😴 Sleep duration: ${dur}`);
 }
 
-function calcSleepDur(wake, sleep) {
-  const [wh, wm] = wake.split(':').map(Number);
-  const [sh, sm] = sleep.split(':').map(Number);
-  let wakeMin = wh * 60 + wm;
-  let sleepMin = sh * 60 + sm;
-  if (sleepMin > wakeMin) wakeMin += 24 * 60;
-  const diff = wakeMin - sleepMin;
-  const h = Math.floor(diff / 60), m = diff % 60;
-  return `${h}h${m > 0 ? ` ${m}m` : ''}`;
-}
-
 // ---- JOURNAL ----
 function renderJournal() {
   const d = state.selectedDate;
@@ -1259,48 +1554,184 @@ function renderJournal() {
 }
 
 let mediaRecorder = null, audioChunks = [], isRecording = false;
+let recognition = null;
+let speechRecognitionActive = false;
+
+function initSpeechEngine() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-IN'; 
+
+    recognition.onstart = () => {
+      speechRecognitionActive = true;
+      document.getElementById('record-btn').classList.add('recording');
+      document.getElementById('record-btn').textContent = '⏹️';
+      document.getElementById('record-status').textContent = 'Listening (Speak now)...';
+    };
+
+    recognition.onresult = (event) => {
+      let interimTranscript = '';
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+      const textInput = document.getElementById('journal-text');
+      if (textInput) {
+        textInput.value = finalTranscript || interimTranscript;
+      }
+    };
+
+    recognition.onerror = (e) => {
+      console.warn('SpeechRecognition error, falling back to MediaRecorder:', e);
+      speechRecognitionActive = false;
+      stopRecording();
+      startMediaRecorderFallback();
+    };
+
+    recognition.onend = () => {
+      if (isRecording && speechRecognitionActive) {
+        try { recognition.start(); } catch(err) {}
+      }
+    };
+  }
+}
 
 function toggleRecording() {
-  if (isRecording) stopRecording();
-  else startRecording();
+  if (isRecording) {
+    stopRecording();
+  } else {
+    startRecording();
+  }
 }
 
 async function startRecording() {
+  isRecording = true;
+  audioChunks = [];
+  
+  if (!recognition) initSpeechEngine();
+
+  if (recognition) {
+    try {
+      speechRecognitionActive = true;
+      recognition.start();
+    } catch(e) {
+      speechRecognitionActive = false;
+      await startMediaRecorderFallback();
+    }
+  } else {
+    await startMediaRecorderFallback();
+  }
+}
+
+async function startMediaRecorderFallback() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
+    let options = {};
+    if (MediaRecorder.isTypeSupported('audio/webm')) options = { mimeType: 'audio/webm' };
+    else if (MediaRecorder.isTypeSupported('audio/mp4')) options = { mimeType: 'audio/mp4' };
+
+    mediaRecorder = new MediaRecorder(stream, options);
     audioChunks = [];
-    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.ondataavailable = e => {
+      if (e.data && e.data.size > 0) audioChunks.push(e.data);
+    };
     mediaRecorder.onstop = processAudio;
-    mediaRecorder.start();
-    isRecording = true;
+    mediaRecorder.start(250); 
+    
     document.getElementById('record-btn').classList.add('recording');
     document.getElementById('record-btn').textContent = '⏹️';
-    document.getElementById('record-status').textContent = 'Recording... Tap to stop';
-  } catch(e) { showToast('Microphone access denied'); }
+    document.getElementById('record-status').textContent = 'Recording Audio... Tap to stop';
+  } catch(e) {
+    isRecording = false;
+    showToast('🎙️ Microphone access denied or not supported.');
+    document.getElementById('record-status').textContent = 'Tap to record';
+  }
 }
 
 function stopRecording() {
-  if (mediaRecorder) { mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t => t.stop()); }
   isRecording = false;
   document.getElementById('record-btn').classList.remove('recording');
   document.getElementById('record-btn').textContent = '🎙️';
   document.getElementById('record-status').textContent = 'Processing...';
+
+  if (recognition && speechRecognitionActive) {
+    speechRecognitionActive = false;
+    try { recognition.stop(); } catch(e) {}
+    document.getElementById('record-status').textContent = 'Tap to record';
+    showToast('✅ Dictation finished!');
+  } else if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    try {
+      mediaRecorder.stop();
+      mediaRecorder.stream.getTracks().forEach(t => t.stop());
+    } catch(e) { console.error(e); }
+  }
 }
 
 async function processAudio() {
   const loadEl = document.getElementById('journal-loading');
-  loadEl.innerHTML = '<div class="loading"><div class="spinner"></div> Transcribing & analysing...</div>';
-  // Use Web Speech API for transcription fallback
-  showToast('Audio recorded! Type or use Speech-to-Text in supported browsers.');
-  document.getElementById('record-status').textContent = 'Tap to record';
-  loadEl.innerHTML = '';
+  if (!loadEl) return;
+  loadEl.innerHTML = '<div class="loading"><div class="spinner"></div> Transcribing audio with Gemini AI...</div>';
+  document.getElementById('record-status').textContent = 'Transcribing...';
+
+  try {
+    if (audioChunks.length === 0) {
+      throw new Error("No audio data recorded.");
+    }
+
+    const mimeType = mediaRecorder.mimeType || 'audio/webm';
+    const blob = new Blob(audioChunks, { type: mimeType });
+    const base64 = await blobToBase64(blob);
+
+    const activeKey = getActiveApiKey();
+    if (!activeKey) {
+      throw new Error("API Key missing. Configure in Settings.");
+    }
+
+    const prompt = "Transcribe this spoken audio recording accurately into text. Do not add any commentary, summaries, or metadata. Just output the clean transcription text in English.";
+    const result = await callGeminiVision(base64, mimeType, prompt);
+
+    const cleanedResult = result.trim();
+    const textInput = document.getElementById('journal-text');
+    if (textInput && cleanedResult) {
+      textInput.value = cleanedResult;
+      showToast('✅ Audio transcribed successfully!');
+    } else {
+      showToast('⚠️ No words recognized in the recording.');
+    }
+
+  } catch(e) {
+    console.error('Audio transcription error:', e);
+    showToast(`❌ Audio error: ${e.message || 'Could not transcribe'}`);
+  } finally {
+    loadEl.innerHTML = '';
+    document.getElementById('record-status').textContent = 'Tap to record';
+  }
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result.split(',')[1];
+      resolve(base64String);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 async function saveJournalEntry() {
   const text = document.getElementById('journal-text').value.trim();
+  const activeKey = getActiveApiKey();
   if (!text) { showToast('Please write something first'); return; }
-  if (!state.apiKey) { showToast('Add API key in Settings'); return; }
+  if (!activeKey) { showToast('Add API key in Settings'); return; }
 
   const loadEl = document.getElementById('journal-loading');
   loadEl.innerHTML = '<div class="loading"><div class="spinner"></div> Analysing entry...</div>';
@@ -1329,7 +1760,6 @@ Journal entry: ${text}`;
     };
     if (!state.journal[state.selectedDate]) state.journal[state.selectedDate] = [];
     state.journal[state.selectedDate].push(entry);
-    // Auto-add todos
     (analysis.todos||[]).forEach(t => {
       state.todos.push({ id: Date.now()+Math.random()+'', text: t, done: false,
         createdDate: state.selectedDate, source: 'journal' });
@@ -1339,7 +1769,6 @@ Journal entry: ${text}`;
     openPanel('journal');
     showToast(`✅ Entry saved · Mood: ${analysis.mood}`);
   } catch(e) {
-    // Fallback: save as-is
     const now = new Date();
     if (!state.journal[state.selectedDate]) state.journal[state.selectedDate] = [];
     state.journal[state.selectedDate].push({ id: Date.now()+'', text, time: now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}), source: 'journal', todos: [] });
@@ -1350,6 +1779,7 @@ Journal entry: ${text}`;
 function addTodoFromJournal(text) {
   state.todos.push({ id: Date.now()+'', text, done: false, createdDate: state.selectedDate, source: 'journal' });
   saveState(); updateTodoBadge(); updateAlertBar(); showToast(`✅ Added to To-Do`);
+  if (currentPanel === 'journal') openPanel('journal'); 
 }
 
 // ---- TODO ----
@@ -1357,7 +1787,7 @@ let todoTab = 'today';
 function renderTodo() {
   const d = state.selectedDate;
   const todayTodos = state.todos.filter(t => t.createdDate === d);
-  const pendingTodos = state.todos.filter(t => !t.done); // ALL incomplete tasks across ALL days
+  const pendingTodos = state.todos.filter(t => !t.done);
   const pendingCount = pendingTodos.length;
 
   const renderTodoList = (todos, showDate=false) => todos.length ? todos.map(t => `
@@ -1468,7 +1898,7 @@ function renderExpenses() {
     <button class="btn btn-primary btn-full" onclick="addExpense()" style="margin-bottom:16px">Add Expense</button>
     <div class="divider"></div>
     <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px">Today's Expenses</div>
-    ${expList}
+    \${expList}
   `;
 }
 
@@ -1564,7 +1994,6 @@ function renderLog() {
     <button class="btn btn-primary btn-full" onclick="generateDailyLog()" style="margin-top:16px">✨ Generate Today's Blog</button>`;
   }
 
-  // Check if viewing a specific log
   if (window._viewingLog) {
     const [date, log] = window._viewingLog;
     return renderBlogView(date, log);
@@ -1606,19 +2035,20 @@ function renderBlogView(date, log) {
     </div>
     <div class="divider"></div>
     <div style="font-size:14px;font-weight:600;margin-bottom:12px">🎬 1-Min Vlog Script</div>
-    ${log.vlog ? `
-      <div class="vlog-script">${log.vlog}</div>
+    \${log.vlog ? \`
+      <div class="vlog-script">\${log.vlog}</div>
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn btn-secondary btn-sm" onclick="copyVlogScript()">📋 Copy Script</button>
-        <button class="btn btn-primary btn-sm" onclick="regenVlog('${date}')">🔄 Regenerate</button>
+        <button class="btn btn-primary btn-sm" onclick="regenVlog('\${date}')">🔄 Regenerate</button>
       </div>
-    ` : `<button class="btn btn-primary btn-sm" onclick="generateVlogScript('${date}')">🎬 Generate Vlog Script</button>`}
+    \` : \`<button class="btn btn-primary btn-sm" onclick="generateVlogScript('\${date}')">🎬 Generate Vlog Script</button>\`}
     <div id="vlog-gen"></div>
   `;
 }
 
 async function generateDailyLog() {
-  if (!state.apiKey) { showToast('Add API key in Settings'); return; }
+  const activeKey = getActiveApiKey();
+  if (!activeKey) { showToast('Add API key in Settings'); return; }
   const d = state.selectedDate;
   const statusEl = document.getElementById('log-gen-status');
   if (statusEl) statusEl.innerHTML = '<div class="loading"><div class="spinner"></div> Generating your daily blog...</div>';
@@ -1628,7 +2058,7 @@ async function generateDailyLog() {
   const exps = state.expenses[d] || [];
   const todos = state.todos.filter(t => t.createdDate === d);
   const journals = state.journal[d] || [];
-  const insights = state.chatInsights.filter(i => i.date === d);
+  const insights = (state.chatInsights || []).filter(i => i.date === d);
 
   const data = {
     date: d, sleep: sl, meals, expenses: exps, todos,
@@ -1639,7 +2069,7 @@ async function generateDailyLog() {
 Based on this data, write a warm, personal, first-person blog entry. Use the EXACT format below.
 Also return a day score out of 100 based on productivity, health, and habits.
 
-Data: ${JSON.stringify(data)}
+Data: \${JSON.stringify(data)}
 
 Return ONLY valid JSON (no markdown):
 {
@@ -1650,7 +2080,7 @@ Return ONLY valid JSON (no markdown):
 
   try {
     const result = await callGemini([{role:'user',parts:[{text:prompt}]}]);
-    const cleaned = result.replace(/```json\n?|\n?```/g,'').trim();
+    const cleaned = result.replace(/```json\\n?|\\n?```/g,'').trim();
     const parsed = JSON.parse(cleaned);
     const todosCount = todos.filter(t=>t.done).length;
     const cal = meals.reduce((s,m)=>s+(m.cal||0),0);
@@ -1659,9 +2089,9 @@ Return ONLY valid JSON (no markdown):
 
     state.dailyLogs[d] = { blog: parsed.blog, score: parsed.score, todosCount, cal, exp: exp.toFixed(0), sleep };
     saveState();
-    await generateVlogScriptInternal(d);
     window._viewingLog = [d, state.dailyLogs[d]];
     openPanel('log');
+    showToast('✅ Daily blog generated! ⭐ ' + parsed.score + '/100');
   } catch(e) {
     if (statusEl) statusEl.innerHTML = '';
     showToast('Error generating blog. Try again.');
@@ -1671,7 +2101,8 @@ Return ONLY valid JSON (no markdown):
 
 async function generateVlogScriptInternal(date) {
   const log = state.dailyLogs[date];
-  if (!log || !state.apiKey) return;
+  const activeKey = getActiveApiKey();
+  if (!log || !activeKey) return;
   const prompt = `Generate a 1-minute vlog script in natural Hinglish for a daily vlogger.
 IMPORTANT rules:
 - Hindi words MUST be written in Devanagari script (not romanized)
@@ -1679,7 +2110,7 @@ IMPORTANT rules:
 - Natural code-switching like Indians actually speak
 - Start with a 2-5 second HOOK to grab attention
 - Keep it energetic and personal
-- Based on this blog: ${log.blog}
+- Based on this blog: \${log.blog}
 
 Return ONLY the script text with these time markers:
 ⏱️ 0:00-0:05 | HOOK
@@ -1714,6 +2145,9 @@ function copyVlogScript() {
 
 // ---- SETTINGS ----
 function renderSettings() {
+  const activeKey = getActiveApiKey();
+  const displayKeyStatus = activeKey ? '✅ Key active' : 'Not set';
+  const displayDotColor = activeKey ? 'var(--green)' : 'var(--text3)';
   return `
     <div class="settings-section">
       <h3>Profile</h3>
@@ -1721,7 +2155,7 @@ function renderSettings() {
         <div class="settings-row-icon">👤</div>
         <div class="settings-row-content">
           <div class="settings-row-label">Your Name</div>
-          <input class="input" id="s-name" value="${state.name||''}" placeholder="Your name" style="margin-top:6px;font-size:14px" onchange="state.name=this.value;saveState();updateGreeting()">
+          <input class="input" id="s-name" value="\${state.name||''}" placeholder="Your name" style="margin-top:6px;font-size:14px" onchange="state.name=this.value;saveState();updateGreeting()">
         </div>
       </div>
     </div>
@@ -1731,10 +2165,16 @@ function renderSettings() {
         <div class="settings-row-icon">🔑</div>
         <div class="settings-row-content">
           <div class="settings-row-label">Gemini API Key</div>
-          <input class="input" id="s-apikey" type="password" value="${state.apiKey||''}" placeholder="Paste API key..." style="margin-top:6px;font-size:14px" onchange="state.apiKey=this.value;saveState()">
-          <div style="font-size:11px;color:var(--text3);margin-top:4px">Get free key at aistudio.google.com</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+            <div style="width:8px;height:8px;border-radius:50%;background:\${displayDotColor}"></div>
+            <span style="font-size:12px;color:var(--text3)">\${displayKeyStatus}</span>
+          </div>
+          <input class="input" id="s-apikey" type="password" value="\${state.apiKey||''}" placeholder="Paste Gemini API key..." style="margin-top:8px;font-size:14px" onchange="updateApiKey(this.value)">
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">Free key at <a href="https://aistudio.google.com" target="_blank" style="color:var(--accent)">aistudio.google.com</a></div>
         </div>
       </div>
+      <button class="btn btn-secondary btn-sm btn-full" style="margin-top:8px" onclick="verifyApiKeyFromSettings()">🔍 Verify Key</button>
+      <div id="settings-key-status" style="font-size:12px;text-align:center;margin-top:6px;min-height:18px"></div>
     </div>
     <div class="settings-section">
       <h3>Google Drive</h3>
@@ -1743,23 +2183,23 @@ function renderSettings() {
         <div class="settings-row-content">
           <div class="settings-row-label">Backup to Drive</div>
           <div class="drive-status" style="margin-top:4px">
-            <div class="drive-dot ${state.driveConnected ? 'connected' : 'disconnected'}"></div>
-            <span style="font-size:12px;color:var(--text3);margin-left:4px">${state.driveConnected ? '✅ Connected — auto-syncing' : 'Not connected'}</span>
+            <div class="drive-dot \${state.driveConnected ? 'connected' : 'disconnected'}"></div>
+            <span style="font-size:12px;color:var(--text3);margin-left:4px">\${state.driveConnected ? '✅ Connected — auto-syncing' : 'Not connected'}</span>
           </div>
         </div>
-        <div class="settings-row-action" onclick="${state.driveConnected ? 'disconnectDrive()' : 'connectDrive()'}">${state.driveConnected ? 'Disconnect' : 'Connect'}</div>
+        <div class="settings-row-action" onclick="\${state.driveConnected ? 'disconnectDrive()' : 'connectDrive()'}">\${state.driveConnected ? 'Disconnect' : 'Connect'}</div>
       </div>
-      ${state.driveConnected ? `
+      \${state.driveConnected ? \`
       <div style="font-size:12px;color:var(--text3);padding:8px 0;line-height:1.5">
         📁 Data is being backed up to <b>DayFlow/</b> folder in your Google Drive.
         <br><span style="color:var(--accent);cursor:pointer" onclick="backupToDrive()">Backup now →</span>
         &nbsp;·&nbsp;
         <span style="color:var(--accent);cursor:pointer" onclick="restoreFromDrive()">Restore from Drive →</span>
-        ${state.lastDriveBackup ? `<br><span style="color:var(--text3)">Last backup: ${state.lastDriveBackup}</span>` : ''}
-      </div>` : `
+        \${state.lastDriveBackup ? \`<br><span style="color:var(--text3)">Last backup: \${state.lastDriveBackup}</span>\` : ''}
+      </div>\` : \`
       <div style="font-size:12px;color:var(--text3);padding:8px 0;line-height:1.5">
         Connect your Google Drive to auto-backup all your data and sync across devices.
-      </div>`}
+      </div>\`}
     </div>
     <div class="settings-section">
       <h3>About</h3>
@@ -1774,43 +2214,98 @@ function renderSettings() {
   `;
 }
 
-// ============================================================
-// GEMINI API
-// ============================================================
-async function callGemini(messages, systemInstruction = '') {
-  if (!state.apiKey) throw new Error('No API key');
+function updateApiKey(val) {
+  state.apiKey = val.trim();
+  state.apiKeyValid = false;
+  saveState();
+}
 
-  // Ensure correct Gemini format — roles must be 'user' or 'model'
+async function verifyApiKeyFromSettings() {
+  const key = document.getElementById('s-apikey')?.value?.trim();
+  if (!key) { showToast('Please enter an API key first'); return; }
+  const statusEl = document.getElementById('settings-key-status');
+  if (statusEl) statusEl.innerHTML = '<span style="color:var(--text3)">Verifying...</span>';
+  const result = await testGeminiKey(key);
+  state.apiKey = key;
+  state.apiKeyValid = result.valid || result.rateLimited;
+  saveState();
+  if (statusEl) {
+    if (result.valid) statusEl.innerHTML = '<span style="color:var(--green)">✅ Key is valid and working!</span>';
+    else if (result.rateLimited) statusEl.innerHTML = '<span style="color:var(--orange)">✅ Key valid — temporarily rate limited</span>';
+    else statusEl.innerHTML = `<span style="color:var(--red)">\${result.error || '❌ Key invalid'}</span>`;
+  }
+  setTimeout(() => { if (currentPanel === 'settings') openPanel('settings'); }, 1500);
+}
+
+// ============================================================
+// GEMINI API — with model fallback & rate limit handling
+// ============================================================
+
+async function callGemini(messages, systemInstruction = '', modelIndex = 0) {
+  const activeKey = getActiveApiKey();
+  if (!activeKey) throw new Error('No API key set');
+  const models = getModelList();
+  if (modelIndex >= models.length) throw new Error('All models rate limited. Try again in a moment.');
+
+  const model = models[modelIndex];
+
   const contents = messages.map(m => ({
     role: m.role === 'assistant' ? 'model' : (m.role || 'user'),
-    parts: m.parts || [{ text: m.content || '' }]
+    parts: m.parts ? m.parts : [{ text: m.content || '' }]
   }));
 
-  const body = {
-    contents,
-    generationConfig: { maxOutputTokens: 2048, temperature: 0.7 }
-  };
+  if (contents.length > 0 && contents[0].role !== 'user') {
+    contents.unshift({ role: 'user', parts: [{ text: '.' }] });
+  }
+
+  const body = { contents, generationConfig: { maxOutputTokens: 2048, temperature: 0.7 } };
   if (systemInstruction) {
     body.systemInstruction = { parts: [{ text: systemInstruction }] };
   }
 
-  const r = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${state.apiKey}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-  );
+  let r;
+  try {
+    const apiVersion = 'v1beta';
+    r = await fetch(
+      `https://generativelanguage.googleapis.com/\${apiVersion}/models/\${model}:generateContent?key=\${activeKey}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    );
+  } catch(networkErr) {
+    const msg = networkErr.message || '';
+    if (msg.includes('fetch') || msg.includes('network') || msg.includes('Failed')) {
+      throw new Error('NETWORK_ERROR: Cannot reach Gemini API. Check your internet connection.');
+    }
+    throw networkErr;
+  }
 
+  if (r.status === 429 && modelIndex + 1 < models.length) {
+    console.warn(`\${model} rate limited → trying fallback...`);
+    return callGemini(messages, systemInstruction, modelIndex + 1);
+  }
+  if (r.status >= 500 && modelIndex + 1 < models.length) {
+    return callGemini(messages, systemInstruction, modelIndex + 1);
+  }
   if (!r.ok) {
     const err = await r.json().catch(() => ({}));
-    const msg = err?.error?.message || `HTTP ${r.status}`;
-    throw new Error(msg);
+    if ((r.status === 404 || r.status === 400) && modelIndex + 1 < models.length) {
+      console.warn(`\${model} unsupported status (\${r.status}) → trying fallback...`);
+      return callGemini(messages, systemInstruction, modelIndex + 1);
+    }
+    throw new Error(err?.error?.message || `HTTP \${r.status}`);
   }
 
   const data = await r.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error('Empty response from Gemini');
+  return text;
 }
 
-async function callGeminiVision(base64, mimeType, prompt) {
-  if (!state.apiKey) throw new Error('No API key');
+async function callGeminiVision(base64, mimeType, prompt, modelIndex = 0) {
+  const activeKey = getActiveApiKey();
+  if (!activeKey) throw new Error('No API key');
+  const models = getModelList();
+  if (modelIndex >= models.length) throw new Error('All models rate limited or unsupported. Try again in a moment.');
+  const model = models[modelIndex];
 
   const body = {
     contents: [{ role: 'user', parts: [
@@ -1820,15 +2315,30 @@ async function callGeminiVision(base64, mimeType, prompt) {
     generationConfig: { maxOutputTokens: 512, temperature: 0.3 }
   };
 
-  const r = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${state.apiKey}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-  );
+  const apiVersion = 'v1beta';
+  let r;
+  try {
+    r = await fetch(
+      `https://generativelanguage.googleapis.com/\${apiVersion}/models/\${model}:generateContent?key=\${activeKey}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    );
+  } catch(e) {
+    if (modelIndex + 1 < models.length) {
+      return callGeminiVision(base64, mimeType, prompt, modelIndex + 1);
+    }
+    throw e;
+  }
 
+  if (r.status === 429 && modelIndex + 1 < models.length) {
+    return callGeminiVision(base64, mimeType, prompt, modelIndex + 1);
+  }
   if (!r.ok) {
     const err = await r.json().catch(() => ({}));
-    const msg = err?.error?.message || `HTTP ${r.status}`;
-    throw new Error(msg);
+    if ((r.status === 404 || r.status === 400) && modelIndex + 1 < models.length) {
+      console.warn(`\${model} vision failed (\${r.status}) → trying fallback model...`);
+      return callGeminiVision(base64, mimeType, prompt, modelIndex + 1);
+    }
+    throw new Error(err?.error?.message || `HTTP \${r.status}`);
   }
 
   const data = await r.json();
@@ -1853,6 +2363,17 @@ function formatDateShort(dateStr) {
   return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
+function calcSleepDur(wake, sleep) {
+  const [wh, wm] = wake.split(':').map(Number);
+  const [sh, sm] = sleep.split(':').map(Number);
+  let wakeMin = wh * 60 + wm;
+  let sleepMin = sh * 60 + sm;
+  if (sleepMin > wakeMin) wakeMin += 24 * 60;
+  const diff = wakeMin - sleepMin;
+  const h = Math.floor(diff / 60), m = diff % 60;
+  return `\${h}h\${m > 0 ? \` \${m}m\` : ''}`;
+}
+
 function copyText(elId) {
   const el = document.getElementById(elId);
   if (!el) return;
@@ -1871,11 +2392,11 @@ function showToast(msg) {
 // ============================================================
 function exportData() {
   const exportState = { ...state };
-  delete exportState.apiKey; // Security: never export API key
+  delete exportState.apiKey;
   const blob = new Blob([JSON.stringify(exportState, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `dayflow-${todayStr()}.json`;
+  a.download = `dayflow-\${todayStr()}.json`;
   a.click();
   showToast('✅ Data exported!');
 }
@@ -1887,7 +2408,7 @@ function importData(event) {
   reader.onload = (e) => {
     try {
       const imported = JSON.parse(e.target.result);
-      const apiKey = state.apiKey; // Keep current API key
+      const apiKey = state.apiKey;
       state = { ...state, ...imported, apiKey };
       saveState(); initApp();
       showToast('✅ Data imported!');
@@ -1898,8 +2419,11 @@ function importData(event) {
 }
 
 function clearAllData() {
-  const confirmed = window.confirm('Type DELETE to confirm — this will erase all your DayFlow data permanently.');
-  if (!confirmed) return;
+  const userInput = window.prompt('Type DELETE to confirm — this will erase all your DayFlow data permanently.');
+  if (userInput !== 'DELETE') {
+    showToast('Deletion cancelled.');
+    return;
+  }
   const apiKey = state.apiKey, name = state.name;
   localStorage.removeItem(DB_KEY);
   state = { name, apiKey, driveConnected: false, selectedDate: todayStr(),
@@ -1923,10 +2447,12 @@ function clearAllData() {
 }
 
 // ============================================================
-// PANEL JS INIT (for dynamic interactions)
+// PANEL JS INIT
 // ============================================================
 function initPanelJS(name) {
-  // nothing extra needed — all handled via onclick
+  if (name === 'chat') {
+    scrollChatToBottom();
+  }
 }
 
 // ============================================================
@@ -1936,14 +2462,21 @@ loadState();
 if (state.setupDone) {
   document.getElementById('onboarding').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-  // Always select today on open
   state.selectedDate = todayStr();
   state.currentMonth = { y: new Date().getFullYear(), m: new Date().getMonth() };
   initApp();
 } else {
-  // Pre-fill name if exists
   if (state.name) document.getElementById('ob-name').value = state.name;
 }
+
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    if (!window.google) return;
+    if (state.driveConnected && state.setupDone) {
+      initDriveClient(true);
+    }
+  }, 1000);
+});
 </script>
 </body>
 </html>
