@@ -72,34 +72,7 @@ DayFlow is a PWA — install it like an app directly from your browser.
 3. Tap **Add to Home Screen**
 4. Tap **Add** ✅
 ---
- 
-## 🛠️ Deploying to GitHub Pages (Free Hosting)
- 
-### Step 1 — Create a GitHub Repository
-1. Go to [github.com](https://github.com) and sign in (or create a free account)
-2. Click **New repository**
-3. Name it `dayflow`
-4. Set it to **Public**
-5. Click **Create repository**
-### Step 2 — Upload the File
-1. Click **Add file → Upload files**
-2. Drag and drop `dayflow.html` into the box
-3. Also upload `README.md` if you want
-4. Click **Commit changes**
-### Step 3 — Enable GitHub Pages
-1. Go to your repo's **Settings** tab
-2. Click **Pages** in the left sidebar
-3. Under **Source**, select **Deploy from a branch**
-4. Select **main** branch, **/ (root)** folder
-5. Click **Save**
-### Step 4 — Your App is Live!
-After 1–2 minutes, your app will be available at:
-```
-https://YOUR-USERNAME.github.io/dayflow
-```
-Open this URL in Safari on your iPhone and add it to your Home Screen.
- 
----
+
  
 ## 🔑 Getting Your Free Gemini API Key
  
@@ -146,8 +119,7 @@ DayFlow automatically creates a `DayFlow` folder in your Google Drive and backs 
 - Nutrition photos and journal audio are kept for **30 days** in Drive, then auto-deleted to save storage space
 - All text data and logs are kept **forever**
 - You can change the retention period in Settings
-> **Note:** Google Drive sync requires the app to be hosted on a real URL (like GitHub Pages). It will not work if you just open the HTML file directly from your computer.
- 
+
 ---
  
 ## 🔒 Privacy & Data
@@ -172,11 +144,9 @@ At the bottom of the app homepage:
  
 - **Export All Data** — Downloads a `dayflow-YYYY-MM-DD.json` file with everything (API key excluded)
 - **Import Data** — Upload a previously exported file to restore your data
-- **Clear All Data** — Permanently deletes everything (requires confirmation)
 This means you can:
 - Switch devices easily — export on one, import on another
 - Keep manual backups anytime
-- Move your data to a new GitHub deployment
 ---
  
 ## 🧭 How to Use DayFlow — Daily Routine
@@ -265,7 +235,7 @@ MIT License — free to use, modify, and distribute.
  
 ## 🙏 Credits
  
-Built with [Google Gemini API](https://aistudio.google.com) · Hosted on [GitHub Pages](https://pages.github.com) · Designed to be used every single day.
+Built with Care(Gemini, Copilot, Claude, Cursor) · Hosted on [GitHub Pages](https://pages.github.com) · Designed to be used every single day.
  
 ---
  
