@@ -436,6 +436,7 @@
     </div>
     <div class="tool-btn" onclick="openPanel('log')"><div class="tool-icon">📖</div><div class="tool-name">Daily Log</div></div>
     <div class="tool-btn" onclick="openPanel('focus')"><div class="tool-icon">⏱️</div><div class="tool-name">Focus</div></div>
+    <div class="tool-btn" onclick="openCinematicCamera()"><div class="tool-icon">📸</div><div class="tool-name">Cinema Cam</div></div>
   </div>
 
 </div>
@@ -450,6 +451,63 @@
   </div>
   <div class="panel-body" id="panel-body"></div>
 </div>
+
+<!-- Cinematic Camera -->
+<div id="camera-viewfinder-overlay">
+  <div id="cam-flashAura"></div>
+  <div class="cam-topBar">
+    <div style="display:flex; gap:8px;">
+      <div class="cam-iconBtn" id="cam-closeBtn" onclick="closeCinematicCamera()">✕</div>
+      <div class="cam-iconBtn" id="cam-switchBtn">⟲</div>
+    </div>
+    <div style="display:flex; gap:8px; position:relative;">
+      <div class="cam-iconBtn" id="cam-lockBtn">🔒</div>
+      <div class="cam-iconBtn" id="cam-flashBtn">✦</div>
+      <div id="cam-flashPop">
+        <div class="swatch" data-color="255,255,255" style="width:36px; height:36px; border-radius:50%; background:#fff; cursor:pointer;" title="Bright white"></div>
+        <div class="swatch" data-color="255,214,170" style="width:36px; height:36px; border-radius:50%; background:#ffd6aa; cursor:pointer;" title="Warm"></div>
+        <div class="swatch" data-color="200,225,255" style="width:36px; height:36px; border-radius:50%; background:#c8e1ff; cursor:pointer;" title="Cool"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="cam-stage">
+    <div id="cam-viewportFrame">
+      <canvas id="cam-preview"></canvas>
+      <video id="cam-source" playsinline autoplay muted></video>
+      <div id="cam-lockBadge">🔒 Locked</div>
+      <div id="cam-recIndicator"><span id="cam-recDot"></span><span id="cam-recTime" style="color:#fff">00:00</span></div>
+    </div>
+  </div>
+
+  <div id="cam-filterStrip">
+    <div class="filterChip selected" data-filter="none">Natural</div>
+    <div class="filterChip" data-filter="cinematic">Cinematic</div>
+    <div class="filterChip" data-filter="ultra8k">8K Ultra</div>
+    <div class="filterChip" data-filter="podcast">Podcast</div>
+  </div>
+
+  <div id="cam-controlsPanel">
+    <div class="sliderRow">
+      <label style="width:64px; font-size:11px; color:#8b8a90;">EXPOSURE</label>
+      <input type="range" id="cam-exposure" min="50" max="150" value="100">
+    </div>
+    <div class="sliderRow">
+      <label style="width:64px; font-size:11px; color:#8b8a90;">BRIGHT</label>
+      <input type="range" id="cam-brightness" min="50" max="150" value="100">
+    </div>
+    <div class="sliderRow">
+      <label style="width:64px; font-size:11px; color:#8b8a90;">SATURATION</label>
+      <input type="range" id="cam-saturation" min="0" max="200" value="100">
+    </div>
+  </div>
+
+  <div id="cam-bottomBar">
+    <div style="width:46px;"></div> <div id="cam-shutterWrap"><div id="cam-shutter"></div></div>
+    <div id="cam-modeToggle" style="color:#8b8a90; font-size:11px; cursor:pointer; width:46px; text-align:center;">PHOTO</div>
+  </div>
+</div>
+
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
@@ -2557,6 +2615,181 @@ function initPanelJS(name) {
 }
 
 // ============================================================
+// INTEGRATED CINEMATIC CAMERA SYSTEM ENGINE
+// ============================================================
+let camState = {
+  facingMode: 'user', stream: null, filter: 'none',
+  exposure: 100, brightness: 100, saturation: 100,
+  locked: false, lockedValues: null, flashOn: false,
+  flashColor: '255,255,255', mode: 'photo', recording: false,
+  recorder: null, chunks: [], recordStart: 0, recordTimerId: null, drawLoopId: null
+};
+
+function openCinematicCamera() {
+  document.getElementById('camera-viewfinder-overlay').classList.add('open');
+  initCinematicEngine();
+}
+
+function closeCinematicCamera() {
+  if (camState.recording) stopCamRecording();
+  if (camState.stream) {
+    camState.stream.getTracks().forEach(t => t.stop());
+    camState.stream = null;
+  }
+  if (camState.drawLoopId) {
+    cancelAnimationFrame(camState.drawLoopId);
+    camState.drawLoopId = null;
+  }
+  document.getElementById('camera-viewfinder-overlay').classList.remove('open');
+}
+
+async function initCinematicEngine() {
+  const video = document.getElementById('cam-source');
+  const canvas = document.getElementById('cam-preview');
+  const ctx = canvas.getContext('2d');
+  
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true, video: { facingMode: camState.facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    camState.stream = stream;
+    video.srcObject = stream;
+    await video.play();
+    
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    
+    function drawLoop() {
+      if (!document.getElementById('camera-viewfinder-overlay').classList.contains('open')) return;
+      if (video.readyState >= 2) {
+        ctx.save();
+        const v = camState.locked ? camState.lockedValues : camState;
+        let baseFilter = '';
+        if (camState.filter === 'cinematic') baseFilter = 'contrast(1.18) saturate(0.88) sepia(0.08) hue-rotate(-6deg) ';
+        if (camState.filter === 'ultra8k') baseFilter = 'contrast(1.28) saturate(1.12) brightness(1.02) ';
+        if (camState.filter === 'podcast') baseFilter = 'contrast(1.05) saturate(0.95) brightness(1.06) sepia(0.14) ';
+        
+        ctx.filter = `${baseFilter}brightness(${(v.exposure/100) * (v.brightness/100)}) saturate(${v.saturation/100})`;
+        if (camState.facingMode === 'user') {
+          ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
+        }
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        
+        if (camState.filter === 'cinematic') {
+          ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height * 0.065);
+          ctx.fillRect(0, canvas.height - (canvas.height * 0.065), canvas.width, canvas.height * 0.065);
+        }
+      }
+      camState.drawLoopId = requestAnimationFrame(drawLoop);
+    }
+    drawLoop();
+  } catch(e) { showToast("Camera initialization blocked or missing permissions."); }
+}
+
+// Bind UI actions cleanly inside the main app execution cycle
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('cam-switchBtn').addEventListener('click', () => {
+    camState.facingMode = camState.facingMode === 'user' ? 'environment' : 'user';
+    if (camState.stream) { camState.stream.getTracks().forEach(t => t.stop()); }
+    initCinematicEngine();
+  });
+  
+  document.querySelectorAll('#cam-filterStrip .filterChip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#cam-filterStrip .filterChip').forEach(c => c.classList.remove('selected'));
+      chip.classList.add('selected'); camState.filter = chip.dataset.filter;
+    });
+  });
+
+  document.getElementById('cam-exposure').addEventListener('input', (e) => camState.exposure = e.target.value);
+  document.getElementById('cam-brightness').addEventListener('input', (e) => camState.brightness = e.target.value);
+  document.getElementById('cam-saturation').addEventListener('input', (e) => camState.saturation = e.target.value);
+
+  document.getElementById('cam-lockBtn').addEventListener('click', () => {
+    camState.locked = !camState.locked;
+    document.getElementById('cam-lockBtn').classList.toggle('active', camState.locked);
+    document.getElementById('cam-lockBadge').style.display = camState.locked ? 'block' : 'none';
+    if (camState.locked) camState.lockedValues = { exposure: camState.exposure, brightness: camState.brightness, saturation: camState.saturation };
+  });
+
+  document.getElementById('cam-flashBtn').addEventListener('click', (e) => {
+    e.stopPropagation(); document.getElementById('cam-flashPop').classList.toggle('show');
+  });
+
+  document.querySelectorAll('#cam-flashPop .swatch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      camState.flashColor = sw.dataset.color;
+      document.documentElement.style.setProperty('--flash-color', camState.flashColor);
+      document.getElementById('cam-flashAura').classList.add('on');
+      document.getElementById('cam-flashBtn').classList.add('active');
+      document.getElementById('cam-flashPop').classList.remove('show');
+    });
+  });
+
+  document.getElementById('cam-flashBtn').addEventListener('dblclick', () => {
+    document.getElementById('cam-flashAura').classList.remove('on');
+    document.getElementById('cam-flashBtn').classList.remove('active');
+  });
+
+  document.getElementById('cam-modeToggle').addEventListener('click', () => {
+    if (camState.recording) return;
+    camState.mode = camState.mode === 'photo' ? 'video' : 'photo';
+    document.getElementById('cam-modeToggle').textContent = camState.mode.toUpperCase();
+  });
+
+  document.getElementById('cam-shutter').addEventListener('click', () => {
+    if (camState.mode === 'photo') {
+      const canvas = document.getElementById('cam-preview');
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const file = new File([blob], `capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'DayFlow Photo' });
+        } else {
+          const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+          a.download = `capture-${Date.now()}.jpg`; a.click();
+        }
+      }, 'image/jpeg', 0.92);
+    } else {
+      if (camState.recording) stopCamRecording(); else startCamRecording();
+    }
+  });
+});
+
+function startCamRecording() {
+  const canvas = document.getElementById('cam-preview');
+  const canvasStream = canvas.captureStream(30);
+  const combined = new MediaStream([...canvasStream.getVideoTracks(), ...camState.stream.getAudioTracks()]);
+  
+  camState.chunks = [];
+  camState.recorder = new MediaRecorder(combined, { mimeType: 'video/webm' });
+  camState.recorder.ondataavailable = e => { if(e.data.size) camState.chunks.push(e.data); };
+  camState.recorder.onstop = () => {
+    const blob = new Blob(camState.chunks, { type: 'video/webm' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `video-${Date.now()}.webm`; a.click();
+  };
+  camState.recorder.start();
+  camState.recording = true; camState.recordStart = Date.now();
+  document.getElementById('cam-shutter').classList.add('recording');
+  document.getElementById('cam-recIndicator').style.display = 'flex';
+  camState.recordTimerId = setInterval(() => {
+    const secs = Math.floor((Date.now() - camState.recordStart) / 1000);
+    document.getElementById('cam-recTime').textContent = `${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;
+  }, 250);
+}
+
+function stopCamRecording() {
+  if (camState.recorder && camState.recording) {
+    camState.recorder.stop(); camState.recording = false;
+    clearInterval(camState.recordTimerId);
+    document.getElementById('cam-shutter').classList.remove('recording');
+    document.getElementById('cam-recIndicator').style.display = 'none';
+  }
+}
+
+// ============================================================
 // BOOT
 // ============================================================
 loadState();
@@ -2585,6 +2818,154 @@ window.addEventListener('message', (e) => {
     if (frame) frame.style.height = (e.data.height + 4) + 'px';
   }
 });
+
+/* ---------- CINEMATIC CAMERA SYSTEM ---------- */
+#camera-viewfinder-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #0a0a0c;
+    display: none;
+    flex-direction: column;
+    color: #f2f0ec;
+  }
+  #camera-viewfinder-overlay.open {
+    display: flex;
+  }
+  #cam-flashAura {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: radial-gradient(ellipse at center, rgba(var(--flash-color, 255,255,255),0) 38%, rgba(var(--flash-color, 255,255,255),0.95) 78%);
+    opacity: 0;
+    transition: opacity .18s ease;
+    pointer-events: none;
+  }
+  #cam-flashAura.on { opacity: 1; }
+  .cam-topBar {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 14px 10px;
+  }
+  .cam-iconBtn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: rgba(20,20,23,0.55);
+    border: 1px solid #242429;
+    color: #f2f0ec;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+  }
+  .cam-iconBtn.active { background: #f2b134; border-color: #f2b134; color: #1a1200; }
+  #cam-stage {
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    min-height: 0;
+  }
+  #cam-viewportFrame {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-width: 640px;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #000;
+  }
+  canvas#cam-preview { width: 100%; height: 100%; object-fit: cover; display: block; }
+  video#cam-source { display: none; }
+  #cam-lockBadge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.55);
+    border: 1px solid rgba(242,177,52,0.6);
+    color: #f2b134;
+    font-size: 11px;
+    padding: 4px 9px;
+    border-radius: 20px;
+    display: none;
+  }
+  #cam-recIndicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,0,0,0.55);
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+  }
+  #cam-recDot { width: 8px; height: 8px; border-radius: 50%; background: #e6503f; animation: camPulse 1.1s infinite; }
+  @keyframes camPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+  #cam-filterStrip {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 12px 14px 4px;
+    scrollbar-width: none;
+  }
+  #cam-filterStrip::-webkit-scrollbar { display: none; }
+  #cam-controlsPanel {
+    position: relative;
+    z-index: 3;
+    padding: 6px 18px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  #cam-bottomBar {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 26px 24px;
+  }
+  #cam-shutter {
+    width: 74px;
+    height: 74px;
+    border-radius: 50%;
+    background: transparent;
+    border: 3px solid #f2f0ec;
+    position: relative;
+    cursor: pointer;
+  }
+  #cam-shutter::after {
+    content: ''; position: absolute; inset: 5px; border-radius: 50%; background: #f2f0ec; transition: all .15s ease;
+  }
+  #cam-shutter.recording { border-color: #e6503f; }
+  #cam-shutter.recording::after { inset: 22px; border-radius: 6px; background: #e6503f; }
+  #cam-flashPop {
+    position: absolute;
+    z-index: 5;
+    top: 56px;
+    right: 14px;
+    background: #141417;
+    border: 1px solid #242429;
+    border-radius: 14px;
+    padding: 10px;
+    display: none;
+    gap: 8px;
+  }
+  #cam-flashPop.show { display: flex; }
+
 </script>
 </body>
 </html>
