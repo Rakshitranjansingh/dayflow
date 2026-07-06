@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    background: transparent;
+    overflow: hidden;
+  }
+  .quote-card {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 16px 20px;
+    border: 1px solid #E8E8E4;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.05);
+    text-align: center;
+  }
+  .quote-card:active { transform: scale(0.98); }
+  .quote-card::before {
+    content: '\201C';
+    position: absolute;
+    top: -4px; left: 10px;
+    font-size: 56px;
+    color: #F97316;
+    opacity: 0.15;
+    font-family: Georgia, serif;
+    line-height: 1;
+  }
+  .quote-text {
+    font-size: 14.5px;
+    line-height: 1.65;
+    color: #1A1A18;
+    font-style: italic;
+    padding: 0 8px;
+  }
+  .quote-author {
+    font-size: 12.5px;
+    color: #F97316;
+    font-weight: 600;
+    margin-top: 8px;
+  }
+  .quote-footer {
+    display: flex;
+    justify-content: center;
+    margin-top: 6px;
+  }
+  .quote-refresh {
+    font-size: 10.5px;
+    color: #A8A8A0;
+  }
+  @keyframes fadeQuote {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .quote-fade { animation: fadeQuote 0.35s ease; }
+</style>
+</head>
+<body>
+<div class="quote-card" id="quote-card" onclick="refreshQuote()">
+  <div class="quote-text" id="quote-text"></div>
+  <div class="quote-author" id="quote-author"></div>
+
+</div>
+
+<script>
+const QUOTES = [
+  // Productivity
+  { text: "Small steps every day lead to big results every year.", author: "James Clear", category: "Productivity" },
+  { text: "Focus on being productive instead of busy.", author: "Tim Ferriss", category: "Productivity" },
+  { text: "The secret of getting ahead is getting started.", author: "Mark Twain", category: "Productivity" },
+  { text: "You don't have to be great to start, but you have to start to be great.", author: "Zig Ziglar", category: "Productivity" },
+  { text: "The way to get started is to quit talking and begin doing.", author: "Walt Disney", category: "Productivity" },
+  { text: "What you do today can improve all your tomorrows.", author: "Ralph Marston", category: "Productivity" },
+  { text: "A year from now you may wish you had started today.", author: "Karen Lamb", category: "Productivity" },
+
+  // Discipline
+  { text: "Discipline is choosing between what you want now and what you want most.", author: "Abraham Lincoln", category: "Discipline" },
+  { text: "Don't watch the clock; do what it does. Keep going.", author: "Sam Levenson", category: "Discipline" },
+  { text: "Don't stop when you're tired. Stop when you're done.", author: "Unknown", category: "Discipline" },
+  { text: "Push yourself, because no one else is going to do it for you.", author: "Unknown", category: "Discipline" },
+  { text: "Wake up with determination. Go to bed with satisfaction.", author: "Unknown", category: "Discipline" },
+  { text: "Success is the sum of small efforts repeated day in and day out.", author: "Robert Collier", category: "Discipline" },
+
+  // Mindset
+  { text: "It always seems impossible until it's done.", author: "Nelson Mandela", category: "Mindset" },
+  { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt", category: "Mindset" },
+  { text: "Your only limit is your mind.", author: "Unknown", category: "Mindset" },
+  { text: "Act as if what you do makes a difference. It does.", author: "William James", category: "Mindset" },
+  { text: "Strive for progress, not perfection.", author: "Unknown", category: "Mindset" },
+  { text: "Great things never come from comfort zones.", author: "Unknown", category: "Mindset" },
+  { text: "The mind is everything. What you think, you become.", author: "Buddha", category: "Mindset" },
+
+  // Self Improvement
+  { text: "Do something today that your future self will thank you for.", author: "Sean Patrick Flanery", category: "Growth" },
+  { text: "Your future is created by what you do today, not tomorrow.", author: "Robert Kiyosaki", category: "Growth" },
+  { text: "Little by little, a little becomes a lot.", author: "Tanzanian Proverb", category: "Growth" },
+  { text: "You are never too old to set another goal or to dream a new dream.", author: "C.S. Lewis", category: "Growth" },
+  { text: "All our dreams can come true, if we have the courage to pursue them.", author: "Walt Disney", category: "Growth" },
+  { text: "The only way to do great work is to love what you do.", author: "Steve Jobs", category: "Growth" },
+
+  // Health & Body
+  { text: "Take care of your body. It's the only place you have to live.", author: "Jim Rohn", category: "Health" },
+  { text: "A healthy outside starts from the inside.", author: "Robert Urich", category: "Health" },
+  { text: "Your body can stand almost anything. It's your mind you have to convince.", author: "Unknown", category: "Health" },
+
+  // Money
+  { text: "Do not save what is left after spending, but spend what is left after saving.", author: "Warren Buffett", category: "Money" },
+  { text: "Financial freedom is available to those who learn about it and work for it.", author: "Robert Kiyosaki", category: "Money" },
+];
+
+let currentQuoteIndex = -1;
+
+function getDailyQuoteIndex() {
+  const d = new Date();
+  const seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  return seed % QUOTES.length;
+}
+
+function renderQuote(index) {
+  const q = QUOTES[index];
+  const card = document.getElementById('quote-card');
+  card.classList.remove('quote-fade');
+  void card.offsetWidth;
+  card.classList.add('quote-fade');
+  document.getElementById('quote-text').textContent = `"${q.text}"`;
+  document.getElementById('quote-author').textContent = `— ${q.author}`;
+  currentQuoteIndex = index;
+  window.parent.postMessage({ type: 'quoteHeight', height: document.body.scrollHeight }, '*');
+}
+
+function refreshQuote() {
+  let next = Math.floor(Math.random() * QUOTES.length);
+  while (next === currentQuoteIndex) next = Math.floor(Math.random() * QUOTES.length);
+  renderQuote(next);
+}
+
+// Init — show today's daily quote
+renderQuote(getDailyQuoteIndex());
+</script>
+</body>
+</html>
