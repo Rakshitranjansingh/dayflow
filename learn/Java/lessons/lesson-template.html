@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Lesson — DayFlow Learn</title>
+<style>
+  :root {
+    --bg: #F8F8F6; --surface: #FFFFFF; --surface2: #F2F2F0;
+    --border: #E8E8E4; --text: #1A1A18; --text2: #6B6B65; --text3: #A8A8A0;
+    --accent: #2D6BE4; --accent-soft: #EBF1FD;
+    --green: #22C55E; --green-soft: #DCFCE7;
+    --orange: #F97316; --orange-soft: #FFEDD5;
+    --java: #f89820;
+    --radius: 14px; --radius-sm: 8px;
+    --font: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); padding-bottom: 100px; }
+
+  /* HEADER */
+  .header { background: var(--surface); padding: 14px 20px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; display: flex; align-items: center; gap: 10px; }
+  .back-btn { color: var(--accent); font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; background: var(--accent-soft); border: none; font-family: var(--font); padding: 5px 10px; border-radius: var(--radius-sm); }
+  .header-info { flex: 1; }
+  .header-title { font-size: 15px; font-weight: 700; }
+  .header-meta { font-size: 11px; color: var(--text3); margin-top: 1px; }
+  .dayflow-btn { color: var(--text2); font-size: 13px; background: var(--surface2); border: none; font-family: var(--font); padding: 5px 10px; border-radius: var(--radius-sm); cursor: pointer; }
+
+  /* VIDEO */
+  .video-thumb { margin: 16px 20px 0; border-radius: var(--radius); overflow: hidden; position: relative; background: #000; cursor: pointer; }
+  .video-thumb img { width: 100%; display: block; object-fit: cover; }
+  .video-play-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); }
+  .play-btn { width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,0.95); display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 8px; }
+  .play-label { color: #fff; font-size: 13px; font-weight: 600; }
+  .no-video { margin: 16px 20px 0; background: var(--surface2); border-radius: var(--radius); padding: 20px; text-align: center; color: var(--text3); font-size: 13px; }
+
+  /* VIDEO MODAL */
+  .video-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+  .video-modal.show { opacity: 1; pointer-events: all; }
+  .video-modal-header { width: 100%; max-width: 600px; display: flex; justify-content: flex-end; padding: 12px 16px; }
+  .video-close { color: #fff; font-size: 28px; cursor: pointer; background: none; border: none; line-height: 1; }
+  .video-modal iframe { width: 100%; max-width: 600px; aspect-ratio: 16/9; border: none; border-radius: 8px; }
+  .video-modal-footer { padding: 16px; text-align: center; }
+  .mark-watched-btn { padding: 12px 28px; background: var(--green); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; font-family: var(--font); cursor: pointer; }
+
+  /* AUDIO */
+  .audio-section { margin: 14px 20px 0; background: var(--surface); border-radius: var(--radius-sm); border: 1px solid var(--border); padding: 14px; }
+  .audio-label { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  audio { width: 100%; border-radius: 8px; outline: none; }
+
+  /* CONTENT */
+  .content { margin: 14px 20px 0; }
+  .content-block { background: var(--surface); border-radius: var(--radius-sm); border: 1px solid var(--border); padding: 16px; margin-bottom: 12px; }
+  .content-block-title { font-size: 13px; font-weight: 700; color: var(--text2); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .notes-text { font-size: 14px; line-height: 1.7; color: var(--text); white-space: pre-wrap; }
+  .key-points { list-style: none; }
+  .key-points li { font-size: 14px; line-height: 1.6; padding: 6px 0; border-bottom: 1px solid var(--border); display: flex; gap: 8px; }
+  .key-points li:last-child { border-bottom: none; }
+  .key-points li::before { content: '→'; color: var(--accent); font-weight: 700; flex-shrink: 0; }
+  .code-block { background: #1a1a2e; border-radius: var(--radius-sm); padding: 14px; overflow-x: auto; }
+  .code-block pre { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; color: #e2e8f0; line-height: 1.6; white-space: pre; }
+  .code-copy { float: right; background: rgba(255,255,255,0.1); color: #fff; border: none; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; font-family: var(--font); margin-bottom: 6px; }
+
+  /* BOTTOM BAR */
+  .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 12px 20px; display: flex; gap: 8px; }
+  .nav-btn { padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-size: 13px; font-weight: 500; font-family: var(--font); cursor: pointer; background: var(--surface2); color: var(--text2); }
+  .complete-btn { flex: 1; padding: 13px; border-radius: var(--radius-sm); border: none; font-size: 14px; font-weight: 700; font-family: var(--font); cursor: pointer; background: var(--java); color: #fff; transition: background 0.2s; }
+  .complete-btn.done { background: var(--green); }
+  .complete-btn:active { opacity: 0.85; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--text); color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 13px; z-index: 999; transition: transform 0.3s; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <a class="back-btn" href="../index.html">← Java</a>
+  <div class="header-info">
+    <div class="header-title" id="hdr-title">Lesson Title</div>
+    <div class="header-meta" id="hdr-meta">Lesson 1 · 8 min</div>
+  </div>
+  <button class="dayflow-btn" onclick="window.location.href='../../../index.html'">🌊</button>
+</div>
+
+<!-- VIDEO THUMBNAIL -->
+<div id="video-section"></div>
+
+<!-- AUDIO -->
+<div id="audio-section"></div>
+
+<!-- CONTENT -->
+<div class="content" id="content-section"></div>
+
+<!-- BOTTOM BAR -->
+<div class="bottom-bar">
+  <button class="nav-btn" id="prev-btn" onclick="goPrev()">‹ Prev</button>
+  <button class="complete-btn" id="complete-btn" onclick="toggleComplete()">✅ Mark Complete</button>
+  <button class="nav-btn" id="next-btn" onclick="goNext()">Next ›</button>
+</div>
+
+<!-- VIDEO MODAL -->
+<div class="video-modal" id="video-modal">
+  <div class="video-modal-header">
+    <button class="video-close" onclick="closeVideo()">✕</button>
+  </div>
+  <iframe id="video-iframe" src="" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+  <div class="video-modal-footer">
+    <button class="mark-watched-btn" onclick="markWatchedAndClose()">✅ Mark as Watched & Close</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// ═══════════════════════════════════════════════════════════
+//   LESSON CONFIG — EDIT ONLY THIS SECTION FOR EACH LESSON
+// ═══════════════════════════════════════════════════════════
+// ============================================================
+
+const LESSON = {
+  // Course info
+  course:       'java',
+  lessonId:     'what-is-java',    // unique ID — no spaces
+  lessonNo:      1,                // lesson number
+  totalLessons:  12,               // total in course
+
+  // Display
+  title:        'What is Java?',
+  duration:     '8 min',
+
+  // Video — paste YouTube video ID only
+  // Leave empty string '' if no video
+  videoId:      'eIrMbAQSU34',     // e.g. 'dQw4w9WgXcQ'
+
+  // Audio — filename relative to this file
+  // Leave empty string '' if no audio
+  audioFile:    '',                // e.g. 'audio/01-what-is-java.mp3'
+
+  // Navigation — filenames of prev/next lessons
+  prevLesson:   '',                // leave '' if first lesson
+  nextLesson:   '02-setup.html',
+
+  // Notes — plain text, \n for new line
+  notes: `Java is a high-level, class-based, object-oriented programming language that is designed to have as few implementation dependencies as possible.
+
+It was originally developed by James Gosling at Sun Microsystems and released in 1995. Today it is owned by Oracle.
+
+Java follows the principle of "Write Once, Run Anywhere" — meaning compiled Java code can run on all platforms without recompilation.`,
+
+  // Key Points — one string per bullet
+  keyPoints: [
+    'Java is platform-independent — runs on any OS',
+    'Object-oriented language — everything is a class',
+    'Strongly typed — variables must have declared types',
+    'Java is compiled to bytecode, then run by JVM',
+    'One of the most popular languages in the world',
+  ],
+
+  // Code Example — leave empty string '' if none
+  code: `// Your first Java program
+public class HelloWorld {
+    public static void main(String[] args) {
+        System.out.println("Hello, DayFlow!");
+    }
+}`,
+
+};
+
+// ============================================================
+// ═══════════════════════════════════════════════════════════
+//   STOP EDITING — Everything below is automatic
+// ═══════════════════════════════════════════════════════════
+// ============================================================
+
+// STATE
+const DB_KEY = 'dayflow_v1';
+function loadState() { try { return JSON.parse(localStorage.getItem(DB_KEY)) || {}; } catch(e) { return {}; } }
+function saveState(s) { try { localStorage.setItem(DB_KEY, JSON.stringify(s)); } catch(e) {} }
+
+let state = loadState();
+let isCompleted = state.learning?.enrollments?.java?.completed?.includes(LESSON.lessonId);
+
+// INIT
+function init() {
+  // Header
+  document.getElementById('hdr-title').textContent = LESSON.title;
+  document.getElementById('hdr-meta').textContent = `Lesson ${LESSON.lessonNo} of ${LESSON.totalLessons} · ${LESSON.duration}`;
+
+  // Video section
+  const videoSection = document.getElementById('video-section');
+  if (LESSON.videoId) {
+    videoSection.innerHTML = `
+      <div class="video-thumb" onclick="openVideo()">
+        <img src="https://img.youtube.com/vi/${LESSON.videoId}/hqdefault.jpg"
+             onerror="this.style.display='none'"
+             alt="Video thumbnail">
+        <div class="video-play-overlay">
+          <div class="play-btn">▶</div>
+          <div class="play-label">Watch Lesson · ${LESSON.duration}</div>
+        </div>
+      </div>`;
+  } else {
+    videoSection.innerHTML = `<div class="no-video">📝 Notes-based lesson — read below</div>`;
+  }
+
+  // Audio section
+  const audioSection = document.getElementById('audio-section');
+  if (LESSON.audioFile) {
+    audioSection.innerHTML = `
+      <div class="audio-section">
+        <div class="audio-label">🎵 Listen to this lesson</div>
+        <audio controls>
+          <source src="${LESSON.audioFile}" type="audio/mpeg">
+          Your browser does not support audio.
+        </audio>
+      </div>`;
+  }
+
+  // Content section
+  const contentSection = document.getElementById('content-section');
+  let html = '';
+
+  if (LESSON.notes) {
+    html += `
+      <div class="content-block">
+        <div class="content-block-title">📝 Notes</div>
+        <div class="notes-text">${LESSON.notes.trim()}</div>
+      </div>`;
+  }
+
+  if (LESSON.keyPoints?.length) {
+    const points = LESSON.keyPoints.map(p => `<li>${p}</li>`).join('');
+    html += `
+      <div class="content-block">
+        <div class="content-block-title">💡 Key Points</div>
+        <ul class="key-points">${points}</ul>
+      </div>`;
+  }
+
+  if (LESSON.code) {
+    html += `
+      <div class="content-block">
+        <div class="content-block-title">💻 Code Example</div>
+        <div class="code-block">
+          <button class="code-copy" onclick="copyCode()">Copy</button>
+          <pre id="code-pre">${escapeHtml(LESSON.code.trim())}</pre>
+        </div>
+      </div>`;
+  }
+
+  contentSection.innerHTML = html;
+
+  // Navigation buttons
+  if (!LESSON.prevLesson) document.getElementById('prev-btn').style.display = 'none';
+  if (!LESSON.nextLesson) document.getElementById('next-btn').style.display = 'none';
+
+  // Complete button state
+  updateCompleteBtn();
+}
+
+function updateCompleteBtn() {
+  const btn = document.getElementById('complete-btn');
+  if (isCompleted) {
+    btn.textContent = '✅ Completed';
+    btn.classList.add('done');
+  } else {
+    btn.textContent = '☑️ Mark Complete';
+    btn.classList.remove('done');
+  }
+}
+
+// VIDEO
+function openVideo() {
+  const modal = document.getElementById('video-modal');
+  document.getElementById('video-iframe').src =
+    `https://www.youtube.com/embed/${LESSON.videoId}?autoplay=1&rel=0&modestbranding=1`;
+  modal.classList.add('show');
+}
+
+function closeVideo() {
+  document.getElementById('video-modal').classList.remove('show');
+  document.getElementById('video-iframe').src = '';
+}
+
+function markWatchedAndClose() {
+  closeVideo();
+  if (!isCompleted) {
+    markComplete();
+    showToast('🎉 Video watched! Lesson marked complete.');
+  } else {
+    showToast('Already completed!');
+  }
+}
+
+// COMPLETE
+function toggleComplete() {
+  if (isCompleted) {
+    showToast('Already completed! ✅');
+    return;
+  }
+  markComplete();
+  showToast('🎉 Lesson complete! Great work!');
+}
+
+function markComplete() {
+  state = loadState();
+  if (!state.learning) state.learning = { enrollments: {} };
+  if (!state.learning.enrollments.java) state.learning.enrollments.java = { completed: [], quizScores: {}, streak: 0, progress: 0 };
+
+  const enrollment = state.learning.enrollments.java;
+  if (!enrollment.completed) enrollment.completed = [];
+
+  if (!enrollment.completed.includes(LESSON.lessonId)) {
+    enrollment.completed.push(LESSON.lessonId);
+  }
+
+  // Update progress %
+  enrollment.progress = Math.round((enrollment.completed.length / LESSON.totalLessons) * 100);
+  enrollment.lastStudied = new Date().toISOString().split('T')[0];
+
+  // Update streak
+  const today = new Date().toISOString().split('T')[0];
+  if (enrollment.lastStudied !== today) {
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    enrollment.streak = enrollment.lastStudied === yesterday ? (enrollment.streak || 0) + 1 : 1;
+  }
+  enrollment.lastStudied = today;
+
+  // Auto-check habit in DayFlow
+  if (state.habits?.categories) {
+    const skillCat = state.habits.categories.find(c => c.id === 'skill');
+    if (skillCat) {
+      const javaHabit = skillCat.items?.find(i => i.id === 'learn-java');
+      if (javaHabit) { if (!javaHabit.done) javaHabit.done = {}; javaHabit.done[today] = true; }
+    }
+  }
+
+  saveState(state);
+  isCompleted = true;
+  updateCompleteBtn();
+}
+
+// NAVIGATION
+function goPrev() { if (LESSON.prevLesson) window.location.href = LESSON.prevLesson; }
+function goNext() { if (LESSON.nextLesson) window.location.href = LESSON.nextLesson; }
+
+// UTILS
+function copyCode() {
+  navigator.clipboard.writeText(LESSON.code.trim()).then(() => showToast('Code copied!'));
+}
+
+function escapeHtml(text) {
+  return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+init();
+</script>
+</body>
+</html>
