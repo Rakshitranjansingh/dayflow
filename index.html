@@ -2466,12 +2466,22 @@ function renderSettings() {
   // Mask Gemini key
   const maskedKey = activeKey ? '••••••••••••••••' + activeKey.slice(-4) : 'Not configured';
 
-  const nameField = editing 
-    ? `<input class="input" id="s-name" value="${state.name||''}" placeholder="Your name" style="margin-top:6px;font-size:14px" onchange="state.name=this.value;saveState()">`
-    : `<div style="font-size:14px;color:var(--text);font-weight:600;margin-top:4px">${state.name || 'Not configured'}</div>`;
+  const userEmailText = state.driveConnected && state.userEmail ? state.userEmail : 'Google Drive not connected';
+
+  const profileContent = editing 
+    ? `
+      <div class="settings-row-content">
+        <input class="input" id="s-name" value="${state.name||''}" placeholder="Your name" style="font-size:14px">
+        <div style="font-size:12px;color:var(--text3);margin-top:4px">${userEmailText}</div>
+      </div>`
+    : `
+      <div class="settings-row-content">
+        <div style="font-size:15px;color:var(--text);font-weight:700;">${state.name || 'Set your name'}</div>
+        <div style="font-size:13px;color:var(--text2);margin-top:2px;">${userEmailText}</div>
+      </div>`;
 
   const keyField = editing
-    ? `<input class="input" id="s-apikey" type="password" value="${state.apiKey||''}" placeholder="Paste Gemini API key..." style="margin-top:8px;font-size:14px" onchange="updateApiKey(this.value)">`
+    ? `<input class="input" id="s-apikey" type="password" value="${state.apiKey||''}" placeholder="Paste Gemini API key..." style="margin-top:8px;font-size:14px">`
     : `<div style="font-size:14px;color:var(--text2);font-family:monospace;margin-top:4px">${maskedKey}</div>`;
 
   const verifyBtn = editing
@@ -2479,27 +2489,21 @@ function renderSettings() {
        <div id="settings-key-status" style="font-size:12px;text-align:center;margin-top:6px;min-height:18px"></div>`
     : '';
 
-  const emailHint = state.driveConnected && state.userEmail
-    ? `<div style="font-size:11px;color:var(--text3);margin-top:4px;line-height:1.4;">
-         📧 Connected: <strong style="color:var(--accent);">${state.userEmail}</strong>
-         <br>
-         <i>To publish courses, ask the admin to authorize this email. Contact <a href="mailto:rakshit.ran.singh@gmail.com" style="color:var(--orange); text-decoration:none;">rakshit.ran.singh@gmail.com</a>.</i>
-       </div>`
+  const publisherAccessInfo = state.driveConnected && state.userEmail
+    ? `
+    <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.4;">
+      <i>To publish courses, ask the admin to authorize this email. Contact <a href="mailto:rakshit.ran.singh@gmail.com" style="color:var(--orange); text-decoration:none;">rakshit.ran.singh@gmail.com</a>.</i>
+    </div>`
     : '';
 
   return `
     <div class="settings-section">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <h3>Profile</h3>
-        <button class="btn btn-sm btn-secondary" onclick="window._editingSettings=${!editing};openPanel('settings')">${editing ? 'Done' : 'Edit'}</button>
-      </div>
+      <h3>Profile</h3>
       <div class="settings-row">
         <div class="settings-row-icon">👤</div>
-        <div class="settings-row-content">
-          <div class="settings-row-label">Your Name</div>
-          ${nameField}
-        </div>
+        ${profileContent}
       </div>
+      ${publisherAccessInfo}
     </div>
     <div class="settings-section">
       <h3>AI Settings</h3>
@@ -2527,7 +2531,6 @@ function renderSettings() {
             <div class="drive-dot ${state.driveConnected ? 'connected' : 'disconnected'}"></div>
             <span style="font-size:12px;color:var(--text3);margin-left:4px">${state.driveConnected ? '✅ Connected — auto-syncing' : 'Not connected'}</span>
           </div>
-          ${emailHint}
         </div>
         <div class="settings-row-action" onclick="${state.driveConnected ? 'disconnectDrive()' : 'connectDrive()'}">${state.driveConnected ? 'Disconnect' : 'Connect'}</div>
       </div>
@@ -2558,7 +2561,6 @@ function renderSettings() {
       <div class="settings-row">
         <button class="data-btn" onclick="exportData()">📤 Export</button>
         <button class="data-btn" onclick="document.getElementById('import-file').click()">📥 Import</button>
-        <button class="data-btn data-btn-danger" onclick="clearAllData()">🗑️ Reset</button>
       </div>
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
     </div>
