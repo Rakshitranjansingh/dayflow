@@ -1222,6 +1222,7 @@ function renderPanel(name) {
 }
 
 function openPanel(name) {
+  if (name === 'settings') window._editingSettings = false;
   currentPanel = name;
   document.getElementById('panel-title').textContent = panelTitles[name] || name;
   document.getElementById('panel-header-extra').innerHTML = '';
@@ -1849,16 +1850,18 @@ function initSpeechEngine() {
 
     recognition.onresult = (event) => {
       let interimTranscript = '';
-      let finalTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
+      let sessionFinalText = '';
+      for (let i = 0; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
+          sessionFinalText += event.results[i][0].transcript;
         } else {
           interimTranscript += event.results[i][0].transcript;
         }
       }
       const textInput = document.getElementById('journal-text');
-      const textToSave = finalTranscript || interimTranscript;
+      const prevText = window._prevJournalText || '';
+      const spacing = (prevText && (sessionFinalText || interimTranscript)) ? ' ' : '';
+      const textToSave = prevText + spacing + sessionFinalText + interimTranscript;
       if (textInput) {
         textInput.value = textToSave;
       } else {
@@ -1874,8 +1877,14 @@ function initSpeechEngine() {
     };
 
     recognition.onend = () => {
-      if (isRecording && speechRecognitionActive) {
-        try { recognition.start(); } catch(err) {}
+      if (isRecording) {
+        const textInput = document.getElementById('journal-text');
+        if (textInput) {
+          window._prevJournalText = textInput.value;
+        }
+        if (speechRecognitionActive) {
+          try { recognition.start(); } catch(err) {}
+        }
       }
     };
   }
@@ -1892,6 +1901,9 @@ function toggleRecording() {
 async function startRecording() {
   isRecording = true;
   audioChunks = [];
+  
+  const textInput = document.getElementById('journal-text');
+  window._prevJournalText = textInput ? textInput.value : '';
   
   if (!recognition) initSpeechEngine();
 
@@ -1987,10 +1999,12 @@ async function processAudio() {
     const cleanedResult = result.trim();
     const textInput = document.getElementById('journal-text');
     if (textInput && cleanedResult) {
-      textInput.value = cleanedResult;
+      const prev = textInput.value ? textInput.value.trim() : '';
+      textInput.value = prev ? (prev + ' ' + cleanedResult) : cleanedResult;
       showToast('✅ Audio transcribed successfully!');
     } else if (cleanedResult) {
-      window._tempJournalText = cleanedResult; // Safely save in-flight speech to register
+      const prev = window._tempJournalText || '';
+      window._tempJournalText = prev ? (prev + ' ' + cleanedResult) : cleanedResult; // Safely save in-flight speech to register
       showToast('✅ Audio transcribed successfully!');
     } else {
       showToast('⚠️ No words recognized in the recording.');
@@ -2447,19 +2461,48 @@ function renderSettings() {
   const activeKey = getActiveApiKey();
   const displayKeyStatus = activeKey ? '✅ Key active' : 'Not set';
   const displayDotColor = activeKey ? 'var(--green)' : 'var(--text3)';
+  const editing = window._editingSettings;
+
+  // Mask Gemini key
+  const maskedKey = activeKey ? '••••••••••••••••' + activeKey.slice(-4) : 'Not configured';
+
+  const nameField = editing 
+    ? `<input class="input" id="s-name" value="${state.name||''}" placeholder="Your name" style="margin-top:6px;font-size:14px" onchange="state.name=this.value;saveState()">`
+    : `<div style="font-size:14px;color:var(--text);font-weight:600;margin-top:4px">${state.name || 'Not configured'}</div>`;
+
+  const keyField = editing
+    ? `<input class="input" id="s-apikey" type="password" value="${state.apiKey||''}" placeholder="Paste Gemini API key..." style="margin-top:8px;font-size:14px" onchange="updateApiKey(this.value)">`
+    : `<div style="font-size:14px;color:var(--text2);font-family:monospace;margin-top:4px">${maskedKey}</div>`;
+
+  const verifyBtn = editing
+    ? `<button class="btn btn-secondary btn-sm btn-full" style="margin-top:8px" onclick="verifyApiKeyFromSettings()">🔍 Verify Key</button>
+       <div id="settings-key-status" style="font-size:12px;text-align:center;margin-top:6px;min-height:18px"></div>`
+    : '';
+
+  const emailHint = state.driveConnected && state.userEmail
+    ? `<div style="font-size:11px;color:var(--text3);margin-top:4px;line-height:1.4;">
+         📧 Connected: <strong style="color:var(--accent);">${state.userEmail}</strong>
+         <br>
+         <i>To publish courses, ask the admin to authorize this email. Contact <a href="mailto:rakshit.ran.singh@gmail.com" style="color:var(--orange); text-decoration:none;">rakshit.ran.singh@gmail.com</a>.</i>
+       </div>`
+    : '';
+
   return `
     <div class="settings-section">
-      <h3>Profile</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3>Profile</h3>
+        <button class="btn btn-sm btn-secondary" onclick="window._editingSettings=${!editing};openPanel('settings')">${editing ? 'Done' : 'Edit'}</button>
+      </div>
       <div class="settings-row">
         <div class="settings-row-icon">👤</div>
         <div class="settings-row-content">
           <div class="settings-row-label">Your Name</div>
-          <input class="input" id="s-name" value="${state.name||''}" placeholder="Your name" style="margin-top:6px;font-size:14px" onchange="state.name=this.value;saveState();updateGreeting()">
+          ${nameField}
         </div>
       </div>
     </div>
     <div class="settings-section">
-      <h3>AI</h3>
+      <h3>AI Settings</h3>
       <div class="settings-row">
         <div class="settings-row-icon">🔑</div>
         <div class="settings-row-content">
@@ -2468,12 +2511,11 @@ function renderSettings() {
             <div style="width:8px;height:8px;border-radius:50%;background:${displayDotColor}"></div>
             <span style="font-size:12px;color:var(--text3)">${displayKeyStatus}</span>
           </div>
-          <input class="input" id="s-apikey" type="password" value="${state.apiKey||''}" placeholder="Paste Gemini API key..." style="margin-top:8px;font-size:14px" onchange="updateApiKey(this.value)">
-          <div style="font-size:11px;color:var(--text3);margin-top:4px">Free key at <a href="https://aistudio.google.com" target="_blank" style="color:var(--accent)">aistudio.google.com</a></div>
+          ${keyField}
+          ${editing ? `<div style="font-size:11px;color:var(--text3);margin-top:4px">Free key at <a href="https://aistudio.google.com" target="_blank" style="color:var(--accent)">aistudio.google.com</a></div>` : ''}
         </div>
       </div>
-      <button class="btn btn-secondary btn-sm btn-full" style="margin-top:8px" onclick="verifyApiKeyFromSettings()">🔍 Verify Key</button>
-      <div id="settings-key-status" style="font-size:12px;text-align:center;margin-top:6px;min-height:18px"></div>
+      ${verifyBtn}
     </div>
     <div class="settings-section">
       <h3>Google Drive</h3>
@@ -2485,6 +2527,7 @@ function renderSettings() {
             <div class="drive-dot ${state.driveConnected ? 'connected' : 'disconnected'}"></div>
             <span style="font-size:12px;color:var(--text3);margin-left:4px">${state.driveConnected ? '✅ Connected — auto-syncing' : 'Not connected'}</span>
           </div>
+          ${emailHint}
         </div>
         <div class="settings-row-action" onclick="${state.driveConnected ? 'disconnectDrive()' : 'connectDrive()'}">${state.driveConnected ? 'Disconnect' : 'Connect'}</div>
       </div>
@@ -2510,12 +2553,12 @@ function renderSettings() {
         </div>
       </div>
     </div>
-
     <div class="settings-section">
-    <h3>Data</h3>
-      <div class="settings-row"">
+      <h3>Data</h3>
+      <div class="settings-row">
         <button class="data-btn" onclick="exportData()">📤 Export</button>
         <button class="data-btn" onclick="document.getElementById('import-file').click()">📥 Import</button>
+        <button class="data-btn data-btn-danger" onclick="clearAllData()">🗑️ Reset</button>
       </div>
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
     </div>
@@ -2829,6 +2872,32 @@ function clearAllData() {
 function initPanelJS(name) {
   if (name === 'chat') {
     scrollChatToBottom();
+  }
+  if (name === 'settings') {
+    const extra = document.getElementById('panel-header-extra');
+    if (extra) {
+      extra.innerHTML = `<button class="btn btn-secondary btn-sm" onclick="toggleEditSettings()">${window._editingSettings ? '💾 Save' : '✏️ Edit'}</button>`;
+    }
+  }
+}
+
+function toggleEditSettings() {
+  if (window._editingSettings) {
+    const nameInput = document.getElementById('s-name');
+    const keyInput = document.getElementById('s-apikey');
+    if (nameInput) state.name = nameInput.value;
+    if (keyInput) updateApiKey(keyInput.value);
+    saveState();
+    updateGreeting();
+    window._editingSettings = false;
+    showToast('⚙️ Settings saved!');
+  } else {
+    window._editingSettings = true;
+  }
+  document.getElementById('panel-body').innerHTML = renderSettings();
+  const extra = document.getElementById('panel-header-extra');
+  if (extra) {
+    extra.innerHTML = `<button class="btn btn-secondary btn-sm" onclick="toggleEditSettings()">${window._editingSettings ? '💾 Save' : '✏️ Edit'}</button>`;
   }
 }
 
