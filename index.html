@@ -607,6 +607,25 @@
   </div>
 </div>
 
+<!-- PUBLISHER REQUEST ACCESS MODAL -->
+<div class="learn-modal-overlay" id="publisher-request-modal">
+  <div class="learn-modal">
+    <div class="learn-modal-icon">🔒</div>
+    <div class="learn-modal-title">Become a Publisher</div>
+    <div class="help-paragraph" style="text-align: center; margin-bottom: 20px; line-height: 1.6;">
+      The visual Course Builder is currently restricted to approved content creators. 
+      <br><br>
+      You are connected as:<br>
+      <strong id="request-user-email" style="color: var(--accent);"></strong>
+      <br><br>
+      To request publisher permissions, please email the repository administrator at:
+      <br>
+      <strong style="color: var(--orange);">rakshitranjansingh@gmail.com</strong>
+    </div>
+    <button class="learn-modal-btn learn-modal-btn-primary" onclick="closePublisherRequestModal()">Got It</button>
+  </div>
+</div>
+
 <!-- SIDE PANEL -->
 <div class="panel-overlay" id="panel-overlay" onclick="closePanel()"></div>
 <div class="side-panel" id="side-panel">
@@ -2998,19 +3017,22 @@ if (state.setupDone) {
   state.selectedDate = todayStr();
   state.currentMonth = { y: new Date().getFullYear(), m: new Date().getMonth() };
   initApp();
-
-  // Handle URL query parameters to auto-open page
-  const urlParams = new URLSearchParams(window.location.search);
-  const pageParam = urlParams.get('page') || urlParams.get('panel');
-  if (pageParam === 'learn') {
-    openLearnApp();
-  }
 } else {
   if (state.name) document.getElementById('ob-name').value = state.name;
 }
 
 window.addEventListener('load', () => {
   if (typeof updateLearnBadge === 'function') updateLearnBadge();
+
+  // Handle URL query parameters to auto-open page after scripts load
+  const urlParams = new URLSearchParams(window.location.search);
+  const pageParam = urlParams.get('page') || urlParams.get('panel');
+  if (pageParam === 'learn' && typeof openLearnApp === 'function') {
+    openLearnApp();
+  } else if (pageParam === 'add-course' && typeof openAddCourseApp === 'function') {
+    openAddCourseApp();
+  }
+
   setTimeout(() => {
     if (!window.google) return;
     if (state.driveConnected && state.setupDone) {
@@ -3029,15 +3051,27 @@ window.addEventListener('message', (e) => {
 // ============================================================
 // COURSE BUILDER PLATFORM UI ROUTERS
 // ============================================================
-const APPROVED_CREATORS = ['rakshitranjansingh@gmail.com', 'owner@gmail.com'];
-const ADMIN_CREATORS = ['rakshitranjansingh@gmail.com'];
+const APPROVED_CREATORS = ['rakshit.ran.singh@gmail.com', 'owner@gmail.com'];
+const ADMIN_CREATORS = ['rakshit.ran.singh@gmail.com'];
 
 function checkCreatorAccess() {
   const email = state.userEmail;
   const btn = document.getElementById('platform-add-course');
   if (!btn) return;
-  if (email && APPROVED_CREATORS.includes(email)) {
+
+  if (email) {
     btn.style.display = 'flex';
+    if (APPROVED_CREATORS.includes(email)) {
+      btn.onclick = openAddCourseApp;
+      btn.style.opacity = '1';
+      btn.querySelector('.tool-icon').textContent = '🎓➕';
+      btn.querySelector('.tool-name').textContent = 'Add Course';
+    } else {
+      btn.onclick = openPublisherRequestModal;
+      btn.style.opacity = '0.7';
+      btn.querySelector('.tool-icon').textContent = '🔒';
+      btn.querySelector('.tool-name').textContent = 'Add Course';
+    }
   } else {
     btn.style.display = 'none';
   }
@@ -3056,6 +3090,18 @@ function closeAddCourseApp() {
   if (builderApp) builderApp.style.display = 'none';
   const mainApp = document.getElementById('app');
   if (mainApp) mainApp.style.display = 'block';
+}
+
+function openPublisherRequestModal() {
+  const emailSpan = document.getElementById('request-user-email');
+  if (emailSpan) emailSpan.textContent = state.userEmail || 'No email found';
+  const modal = document.getElementById('publisher-request-modal');
+  if (modal) modal.classList.add('show');
+}
+
+function closePublisherRequestModal() {
+  const modal = document.getElementById('publisher-request-modal');
+  if (modal) modal.classList.remove('show');
 }
 
 </script>
