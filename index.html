@@ -703,7 +703,7 @@
 // ============================================================
 const DB_KEY = 'dayflow_v1';
 const GOOGLE_CLIENT_ID = '852975752976-hoeb7acq7caan225i4kjp4t4an58dno5.apps.googleusercontent.com';// Drive Client ID placeholder 
-const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email';
 let driveTokenClient = null;
 let driveAccessToken = null;
 
@@ -2457,6 +2457,7 @@ function copyVlogScript() {
 }
 
 // ---- SETTINGS ----
+
 function renderSettings() {
   const activeKey = getActiveApiKey();
   const displayKeyStatus = activeKey ? '✅ Key active' : 'Not set';
@@ -2467,17 +2468,38 @@ function renderSettings() {
   const maskedKey = activeKey ? '••••••••••••••••' + activeKey.slice(-4) : 'Not configured';
 
   const userEmailText = state.driveConnected && state.userEmail ? state.userEmail : 'Google Drive not connected';
+  const isApproved = state.driveConnected && state.userEmail && APPROVED_CREATORS.includes(state.userEmail);
+
+  let publisherStatusHtml = '';
+  if (state.driveConnected && state.userEmail) {
+    if (isApproved) {
+      publisherStatusHtml = `
+        <div style="font-size:12px;color:var(--green);margin-top:6px;display:flex;align-items:center;gap:4px">
+          <span>●</span> <strong>Publisher Status: Active 🎓</strong>
+        </div>`;
+    } else {
+      publisherStatusHtml = `
+        <div style="font-size:12px;color:var(--text3);margin-top:6px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:4px">
+            <span style="color:var(--orange)">●</span> <strong>Publisher Status: Locked 🔒</strong>
+          </div>
+          <button class="btn btn-secondary btn-sm" style="align-self:flex-start;padding:4px 8px;font-size:11px" onclick="sendPublisherRequestEmail()">🚀 Request Access</button>
+        </div>`;
+    }
+  }
 
   const profileContent = editing 
     ? `
       <div class="settings-row-content">
         <input class="input" id="s-name" value="${state.name||''}" placeholder="Your name" style="font-size:14px">
         <div style="font-size:12px;color:var(--text3);margin-top:4px">${userEmailText}</div>
+        ${publisherStatusHtml}
       </div>`
     : `
       <div class="settings-row-content">
         <div style="font-size:15px;color:var(--text);font-weight:700;">${state.name || 'Set your name'}</div>
         <div style="font-size:13px;color:var(--text2);margin-top:2px;">${userEmailText}</div>
+        ${publisherStatusHtml}
       </div>`;
 
   const keyField = editing
@@ -2489,13 +2511,6 @@ function renderSettings() {
        <div id="settings-key-status" style="font-size:12px;text-align:center;margin-top:6px;min-height:18px"></div>`
     : '';
 
-  const publisherAccessInfo = state.driveConnected && state.userEmail
-    ? `
-    <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.4;">
-      <i>To publish courses, ask the admin to authorize this email. Contact <a href="mailto:rakshit.ran.singh@gmail.com" style="color:var(--orange); text-decoration:none;">rakshit.ran.singh@gmail.com</a>.</i>
-    </div>`
-    : '';
-
   return `
     <div class="settings-section">
       <h3>Profile</h3>
@@ -2503,7 +2518,6 @@ function renderSettings() {
         <div class="settings-row-icon">👤</div>
         ${profileContent}
       </div>
-      ${publisherAccessInfo}
     </div>
     <div class="settings-section">
       <h3>AI Settings</h3>
@@ -2540,7 +2554,7 @@ function renderSettings() {
         <br><span style="color:var(--accent);cursor:pointer" onclick="backupToDrive()">Backup now →</span>
         &nbsp;·&nbsp;
         <span style="color:var(--accent);cursor:pointer" onclick="restoreFromDrive()">Restore from Drive →</span>
-        ${state.lastDriveBackup ? `<br><span style="color:var(--text3)">Last backup: ${state.lastDriveBackup}</span>` : ''}
+        ${state.lastDriveBackup ? `<br><span style="font-size:12px;color:var(--text3)">Last backup: ${state.lastDriveBackup}</span>` : ''}
       </div>` : `
       <div style="font-size:12px;color:var(--text3);padding:8px 0;line-height:1.5">
         Connect your Google Drive to auto-backup all your data and sync across devices.
@@ -2901,6 +2915,14 @@ function toggleEditSettings() {
   if (extra) {
     extra.innerHTML = `<button class="btn btn-secondary btn-sm" onclick="toggleEditSettings()">${window._editingSettings ? '💾 Save' : '✏️ Edit'}</button>`;
   }
+}
+
+function sendPublisherRequestEmail() {
+  const email = state.userEmail || '';
+  const name = state.name || 'DayFlow User';
+  const subject = encodeURIComponent('DayFlow Learn — Course Publisher Access Request');
+  const body = encodeURIComponent(`Hello,\n\nI would like to request Course Builder access for my account.\n\nDetails:\n- Name: ${name}\n- Connected Google Account: ${email}\n\nPlease add my email to the approved creators list.\n\nThank you!`);
+  window.location.href = `mailto:rakshit.ran.singh@gmail.com?subject=${subject}&body=${body}`;
 }
 
 // ============================================================
