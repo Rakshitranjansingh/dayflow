@@ -244,6 +244,19 @@ function showResults() {
   if (!state.learning.enrollments.java) state.learning.enrollments.java = { completed: [], quizScores: {} };
   if (!state.learning.enrollments.java.quizScores) state.learning.enrollments.java.quizScores = {};
   state.learning.enrollments.java.quizScores[QUIZ.id] = score;
+
+  // Auto-save quiz completion in Journal
+  const today = new Date().toISOString().split('T')[0];
+  if (!state.journal) state.journal = {};
+  if (!state.journal[today]) state.journal[today] = [];
+  state.journal[today].push({
+    id: Date.now() + '',
+    text: `🎓 Completed Quiz: ${QUIZ.title} (Score: ${score}%, Status: ${passed ? 'Passed' : 'Failed'})`,
+    time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+    source: 'learn',
+    todos: []
+  });
+
   saveState(state);
 
   const icon = score >= 90 ? '🏆' : score >= 70 ? '🎉' : '📚';
