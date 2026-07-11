@@ -53,6 +53,58 @@ function initContentPanel() {
   renderContentHistory();
 }
 
+async function callGeminiWithSearch(prompt, modelIndex = 0) {
+  const apiKey = getActiveApiKey();
+  const models = typeof getModelList === 'function' ? getModelList() : ['gemini-2.0-flash'];
+  if (modelIndex >= models.length) {
+    throw new Error('All models rate limited or unsupported. Try again in a moment.');
+  }
+
+  const model = models[modelIndex];
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  
+  let response;
+  try {
+    response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        tools: [{ google_search: {} }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 4096
+        }
+      })
+    });
+  } catch (netErr) {
+    console.error(`Network error calling ${model}:`, netErr);
+    if (modelIndex + 1 < models.length) {
+      return callGeminiWithSearch(prompt, modelIndex + 1);
+    }
+    throw netErr;
+  }
+
+  if (response.status === 429 && modelIndex + 1 < models.length) {
+    console.warn(`${model} rate limited → trying fallback...`);
+    return callGeminiWithSearch(prompt, modelIndex + 1);
+  }
+  if (response.status >= 500 && modelIndex + 1 < models.length) {
+    console.warn(`${model} server error (${response.status}) → trying fallback...`);
+    return callGeminiWithSearch(prompt, modelIndex + 1);
+  }
+  if (!response.ok) {
+    if ((response.status === 404 || response.status === 400) && modelIndex + 1 < models.length) {
+      console.warn(`${model} unsupported status (${response.status}) → trying fallback...`);
+      return callGeminiWithSearch(prompt, modelIndex + 1);
+    }
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API Error ${response.status}`);
+  }
+
+  return response.json();
+}
+
 async function generateContentScript() {
   const apiKey = getActiveApiKey();
   if (!apiKey) {
@@ -95,28 +147,10 @@ Return ONLY the script formatted with time markers:
 ⏱️ 1:45-2:00 | [OUTRO + CTA] - Final question, like/subscribe/comment CTA`;
 
   try {
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        tools: [{ google_search: {} }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 4096
-        }
-      })
-    });
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `API Error ${response.status}`);
-    }
+    const data = await callGeminiWithSearch(prompt);
 
     if (loadingText) loadingText.textContent = 'Writing Hinglish script...';
     
-    const data = await response.json();
     const candidate = data.candidates?.[0];
     if (!candidate) throw new Error('No candidate responses returned.');
     
