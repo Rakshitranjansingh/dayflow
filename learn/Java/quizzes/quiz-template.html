@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Quiz — DayFlow Learn</title>
+<style>
+  :root {
+    --bg: #F8F8F6; --surface: #FFFFFF; --surface2: #F2F2F0;
+    --border: #E8E8E4; --text: #1A1A18; --text2: #6B6B65; --text3: #A8A8A0;
+    --accent: #2D6BE4; --accent-soft: #EBF1FD;
+    --green: #22C55E; --green-soft: #DCFCE7;
+    --red: #EF4444; --red-soft: #FEE2E2;
+    --orange: #F97316;
+    --radius: 14px; --radius-sm: 8px;
+    --font: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 100px; }
+
+  .header { background: var(--surface); padding: 14px 20px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; display: flex; align-items: center; gap: 10px; }
+  .back-btn { color: var(--accent); font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; background: var(--accent-soft); border: none; font-family: var(--font); padding: 5px 10px; border-radius: var(--radius-sm); }
+  .header-title { font-size: 15px; font-weight: 700; flex: 1; }
+  .dayflow-btn { color: var(--text2); font-size: 13px; background: var(--surface2); border: none; font-family: var(--font); padding: 5px 10px; border-radius: var(--radius-sm); cursor: pointer; }
+
+  .quiz-hero { background: linear-gradient(135deg, #2D6BE4, #8B5CF6); padding: 20px; color: #fff; }
+  .quiz-hero-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .quiz-hero-sub { font-size: 13px; opacity: 0.85; margin-bottom: 14px; }
+  .progress-bar { background: rgba(255,255,255,0.3); border-radius: 4px; height: 6px; }
+  .progress-fill { height: 100%; background: #fff; border-radius: 4px; transition: width 0.4s; }
+  .progress-label { font-size: 12px; opacity: 0.8; margin-top: 6px; }
+
+  .question-wrap { padding: 20px; }
+  .question-no { font-size: 12px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .question-text { font-size: 17px; font-weight: 600; line-height: 1.5; margin-bottom: 20px; }
+  .option { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 10px; font-size: 14px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 12px; }
+  .option:active { transform: scale(0.98); }
+  .option.selected { border-color: var(--accent); background: var(--accent-soft); }
+  .option.correct { border-color: var(--green); background: var(--green-soft); }
+  .option.wrong { border-color: var(--red); background: var(--red-soft); }
+  .option-letter { width: 28px; height: 28px; border-radius: 50%; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+  .option.selected .option-letter { background: var(--accent); color: #fff; }
+  .option.correct .option-letter { background: var(--green); color: #fff; }
+  .option.wrong .option-letter { background: var(--red); color: #fff; }
+  .explanation { background: var(--surface2); border-radius: var(--radius-sm); padding: 12px 14px; margin-top: 12px; font-size: 13px; line-height: 1.5; color: var(--text2); display: none; border-left: 3px solid var(--accent); }
+  .explanation.show { display: block; }
+
+  .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 12px 20px; }
+  .next-btn { width: 100%; padding: 14px; border-radius: var(--radius-sm); border: none; font-size: 15px; font-weight: 700; font-family: var(--font); cursor: pointer; background: var(--accent); color: #fff; transition: opacity 0.15s; }
+  .next-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .next-btn:active:not(:disabled) { opacity: 0.85; }
+
+  /* RESULTS */
+  .results { padding: 32px 20px; text-align: center; display: none; }
+  .results.show { display: block; }
+  .results-icon { font-size: 64px; margin-bottom: 16px; }
+  .results-score { font-size: 48px; font-weight: 700; margin-bottom: 6px; }
+  .results-label { font-size: 16px; color: var(--text2); margin-bottom: 24px; }
+  .results-msg { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .results-sub { font-size: 14px; color: var(--text2); margin-bottom: 28px; line-height: 1.5; }
+  .results-btns { display: flex; flex-direction: column; gap: 10px; }
+  .result-btn { padding: 14px; border-radius: var(--radius-sm); border: none; font-size: 14px; font-weight: 600; font-family: var(--font); cursor: pointer; }
+  .btn-retry { background: var(--surface2); color: var(--text); }
+  .btn-continue { background: var(--green); color: #fff; }
+  .btn-dayflow { background: var(--accent-soft); color: var(--accent); }
+
+  .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--text); color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 13px; z-index: 999; transition: transform 0.3s; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a class="back-btn" href="../index.html">← Java</a>
+  <div class="header-title" id="hdr-title">Quiz</div>
+  <button class="dayflow-btn" onclick="window.location.href='../../../index.html'">🌊</button>
+</div>
+
+<div class="quiz-hero">
+  <div class="quiz-hero-title" id="quiz-title">Quiz</div>
+  <div class="quiz-hero-sub" id="quiz-sub"></div>
+  <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+  <div class="progress-label" id="progress-label">Question 1 of 5</div>
+</div>
+
+<div id="question-area" class="question-wrap"></div>
+<div class="results" id="results-area"></div>
+
+<div class="bottom-bar" id="bottom-bar">
+  <button class="next-btn" id="next-btn" onclick="nextQuestion()" disabled>Next Question →</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// ═══════════════════════════════════════════════════════════
+//   QUIZ CONFIG — EDIT ONLY THIS SECTION
+// ═══════════════════════════════════════════════════════════
+// ============================================================
+
+const QUIZ = {
+  id:       'quiz-1',          // unique quiz ID
+  course:   'java',
+  title:    'Java Basics Quiz',
+  passMark:  70,               // % needed to pass
+
+  // Next page after completing quiz
+  nextFile: '../lessons/05-conditions.html',
+
+  questions: [
+    {
+      q: 'What does JVM stand for?',
+      options: [
+        'Java Virtual Machine',
+        'Java Visual Manager',
+        'Java Version Manager',
+        'Joint Virtual Module'
+      ],
+      correct: 0,   // index of correct answer (0-based)
+      explanation: 'JVM stands for Java Virtual Machine. It runs Java bytecode on any platform.'
+    },
+    {
+      q: 'Which keyword is used to print output in Java?',
+      options: [
+        'print()',
+        'console.log()',
+        'System.out.println()',
+        'echo()'
+      ],
+      correct: 2,
+      explanation: 'System.out.println() is the standard way to print output in Java.'
+    },
+    {
+      q: 'What is the correct file extension for a Java file?',
+      options: ['.js', '.java', '.jv', '.class'],
+      correct: 1,
+      explanation: 'Java source files use the .java extension. Compiled files use .class.'
+    },
+    {
+      q: 'Which of these is NOT a primitive data type in Java?',
+      options: ['int', 'boolean', 'String', 'double'],
+      correct: 2,
+      explanation: 'String is a class (object), not a primitive type. int, boolean, and double are primitives.'
+    },
+    {
+      q: 'Java was originally developed by?',
+      options: ['Microsoft', 'Apple', 'Sun Microsystems', 'Google'],
+      correct: 2,
+      explanation: 'Java was developed by James Gosling at Sun Microsystems and released in 1995.'
+    },
+  ]
+};
+
+// ============================================================
+// ═══════════════════════════════════════════════════════════
+//   STOP EDITING — Everything below is automatic
+// ═══════════════════════════════════════════════════════════
+// ============================================================
+
+const DB_KEY = 'dayflow_v1';
+function loadState() { try { return JSON.parse(localStorage.getItem(DB_KEY)) || {}; } catch(e) { return {}; } }
+function saveState(s) { try { localStorage.setItem(DB_KEY, JSON.stringify(s)); } catch(e) {} }
+
+let currentQ = 0;
+let answers = [];
+let answered = false;
+
+function init() {
+  document.getElementById('hdr-title').textContent = QUIZ.title;
+  document.getElementById('quiz-title').textContent = QUIZ.title;
+  document.getElementById('quiz-sub').textContent = `${QUIZ.questions.length} questions · Pass mark: ${QUIZ.passMark}%`;
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const q = QUIZ.questions[currentQ];
+  const total = QUIZ.questions.length;
+  const pct = (currentQ / total) * 100;
+
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = `Question ${currentQ + 1} of ${total}`;
+
+  const letters = ['A','B','C','D'];
+  const opts = q.options.map((opt, i) => `
+    <div class="option" id="opt-${i}" onclick="selectOption(${i})">
+      <div class="option-letter">${letters[i]}</div>
+      ${opt}
+    </div>`).join('');
+
+  document.getElementById('question-area').innerHTML = `
+    <div class="question-no">Question ${currentQ + 1}</div>
+    <div class="question-text">${q.q}</div>
+    ${opts}
+    <div class="explanation" id="explanation">${q.explanation}</div>
+  `;
+
+  answered = false;
+  document.getElementById('next-btn').disabled = true;
+  document.getElementById('next-btn').textContent =
+    currentQ === total - 1 ? 'See Results 🎉' : 'Next Question →';
+}
+
+function selectOption(index) {
+  if (answered) return;
+  answered = true;
+  const q = QUIZ.questions[currentQ];
+  answers.push({ selected: index, correct: q.correct });
+
+  // Show correct/wrong
+  document.getElementById(`opt-${index}`).classList.add(index === q.correct ? 'correct' : 'wrong');
+  if (index !== q.correct) {
+    document.getElementById(`opt-${q.correct}`).classList.add('correct');
+  }
+
+  // Show explanation
+  document.getElementById('explanation').classList.add('show');
+  document.getElementById('next-btn').disabled = false;
+}
+
+function nextQuestion() {
+  if (!answered) return;
+  currentQ++;
+  if (currentQ >= QUIZ.questions.length) {
+    showResults();
+  } else {
+    renderQuestion();
+  }
+}
+
+function showResults() {
+  document.getElementById('question-area').style.display = 'none';
+  document.getElementById('bottom-bar').style.display = 'none';
+
+  const correct = answers.filter(a => a.selected === a.correct).length;
+  const total = QUIZ.questions.length;
+  const score = Math.round((correct / total) * 100);
+  const passed = score >= QUIZ.passMark;
+
+  // Save to state
+  const state = loadState();
+  if (!state.learning) state.learning = { enrollments: {} };
+  if (!state.learning.enrollments.java) state.learning.enrollments.java = { completed: [], quizScores: {} };
+  if (!state.learning.enrollments.java.quizScores) state.learning.enrollments.java.quizScores = {};
+  state.learning.enrollments.java.quizScores[QUIZ.id] = score;
+
+  // Auto-save quiz completion in Journal
+  const today = new Date().toISOString().split('T')[0];
+  if (!state.journal) state.journal = {};
+  if (!state.journal[today]) state.journal[today] = [];
+  state.journal[today].push({
+    id: Date.now() + '',
+    text: `🎓 Completed Quiz: ${QUIZ.title} (Score: ${score}%, Status: ${passed ? 'Passed' : 'Failed'})`,
+    time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+    source: 'learn',
+    todos: []
+  });
+
+  saveState(state);
+
+  const icon = score >= 90 ? '🏆' : score >= 70 ? '🎉' : '📚';
+  const msg = score >= 90 ? 'Excellent work!' : score >= 70 ? 'Well done! You passed!' : 'Keep practicing!';
+  const sub = passed
+    ? `You got ${correct}/${total} correct. Great understanding of the material!`
+    : `You got ${correct}/${total} correct. Review the lessons and try again!`;
+
+  document.getElementById('results-area').innerHTML = `
+    <div class="results-icon">${icon}</div>
+    <div class="results-score" style="color:${passed ? 'var(--green)' : 'var(--orange)'}">${score}%</div>
+    <div class="results-label">${correct} of ${total} correct</div>
+    <div class="results-msg">${msg}</div>
+    <div class="results-sub">${sub}</div>
+    <div class="results-btns">
+      ${!passed ? `<button class="result-btn btn-retry" onclick="retryQuiz()">🔄 Try Again</button>` : ''}
+      ${passed && QUIZ.nextFile ? `<button class="result-btn btn-continue" onclick="window.location.href='${QUIZ.nextFile}'">Continue Learning →</button>` : ''}
+      <button class="result-btn btn-dayflow" onclick="window.location.href='../index.html'">← Back to Java Path</button>
+    </div>`;
+
+  document.getElementById('results-area').classList.add('show');
+}
+
+function retryQuiz() {
+  currentQ = 0;
+  answers = [];
+  answered = false;
+  document.getElementById('question-area').style.display = 'block';
+  document.getElementById('bottom-bar').style.display = 'block';
+  document.getElementById('results-area').classList.remove('show');
+  renderQuestion();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+init();
+</script>
+</body>
+</html>
