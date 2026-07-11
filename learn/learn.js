@@ -83,7 +83,7 @@ function renderLearnContent() {
   contentWrap.innerHTML = `
     <!-- HERO -->
     <div class="learn-hero">
-      <div class="learn-hero-label">DayFlow Learn</div>
+      <div class="learn-hero-label">BeCreator Learn</div>
       <div class="learn-hero-title">Level up your skills</div>
       <div class="learn-hero-sub">Structured learning paths with video, audio & quizzes. Track your progress automatically.</div>
       <div class="learn-hero-stats">

@@ -27,7 +27,7 @@ function initBuilder() {
 
   // Retrieve saved GitHub config from local storage
   document.getElementById('git-owner').value = localStorage.getItem('df_git_owner') || 'Rakshitranjansingh';
-  document.getElementById('git-repo').value = localStorage.getItem('df_git_repo') || 'dayflow';
+  document.getElementById('git-repo').value = localStorage.getItem('df_git_repo') || 'becreator';
   document.getElementById('git-pat').value = localStorage.getItem('df_git_pat') || '';
 
   renderBuilderSections();
@@ -507,7 +507,7 @@ async function publishCoursePR() {
       headers,
       body: JSON.stringify({
         title: `📚 Add Course: ${builderCourse.title}`,
-        body: `### Course Submission details:\n- **Course ID**: \`${builderCourse.id}\`\n- **Title**: ${builderCourse.title}\n- **Publisher**: ${builderCourse.publisher.name} (${builderCourse.publisher.email})\n- **Estimated Duration**: ${builderCourse.estimatedHours} hrs\n- **Lessons Count**: ${builderCourse.totalLessons}\n\n*Created visually via DayFlow Course Builder*`,
+        body: `### Course Submission details:\n- **Course ID**: \`${builderCourse.id}\`\n- **Title**: ${builderCourse.title}\n- **Publisher**: ${builderCourse.publisher.name} (${builderCourse.publisher.email})\n- **Estimated Duration**: ${builderCourse.estimatedHours} hrs\n- **Lessons Count**: ${builderCourse.totalLessons}\n\n*Created visually via BeCreator Course Builder*`,
         head: branchName,
         base: 'main'
       })

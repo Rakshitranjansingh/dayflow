@@ -255,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (!blob) return;
           const file = new File([blob], `capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({ files: [file], title: 'DayFlow Photo' });
+            await navigator.share({ files: [file], title: 'BeCreator Photo' });
           } else {
             const a = document.createElement('a'); 
             a.href = URL.createObjectURL(blob);
