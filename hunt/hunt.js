@@ -2,6 +2,38 @@
 // JOB FINDER (HUNT) PLATFORM ENGINE
 // ============================================================
 
+function saveHuntFormState() {
+  if (typeof state === 'undefined') return;
+  state.hunt = {
+    title: document.getElementById('h-title').value.trim(),
+    location: document.getElementById('h-location').value.trim(),
+    skills: document.getElementById('h-skills').value.trim(),
+    level: document.getElementById('h-level').value,
+    workType: document.getElementById('h-workType').value,
+    experience: document.getElementById('h-experience').value.trim()
+  };
+  if (typeof saveState === 'function') saveState();
+}
+
+function loadHuntFormState() {
+  if (typeof state === 'undefined' || !state.hunt) return;
+  const h = state.hunt;
+  
+  const titleEl = document.getElementById('h-title');
+  const locEl = document.getElementById('h-location');
+  const skillsEl = document.getElementById('h-skills');
+  const levelEl = document.getElementById('h-level');
+  const workEl = document.getElementById('h-workType');
+  const expEl = document.getElementById('h-experience');
+  
+  if (titleEl) titleEl.value = h.title || '';
+  if (locEl) locEl.value = h.location || '';
+  if (skillsEl) skillsEl.value = h.skills || '';
+  if (levelEl) levelEl.value = h.level || '';
+  if (workEl) workEl.value = h.workType || '';
+  if (expEl) expEl.value = h.experience || '';
+}
+
 async function searchJobsFromHunt() {
   const apiKey = getActiveApiKey();
   if (!apiKey) {
@@ -12,6 +44,9 @@ async function searchJobsFromHunt() {
     }
     return;
   }
+
+  // Ensure state is saved before searching
+  saveHuntFormState();
 
   const jobTitle = document.getElementById('h-title').value.trim();
   const location = document.getElementById('h-location').value.trim();
@@ -203,7 +238,13 @@ function openHuntApp() {
   
   const huntApp = document.getElementById('hunt-app');
   if (huntApp) huntApp.style.display = 'flex';
+  
+  loadHuntFormState();
 }
+
+// Global exposure in case of direct onclick routing calls
+window.openHuntApp = openHuntApp;
+window.closeHuntApp = closeHuntApp;
 
 function closeHuntApp() {
   const huntApp = document.getElementById('hunt-app');
@@ -212,12 +253,30 @@ function closeHuntApp() {
   if (mainApp) mainApp.style.display = 'block';
 }
 
-// Allow Enter key to trigger search
-document.addEventListener('DOMContentLoaded', () => {
+// Setup persistence listeners
+function initHuntListeners() {
+  const fields = ['h-title', 'h-location', 'h-skills', 'h-level', 'h-workType', 'h-experience'];
+  fields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', saveHuntFormState);
+      el.addEventListener('change', saveHuntFormState);
+    }
+  });
+  
+  loadHuntFormState();
+  
   const container = document.getElementById('hunt-app');
   if (container) {
     container.addEventListener('keydown', e => {
       if (e.key === 'Enter' && e.target.tagName === 'INPUT') searchJobsFromHunt();
     });
   }
-});
+}
+
+// Fallback or early execution
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initHuntListeners);
+} else {
+  initHuntListeners();
+}
