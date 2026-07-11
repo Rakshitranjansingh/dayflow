@@ -36,7 +36,45 @@ function renderContentPanel() {
             <button class="btn btn-secondary btn-sm" onclick="copyContentScript()">📋 Copy</button>
           </div>
         </div>
-        <div class="content-script-box" id="c-script-box"></div>
+        <div class="content-script-box" id="c-script-box" style="margin-bottom:12px"></div>
+
+        <!-- Audio Synthesizer Panel -->
+        <div class="content-audio-controls">
+          <div style="font-size:11px;font-weight:700;color:var(--text2);display:flex;justify-content:space-between;align-items:center">
+            <span>🔊 Gemini Speech Narrator</span>
+            <span id="c-audio-counter" style="color:var(--accent);font-size:10px;font-weight:700">Generations: 0/10</span>
+          </div>
+          
+          <div style="font-size:11px;color:var(--text2);display:flex;justify-content:space-between;align-items:center;margin-top:-4px">
+            <span>Voice Gender</span>
+            <span class="content-audio-status-text" id="c-audio-status">Ready</span>
+          </div>
+          
+          <div class="content-audio-gender-selector">
+            <button class="content-gender-btn active" id="c-voice-female" onclick="selectContentVoiceGender('female')">👩 Female (Zephyr)</button>
+            <button class="content-gender-btn" id="c-voice-male" onclick="selectContentVoiceGender('male')">👨 Male (Schedar)</button>
+          </div>
+          
+          <canvas id="c-audio-canvas" height="40" style="width:100%;background:#ffffff;border-radius:4px;border:1px solid var(--border);display:block"></canvas>
+          
+          <div class="content-audio-playback-row">
+            <div class="content-playback-btns">
+              <button class="btn btn-primary btn-sm" id="c-audio-play" onclick="playOrGenerateAudio()" style="width:80px">▶ Listen</button>
+              <button class="btn btn-secondary btn-sm" id="c-audio-pause" onclick="pauseContentAudio()" style="display:none;width:80px">⏸ Pause</button>
+              <button class="btn btn-secondary btn-sm" id="c-audio-stop" onclick="stopContentAudio()" style="display:none;width:80px">⏹ Stop</button>
+              <button class="btn btn-secondary btn-sm" id="c-audio-download" onclick="downloadCurrentAudioFile()" style="display:none">📥 Download</button>
+            </div>
+            <div>
+              <select class="content-audio-speed-select" id="c-audio-speed" onchange="updateContentAudioSpeed()">
+                <option value="0.9">0.9x Speed</option>
+                <option value="0.95">0.95x Speed</option>
+                <option value="1.0" selected>1.0x Speed</option>
+                <option value="1.05">1.05x Speed</option>
+                <option value="1.1">1.1x Speed</option>
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
@@ -50,7 +88,63 @@ function renderContentPanel() {
 function initContentPanel() {
   if (typeof state === 'undefined') return;
   state.contentScripts = state.contentScripts || [];
+  window._contentVoiceGender = 'female'; // default to Zephyr (Female)
+  window._audioPlayerNode = null;
+  window._currentAudioBlobUrl = null;
+  window._currentAudioBlob = null;
+  window._currentAudioFilename = '';
+  
+  // Persistent in-session cache for generated audio
+  window._audioCache = window._audioCache || {};
+  
+  window._audioCtx = null;
+  window._audioAnalyser = null;
+  window._audioSource = null;
+  window._audioVisualId = null;
+
+  // Initialize/Reset daily counter
+  const today = getTtsTodayStr();
+  state.ttsCounter = state.ttsCounter || { date: today, count: 0 };
+  if (state.ttsCounter.date !== today) {
+    state.ttsCounter = { date: today, count: 0 };
+    saveState();
+  }
+
   renderContentHistory();
+  
+  // Inject lamejs dynamically (hosted locally to bypass browser Tracking Protection)
+  if (!window.lamejs) {
+    const script = document.createElement('script');
+    script.src = 'content/lame.min.js';
+    script.onload = () => console.log('lamejs loaded successfully');
+    script.onerror = () => console.error('lamejs load failed');
+    document.head.appendChild(script);
+  }
+}
+
+function getTtsTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function updateTtsCounterUI() {
+  if (typeof state === 'undefined') return;
+  const today = getTtsTodayStr();
+  state.ttsCounter = state.ttsCounter || { date: today, count: 0 };
+  if (state.ttsCounter.date !== today) {
+    state.ttsCounter = { date: today, count: 0 };
+    saveState();
+  }
+
+  const counterEl = document.getElementById('c-audio-counter');
+  if (counterEl) {
+    counterEl.textContent = `Generations: ${state.ttsCounter.count}/10`;
+    if (state.ttsCounter.count >= 10) {
+      counterEl.style.color = 'var(--red)';
+    } else {
+      counterEl.style.color = 'var(--accent)';
+    }
+  }
 }
 
 async function callGeminiWithSearch(prompt, modelIndex = 0) {
@@ -225,6 +319,9 @@ function openHistoryScript(id) {
   const item = state.contentScripts.find(x => x.id === id);
   if (!item) return;
 
+  // Stop active speech playback if user changes script
+  stopContentAudio();
+
   // Mark as read automatically when opened
   if (!item.read) {
     item.read = true;
@@ -235,6 +332,7 @@ function openHistoryScript(id) {
 
   window._viewingContentScriptId = id;
   window._lastGeneratedScript = item.script;
+  window._viewingTopicName = item.topic;
 
   const resultDiv = document.getElementById('c-result-container');
   const scriptBox = document.getElementById('c-script-box');
@@ -249,6 +347,32 @@ function openHistoryScript(id) {
       readToggleBtn.textContent = 'Mark Unread';
       readToggleBtn.classList.toggle('active', true);
     }
+    
+    // Restore cached audio data for this script if it already exists
+    const cached = window._audioCache ? window._audioCache[id] : null;
+    if (cached) {
+      window._currentAudioBlob = cached.blob;
+      window._currentAudioBlobUrl = cached.url;
+      window._currentAudioFilename = cached.filename;
+      updateAudioControlsState('paused'); // Ready to resume
+    } else {
+      window._currentAudioBlob = null;
+      window._currentAudioBlobUrl = null;
+      window._currentAudioFilename = '';
+      updateAudioControlsState('ended'); // Ready to listen
+    }
+    
+    // Sync UI Counter
+    updateTtsCounterUI();
+
+    // Clear canvas visualizer to white
+    const canvas = document.getElementById('c-audio-canvas');
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    
     resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 }
@@ -299,6 +423,16 @@ function deleteHistoryScript(id, event) {
   const confirmDelete = confirm('Are you sure you want to delete this script?');
   if (!confirmDelete) return;
 
+  // Stop active speech if deleting the viewed script
+  if (window._viewingContentScriptId === id) {
+    stopContentAudio();
+  }
+
+  // Clear cache for deleted item
+  if (window._audioCache && window._audioCache[id]) {
+    delete window._audioCache[id];
+  }
+
   state.contentScripts = state.contentScripts.filter(x => x.id !== id);
   saveState();
   triggerDriveSync();
@@ -310,6 +444,7 @@ function deleteHistoryScript(id, event) {
     if (resultDiv) resultDiv.style.display = 'none';
     window._viewingContentScriptId = null;
     window._lastGeneratedScript = null;
+    window._viewingTopicName = null;
   }
   
   if (typeof showToast === 'function') {
@@ -342,4 +477,487 @@ function escapeContentHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+// ============================================================
+// AUDIO GENERATOR & MP3 EXPORT PIPELINE
+// ============================================================
+
+function selectContentVoiceGender(gender) {
+  window._contentVoiceGender = gender;
+  
+  const btnFemale = document.getElementById('c-voice-female');
+  const btnMale = document.getElementById('c-voice-male');
+  
+  if (btnFemale && btnMale) {
+    btnFemale.classList.toggle('active', gender === 'female');
+    btnMale.classList.toggle('active', gender === 'male');
+  }
+  
+  // Clear audio cache for current script if gender is changed
+  stopContentAudio();
+  const id = window._viewingContentScriptId;
+  if (id && window._audioCache) {
+    delete window._audioCache[id];
+  }
+  window._currentAudioBlobUrl = null;
+  window._currentAudioBlob = null;
+  window._currentAudioFilename = '';
+}
+
+function cleanScriptForSpeech(scriptText) {
+  if (!scriptText) return '';
+  
+  let lines = scriptText.split('\n');
+  let cleanLines = [];
+  
+  for (let line of lines) {
+    let trimmed = line.trim();
+    // Skip the entire line if it contains the clock emoji, time layout, or segment braces
+    if (
+      trimmed.includes('⏱️') || 
+      trimmed.match(/\d+:\d+-\d+:\d+/) || 
+      (trimmed.startsWith('[') && trimmed.endsWith(']'))
+    ) {
+      continue;
+    }
+    
+    // Clean out other in-line bracket details (like stage actions)
+    let cleaned = trimmed.replace(/\[[^\]]+\]/g, '').trim();
+    if (cleaned.length > 0) {
+      cleanLines.push(cleaned);
+    }
+  }
+  
+  return cleanLines.join('\n ');
+}
+
+function getOrCreateAudioPlayer() {
+  if (!window._audioPlayerNode) {
+    window._audioPlayerNode = new Audio();
+    
+    // Event listeners mapping to UI controls
+    window._audioPlayerNode.onplay = () => {
+      updateAudioControlsState('speaking');
+      startVisualizer(window._audioPlayerNode);
+    };
+    window._audioPlayerNode.onpause = () => {
+      updateAudioControlsState('paused');
+    };
+    window._audioPlayerNode.onended = () => {
+      updateAudioControlsState('ended');
+      stopVisualizer();
+    };
+    window._audioPlayerNode.onerror = (e) => {
+      console.error('Audio node error:', e);
+      updateAudioControlsState('ended');
+      stopVisualizer();
+      if (typeof showToast === 'function') showToast('❌ Audio playback failed.');
+    };
+  }
+  return window._audioPlayerNode;
+}
+
+function playOrGenerateAudio() {
+  const player = getOrCreateAudioPlayer();
+  
+  // If player is paused, just resume
+  if (player.src && player.paused && player.currentTime > 0) {
+    player.play();
+    return;
+  }
+  
+  // If we already have a generated MP3 Blob for the current script, reuse it!
+  if (window._currentAudioBlobUrl) {
+    player.src = window._currentAudioBlobUrl;
+    player.play();
+    return;
+  }
+  
+  // Otherwise, make the API call to generate audio
+  // Check the daily generations limit constraint first!
+  const today = getTtsTodayStr();
+  state.ttsCounter = state.ttsCounter || { date: today, count: 0 };
+  if (state.ttsCounter.date !== today) {
+    state.ttsCounter = { date: today, count: 0 };
+    saveState();
+  }
+
+  if (state.ttsCounter.count >= 10) {
+    if (typeof showToast === 'function') {
+      showToast('⚠️ Daily limit of 10 speech generations reached.');
+    } else {
+      alert('Daily limit of 10 speech generations reached.');
+    }
+    return;
+  }
+
+  generateVoiceNarratorAudio();
+}
+
+async function generateVoiceNarratorAudio() {
+  const apiKey = getActiveApiKey();
+  if (!apiKey) {
+    if (typeof showToast === 'function') {
+      showToast('⚠️ Please configure your Gemini API Key in Settings first.');
+    }
+    return;
+  }
+
+  const rawScript = window._lastGeneratedScript;
+  if (!rawScript) {
+    if (typeof showToast === 'function') showToast('⚠️ No script found to read.');
+    return;
+  }
+
+  if (!window.lamejs) {
+    if (typeof showToast === 'function') showToast('⏳ Loading MP3 Encoder... Try again in a second.');
+    return;
+  }
+
+  // Increment the request counter immediately (covers failed ones too)
+  state.ttsCounter = state.ttsCounter || { date: getTtsTodayStr(), count: 0 };
+  state.ttsCounter.count++;
+  saveState();
+  triggerDriveSync();
+  updateTtsCounterUI();
+
+  const statusText = document.getElementById('c-audio-status');
+  if (statusText) {
+    statusText.textContent = 'Generating Voice...';
+    statusText.className = 'content-audio-status-text playing';
+  }
+
+  // Set selected prebuilt voice name
+  // Schedar (Male), Zephyr (Female)
+  const voiceName = (window._contentVoiceGender === 'male') ? 'Schedar' : 'Zephyr';
+  const cleanNarrativeText = cleanScriptForSpeech(rawScript);
+
+  try {
+    // Model name: gemini-3.1-flash-tts-preview
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: cleanNarrativeText }] }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: voiceName }
+            }
+          }
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `API Error ${response.status}`);
+    }
+
+    if (statusText) statusText.textContent = 'Encoding MP3...';
+
+    const data = await response.json();
+    const candidatePart = data.candidates?.[0]?.content?.parts?.[0];
+    const base64Data = candidatePart?.inlineData?.data;
+
+    if (!base64Data) {
+      throw new Error('Gemini API did not return native audio data.');
+    }
+
+    // 1. Convert base64 string to signed 16-bit mono PCM array (24000Hz)
+    const binaryString = atob(base64Data);
+    const alignedLen = binaryString.length - (binaryString.length % 2);
+    const rawBytes = new Uint8Array(alignedLen);
+    for (let i = 0; i < alignedLen; i++) {
+      rawBytes[i] = binaryString.charCodeAt(i);
+    }
+    const pcmSamples = new Int16Array(rawBytes.buffer);
+
+    // 2. Encode PCM to high-fidelity MP3 in-browser using lamejs
+    // Channels: 1 (mono), SampleRate: 24000Hz, BitRate: 128kbps
+    const mp3encoder = new lamejs.Mp3Encoder(1, 24000, 128);
+    const mp3Chunks = [];
+    const blockSize = 1152;
+    for (let i = 0; i < pcmSamples.length; i += blockSize) {
+      const chunk = pcmSamples.subarray(i, i + blockSize);
+      const mp3Buffer = mp3encoder.encodeBuffer(chunk);
+      if (mp3Buffer.length > 0) {
+        mp3Chunks.push(new Uint8Array(mp3Buffer));
+      }
+    }
+    const finalFlush = mp3encoder.flush();
+    if (finalFlush.length > 0) {
+      mp3Chunks.push(new Uint8Array(finalFlush));
+    }
+
+    const mp3Blob = new Blob(mp3Chunks, { type: 'audio/mp3' });
+    const audioUrl = URL.createObjectURL(mp3Blob);
+
+    // Safe cache settings
+    window._currentAudioBlob = mp3Blob;
+    window._currentAudioBlobUrl = audioUrl;
+    
+    const topicText = window._viewingTopicName || 'voiceover';
+    const safeTopic = topicText.toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 30);
+    window._currentAudioFilename = `becreator_${safeTopic}_${Date.now()}.mp3`;
+
+    // Cache the audio file per script so it does not get re-synthesized
+    const scriptId = window._viewingContentScriptId;
+    if (scriptId && window._audioCache) {
+      window._audioCache[scriptId] = {
+        blob: mp3Blob,
+        url: audioUrl,
+        filename: window._currentAudioFilename
+      };
+    }
+
+    // 3. Play audio immediately
+    const player = getOrCreateAudioPlayer();
+    player.src = audioUrl;
+    updateContentAudioSpeed(); // Apply selected speed multiplier
+    player.play();
+
+    // 4. Trigger Automatic Local Download
+    downloadCurrentAudioFile();
+
+    // 5. Trigger Automatic Background Google Drive Sync
+    if (typeof state !== 'undefined' && state.driveConnected) {
+      saveAudioToGoogleDrive(window._currentAudioFilename, mp3Blob);
+    }
+
+  } catch (err) {
+    console.error(err);
+    if (statusText) {
+      statusText.textContent = 'Failed';
+      statusText.className = 'content-audio-status-text';
+    }
+    if (typeof showToast === 'function') {
+      showToast('❌ Audio Generation Failed: ' + err.message);
+    }
+  }
+}
+
+async function saveAudioToGoogleDrive(filename, mp3Blob) {
+  if (typeof driveAccessToken === 'undefined' || !driveAccessToken) return;
+  
+  try {
+    // 1. Ensure primary folder "BeCreator" exists (sets state.driveFolderId)
+    if (typeof ensureDriveFolder === 'function') {
+      await ensureDriveFolder();
+    }
+    if (!state.driveFolderId) return;
+
+    // 2. Check if subfolder "Audio" exists inside BeCreator folder
+    const folderQuery = encodeURIComponent(`name='Audio' and '${state.driveFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${folderQuery}&fields=files(id,name)`, {
+      headers: { Authorization: `Bearer ${driveAccessToken}` }
+    });
+    const searchData = await searchRes.json();
+    
+    let audioFolderId;
+    if (searchData.files?.length > 0) {
+      audioFolderId = searchData.files[0].id;
+    } else {
+      // Create subfolder
+      const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${driveAccessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Audio',
+          mimeType: 'application/vnd.google-apps.folder',
+          parents: [state.driveFolderId]
+        })
+      });
+      const newFolder = await createRes.json();
+      audioFolderId = newFolder.id;
+    }
+
+    if (!audioFolderId) return;
+
+    // 3. Upload MP3 Blob as a multipart form upload
+    const metadata = {
+      name: filename,
+      parents: [audioFolderId]
+    };
+
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', mp3Blob);
+
+    const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${driveAccessToken}` },
+      body: form
+    });
+
+    if (uploadRes.ok) {
+      console.log(`Audio successfully backed up to Drive: ${filename}`);
+      if (typeof showToast === 'function') {
+        showToast('☁️ MP3 backed up to Google Drive!');
+      }
+    } else {
+      console.error('Drive audio upload failed:', uploadRes.status);
+    }
+  } catch (e) {
+    console.error('Drive audio sync error:', e);
+  }
+}
+
+function downloadCurrentAudioFile() {
+  const blob = window._currentAudioBlob;
+  const filename = window._currentAudioFilename;
+  if (!blob || !filename) return;
+
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function pauseContentAudio() {
+  const player = getOrCreateAudioPlayer();
+  if (player && !player.paused) {
+    player.pause();
+  }
+}
+
+function stopContentAudio() {
+  const player = getOrCreateAudioPlayer();
+  if (player) {
+    player.pause();
+    player.currentTime = 0;
+  }
+  stopVisualizer();
+  updateAudioControlsState('ended');
+}
+
+function updateContentAudioSpeed() {
+  const player = getOrCreateAudioPlayer();
+  const speedEl = document.getElementById('c-audio-speed');
+  if (player && speedEl) {
+    player.defaultPlaybackRate = parseFloat(speedEl.value);
+    player.playbackRate = parseFloat(speedEl.value);
+  }
+}
+
+function updateAudioControlsState(state) {
+  const btnPlay = document.getElementById('c-audio-play');
+  const btnPause = document.getElementById('c-audio-pause');
+  const btnStop = document.getElementById('c-audio-stop');
+  const btnDownload = document.getElementById('c-audio-download');
+  const statusText = document.getElementById('c-audio-status');
+  
+  if (!btnPlay || !btnPause || !btnStop || !statusText) return;
+  
+  if (state === 'speaking') {
+    btnPlay.style.display = 'none';
+    btnPause.style.display = 'inline-block';
+    btnPause.textContent = '⏸ Pause';
+    btnStop.style.display = 'inline-block';
+    if (btnDownload) btnDownload.style.display = window._currentAudioBlob ? 'inline-block' : 'none';
+    statusText.textContent = 'Speaking...';
+    statusText.className = 'content-audio-status-text playing';
+  } else if (state === 'paused') {
+    btnPlay.style.display = 'inline-block';
+    btnPlay.textContent = '▶ Resume';
+    btnPause.style.display = 'none';
+    btnStop.style.display = 'inline-block';
+    if (btnDownload) btnDownload.style.display = window._currentAudioBlob ? 'inline-block' : 'none';
+    statusText.textContent = 'Paused';
+    statusText.className = 'content-audio-status-text';
+  } else {
+    // ended / stopped / ready
+    btnPlay.style.display = 'inline-block';
+    btnPlay.textContent = '▶ Listen';
+    btnPause.style.display = 'none';
+    btnStop.style.display = 'none';
+    if (btnDownload) btnDownload.style.display = window._currentAudioBlob ? 'inline-block' : 'none';
+    statusText.textContent = 'Ready';
+    statusText.className = 'content-audio-status-text';
+  }
+}
+
+// ============================================================
+// AUDIO WAVE VISUALIZATION (HTML5 CANVAS)
+// ============================================================
+
+function startVisualizer(audioElement) {
+  if (!audioElement) return;
+  
+  try {
+    if (!window._audioCtx) {
+      window._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      window._audioAnalyser = window._audioCtx.createAnalyser();
+      window._audioAnalyser.fftSize = 64; // Small frequency count for block bars
+    }
+    
+    if (!window._audioSource) {
+      window._audioSource = window._audioCtx.createMediaElementSource(audioElement);
+      window._audioSource.connect(window._audioAnalyser);
+      window._audioAnalyser.connect(window._audioCtx.destination);
+    }
+    
+    const canvas = document.getElementById('c-audio-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const bufferLength = window._audioAnalyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    
+    function draw() {
+      window._audioVisualId = requestAnimationFrame(draw);
+      window._audioAnalyser.getByteFrequencyData(dataArray);
+      
+      // White/light-themed canvas background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      const barWidth = (canvas.width / bufferLength) * 1.5;
+      let barHeight;
+      let x = 0;
+      
+      for (let i = 0; i < bufferLength; i++) {
+        barHeight = (dataArray[i] / 255) * canvas.height * 0.9;
+        
+        // Premium linear gradient columns
+        const grad = ctx.createLinearGradient(0, canvas.height, 0, 0);
+        grad.addColorStop(0, '#6200ee'); // Purple
+        grad.addColorStop(1, '#03dac6'); // Teal
+        ctx.fillStyle = grad;
+        
+        // Draw centered columns
+        ctx.fillRect(x, canvas.height - barHeight - 2, barWidth - 3, barHeight);
+        x += barWidth;
+      }
+    }
+    
+    if (window._audioCtx.state === 'suspended') {
+      window._audioCtx.resume();
+    }
+    
+    if (window._audioVisualId) cancelAnimationFrame(window._audioVisualId);
+    draw();
+    
+  } catch (err) {
+    console.error('Audio visualizer init failed:', err);
+  }
+}
+
+function stopVisualizer() {
+  if (window._audioVisualId) {
+    cancelAnimationFrame(window._audioVisualId);
+    window._audioVisualId = null;
+  }
+  
+  // Clear visualizer canvas to white
+  const canvas = document.getElementById('c-audio-canvas');
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 }
