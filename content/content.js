@@ -14,14 +14,19 @@ function renderContentPanel() {
       </div>
 
       <div>
-        <label class="builder-label" style="display:block;margin-bottom:6px">Topic / Trend Keyword (Optional)</label>
-        <input class="input" id="c-topic" placeholder="e.g. Apple Vision Pro launch, Union Budget 2026..." style="width:100%">
-        <div style="font-size:10px;color:var(--text3);margin-top:4px">Leave blank to auto-detect today's top trending news using Google Search.</div>
+        <label class="builder-label" style="display:block;margin-bottom:6px">Topic or Paste Your Own Script</label>
+        <textarea class="input" id="c-topic" rows="3" placeholder="Type a topic to generate, or paste your own script text directly..." style="width:100%;resize:vertical;font-family:inherit;font-size:12px;padding:8px"></textarea>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px">Enter a topic to generate a script, or paste your own script text to convert it to audio.</div>
       </div>
       
-      <button class="btn btn-primary" id="c-generate-btn" onclick="generateContentScript()" style="width:100%;height:40px;font-weight:600">
-        🎬 Generate 2-Min Hinglish Script
-      </button>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-primary" id="c-generate-btn" onclick="generateContentScript()" style="flex:1;height:40px;font-weight:600">
+          🎬 2-Min Script
+        </button>
+        <button class="btn btn-secondary" id="c-own-script-btn" onclick="addOwnScript()" style="flex:1;height:40px;font-weight:600">
+          ✍️ Add Own Script
+        </button>
+      </div>
       
       <div id="c-loading" style="display:none;margin-top:20px;text-align:center;color:var(--text2)">
         <div class="spinner" style="margin:0 auto 10px"></div>
@@ -51,7 +56,7 @@ function renderContentPanel() {
           </div>
           
           <div class="content-audio-gender-selector">
-            <button class="content-gender-btn active" id="c-voice-female" onclick="selectContentVoiceGender('female')">👩 Female (Zephyr)</button>
+            <button class="content-gender-btn active" id="c-voice-female" onclick="selectContentVoiceGender('female')">👩 Female (Kore)</button>
             <button class="content-gender-btn" id="c-voice-male" onclick="selectContentVoiceGender('male')">👨 Male (Schedar)</button>
           </div>
           
@@ -279,6 +284,53 @@ Return ONLY the script formatted with time markers:
   } finally {
     if (generateBtn) generateBtn.disabled = false;
     if (loadingDiv) loadingDiv.style.display = 'none';
+  }
+}
+
+function addOwnScript() {
+  const textarea = document.getElementById('c-topic');
+  const text = textarea ? textarea.value.trim() : '';
+  if (!text) {
+    if (typeof showToast === 'function') {
+      showToast('⚠️ Please enter or paste your script first.');
+    } else {
+      alert('Please enter or paste your script first.');
+    }
+    return;
+  }
+
+  // Generate a snippet for the title/topic
+  const firstLine = text.split('\n')[0].trim();
+  const cleanFirstLine = firstLine.replace(/⏱️|\[[^\]]+\]|-/g, '').trim();
+  const topicSnippet = cleanFirstLine.slice(0, 30) || 'Custom Script';
+  const displayTopic = 'Custom: ' + topicSnippet + (text.length > 30 ? '...' : '');
+
+  const newScript = {
+    id: 'content_' + Date.now(),
+    date: new Date().toLocaleString('en-IN'),
+    topic: displayTopic,
+    script: text,
+    read: true // Mark as read since the user authored it
+  };
+
+  state.contentScripts = state.contentScripts || [];
+  state.contentScripts.unshift(newScript);
+  if (state.contentScripts.length > 20) {
+    state.contentScripts = state.contentScripts.slice(0, 20); // Keep last 20
+  }
+  
+  saveState();
+  triggerDriveSync();
+
+  // Clear the input area
+  if (textarea) textarea.value = '';
+
+  // Render results
+  openHistoryScript(newScript.id);
+  renderContentHistory();
+
+  if (typeof showToast === 'function') {
+    showToast('✍️ Custom script added!');
   }
 }
 
@@ -629,8 +681,8 @@ async function generateVoiceNarratorAudio() {
   }
 
   // Set selected prebuilt voice name
-  // Schedar (Male), Zephyr (Female)
-  const voiceName = (window._contentVoiceGender === 'male') ? 'Schedar' : 'Zephyr';
+  // Schedar (Male), Kore (Female)
+  const voiceName = (window._contentVoiceGender === 'male') ? 'Schedar' : 'Kore';
   const cleanNarrativeText = cleanScriptForSpeech(rawScript);
 
   try {
