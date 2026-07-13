@@ -13,6 +13,11 @@ function renderContentPanel() {
         ${apiActive}
       </div>
 
+      <div style="margin-bottom:10px">
+        <label class="builder-label" style="display:block;margin-bottom:4px">Channel Name / Motto Line (Optional)</label>
+        <input class="input" id="c-channel-info" placeholder="e.g. BeCreator, Tech Simplified..." style="width:100%;font-size:12px;padding:6px 8px">
+      </div>
+
       <div>
         <label class="builder-label" style="display:block;margin-bottom:6px">Topic or Paste Your Own Script</label>
         <textarea class="input" id="c-topic" rows="3" placeholder="Type a topic to generate, or paste your own script text directly..." style="width:100%;resize:vertical;font-family:inherit;font-size:12px;padding:8px"></textarea>
@@ -20,13 +25,16 @@ function renderContentPanel() {
       </div>
       
       <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn btn-primary" id="c-generate-btn" onclick="generateContentScript()" style="flex:1;height:40px;font-weight:600">
+        <button class="btn btn-primary" id="c-generate-btn" onclick="generateContentScript('standard')" style="flex:1;height:40px;font-weight:600;font-size:11px;padding:0 4px">
           🎬 2-Min Script
         </button>
-        <button class="btn btn-secondary" id="c-own-script-btn" onclick="addOwnScript()" style="flex:1;height:40px;font-weight:600">
-          ✍️ Add Own Script
+        <button class="btn btn-primary" id="c-dramatic-btn" onclick="generateContentScript('dramatic')" style="flex:1;height:40px;font-weight:600;font-size:11px;padding:0 4px;background:linear-gradient(135deg, #ff007f, #7f00ff);border:none;color:#ffffff">
+          🎭 Dramatic Script
         </button>
       </div>
+      <button class="btn btn-secondary" id="c-own-script-btn" onclick="addOwnScript()" style="width:100%;height:34px;font-weight:600;margin-top:8px;font-size:11px">
+        ✍️ Add Own Script
+      </button>
       
       <div id="c-loading" style="display:none;margin-top:20px;text-align:center;color:var(--text2)">
         <div class="spinner" style="margin:0 auto 10px"></div>
@@ -117,6 +125,12 @@ function initContentPanel() {
 
   renderContentHistory();
   
+  // Restore channel name/motto if it exists in state
+  const channelEl = document.getElementById('c-channel-info');
+  if (channelEl && state.channelInfo) {
+    channelEl.value = state.channelInfo;
+  }
+  
   // Inject lamejs dynamically (hosted locally to bypass browser Tracking Protection)
   if (!window.lamejs) {
     const script = document.createElement('script');
@@ -204,7 +218,7 @@ async function callGeminiWithSearch(prompt, modelIndex = 0) {
   return response.json();
 }
 
-async function generateContentScript() {
+async function generateContentScript(style = 'standard') {
   const apiKey = getActiveApiKey();
   if (!apiKey) {
     if (typeof showToast === 'function') {
@@ -215,18 +229,61 @@ async function generateContentScript() {
 
   const topicInput = document.getElementById('c-topic');
   const topic = topicInput ? topicInput.value.trim() : '';
+  const channelEl = document.getElementById('c-channel-info');
+  const channelInfo = channelEl ? channelEl.value.trim() : '';
+
+  // Save channel name/motto to state so it persists
+  if (channelEl) {
+    state.channelInfo = channelInfo;
+    saveState();
+  }
+
   const generateBtn = document.getElementById('c-generate-btn');
+  const dramaticBtn = document.getElementById('c-dramatic-btn');
   const loadingDiv = document.getElementById('c-loading');
   const loadingText = document.getElementById('c-loading-text');
   const resultDiv = document.getElementById('c-result-container');
   
   if (generateBtn) generateBtn.disabled = true;
+  if (dramaticBtn) dramaticBtn.disabled = true;
   if (loadingDiv) loadingDiv.style.display = 'block';
   if (resultDiv) resultDiv.style.display = 'none';
   if (loadingText) loadingText.textContent = 'Searching for trending news on the web...';
 
-  const prompt = `Generate a highly engaging 2-minute video script for a trending news topic.
+  let brandingInstructions = '';
+  if (channelInfo) {
+    brandingInstructions = `- Seamlessly integrate the channel name or motto line "${channelInfo}" in the script's intro or outro CTA.`;
+  }
+
+  let prompt = '';
+  if (style === 'dramatic') {
+    prompt = `Generate a highly dramatic, cinematic, and suspenseful 2-minute video script for a trending news topic.
 Topic/Keyword requested: ${topic || 'Find the latest major hot trending news of today using Google Search grounding.'}
+${brandingInstructions}
+
+CRITICAL FORMATTING & STYLE RULES:
+- The script MUST start with a powerful, hyper-dramatic hook in the FIRST 2 seconds:
+  ⏱️ 0:00-0:02 | [DRAMATIC HOOK] - 2-second punchy hook.
+- Make the tone intense, cinematic, fast-paced, and high-energy.
+- The script must be in natural "Hinglish" as spoken by modern Indian creators (e.g. YouTube/Instagram Reels creators).
+- Hindi words MUST be written in Devanagari script (e.g., नमस्कार, आज, बात, काम).
+- English words MUST be written in English (Roman script) (e.g., technology, mobile, trending, startup).
+- Do NOT write English words in Devanagari (e.g., write "mobile" instead of "मोबाइल").
+- Do NOT write Hindi words in Roman script (e.g., write "आज" instead of "aaj").
+- Strictly base the script on true, verified FACTS. Keep the facts accurate.
+- Structure it with timestamps for a 2-minute video:
+  ⏱️ 0:00-0:02 | [DRAMATIC HOOK] - 2-second punchy hook (MUST capture attention instantly!)
+  ⏱️ 0:02-0:15 | [INTRO] - Quick dramatic intro introducing the topic and branding
+  ⏱️ 0:15-0:45 | [THE NEWS] - Core dramatic news facts and revelations
+  ⏱️ 0:45-1:15 | [DEEPER ANALYSIS] - Why this matters/shocking insights
+  ⏱️ 1:15-1:45 | [IMPACT & FUTURE] - Future projection/consequences of this trend
+  ⏱️ 1:45-2:00 | [OUTRO + CTA] - Final dramatic question, like/subscribe/comment CTA
+
+Return ONLY the script formatted with time markers.`;
+  } else {
+    prompt = `Generate a highly engaging 2-minute video script for a trending news topic.
+Topic/Keyword requested: ${topic || 'Find the latest major hot trending news of today using Google Search grounding.'}
+${brandingInstructions}
 
 CRITICAL LANGUAGE RULES:
 - The script must be in natural "Hinglish" as spoken by modern Indian creators (e.g. YouTube/Instagram Reels creators).
@@ -244,6 +301,7 @@ Return ONLY the script formatted with time markers:
 ⏱️ 0:45-1:15 | [DEEPER ANALYSIS] - Why this matters/interesting insights
 ⏱️ 1:15-1:45 | [IMPACT & FUTURE] - Future projection/impact of this trend
 ⏱️ 1:45-2:00 | [OUTRO + CTA] - Final question, like/subscribe/comment CTA`;
+  }
 
   try {
     const data = await callGeminiWithSearch(prompt);
@@ -256,10 +314,11 @@ Return ONLY the script formatted with time markers:
     const fullText = (candidate.content?.parts || []).map(p => p.text || '').join('\n');
     if (!fullText) throw new Error('Empty script text returned.');
 
+    const displayTopic = (style === 'dramatic' ? '🎭 [Dramatic] ' : '') + (topic || 'Auto-Detected Trend');
     const newScript = {
       id: 'content_' + Date.now(),
       date: new Date().toLocaleString('en-IN'),
-      topic: topic || 'Auto-Detected Trend',
+      topic: displayTopic,
       script: fullText,
       read: false // Default to unread!
     };
@@ -283,6 +342,7 @@ Return ONLY the script formatted with time markers:
     }
   } finally {
     if (generateBtn) generateBtn.disabled = false;
+    if (dramaticBtn) dramaticBtn.disabled = false;
     if (loadingDiv) loadingDiv.style.display = 'none';
   }
 }
@@ -290,6 +350,9 @@ Return ONLY the script formatted with time markers:
 function addOwnScript() {
   const textarea = document.getElementById('c-topic');
   const text = textarea ? textarea.value.trim() : '';
+  const channelEl = document.getElementById('c-channel-info');
+  const channelInfo = channelEl ? channelEl.value.trim() : '';
+
   if (!text) {
     if (typeof showToast === 'function') {
       showToast('⚠️ Please enter or paste your script first.');
@@ -297,6 +360,12 @@ function addOwnScript() {
       alert('Please enter or paste your script first.');
     }
     return;
+  }
+
+  // Save channel name/motto to state so it persists
+  if (channelEl) {
+    state.channelInfo = channelInfo;
+    saveState();
   }
 
   // Generate a snippet for the title/topic
@@ -692,7 +761,18 @@ async function generateVoiceNarratorAudio() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: cleanNarrativeText }] }],
+        contents: [{
+          parts: [
+            { text: `NARRATOR INSTRUCTIONS:
+- You are a professional, high-fidelity voice-over artist.
+- Read the script below with absolute clarity, crisp articulation, and a sharp voice.
+- Maintain a highly consistent voice quality, volume level, and steady pacing from the first word to the very end of the narration.
+- Do NOT let the voice drift, whisper, fade out, or accumulate metallic distortion over time. Keep the tone natural and uniform throughout.
+
+SCRIPT TO READ:` },
+            { text: cleanNarrativeText }
+          ]
+        }],
         generationConfig: {
           responseModalities: ["AUDIO"],
           speechConfig: {
