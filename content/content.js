@@ -884,14 +884,6 @@ SCRIPT TO READ:` },
   }
 
   return base64Data;
-}usText) {
-      statusText.textContent = 'Failed';
-      statusText.className = 'content-audio-status-text';
-    }
-    if (typeof showToast === 'function') {
-      showToast('❌ Audio Generation Failed: ' + err.message);
-    }
-  }
 }
 
 async function saveAudioToGoogleDrive(filename, audioBlob) {
