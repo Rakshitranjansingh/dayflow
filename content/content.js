@@ -130,15 +130,6 @@ function initContentPanel() {
   if (channelEl && state.channelInfo) {
     channelEl.value = state.channelInfo;
   }
-  
-  // Inject lamejs dynamically (hosted locally to bypass browser Tracking Protection)
-  if (!window.lamejs) {
-    const script = document.createElement('script');
-    script.src = 'content/lame.min.js';
-    script.onload = () => console.log('lamejs loaded successfully');
-    script.onerror = () => console.error('lamejs load failed');
-    document.head.appendChild(script);
-  }
 }
 
 function getTtsTodayStr() {
@@ -736,128 +727,106 @@ async function generateVoiceNarratorAudio() {
     return;
   }
 
-  // Increment the request counter immediately (covers failed ones too)
-  state.ttsCounter = state.ttsCounter || { date: getTtsTodayStr(), count: 0 };
-  state.ttsCounter.count++;
+  const voiceName = (window._contentVoiceGender === 'male') ? 'Schedar' : 'Kore';
+  const cleanNarrativeText = cleanScriptForSpeech(rawScript);
+
+  // 1. Determine chunking based on remaining daily limit
+  const today = getTtsTodayStr();
+  state.ttsCounter = state.ttsCounter || { date: today, count: 0 };
+  const remaining = 10 - state.ttsCounter.count;
+
+  let chunks = [];
+  if (remaining >= 2) {
+    // Split into 2 chunks to bypass LLM TTS long-form voice drift/degradation (nasal drift)
+    const paragraphs = cleanNarrativeText.split('\n').map(p => p.trim()).filter(p => p.length > 0);
+    if (paragraphs.length >= 2) {
+      const mid = Math.ceil(paragraphs.length / 2);
+      chunks.push(paragraphs.slice(0, mid).join('\n '));
+      chunks.push(paragraphs.slice(mid).join('\n '));
+    } else {
+      chunks.push(cleanNarrativeText);
+    }
+  } else {
+    // Standard single-chunk mode
+    chunks.push(cleanNarrativeText);
+    if (remaining === 1 && typeof showToast === 'function') {
+      showToast('⚠️ 1 generation left today. Reading script in 1 block (quality may vary).');
+    }
+  }
+
+  // 2. Increment daily counter based on chunk count
+  state.ttsCounter.count += chunks.length;
   saveState();
   triggerDriveSync();
   updateTtsCounterUI();
 
   const statusText = document.getElementById('c-audio-status');
   if (statusText) {
-    statusText.textContent = 'Generating Voice...';
+    statusText.textContent = chunks.length > 1 ? 'Generating Voice (2 Chunks)...' : 'Generating Voice...';
     statusText.className = 'content-audio-status-text playing';
   }
 
-  // Set selected prebuilt voice name
-  // Schedar (Male), Kore (Female)
-  const voiceName = (window._contentVoiceGender === 'male') ? 'Schedar' : 'Kore';
-  const cleanNarrativeText = cleanScriptForSpeech(rawScript);
-
   try {
-    // Model name: gemini-3.1-flash-tts-preview
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${encodeURIComponent(apiKey)}`;
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: `NARRATOR INSTRUCTIONS:
-- You are a professional, high-fidelity voice-over artist.
-- Read the script below with absolute clarity, crisp articulation, and a sharp voice.
-- Maintain a highly consistent voice quality, volume level, and steady pacing from the first word to the very end of the narration.
-- Do NOT let the voice drift, whisper, fade out, or accumulate metallic distortion over time. Keep the tone natural and uniform throughout.
+    // 3. Make parallel API requests for each chunk
+    const promises = chunks.map(chunkText => callSingleTtsChunk(chunkText, voiceName, apiKey));
+    const base64Results = await Promise.all(promises);
 
-SCRIPT TO READ:` },
-            { text: cleanNarrativeText }
-          ]
-        }],
-        generationConfig: {
-          responseModalities: ["AUDIO"],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: voiceName }
-            }
-          }
-        }
-      })
+    if (statusText) statusText.textContent = 'Generating WAV...';
+
+    // 4. Convert base64 segments to signed 16-bit mono PCM arrays
+    const pcmArrays = base64Results.map(base64Data => {
+      const binaryString = atob(base64Data);
+      const alignedLen = binaryString.length - (binaryString.length % 2);
+      const rawBytes = new Uint8Array(alignedLen);
+      for (let i = 0; i < alignedLen; i++) {
+        rawBytes[i] = binaryString.charCodeAt(i);
+      }
+      return new Int16Array(rawBytes.buffer, rawBytes.byteOffset, alignedLen / 2);
     });
 
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `API Error ${response.status}`);
+    // 5. Concatenate PCM arrays
+    const totalLength = pcmArrays.reduce((sum, arr) => sum + arr.length, 0);
+    const combinedPcm = new Int16Array(totalLength);
+    let offset = 0;
+    for (const arr of pcmArrays) {
+      combinedPcm.set(arr, offset);
+      offset += arr.length;
     }
 
-    if (statusText) statusText.textContent = 'Encoding MP3...';
+    // 6. Encode combined PCM to lossless WAV format
+    const wavBlob = encodeWav(combinedPcm, 24000);
+    const audioUrl = URL.createObjectURL(wavBlob);
 
-    const data = await response.json();
-    const candidatePart = data.candidates?.[0]?.content?.parts?.[0];
-    const base64Data = candidatePart?.inlineData?.data;
-
-    if (!base64Data) {
-      throw new Error('Gemini API did not return native audio data.');
-    }
-
-    // 1. Convert base64 string to signed 16-bit mono PCM array (24000Hz)
-    const binaryString = atob(base64Data);
-    const alignedLen = binaryString.length - (binaryString.length % 2);
-    const rawBytes = new Uint8Array(alignedLen);
-    for (let i = 0; i < alignedLen; i++) {
-      rawBytes[i] = binaryString.charCodeAt(i);
-    }
-    const pcmSamples = new Int16Array(rawBytes.buffer);
-
-    // 2. Encode PCM to high-fidelity MP3 in-browser using lamejs
-    // Channels: 1 (mono), SampleRate: 24000Hz, BitRate: 128kbps
-    const mp3encoder = new lamejs.Mp3Encoder(1, 24000, 128);
-    const mp3Chunks = [];
-    const blockSize = 1152;
-    for (let i = 0; i < pcmSamples.length; i += blockSize) {
-      const chunk = pcmSamples.subarray(i, i + blockSize);
-      const mp3Buffer = mp3encoder.encodeBuffer(chunk);
-      if (mp3Buffer.length > 0) {
-        mp3Chunks.push(new Uint8Array(mp3Buffer));
-      }
-    }
-    const finalFlush = mp3encoder.flush();
-    if (finalFlush.length > 0) {
-      mp3Chunks.push(new Uint8Array(finalFlush));
-    }
-
-    const mp3Blob = new Blob(mp3Chunks, { type: 'audio/mp3' });
-    const audioUrl = URL.createObjectURL(mp3Blob);
-
-    // Safe cache settings
-    window._currentAudioBlob = mp3Blob;
+    // Save cache settings
+    window._currentAudioBlob = wavBlob;
     window._currentAudioBlobUrl = audioUrl;
     
     const topicText = window._viewingTopicName || 'voiceover';
     const safeTopic = topicText.toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 30);
-    window._currentAudioFilename = `becreator_${safeTopic}_${Date.now()}.mp3`;
+    window._currentAudioFilename = `becreator_${safeTopic}_${Date.now()}.wav`;
 
-    // Cache the audio file per script so it does not get re-synthesized
+    // Cache the audio file per script
     const scriptId = window._viewingContentScriptId;
     if (scriptId && window._audioCache) {
       window._audioCache[scriptId] = {
-        blob: mp3Blob,
+        blob: wavBlob,
         url: audioUrl,
         filename: window._currentAudioFilename
       };
     }
 
-    // 3. Play audio immediately
+    // Play audio immediately
     const player = getOrCreateAudioPlayer();
     player.src = audioUrl;
     updateContentAudioSpeed(); // Apply selected speed multiplier
     player.play();
 
-    // 4. Trigger Automatic Local Download
+    // Trigger Automatic Local Download
     downloadCurrentAudioFile();
 
-    // 5. Trigger Automatic Background Google Drive Sync
+    // Trigger Automatic Background Google Drive Sync
     if (typeof state !== 'undefined' && state.driveConnected) {
-      saveAudioToGoogleDrive(window._currentAudioFilename, mp3Blob);
+      saveAudioToGoogleDrive(window._currentAudioFilename, wavBlob);
     }
 
   } catch (err) {
@@ -872,7 +841,60 @@ SCRIPT TO READ:` },
   }
 }
 
-async function saveAudioToGoogleDrive(filename, mp3Blob) {
+async function callSingleTtsChunk(text, voiceName, apiKey) {
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{
+        parts: [
+          { text: `NARRATOR INSTRUCTIONS:
+- You are a professional, high-fidelity voice-over artist.
+- Read the script below with absolute clarity, crisp articulation, and a sharp voice.
+- Maintain a highly consistent voice quality, volume level, and steady pacing from the first word to the very end of the narration.
+- Do NOT let the voice drift, whisper, fade out, or accumulate metallic distortion over time. Keep the tone natural and uniform throughout.
+
+SCRIPT TO READ:` },
+          { text: text }
+        ]
+      }],
+      generationConfig: {
+        responseModalities: ["AUDIO"],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: voiceName }
+          }
+        }
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API Error ${response.status}`);
+  }
+
+  const data = await response.json();
+  const candidatePart = data.candidates?.[0]?.content?.parts?.[0];
+  const base64Data = candidatePart?.inlineData?.data;
+
+  if (!base64Data) {
+    throw new Error('Gemini API did not return native audio data.');
+  }
+
+  return base64Data;
+}usText) {
+      statusText.textContent = 'Failed';
+      statusText.className = 'content-audio-status-text';
+    }
+    if (typeof showToast === 'function') {
+      showToast('❌ Audio Generation Failed: ' + err.message);
+    }
+  }
+}
+
+async function saveAudioToGoogleDrive(filename, audioBlob) {
   if (typeof driveAccessToken === 'undefined' || !driveAccessToken) return;
   
   try {
@@ -909,7 +931,7 @@ async function saveAudioToGoogleDrive(filename, mp3Blob) {
 
     if (!audioFolderId) return;
 
-    // 3. Upload MP3 Blob as a multipart form upload
+    // 3. Upload WAV Blob as a multipart form upload
     const metadata = {
       name: filename,
       parents: [audioFolderId]
@@ -917,7 +939,7 @@ async function saveAudioToGoogleDrive(filename, mp3Blob) {
 
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('file', mp3Blob);
+    form.append('file', audioBlob);
 
     const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
       method: 'POST',
@@ -928,7 +950,7 @@ async function saveAudioToGoogleDrive(filename, mp3Blob) {
     if (uploadRes.ok) {
       console.log(`Audio successfully backed up to Drive: ${filename}`);
       if (typeof showToast === 'function') {
-        showToast('☁️ MP3 backed up to Google Drive!');
+        showToast('☁️ WAV backed up to Google Drive!');
       }
     } else {
       console.error('Drive audio upload failed:', uploadRes.status);
@@ -1091,5 +1113,55 @@ function stopVisualizer() {
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
+// ============================================================
+// LOSSLESS WAV ENCODER HELPER
+// ============================================================
+
+function encodeWav(samples, sampleRate) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  
+  // RIFF identifier
+  writeWavString(view, 0, 'RIFF');
+  // file length
+  view.setUint32(4, 36 + samples.length * 2, true);
+  // RIFF type
+  writeWavString(view, 8, 'WAVE');
+  // format chunk identifier
+  writeWavString(view, 12, 'fmt ');
+  // format chunk length
+  view.setUint32(16, 16, true);
+  // sample format (1 = PCM)
+  view.setUint16(20, 1, true);
+  // channel count (1 = Mono)
+  view.setUint16(22, 1, true);
+  // sample rate
+  view.setUint32(24, sampleRate, true);
+  // byte rate (sample rate * block align)
+  view.setUint32(28, sampleRate * 2, true);
+  // block align (channel count * bytes per sample)
+  view.setUint16(32, 2, true);
+  // bits per sample (16)
+  view.setUint16(34, 16, true);
+  // data chunk identifier
+  writeWavString(view, 36, 'data');
+  // data chunk length
+  view.setUint32(40, samples.length * 2, true);
+  
+  // Write PCM audio samples
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++, offset += 2) {
+    view.setInt16(offset, samples[i], true);
+  }
+  
+  return new Blob([buffer], { type: 'audio/wav' });
+}
+
+function writeWavString(view, offset, string) {
+  for (let i = 0; i < string.length; i++) {
+    view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
