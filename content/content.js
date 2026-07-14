@@ -592,7 +592,7 @@ function escapeContentHtml(str) {
 }
 
 // ============================================================
-// AUDIO GENERATOR & MP3 EXPORT PIPELINE
+// AUDIO GENERATOR & WAV EXPORT PIPELINE
 // ============================================================
 
 function selectContentVoiceGender(gender) {
@@ -679,7 +679,7 @@ function playOrGenerateAudio() {
     return;
   }
   
-  // If we already have a generated MP3 Blob for the current script, reuse it!
+  // If we already have a generated WAV Blob for the current script, reuse it!
   if (window._currentAudioBlobUrl) {
     player.src = window._currentAudioBlobUrl;
     player.play();
@@ -721,12 +721,6 @@ async function generateVoiceNarratorAudio() {
     if (typeof showToast === 'function') showToast('⚠️ No script found to read.');
     return;
   }
-
-  if (!window.lamejs) {
-    if (typeof showToast === 'function') showToast('⏳ Loading MP3 Encoder... Try again in a second.');
-    return;
-  }
-
   const voiceName = (window._contentVoiceGender === 'male') ? 'Schedar' : 'Kore';
   const cleanNarrativeText = cleanScriptForSpeech(rawScript);
 
