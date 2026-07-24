@@ -567,27 +567,31 @@ function downloadThoughtsImage() {
   
   const dataUrl = thoughtsCanvas.toDataURL('image/jpeg', 0.95);
   
-  // Populate modal preview for mobile long-press saves
-  const container = document.getElementById('export-modal-preview-container');
-  if (container) {
-    container.innerHTML = `<img src="${dataUrl}" alt="Thought Snapshot">`;
-  }
-  
-  const downloadBtn = document.getElementById('export-modal-direct-download');
-  if (downloadBtn) {
-    downloadBtn.onclick = () => {
-      const link = document.createElement('a');
-      link.download = `thought_${Date.now()}.jpg`;
-      link.href = dataUrl;
-      link.click();
-    };
-  }
-  
-  // Open the export modal
-  const modal = document.getElementById('thoughts-export-modal');
-  if (modal) modal.style.display = 'flex';
-  
-  showToast('📸 JPEG preview loaded! Save to gallery.');
+  // Convert DataURL to Blob for sharing
+  fetch(dataUrl)
+    .then(res => res.blob())
+    .then(blob => {
+      const file = new File([blob], `thought_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      
+      // Try native share API first (supports iOS share sheet directly!)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+          files: [file],
+          title: 'Thoughts status card'
+        }).catch(err => {
+          // If share cancelled or failed, fall back to modal overlay
+          console.log('Share dismissed, loading fallback modal.', err);
+          openThoughtsExportModal(dataUrl, 'image');
+        });
+      } else {
+        // Fallback for browsers that don't support file sharing
+        openThoughtsExportModal(dataUrl, 'image');
+      }
+    })
+    .catch(err => {
+      console.error('Blob conversion failed, loading fallback modal.', err);
+      openThoughtsExportModal(dataUrl, 'image');
+    });
 }
 
 // MediaRecorder canvas status video compilation
@@ -677,32 +681,31 @@ function downloadThoughtsVideo() {
   mediaRecorder.onstop = () => {
     const videoBlob = new Blob(chunks, { type: 'video/webm' });
     const videoUrl = URL.createObjectURL(videoBlob);
+    const file = new File([videoBlob], `thought_${Date.now()}.webm`, { type: 'video/webm' });
     
-    // Populate modal preview for mobile long-press video downloads
-    const container = document.getElementById('export-modal-preview-container');
-    if (container) {
-      container.innerHTML = `<video src="${videoUrl}" loop autoplay muted playsinline controls></video>`;
+    // Try native share API first (supports iOS share sheet directly!)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({
+        files: [file],
+        title: 'Thoughts status video loop'
+      }).then(() => {
+        if (overlay) overlay.style.display = 'none';
+      }).catch(err => {
+        // If share cancelled or failed, fall back to modal overlay
+        console.log('Share dismissed, loading fallback modal.', err);
+        openThoughtsExportModal(videoUrl, 'video');
+        if (overlay) overlay.style.display = 'none';
+      });
+    } else {
+      // Fallback for browsers that don't support file sharing
+      openThoughtsExportModal(videoUrl, 'video');
+      if (overlay) overlay.style.display = 'none';
     }
-    
-    const downloadBtn = document.getElementById('export-modal-direct-download');
-    if (downloadBtn) {
-      downloadBtn.onclick = () => {
-        const link = document.createElement('a');
-        link.download = `thought_${Date.now()}.webm`;
-        link.href = videoUrl;
-        link.click();
-      };
-    }
-    
-    // Open the export modal
-    const modal = document.getElementById('thoughts-export-modal');
-    if (modal) modal.style.display = 'flex';
 
     // Auto-Sync to Google Drive if logged in
     saveThoughtsVideoToGoogleDrive(videoBlob);
     
-    if (overlay) overlay.style.display = 'none';
-    showToast('🎥 Video loop compiled! Save to gallery.');
+    showToast('🎥 Video loop compiled!');
   };
 
   // Start recording
@@ -888,6 +891,50 @@ function handleUserImageUpload(e) {
   reader.readAsDataURL(file);
 }
 
+function openThoughtsExportModal(mediaUrl, type) {
+  const container = document.getElementById('export-modal-preview-container');
+  if (container) {
+    if (type === 'image') {
+      container.innerHTML = `<img src="${mediaUrl}" alt="Thought Snapshot">`;
+    } else {
+      container.innerHTML = `<video src="${mediaUrl}" loop autoplay muted playsinline controls></video>`;
+    }
+  }
+  
+  const downloadBtn = document.getElementById('export-modal-direct-download');
+  if (downloadBtn) {
+    downloadBtn.onclick = () => {
+      const link = document.createElement('a');
+      link.download = `thought_${Date.now()}.${type === 'image' ? 'jpg' : 'webm'}`;
+      link.href = mediaUrl;
+      link.click();
+    };
+  }
+
+  // Set iPhone-specific vs Desktop/Android instructions dynamically
+  const instructions = document.getElementById('export-instructions');
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if (instructions) {
+    if (isIOS) {
+      if (type === 'image') {
+        instructions.innerHTML = `<strong>📱 iPhone Instructions:</strong> Press and hold (long-press) on the image above and select <strong>"Add to Photos"</strong> to save it directly to your camera roll.`;
+      } else {
+        instructions.innerHTML = `<strong>📱 iPhone Instructions:</strong><br>1. Tap <strong>"Direct Download"</strong> below.<br>2. Open your iPhone's native <strong>Files app</strong>.<br>3. Go to the <strong>Downloads</strong> folder and tap the video.<br>4. Tap the <strong>Share button</strong> (bottom-left) and select <strong>"Save Video"</strong> to move it to your photos.`;
+      }
+    } else {
+      if (type === 'image') {
+        instructions.innerHTML = `<strong>💡 Save Instructions:</strong> Press and hold (long-press) the image above to save, or click the download button below.`;
+      } else {
+        instructions.innerHTML = `<strong>💡 Save Instructions:</strong> Click <strong>"Direct Download File"</strong> below to download the status video.`;
+      }
+    }
+  }
+  
+  // Open the export modal
+  const modal = document.getElementById('thoughts-export-modal');
+  if (modal) modal.style.display = 'flex';
+}
+
 function closeThoughtsExportModal() {
   const modal = document.getElementById('thoughts-export-modal');
   if (modal) modal.style.display = 'none';
@@ -1055,9 +1102,7 @@ function renderThoughtsPanelUI() {
             <button class="thoughts-modal-close" onclick="closeThoughtsExportModal()">×</button>
           </div>
           <div class="thoughts-modal-body">
-            <p style="font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:12px;text-align:center;line-height:1.4">
-              <strong>💡 Save Instructions:</strong> Press and hold (long-press) on the preview below, then choose <strong>"Save to Photos"</strong> or <strong>"Download Video"</strong>.
-            </p>
+            <p id="export-instructions" style="font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:12px;text-align:center;line-height:1.4"></p>
             <div id="export-modal-preview-container" style="width:100%;display:flex;justify-content:center;margin-bottom:16px"></div>
             <button class="btn btn-primary btn-full" id="export-modal-direct-download" style="font-size:12px;width:100%">📥 Direct Download File</button>
           </div>
