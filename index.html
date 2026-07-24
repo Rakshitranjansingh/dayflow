@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="hunt/hunt.css">
 <link rel="stylesheet" href="content/content.css">
 <link rel="stylesheet" href="thoughts/thoughts.css">
+<link rel="stylesheet" href="challenge/challenge.css">
 <!-- Google Identity Services client script for Drive syncing -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 
@@ -311,6 +312,35 @@
 
   /* MISC */
   .section-label { font-size: 12px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 20px 8px; }
+
+  /* Daily Challenge Card (Homepage) */
+  .home-challenge-card {
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 16px 20px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+    text-align: center;
+    transition: transform 0.15s;
+  }
+  .home-challenge-card:active {
+    transform: scale(0.98);
+  }
+  .home-challenge-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .home-challenge-text {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--text);
+    font-weight: 500;
+  }
 </style>
 </head>
 <body>
@@ -424,6 +454,14 @@
     <iframe id="quotes-frame" src="quotes.html" scrolling="no" frameborder="0" style="width:100%;border:none;border-radius:14px;height:85px"></iframe>
   </div>
 
+  <!-- Daily Challenge Card (Homepage) -->
+  <div style="margin: 0 20px 16px">
+    <div class="home-challenge-card" onclick="openPanel('challenge')">
+      <div class="home-challenge-badge" id="home-challenge-badge">Day 000 · Phase</div>
+      <div class="home-challenge-text" id="home-challenge-text">Loading daily challenge...</div>
+    </div>
+  </div>
+
   <!-- Alert Bar -->
   <div class="alert-bar" id="alert-bar" onclick="openPanel('todo')">
     ⚠️ <span id="alert-text"></span>
@@ -434,7 +472,7 @@
   <div class="tool-grid">
     <div class="tool-btn" onclick="openPanel('chat')"><div class="tool-icon">💬</div><div class="tool-name">Chat</div></div>
     <div class="tool-btn" onclick="openPanel('formatter')"><div class="tool-icon">📝</div><div class="tool-name">Text Format</div></div>
-    <div class="tool-btn" onclick="openPanel('habits')"><div class="tool-icon">📈</div><div class="tool-name">Habits</div></div>
+    <!-- <div class="tool-btn" onclick="openPanel('habits')"><div class="tool-icon">📈</div><div class="tool-name">Habits</div></div> -->
     <div class="tool-btn" onclick="openPanel('journal')"><div class="tool-icon">🎙️</div><div class="tool-name">Journal</div></div>
     <div class="tool-btn" onclick="openPanel('todo')">
       <div class="tool-icon">✅</div><div class="tool-name">To-Do</div>
@@ -442,7 +480,7 @@
     </div>
     <div class="tool-btn" onclick="openPanel('log')"><div class="tool-icon">📖</div><div class="tool-name">Daily Log</div></div>
     <div class="tool-btn" onclick="openPanel('focus')"><div class="tool-icon">⏱️</div><div class="tool-name">Focus</div></div>
-    <div class="tool-btn" onclick="openCinematicCamera()"><div class="tool-icon">📸</div><div class="tool-name">Cinema Cam</div></div>
+    <!-- <div class="tool-btn" onclick="openCinematicCamera()"><div class="tool-icon">📸</div><div class="tool-name">Cinema Cam</div></div> -->
     <div class="tool-btn" onclick="openPanel('content')"><div class="tool-icon">🎬</div><div class="tool-name">Content</div></div>
     <div class="tool-btn" onclick="openPanel('thoughts')"><div class="tool-icon">💭</div><div class="tool-name">Thoughts</div></div>
   </div>
@@ -1177,6 +1215,9 @@ function initApp() {
   updateTodoBadge();
   if (typeof updateLearnBadge === 'function') updateLearnBadge();
   checkCreatorAccess();
+  if (typeof updateHomepageChallengeCard === 'function') {
+    updateHomepageChallengeCard();
+  }
 }
 
 function updateLearnCard() {
@@ -1310,7 +1351,7 @@ const panelTitles = {
   habits: '📈 Habits', journal: '🎙️ Journal', todo: '✅ To-Do',
   expenses: '💸 Expenses', log: '📖 Daily Log', sleep: '😴 Sleep',
   focus: '⏱️ Focus', settings: '⚙️ Settings', content: '🎬 Content Script',
-  thoughts: '💭 Thoughts'
+  thoughts: '💭 Thoughts', challenge: '🎯 Challenge'
 };
 
 function renderPanel(name) {
@@ -1328,6 +1369,7 @@ function renderPanel(name) {
     case 'settings': return renderSettings();
     case 'content': return renderContentPanel();
     case 'thoughts': return renderThoughtsPanelUI();
+    case 'challenge': return renderChallengePanelUI();
     default: return '<div class="empty-state">Panel content not found.</div>';
   }
 }
@@ -2486,21 +2528,41 @@ async function generateDailyLog() {
   const insights = (state.chatInsights || []).filter(i => i.date === d);
   const thoughts = (state.thoughts || {})[d] || [];
 
+  let todayChallenge = null;
+  if (state.challenges && typeof CHALLENGE_ITEMS !== 'undefined') {
+    for (const day in state.challenges) {
+      const entry = state.challenges[day];
+      if (entry && entry.completed && entry.date === d) {
+        const item = CHALLENGE_ITEMS.find(i => i.day === parseInt(day));
+        if (item) {
+          todayChallenge = {
+            day: item.day,
+            phase: item.phaseName,
+            task: item.text,
+            notes: entry.note || ''
+          };
+        }
+        break;
+      }
+    }
+  }
+
   const data = {
     date: d, sleep: sl, meals, expenses: exps, todos,
     journals: journals.map(j=>j.text), insights: insights.map(i=>i.text),
-    thoughts: thoughts
+    thoughts: thoughts,
+    challenge: todayChallenge
   };
 
   const prompt = `You are generating a personal daily blog entry for a productivity app called BeCreator.
 Based on this data, write a warm, personal, first-person blog entry. Use the EXACT format below.
-Also return a day score out of 100 based on productivity, health, and habits.
+Also return a day score out of 100 based on productivity, health, habits, and self-improvement challenge progress.
 
 Data: ${JSON.stringify(data)}
 
 Return ONLY valid JSON (no markdown):
 {
-  "blog": "Full blog with these sections separated by newlines:\\n🌅 MORNING\\n[sleep/wake info]\\n\\n🧠 WHAT I LEARNED TODAY\\n[insights from chat/journal/thoughts]\\n\\n✅ WHAT I DID\\n[todos, habits]\\n\\n🍎 HOW I FUELLED\\n[nutrition summary]\\n\\n💸 MONEY\\n[expenses]\\n\\n🌙 REFLECTION\\n[journal/thought summaries, mood]",
+  "blog": "Full blog with these sections separated by newlines:\\n🌅 MORNING\\n[sleep/wake info]\\n\\n🧠 WHAT I LEARNED TODAY\\n[insights from chat/journal/thoughts/daily challenges completed]\\n\\n✅ WHAT I DID\\n[todos, habits, daily self-improvement challenge completion details and logging notes]\\n\\n🍎 HOW I FUELLED\\n[nutrition summary]\\n\\n💸 MONEY\\n[expenses]\\n\\n🌙 REFLECTION\\n[journal/thought/challenge reflection summaries, mood]",
   "score": 75,
   "summary": "one line summary"
 }`;
@@ -2681,6 +2743,17 @@ function renderSettings() {
           <div class="settings-row-label">BeCreator by Rakshit Ranjan Singh</div>
           <div class="settings-row-sub">Your Smart Companion · v1.0</div>
         </div>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h3>Reset Challenges</h3>
+      <div class="settings-row">
+        <div class="settings-row-icon">🎯</div>
+        <div class="settings-row-content">
+          <div class="settings-row-label">365 Days of 0.5%</div>
+          <div class="settings-row-sub">Reset all challenge progress and logs back to Day 1.</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="resetChallengeProgress()" style="color: var(--red); border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); font-weight:700">Reset</button>
       </div>
     </div>
     <div class="settings-section">
@@ -3014,6 +3087,9 @@ function initPanelJS(name) {
   if (name === 'thoughts') {
     initThoughtsPanel();
   }
+  if (name === 'challenge') {
+    initChallengePanel();
+  }
 }
 
 function toggleEditSettings() {
@@ -3146,5 +3222,7 @@ function closePublisherRequestModal() {
 <script src="hunt/hunt.js"></script>
 <script src="content/content.js"></script>
 <script src="thoughts/thoughts.js"></script>
+<script src="challenge/challenge_data.js"></script>
+<script src="challenge/challenge.js"></script>
 </body>
 </html>
