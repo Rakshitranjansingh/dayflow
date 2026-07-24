@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="camera/camera.css">
 <link rel="stylesheet" href="hunt/hunt.css">
 <link rel="stylesheet" href="content/content.css">
+<link rel="stylesheet" href="thoughts/thoughts.css">
 <!-- Google Identity Services client script for Drive syncing -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 
@@ -443,6 +444,7 @@
     <div class="tool-btn" onclick="openPanel('focus')"><div class="tool-icon">⏱️</div><div class="tool-name">Focus</div></div>
     <div class="tool-btn" onclick="openCinematicCamera()"><div class="tool-icon">📸</div><div class="tool-name">Cinema Cam</div></div>
     <div class="tool-btn" onclick="openPanel('content')"><div class="tool-icon">🎬</div><div class="tool-name">Content</div></div>
+    <div class="tool-btn" onclick="openPanel('thoughts')"><div class="tool-icon">💭</div><div class="tool-name">Thoughts</div></div>
   </div>
 
   <!-- Platforms Section -->
@@ -1307,7 +1309,8 @@ const panelTitles = {
   chat: '💬 Chat', formatter: '📝 Text Formatter', nutrition: '🍎 Nutrition',
   habits: '📈 Habits', journal: '🎙️ Journal', todo: '✅ To-Do',
   expenses: '💸 Expenses', log: '📖 Daily Log', sleep: '😴 Sleep',
-  focus: '⏱️ Focus', settings: '⚙️ Settings', content: '🎬 Content Script'
+  focus: '⏱️ Focus', settings: '⚙️ Settings', content: '🎬 Content Script',
+  thoughts: '💭 Thoughts'
 };
 
 function renderPanel(name) {
@@ -1324,6 +1327,7 @@ function renderPanel(name) {
     case 'focus': return renderFocus();
     case 'settings': return renderSettings();
     case 'content': return renderContentPanel();
+    case 'thoughts': return renderThoughtsPanelUI();
     default: return '<div class="empty-state">Panel content not found.</div>';
   }
 }
@@ -2480,10 +2484,12 @@ async function generateDailyLog() {
   const todos = state.todos.filter(t => t.createdDate === d);
   const journals = state.journal[d] || [];
   const insights = (state.chatInsights || []).filter(i => i.date === d);
+  const thoughts = (state.thoughts || {})[d] || [];
 
   const data = {
     date: d, sleep: sl, meals, expenses: exps, todos,
-    journals: journals.map(j=>j.text), insights: insights.map(i=>i.text)
+    journals: journals.map(j=>j.text), insights: insights.map(i=>i.text),
+    thoughts: thoughts
   };
 
   const prompt = `You are generating a personal daily blog entry for a productivity app called BeCreator.
@@ -2494,7 +2500,7 @@ Data: ${JSON.stringify(data)}
 
 Return ONLY valid JSON (no markdown):
 {
-  "blog": "Full blog with these sections separated by newlines:\\n🌅 MORNING\\n[sleep/wake info]\\n\\n🧠 WHAT I LEARNED TODAY\\n[insights from chat/journal]\\n\\n✅ WHAT I DID\\n[todos, habits]\\n\\n🍎 HOW I FUELLED\\n[nutrition summary]\\n\\n💸 MONEY\\n[expenses]\\n\\n🌙 REFLECTION\\n[journal summary, mood]",
+  "blog": "Full blog with these sections separated by newlines:\\n🌅 MORNING\\n[sleep/wake info]\\n\\n🧠 WHAT I LEARNED TODAY\\n[insights from chat/journal/thoughts]\\n\\n✅ WHAT I DID\\n[todos, habits]\\n\\n🍎 HOW I FUELLED\\n[nutrition summary]\\n\\n💸 MONEY\\n[expenses]\\n\\n🌙 REFLECTION\\n[journal/thought summaries, mood]",
   "score": 75,
   "summary": "one line summary"
 }`;
@@ -3005,6 +3011,9 @@ function initPanelJS(name) {
   if (name === 'content') {
     initContentPanel();
   }
+  if (name === 'thoughts') {
+    initThoughtsPanel();
+  }
 }
 
 function toggleEditSettings() {
@@ -3136,5 +3145,6 @@ function closePublisherRequestModal() {
 <script src="learn/addCourse.js"></script>
 <script src="hunt/hunt.js"></script>
 <script src="content/content.js"></script>
+<script src="thoughts/thoughts.js"></script>
 </body>
 </html>
