@@ -221,16 +221,37 @@ function renderMediaPickerGrid() {
 
   const list = thoughtsState.bgType === 'image' ? THOUGHTS_IMAGES : THOUGHTS_VIDEOS;
   
+  // Prepend "Add Own Image" button if image tab is active
+  if (thoughtsState.bgType === 'image') {
+    const uploadItem = document.createElement('div');
+    const userImg = bgImageCache['user_upload'];
+    
+    uploadItem.className = `media-item ${thoughtsState.bgIndex === 'user_upload' ? 'active' : ''}`;
+    uploadItem.onclick = () => {
+      document.getElementById('t-file-input').click();
+    };
+
+    if (userImg) {
+      uploadItem.innerHTML = `<img src="${userImg.src}">`;
+    } else {
+      uploadItem.style.display = 'flex';
+      uploadItem.style.alignItems = 'center';
+      uploadItem.style.justifyContent = 'center';
+      uploadItem.style.background = 'rgba(255,255,255,0.05)';
+      uploadItem.style.border = '1px dashed rgba(255,255,255,0.2)';
+      uploadItem.innerHTML = `<div style="font-size: 16px; font-weight: bold; color: rgba(255,255,255,0.6)">➕</div>`;
+    }
+    grid.appendChild(uploadItem);
+  }
+
   list.forEach((path, index) => {
     const item = document.createElement('div');
     item.className = `media-item ${thoughtsState.bgIndex === index ? 'active' : ''}`;
     item.onclick = () => selectMediaItem(index);
 
     if (thoughtsState.bgType === 'image') {
-      // Use fallback thumbnail or standard indicator
       item.innerHTML = `<img src="${path}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2280%22><rect width=%22100%%22 height=%22100%%22 fill=%22%232c3e50%22/><text x=%2250%%22 y=%2250%%22 fill=%22%23fff%22 font-size=%2211%22 font-family=%22sans-serif%22 text-anchor=%22middle%22 dy=%22.3em%22>Img ${index+1}</text></svg>'">`;
     } else {
-      // Small video indicator icon
       item.innerHTML = `
         <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#2c3e50;color:#fff;font-size:10px;font-weight:700">
           📹 Vid ${index+1}
@@ -243,9 +264,6 @@ function renderMediaPickerGrid() {
 
 function selectMediaItem(index) {
   thoughtsState.bgIndex = index;
-  document.querySelectorAll('.media-item').forEach((item, i) => {
-    item.classList.toggle('active', i === index);
-  });
 
   if (thoughtsState.bgType === 'image') {
     loadBackgroundImage(index);
@@ -255,6 +273,7 @@ function selectMediaItem(index) {
 
   triggerThoughtsRender();
   saveThoughtsConfig();
+  renderMediaPickerGrid();
 }
 
 function selectThoughtsColor(color) {
@@ -277,6 +296,7 @@ function selectThoughtsAlign(align) {
 
 // Media loaders
 function loadBackgroundImage(index) {
+  if (index === 'user_upload') return;
   const path = THOUGHTS_IMAGES[index];
   if (bgImageCache[path]) return;
 
@@ -386,7 +406,12 @@ function renderCanvasFrame() {
   let backgroundDrawn = false;
   
   if (thoughtsState.bgType === 'image') {
-    const img = bgImageCache[THOUGHTS_IMAGES[thoughtsState.bgIndex]];
+    let img = null;
+    if (thoughtsState.bgIndex === 'user_upload') {
+      img = bgImageCache['user_upload'];
+    } else {
+      img = bgImageCache[THOUGHTS_IMAGES[thoughtsState.bgIndex]];
+    }
     if (img) {
       drawCoverImage(img, w, h);
       backgroundDrawn = true;
@@ -841,6 +866,28 @@ function drawRoundedRect(ctx, x, y, width, height, radius) {
   ctx.stroke();
 }
 
+function handleUserImageUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    const img = new Image();
+    img.src = event.target.result;
+    img.onload = () => {
+      bgImageCache['user_upload'] = img;
+      thoughtsState.bgType = 'image';
+      thoughtsState.bgIndex = 'user_upload';
+      
+      triggerThoughtsRender();
+      saveThoughtsConfig();
+      renderMediaPickerGrid();
+      showToast('🖼️ Custom background image loaded!');
+    };
+  };
+  reader.readAsDataURL(file);
+}
+
 function closeThoughtsExportModal() {
   const modal = document.getElementById('thoughts-export-modal');
   if (modal) modal.style.display = 'none';
@@ -904,6 +951,9 @@ function renderThoughtsPanelUI() {
             </div>
           </div>
         </div>
+
+        <!-- Hidden File Input for Custom Background Image -->
+        <input type="file" id="t-file-input" accept="image/*" style="display:none" onchange="handleUserImageUpload(event)">
 
         <!-- Drawer 2: Typography & Styling -->
         <div class="thoughts-floating-drawer" id="drawer-style">
