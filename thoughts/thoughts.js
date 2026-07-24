@@ -541,11 +541,28 @@ function downloadThoughtsImage() {
   renderCanvasFrame();
   
   const dataUrl = thoughtsCanvas.toDataURL('image/jpeg', 0.95);
-  const link = document.createElement('a');
-  link.download = `thought_${Date.now()}.jpg`;
-  link.href = dataUrl;
-  link.click();
-  showToast('📸 JPEG image downloaded!');
+  
+  // Populate modal preview for mobile long-press saves
+  const container = document.getElementById('export-modal-preview-container');
+  if (container) {
+    container.innerHTML = `<img src="${dataUrl}" alt="Thought Snapshot">`;
+  }
+  
+  const downloadBtn = document.getElementById('export-modal-direct-download');
+  if (downloadBtn) {
+    downloadBtn.onclick = () => {
+      const link = document.createElement('a');
+      link.download = `thought_${Date.now()}.jpg`;
+      link.href = dataUrl;
+      link.click();
+    };
+  }
+  
+  // Open the export modal
+  const modal = document.getElementById('thoughts-export-modal');
+  if (modal) modal.style.display = 'flex';
+  
+  showToast('📸 JPEG preview loaded! Save to gallery.');
 }
 
 // MediaRecorder canvas status video compilation
@@ -636,17 +653,31 @@ function downloadThoughtsVideo() {
     const videoBlob = new Blob(chunks, { type: 'video/webm' });
     const videoUrl = URL.createObjectURL(videoBlob);
     
-    // Download the compiled file
-    const link = document.createElement('a');
-    link.download = `thought_${Date.now()}.webm`;
-    link.href = videoUrl;
-    link.click();
+    // Populate modal preview for mobile long-press video downloads
+    const container = document.getElementById('export-modal-preview-container');
+    if (container) {
+      container.innerHTML = `<video src="${videoUrl}" loop autoplay muted playsinline controls></video>`;
+    }
+    
+    const downloadBtn = document.getElementById('export-modal-direct-download');
+    if (downloadBtn) {
+      downloadBtn.onclick = () => {
+        const link = document.createElement('a');
+        link.download = `thought_${Date.now()}.webm`;
+        link.href = videoUrl;
+        link.click();
+      };
+    }
+    
+    // Open the export modal
+    const modal = document.getElementById('thoughts-export-modal');
+    if (modal) modal.style.display = 'flex';
 
     // Auto-Sync to Google Drive if logged in
     saveThoughtsVideoToGoogleDrive(videoBlob);
     
     if (overlay) overlay.style.display = 'none';
-    showToast('🎥 Looping Video Status Downloaded!');
+    showToast('🎥 Video loop compiled! Save to gallery.');
   };
 
   // Start recording
@@ -810,6 +841,13 @@ function drawRoundedRect(ctx, x, y, width, height, radius) {
   ctx.stroke();
 }
 
+function closeThoughtsExportModal() {
+  const modal = document.getElementById('thoughts-export-modal');
+  if (modal) modal.style.display = 'none';
+  const container = document.getElementById('export-modal-preview-container');
+  if (container) container.innerHTML = '';
+}
+
 function handleThoughtsDownload() {
   if (thoughtsState.bgType === 'image') {
     downloadThoughtsImage();
@@ -957,6 +995,23 @@ function renderThoughtsPanelUI() {
           </div>
         </div>
 
+      </div>
+
+      <!-- Export Modal Overlay (For mobile gallery saves) -->
+      <div class="thoughts-modal" id="thoughts-export-modal">
+        <div class="thoughts-modal-content">
+          <div class="thoughts-modal-header">
+            <span>📥 Save to Gallery</span>
+            <button class="thoughts-modal-close" onclick="closeThoughtsExportModal()">×</button>
+          </div>
+          <div class="thoughts-modal-body">
+            <p style="font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:12px;text-align:center;line-height:1.4">
+              <strong>💡 Save Instructions:</strong> Press and hold (long-press) on the preview below, then choose <strong>"Save to Photos"</strong> or <strong>"Download Video"</strong>.
+            </p>
+            <div id="export-modal-preview-container" style="width:100%;display:flex;justify-content:center;margin-bottom:16px"></div>
+            <button class="btn btn-primary btn-full" id="export-modal-direct-download" style="font-size:12px;width:100%">📥 Direct Download File</button>
+          </div>
+        </div>
       </div>
     </div>
   `;
