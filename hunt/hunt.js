@@ -175,16 +175,19 @@ Respond ONLY with valid JSON in this exact format (no markdown, no backticks, no
     const candidate = data.candidates?.[0];
     if (!candidate) throw new Error('No candidate responses returned from Gemini.');
     
-    const parts = candidate.content?.parts || [];
-    let fullText = '';
-    // Find the last part that has non-empty text (the final grounded output)
-    for (let i = parts.length - 1; i >= 0; i--) {
-      if (parts[i].text && parts[i].text.trim()) {
-        fullText = parts[i].text;
-        break;
+    // Join all parts (ensuring we capture all chunks if the response was split into segments)
+    let fullText = (candidate.content?.parts || []).map(p => p.text || '').join('\n');
+    
+    // If the model repeated itself or output draft/grounded duplicates, extract the final block
+    const lastAnalysisIndex = fullText.lastIndexOf('"analysis"');
+    if (lastAnalysisIndex !== -1) {
+      const startBraceIndex = fullText.lastIndexOf('{', lastAnalysisIndex);
+      if (startBraceIndex !== -1) {
+        fullText = fullText.substring(startBraceIndex);
       }
     }
-    console.log('[Hunt Debug] Selected Part Text:', fullText);
+    
+    console.log('[Hunt Debug] Extracted Text:', fullText);
     if (!fullText) throw new Error('Empty text content received.');
 
     const parsed = cleanAndParseJSON(fullText);
