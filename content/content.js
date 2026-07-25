@@ -302,7 +302,15 @@ Return ONLY the script formatted with time markers:
     const candidate = data.candidates?.[0];
     if (!candidate) throw new Error('No candidate responses returned.');
     
-    const fullText = (candidate.content?.parts || []).map(p => p.text || '').join('\n');
+    const parts = candidate.content?.parts || [];
+    let fullText = '';
+    // Find the last part that has non-empty text (the final grounded output)
+    for (let i = parts.length - 1; i >= 0; i--) {
+      if (parts[i].text && parts[i].text.trim()) {
+        fullText = parts[i].text;
+        break;
+      }
+    }
     if (!fullText) throw new Error('Empty script text returned.');
 
     const displayTopic = (style === 'dramatic' ? '🎭 [Dramatic] ' : '') + (topic || 'Auto-Detected Trend');

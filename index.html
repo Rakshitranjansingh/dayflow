@@ -313,6 +313,44 @@
   .month-nav-btn { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text2); padding: 4px 8px; }
   .month-nav-label { font-size: 14px; font-weight: 600; }
 
+  /* Homepage Tabs navigation */
+  .homepage-tabs {
+    display: flex;
+    gap: 16px;
+    margin: 16px 20px 8px;
+    border-bottom: 1.5px solid var(--border);
+    padding-bottom: 6px;
+  }
+  .home-tab {
+    background: none;
+    border: none;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text3);
+    cursor: pointer;
+    padding: 4px 0;
+    position: relative;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: color 0.2s;
+  }
+  .home-tab:hover {
+    color: var(--text2);
+  }
+  .home-tab.active {
+    color: var(--text);
+  }
+  .home-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--text);
+    border-radius: 2px;
+  }
+
   /* MISC */
   .section-label { font-size: 12px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 20px 8px; }
 
@@ -470,12 +508,16 @@
     ⚠️ <span id="alert-text"></span>
   </div>
 
-  <!-- Tool Grid -->
-  <div class="section-label">Tools</div>
-  <div class="tool-grid">
+  <!-- Homepage Section Switcher (Tools vs Grow) -->
+  <div class="homepage-tabs">
+    <button class="home-tab active" id="tab-btn-tools" onclick="switchHomeTab('tools')">Tools</button>
+    <button class="home-tab" id="tab-btn-grow" onclick="switchHomeTab('grow')">Grow</button>
+  </div>
+
+  <!-- Tools Grid -->
+  <div class="tool-grid" id="home-grid-tools">
     <div class="tool-btn" onclick="openPanel('chat')"><div class="tool-icon">💬</div><div class="tool-name">Chat</div></div>
     <div class="tool-btn" onclick="openPanel('formatter')"><div class="tool-icon">📝</div><div class="tool-name">Text Format</div></div>
-    <!-- <div class="tool-btn" onclick="openPanel('habits')"><div class="tool-icon">📈</div><div class="tool-name">Habits</div></div> -->
     <div class="tool-btn" onclick="openPanel('journal')"><div class="tool-icon">🎙️</div><div class="tool-name">Journal</div></div>
     <div class="tool-btn" onclick="openPanel('todo')">
       <div class="tool-icon">✅</div><div class="tool-name">To-Do</div>
@@ -483,14 +525,12 @@
     </div>
     <div class="tool-btn" onclick="openPanel('log')"><div class="tool-icon">📖</div><div class="tool-name">Daily Log</div></div>
     <div class="tool-btn" onclick="openPanel('focus')"><div class="tool-icon">⏱️</div><div class="tool-name">Focus</div></div>
-    <!-- <div class="tool-btn" onclick="openCinematicCamera()"><div class="tool-icon">📸</div><div class="tool-name">Cinema Cam</div></div> -->
     <div class="tool-btn" onclick="openPanel('content')"><div class="tool-icon">🎬</div><div class="tool-name">Content</div></div>
     <div class="tool-btn" onclick="openPanel('thoughts')"><div class="tool-icon">💭</div><div class="tool-name">Thoughts</div></div>
   </div>
 
-  <!-- Platforms Section -->
-  <!-- <div class="section-label">Platforms</div>
-  <div class="tool-grid" style="margin-bottom: 24px;">
+  <!-- Grow Grid -->
+  <div class="tool-grid" id="home-grid-grow" style="display: none; margin-bottom: 24px;">
     <div class="tool-btn" onclick="openLearnApp()">
       <div class="tool-icon">🎓</div>
       <div class="tool-name">Learn</div>
@@ -504,7 +544,7 @@
       <div class="tool-icon">🎓➕</div>
       <div class="tool-name">Add Course</div>
     </div>
-  </div> -->
+  </div>
 
 </div>
 
@@ -587,6 +627,15 @@
       <button class="btn btn-primary" id="hunt-search-btn" onclick="searchJobsFromHunt()" style="margin-top:16px;width:100%;height:44px;font-size:14px;font-weight:600">
         🔍 Search Matching Openings
       </button>
+    </div>
+
+    <!-- Past Searches History -->
+    <div class="hunt-card" id="hunt-history-card" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+        <div class="hunt-card-title" style="margin-bottom:0">🕒 Past Searches</div>
+        <button onclick="clearHuntHistory()" style="font-size:11px; color:var(--text3); border:none; background:none; cursor:pointer; font-weight:600">Clear All</button>
+      </div>
+      <div id="hunt-history-list" style="display:flex; flex-direction:column; gap:8px; max-height:180px; overflow-y:auto; padding-right:4px"></div>
     </div>
 
     <!-- STATUS -->
@@ -1374,6 +1423,25 @@ function renderPanel(name) {
     case 'thoughts': return renderThoughtsPanelUI();
     case 'challenge': return renderChallengePanelUI();
     default: return '<div class="empty-state">Panel content not found.</div>';
+  }
+}
+
+function switchHomeTab(tab) {
+  const btnTools = document.getElementById('tab-btn-tools');
+  const btnGrow = document.getElementById('tab-btn-grow');
+  const gridTools = document.getElementById('home-grid-tools');
+  const gridGrow = document.getElementById('home-grid-grow');
+  
+  if (tab === 'tools') {
+    if (btnTools) btnTools.classList.add('active');
+    if (btnGrow) btnGrow.classList.remove('active');
+    if (gridTools) gridTools.style.display = 'grid';
+    if (gridGrow) gridGrow.style.display = 'none';
+  } else {
+    if (btnTools) btnTools.classList.remove('active');
+    if (btnGrow) btnGrow.classList.add('active');
+    if (gridTools) gridTools.style.display = 'none';
+    if (gridGrow) gridGrow.style.display = 'grid';
   }
 }
 
@@ -2927,45 +2995,81 @@ function cleanAndParseJSON(rawText) {
     clean = clean.trim();
   }
 
-  // 2. Extract potential inner JSON structure
+  // 2. Extract JSON starting from first '{'
   const startBrace = clean.indexOf('{');
-  const endBrace = clean.lastIndexOf('}');
-  if (startBrace !== -1 && endBrace !== -1 && endBrace > startBrace) {
-    clean = clean.substring(startBrace, endBrace + 1);
+  if (startBrace !== -1) {
+    clean = clean.substring(startBrace);
   }
 
   // 3. Attempt natural parse
   try {
     return JSON.parse(clean);
   } catch (e) {
-    console.warn("Standard JSON parse failed. Attempting to escape unescaped control characters...", e);
+    console.warn("Standard JSON parse failed. Attempting self-healing for truncated or invalid JSON...", e);
   }
 
-  // 4. Fallback repair: Escape literal inside-string newlines
+  // 4. Run Self-Healing on the JSON string
   let repaired = "";
+  let stack = [];
   let inString = false;
   let escapeActive = false;
+  
   for (let i = 0; i < clean.length; i++) {
-    let char = clean[i];
-    if (char === '"' && !escapeActive) {
-      inString = !inString;
-    }
+    const char = clean[i];
+    
+    // Repair literal unescaped newlines inside strings on the fly
     if (inString && (char === '\n' || char === '\r')) {
-      repaired += "\\n"; // Replace literal newline inside JSON double quotes with string format
-    } else {
-      repaired += char;
+      repaired += "\\n";
+      continue;
     }
-    if (char === '\\' && inString) {
-      escapeActive = !escapeActive;
+
+    repaired += char;
+
+    if (inString) {
+      if (char === '\\') {
+        escapeActive = !escapeActive;
+      } else if (char === '"' && !escapeActive) {
+        inString = false;
+      } else {
+        escapeActive = false;
+      }
     } else {
-      escapeActive = false;
+      if (char === '"') {
+        inString = true;
+        escapeActive = false;
+      } else if (char === '{' || char === '[') {
+        stack.push(char);
+      } else if (char === '}') {
+        if (stack[stack.length - 1] === '{') stack.pop();
+      } else if (char === ']') {
+        if (stack[stack.length - 1] === '[') stack.pop();
+      }
     }
   }
 
+  // Close unclosed string
+  if (inString) {
+    repaired += '"';
+  }
+
+  // Clean trailing commas at the truncation point
+  repaired = repaired.trim().replace(/,\s*$/, '');
+
+  // Close remaining open brackets/braces
+  while (stack.length > 0) {
+    const openChar = stack.pop();
+    if (openChar === '{') {
+      repaired += '}';
+    } else if (openChar === '[') {
+      repaired += ']';
+    }
+  }
+
+  // 5. Attempt final parse on healed JSON
   try {
     return JSON.parse(repaired);
   } catch (e2) {
-    console.error("Critical JSON Parsing failure. Sanitized String:", repaired);
+    console.error("Critical JSON Healing failure. Sanitized String:", repaired);
     throw new Error("Unable to parse AI response. Please try submitting again.");
   }
 }
