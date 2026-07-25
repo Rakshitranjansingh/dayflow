@@ -37,7 +37,7 @@ let thoughtsState = {
   color: '#ffffff',
   align: 'center',
   valign: 50, // 0 - 100
-  overlay: 40, // 0 - 100
+  overlay: 0, // Force default to 0
   aspect: '1-1', // '1-1' or '9-16'
   audio: 'none' // 'none', 'vid', 'focus1', 'focus2'
 };
@@ -79,6 +79,7 @@ function initThoughtsPanel() {
   if (state.lastThoughtsState) {
     thoughtsState = { ...thoughtsState, ...state.lastThoughtsState };
   }
+  thoughtsState.overlay = 0; // Force overlay tint to 0
   
   // Pre-load default assets
   loadBackgroundImage(thoughtsState.bgIndex);
@@ -648,15 +649,19 @@ function downloadThoughtsVideo() {
   const tracks = [...canvasStream.getVideoTracks(), ...audioTracks];
   recorderStream = new MediaStream(tracks);
 
-  // Pick suitable browser codecs (webm falling back to mp4 / default)
-  let options = { mimeType: 'video/webm;codecs=vp9' };
-  if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+  // Pick suitable browser codecs (mp4 prioritized for cross-platform compatibility, falling back to webm)
+  let options = {};
+  if (MediaRecorder.isTypeSupported('video/mp4;codecs=h264')) {
+    options = { mimeType: 'video/mp4;codecs=h264' };
+  } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+    options = { mimeType: 'video/mp4' };
+  } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+    options = { mimeType: 'video/webm;codecs=vp9' };
+  } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
     options = { mimeType: 'video/webm;codecs=vp8' };
-  }
-  if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+  } else if (MediaRecorder.isTypeSupported('video/webm')) {
     options = { mimeType: 'video/webm' };
-  }
-  if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+  } else {
     options = {}; // use browser default
   }
 
@@ -679,9 +684,16 @@ function downloadThoughtsVideo() {
   };
 
   mediaRecorder.onstop = () => {
-    const videoBlob = new Blob(chunks, { type: 'video/webm' });
+    const recordedType = mediaRecorder.mimeType || 'video/webm';
+    let extension = 'webm';
+    if (recordedType.includes('mp4') || recordedType.includes('quicktime')) {
+      extension = 'mp4';
+    }
+
+    const videoBlob = new Blob(chunks, { type: recordedType });
     const videoUrl = URL.createObjectURL(videoBlob);
-    const file = new File([videoBlob], `thought_${Date.now()}.webm`, { type: 'video/webm' });
+    const filename = `thought_${Date.now()}.${extension}`;
+    const file = new File([videoBlob], filename, { type: recordedType });
     
     // Try native share API first (supports iOS share sheet directly!)
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -693,17 +705,17 @@ function downloadThoughtsVideo() {
       }).catch(err => {
         // If share cancelled or failed, fall back to modal overlay
         console.log('Share dismissed, loading fallback modal.', err);
-        openThoughtsExportModal(videoUrl, 'video');
+        openThoughtsExportModal(videoUrl, 'video', extension);
         if (overlay) overlay.style.display = 'none';
       });
     } else {
       // Fallback for browsers that don't support file sharing
-      openThoughtsExportModal(videoUrl, 'video');
+      openThoughtsExportModal(videoUrl, 'video', extension);
       if (overlay) overlay.style.display = 'none';
     }
 
     // Auto-Sync to Google Drive if logged in
-    saveThoughtsVideoToGoogleDrive(videoBlob);
+    saveThoughtsVideoToGoogleDrive(videoBlob, extension);
     
     showToast('🎥 Video loop compiled!');
   };
@@ -731,13 +743,13 @@ function downloadThoughtsVideo() {
 }
 
 // Google Drive Sync Uploader
-async function saveThoughtsVideoToGoogleDrive(videoBlob) {
+async function saveThoughtsVideoToGoogleDrive(videoBlob, extension = 'webm') {
   if (typeof isGoogleDriveLoggedIn !== 'function' || !isGoogleDriveLoggedIn()) {
     console.log('Google Drive is not logged in. Skipping background sync.');
     return;
   }
 
-  const filename = `thought_${Date.now()}.webm`;
+  const filename = `thought_${Date.now()}.${extension}`;
   
   try {
     // 1. Create or get /BeCreator/Thoughts/ folder
@@ -891,7 +903,7 @@ function handleUserImageUpload(e) {
   reader.readAsDataURL(file);
 }
 
-function openThoughtsExportModal(mediaUrl, type) {
+function openThoughtsExportModal(mediaUrl, type, extension = 'webm') {
   const container = document.getElementById('export-modal-preview-container');
   if (container) {
     if (type === 'image') {
@@ -905,7 +917,7 @@ function openThoughtsExportModal(mediaUrl, type) {
   if (downloadBtn) {
     downloadBtn.onclick = () => {
       const link = document.createElement('a');
-      link.download = `thought_${Date.now()}.${type === 'image' ? 'jpg' : 'webm'}`;
+      link.download = `thought_${Date.now()}.${type === 'image' ? 'jpg' : extension}`;
       link.href = mediaUrl;
       link.click();
     };
@@ -1030,9 +1042,9 @@ function renderThoughtsPanelUI() {
                 <label>Position</label>
                 <input type="range" id="t-valign" min="10" max="90" value="50" class="slider">
               </div>
-              <div class="thoughts-group">
+              <div class="thoughts-group" style="display:none;">
                 <label>Overlay Tint</label>
-                <input type="range" id="t-overlay" min="0" max="90" value="40" class="slider">
+                <input type="range" id="t-overlay" min="0" max="90" value="0" class="slider">
               </div>
             </div>
 
@@ -1051,6 +1063,8 @@ function renderThoughtsPanelUI() {
                   <div class="color-option active" data-color="#ffffff" style="background:#ffffff;" onclick="selectThoughtsColor('#ffffff')"></div>
                   <div class="color-option" data-color="#ffd700" style="background:#ffd700;" onclick="selectThoughtsColor('#ffd700')"></div>
                   <div class="color-option" data-color="#fbcfe8" style="background:#fbcfe8;" onclick="selectThoughtsColor('#fbcfe8')"></div>
+                  <div class="color-option" data-color="#ef4444" style="background:#ef4444;" onclick="selectThoughtsColor('#ef4444')"></div>
+                  <div class="color-option" data-color="#2d6be4" style="background:#2d6be4;" onclick="selectThoughtsColor('#2d6be4')"></div>
                   <div class="color-option" data-color="#000000" style="background:#000000;" onclick="selectThoughtsColor('#000000')"></div>
                 </div>
               </div>
