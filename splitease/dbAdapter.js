@@ -109,6 +109,7 @@ class SplitEasyDBAdapter {
   // --- GROUP OPERATIONS ---
 
   async getGroups() {
+    this.purgeLegacySampleData();
     if (this.supabaseClient) {
       try {
         const { data, error } = await this.supabaseClient
@@ -176,14 +177,29 @@ class SplitEasyDBAdapter {
     return allMembers.filter(m => m.group_id === groupId);
   }
 
-  async addMember(groupId, email = '', name = '', avatarColor = '#2D6BE4') {
-    const displayName = name || (email ? email.split('@')[0] : 'Member');
+  async addMember(groupId, param2 = '', param3 = '', avatarColor = '#2D6BE4') {
+    let email = '';
+    let name = '';
+
+    if (param2 && param2.includes('@')) {
+      email = param2.trim();
+      name = param3 ? param3.trim() : email.split('@')[0];
+    } else {
+      name = param2 ? param2.trim() : (param3 && param3.includes('@') ? param3.split('@')[0] : 'Member');
+      email = param3 && param3.includes('@') ? param3.trim() : '';
+    }
+
+    // Sanitize name if hex color was passed by mistake
+    if (name.startsWith('#') && name.length === 7) {
+      name = 'Member';
+    }
+
     const newMember = {
       id: this._generateId(),
       group_id: groupId,
       email: email || '',
-      name: displayName,
-      avatar_color: avatarColor,
+      name: name || 'Member',
+      avatar_color: (avatarColor && avatarColor.startsWith('#')) ? avatarColor : '#2D6BE4',
       created_at: new Date().toISOString()
     };
 
@@ -216,14 +232,32 @@ class SplitEasyDBAdapter {
     }
   }
 
+  purgeLegacySampleData() {
+    const dummyNames = ['Rahul', 'Priya', 'Member'];
+    let allMembers = this._get(STORAGE_KEYS.MEMBERS);
+    const cleanMembers = allMembers.filter(m => m.name && !dummyNames.includes(m.name.trim()) && !m.name.startsWith('#'));
+    if (cleanMembers.length !== allMembers.length) {
+      this._set(STORAGE_KEYS.MEMBERS, cleanMembers);
+    }
+
+    let allGroups = this._get(STORAGE_KEYS.GROUPS);
+    const cleanGroups = allGroups.filter(g => g.name !== 'Goa Trip 🌴');
+    if (cleanGroups.length !== allGroups.length) {
+      this._set(STORAGE_KEYS.GROUPS, cleanGroups);
+    }
+  }
+
   async getRecentFriends() {
+    this.purgeLegacySampleData();
+    const dummyNames = ['Rahul', 'Priya', 'Member'];
     const allMembers = this._get(STORAGE_KEYS.MEMBERS);
     const friendsMap = {};
     allMembers.forEach(m => {
-      if (m.name && !m.name.includes('(Payer)') && m.name !== 'You') {
+      if (m.name && !m.name.startsWith('#') && !dummyNames.includes(m.name.trim()) && !m.name.includes('(Payer)') && m.name !== 'You') {
         friendsMap[m.name.trim()] = m.avatar_color || '#2D6BE4';
       }
     });
+
     return Object.entries(friendsMap).map(([name, color]) => ({ name, color }));
   }
 
