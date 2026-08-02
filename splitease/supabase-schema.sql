@@ -28,6 +28,7 @@ CREATE TABLE splitease_members (
     email VARCHAR(255) DEFAULT '',
     name VARCHAR(255) NOT NULL,
     avatar_color VARCHAR(30) DEFAULT '#2D6BE4',
+    is_inactive BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

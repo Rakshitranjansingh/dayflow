@@ -147,6 +147,7 @@ class SplitEasyDBAdapter {
 
     const userGroupIds = new Set();
     allMembers.forEach(m => {
+      if (m.is_inactive) return; // Inactive / removed members lose access!
       const mEmail = (m.email || '').trim().toLowerCase();
       if (mEmail && mEmail === cleanEmail) {
         userGroupIds.add(m.group_id);
@@ -211,21 +212,37 @@ class SplitEasyDBAdapter {
 
     if (!targetGroup) return null;
 
+    const members = await this.getMembers(targetGroup.id);
+    const cleanUserEmail = (userEmail || '').trim().toLowerCase();
+    const cleanUserName = (userName || '').trim().toLowerCase();
+
+    const existing = members.find(m => {
+      const mEmail = (m.email || '').trim().toLowerCase();
+      const mName = (m.name || '').trim().toLowerCase();
+      return (cleanUserEmail && mEmail && mEmail === cleanUserEmail) || (cleanUserName && mName && mName === cleanUserName);
+    });
+
+    // BLOCK RE-JOIN IF MEMBER WAS REMOVED / MARKED INACTIVE
+    if (existing) {
+      if (existing.is_inactive) {
+        return {
+          error: 'INACTIVE_MEMBER',
+          message: 'Your membership in this group is inactive. Please ask an existing group member or admin to add you back using your Email ID.'
+        };
+      }
+      return targetGroup;
+    }
+
     const localGroups = this._get(STORAGE_KEYS.GROUPS);
     if (!localGroups.find(g => g.id === targetGroup.id)) {
       localGroups.unshift(targetGroup);
       this._set(STORAGE_KEYS.GROUPS, localGroups);
     }
 
-    const members = await this.getMembers(targetGroup.id);
     const displayName = userName || (userEmail ? userEmail.split('@')[0] : 'Member');
-    const existing = members.find(m => (userEmail && m.email === userEmail) || m.name === displayName);
-
-    if (!existing) {
-      const colors = ['#2D6BE4', '#22C55E', '#8B5CF6', '#F97316', '#EF4444'];
-      const avatarColor = colors[Math.floor(Math.random() * colors.length)];
-      await this.addMember(targetGroup.id, userEmail, displayName, avatarColor);
-    }
+    const colors = ['#2D6BE4', '#22C55E', '#8B5CF6', '#F97316', '#EF4444'];
+    const avatarColor = colors[Math.floor(Math.random() * colors.length)];
+    await this.addMember(targetGroup.id, userEmail, displayName, avatarColor);
 
     return targetGroup;
   }
@@ -270,16 +287,41 @@ class SplitEasyDBAdapter {
       name = 'Member';
     }
 
+    // Check if member already exists (even if inactive) and reactivate
+    const allMembers = this._get(STORAGE_KEYS.MEMBERS);
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const existingIdx = allMembers.findIndex(m => m.group_id === groupId && cleanEmail && m.email && m.email.trim().toLowerCase() === cleanEmail);
+
+    if (existingIdx !== -1) {
+      allMembers[existingIdx].is_inactive = false;
+      if (email) allMembers[existingIdx].email = email;
+      if (name && name !== 'Member') allMembers[existingIdx].name = name;
+      this._set(STORAGE_KEYS.MEMBERS, allMembers);
+
+      if (this.supabaseClient) {
+        try {
+          await this.supabaseClient.from('splitease_members').update({
+            is_inactive: false,
+            email: allMembers[existingIdx].email,
+            name: allMembers[existingIdx].name
+          }).eq('id', allMembers[existingIdx].id);
+        } catch (err) {
+          console.warn('Failed to reactivate member in Supabase:', err);
+        }
+      }
+      return allMembers[existingIdx];
+    }
+
     const newMember = {
       id: this._generateId(),
       group_id: groupId,
       email: email || '',
       name: name || 'Member',
       avatar_color: (avatarColor && avatarColor.startsWith('#')) ? avatarColor : '#2D6BE4',
+      is_inactive: false,
       created_at: new Date().toISOString()
     };
 
-    const allMembers = this._get(STORAGE_KEYS.MEMBERS);
     allMembers.push(newMember);
     this._set(STORAGE_KEYS.MEMBERS, allMembers);
 
@@ -296,14 +338,17 @@ class SplitEasyDBAdapter {
 
   async deleteMember(memberId) {
     let allMembers = this._get(STORAGE_KEYS.MEMBERS);
-    allMembers = allMembers.filter(m => m.id !== memberId);
-    this._set(STORAGE_KEYS.MEMBERS, allMembers);
+    const mIdx = allMembers.findIndex(m => m.id === memberId);
+    if (mIdx !== -1) {
+      allMembers[mIdx].is_inactive = true;
+      this._set(STORAGE_KEYS.MEMBERS, allMembers);
+    }
 
     if (this.supabaseClient) {
       try {
-        await this.supabaseClient.from('splitease_members').delete().eq('id', memberId);
+        await this.supabaseClient.from('splitease_members').update({ is_inactive: true }).eq('id', memberId);
       } catch (err) {
-        console.warn('Failed to delete member from Supabase:', err);
+        console.warn('Failed to mark member as inactive in Supabase:', err);
       }
     }
   }
@@ -412,6 +457,60 @@ class SplitEasyDBAdapter {
     }
 
     return newExpense;
+  }
+
+  async updateExpense(expenseId, expenseData, splitsData = []) {
+    let allExp = this._get(STORAGE_KEYS.EXPENSES);
+    const idx = allExp.findIndex(e => e.id === expenseId);
+    if (idx === -1) return null;
+
+    const updatedExpense = {
+      ...allExp[idx],
+      title: expenseData.title,
+      amount: Number(expenseData.amount),
+      paid_by_member_id: expenseData.paid_by_member_id,
+      include_payer: expenseData.include_payer !== undefined ? expenseData.include_payer : true,
+      category: expenseData.category || 'General',
+      split_type: expenseData.split_type || 'equal',
+      splits: splitsData.map(s => ({
+        id: s.id || this._generateId(),
+        expense_id: expenseId,
+        member_id: s.member_id,
+        split_amount: Number(s.split_amount),
+        percentage_or_share: Number(s.percentage_or_share || 0)
+      }))
+    };
+
+    allExp[idx] = updatedExpense;
+    this._set(STORAGE_KEYS.EXPENSES, allExp);
+
+    if (this.supabaseClient) {
+      try {
+        await this.supabaseClient.from('splitease_expenses').update({
+          title: updatedExpense.title,
+          amount: updatedExpense.amount,
+          paid_by_member_id: updatedExpense.paid_by_member_id,
+          include_payer: updatedExpense.include_payer,
+          category: updatedExpense.category,
+          split_type: updatedExpense.split_type
+        }).eq('id', expenseId);
+
+        await this.supabaseClient.from('splitease_expense_splits').delete().eq('expense_id', expenseId);
+        if (updatedExpense.splits.length > 0) {
+          await this.supabaseClient.from('splitease_expense_splits').insert(updatedExpense.splits.map(s => ({
+            id: s.id,
+            expense_id: expenseId,
+            member_id: s.member_id,
+            split_amount: s.split_amount,
+            percentage_or_share: s.percentage_or_share
+          })));
+        }
+      } catch (err) {
+        console.warn('Failed to update expense in Supabase:', err);
+      }
+    }
+
+    return updatedExpense;
   }
 
   async deleteExpense(expenseId) {

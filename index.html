@@ -3394,6 +3394,11 @@ function closePublisherRequestModal() {
 
   <!-- Main Body -->
   <div class="se-body">
+    <!-- PULL TO REFRESH INDICATOR -->
+    <div id="se-ptr-indicator" class="se-ptr-indicator">
+      <span class="se-ptr-spinner">🔄</span>
+      <span class="se-ptr-text">Pull down to refresh</span>
+    </div>
     <div class="se-group-header">
       <div class="se-group-select-wrap">
         <select id="se-group-select" class="se-group-select" onchange="loadActiveGroupData(this.value)"></select>
@@ -3404,16 +3409,16 @@ function closePublisherRequestModal() {
 
     <!-- 3 Parallel Stats Cards -->
     <div class="se-stats-grid">
-      <div class="se-stat-card">
-        <span class="se-stat-title">Total Group Spent</span>
+      <div class="se-stat-card" onclick="openGroupSpendingModal()" style="cursor: pointer;" title="Click for Group Spending Stats">
+        <span class="se-stat-title">Total Group Spent 📊</span>
         <span id="se-stat-total-exp" class="se-stat-value">₹0.00</span>
       </div>
-      <div class="se-stat-card">
-        <span class="se-stat-title">You Spent</span>
+      <div class="se-stat-card" onclick="openUserSpendingModal()" style="cursor: pointer;" title="Click for Your Spending Stats">
+        <span class="se-stat-title">You Spent 💳</span>
         <span id="se-stat-you-spent" class="se-stat-value">₹0.00</span>
       </div>
       <div class="se-stat-card">
-        <span class="se-stat-title">Your Balance</span>
+        <span class="se-stat-title">Your Balance ⚖️</span>
         <span id="se-stat-my-balance" class="se-stat-value">₹0.00</span>
       </div>
     </div>
@@ -3488,59 +3493,175 @@ function closePublisherRequestModal() {
     </div>
   </div>
 
-  <!-- ADD EXPENSE MODAL -->
+  <!-- ADD EXPENSE MODAL (COMPACT & PARALLEL LAYOUT) -->
   <div id="se-add-expense-modal" class="se-modal-overlay">
-    <div class="se-modal">
-      <div class="se-modal-header">
-        <span class="se-modal-title">Add New Expense</span>
+    <div class="se-modal" style="max-width: 420px; padding: 18px 20px;">
+      <div class="se-modal-header" style="margin-bottom: 14px;">
+        <span class="se-modal-title" style="font-size: 15px;">Add New Expense</span>
         <button class="se-icon-btn" onclick="closeAddExpenseModal()">✕</button>
       </div>
-      <form onsubmit="submitAddExpense(event)" class="se-modal-body">
+      <form onsubmit="submitAddExpense(event)" class="se-modal-body" style="gap: 10px;">
+        <!-- ROW 1: DESCRIPTION -->
         <div>
-          <label style="font-size: 13px; font-weight: 700; margin-bottom: 4px; display: block;">Description</label>
-          <input type="text" id="se-exp-title-input" class="input" placeholder="e.g. Hotel Booking or Dinner" required>
+          <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Description</label>
+          <input type="text" id="se-exp-title-input" class="input" placeholder="e.g. Hotel Booking or Dinner" required style="font-size: 12px; padding: 6px 10px;">
         </div>
-        <div>
-          <label style="font-size: 13px; font-weight: 700; margin-bottom: 4px; display: block;">Amount</label>
-          <input type="number" step="0.01" id="se-exp-amount-input" class="input" placeholder="0.00" required>
+
+        <!-- ROW 2: PARALLEL AMOUNT & PAID BY -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Amount</label>
+            <input type="number" step="0.01" id="se-exp-amount-input" class="input" placeholder="0.00" required style="font-size: 12px; padding: 6px 10px; font-weight: 700;">
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Paid By</label>
+            <select id="se-expense-payer" class="input" style="font-size: 12px; padding: 6px 10px;"></select>
+          </div>
         </div>
-        <div>
-          <label style="font-size: 13px; font-weight: 700; margin-bottom: 4px; display: block;">Paid By</label>
-          <select id="se-expense-payer" class="input"></select>
+
+        <!-- ROW 3: PARALLEL CATEGORY & SPLIT BETWEEN -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Category</label>
+            <select id="se-expense-category" class="input" style="font-size: 12px; padding: 6px 10px;"></select>
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Split Between</label>
+            <select id="se-expense-split-mode" class="input" style="font-size: 12px; padding: 6px 10px;" onchange="handleSplitModeChange(this.value, 'add')">
+              <option value="all">👥 Everyone</option>
+              <option value="custom">🎯 Select Members...</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <label style="font-size: 13px; font-weight: 700; margin-bottom: 4px; display: block;">Category</label>
-          <select id="se-expense-category" class="input"></select>
-        </div>
-        <!-- SPLIT BETWEEN SELECTION DROPDOWN -->
-        <div>
-          <label style="font-size: 12px; font-weight: 700; margin-bottom: 4px; display: block;">Split Between</label>
-          <select id="se-expense-split-mode" class="input" style="font-size: 12px;" onchange="handleSplitModeChange(this.value)">
-            <option value="all">👥 Everyone in Group (All Members)</option>
-            <option value="custom">🎯 Select Specific Members...</option>
-          </select>
-        </div>
+
         <!-- CUSTOM MEMBER SELECTION BOX -->
-        <div id="se-custom-split-box" style="display: none; background: var(--surface2); padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); margin-bottom: 12px;">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+        <div id="se-custom-split-box" style="display: none; background: var(--surface2); padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
             <span style="font-size: 11px; font-weight: 700; color: var(--text);">Include in Split:</span>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleSelectAllSplitMembers()" style="font-size: 10px; padding: 2px 8px;">Select All / Clear</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleSelectAllSplitMembers('add')" style="font-size: 10px; padding: 2px 6px;">Select All / Clear</button>
           </div>
-          <div id="se-custom-split-checkboxes" style="display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto;"></div>
+          <div id="se-custom-split-checkboxes" style="display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto;"></div>
         </div>
+
         <!-- INCLUDE ME TOGGLE SWITCH -->
-        <div class="se-toggle-wrapper">
+        <div class="se-toggle-wrapper" style="padding: 8px 10px;">
           <div class="se-toggle-label">
-            <span class="se-toggle-title">Include Me in Split</span>
-            <span class="se-toggle-sub">Uncheck if you paid on behalf of others only</span>
+            <span class="se-toggle-title" style="font-size: 12px;">Include Payer in Split</span>
           </div>
-          <label class="se-switch">
+          <label class="se-switch" style="width: 38px; height: 20px;">
             <input type="checkbox" id="se-include-payer-toggle" checked>
             <span class="se-slider"></span>
           </label>
         </div>
-        <button type="submit" class="btn btn-primary btn-full">Save Expense</button>
+
+        <button type="submit" class="btn btn-primary btn-full btn-sm">Save Expense</button>
       </form>
+    </div>
+  </div>
+
+  <!-- EDIT EXPENSE MODAL -->
+  <div id="se-edit-expense-modal" class="se-modal-overlay">
+    <div class="se-modal" style="max-width: 420px; padding: 18px 20px;">
+      <div class="se-modal-header" style="margin-bottom: 14px;">
+        <span class="se-modal-title" style="font-size: 15px;">Edit Expense</span>
+        <button class="se-icon-btn" onclick="closeEditExpenseModal()">✕</button>
+      </div>
+      <form onsubmit="submitEditExpense(event)" class="se-modal-body" style="gap: 10px;">
+        <input type="hidden" id="se-edit-exp-id">
+        <!-- ROW 1: DESCRIPTION -->
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Description</label>
+          <input type="text" id="se-edit-exp-title" class="input" required style="font-size: 12px; padding: 6px 10px;">
+        </div>
+
+        <!-- ROW 2: PARALLEL AMOUNT & PAID BY -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Amount</label>
+            <input type="number" step="0.01" id="se-edit-exp-amount" class="input" required style="font-size: 12px; padding: 6px 10px; font-weight: 700;">
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Paid By</label>
+            <select id="se-edit-exp-payer" class="input" style="font-size: 12px; padding: 6px 10px;"></select>
+          </div>
+        </div>
+
+        <!-- ROW 3: PARALLEL CATEGORY & SPLIT BETWEEN -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Category</label>
+            <select id="se-edit-exp-category" class="input" style="font-size: 12px; padding: 6px 10px;"></select>
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Split Between</label>
+            <select id="se-edit-exp-split-mode" class="input" style="font-size: 12px; padding: 6px 10px;" onchange="handleSplitModeChange(this.value, 'edit')">
+              <option value="all">👥 Everyone</option>
+              <option value="custom">🎯 Select Members...</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- CUSTOM MEMBER SELECTION BOX -->
+        <div id="se-edit-custom-split-box" style="display: none; background: var(--surface2); padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+            <span style="font-size: 11px; font-weight: 700; color: var(--text);">Include in Split:</span>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleSelectAllSplitMembers('edit')" style="font-size: 10px; padding: 2px 6px;">Select All / Clear</button>
+          </div>
+          <div id="se-edit-custom-split-checkboxes" style="display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto;"></div>
+        </div>
+
+        <!-- INCLUDE ME TOGGLE SWITCH -->
+        <div class="se-toggle-wrapper" style="padding: 8px 10px;">
+          <div class="se-toggle-label">
+            <span class="se-toggle-title" style="font-size: 12px;">Include Payer in Split</span>
+          </div>
+          <label class="se-switch" style="width: 38px; height: 20px;">
+            <input type="checkbox" id="se-edit-include-payer" checked>
+            <span class="se-slider"></span>
+          </label>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-top: 4px;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="submitDeleteExpense()" style="color: var(--red); border-color: #FCA5A5;">🗑️ Delete</button>
+          <button type="submit" class="btn btn-primary btn-full btn-sm">Update Expense</button>
+        </div>
+  <!-- TOTAL GROUP SPENDING STATS MODAL -->
+  <div id="se-group-spending-modal" class="se-modal-overlay">
+    <div class="se-modal" style="max-width: 440px; padding: 18px 20px;">
+      <div class="se-modal-header" style="margin-bottom: 12px;">
+        <span class="se-modal-title" style="font-size: 15px;">📊 Group Spending Breakdown</span>
+        <button class="se-icon-btn" onclick="closeGroupSpendingModal()">✕</button>
+      </div>
+      <div class="se-modal-body" style="gap: 14px;">
+        <!-- WHO SPENT SECTION -->
+        <div>
+          <div style="font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 8px;">👥 Member Contributions (Who Paid)</div>
+          <div id="se-group-spending-members" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        </div>
+        <div style="height: 1px; background: var(--border);"></div>
+        <!-- WHERE SPENT SECTION -->
+        <div>
+          <div style="font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 8px;">🏷️ Category Breakdown (Where Spent)</div>
+          <div id="se-group-spending-categories" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- YOUR SPENDING STATS MODAL -->
+  <div id="se-user-spending-modal" class="se-modal-overlay">
+    <div class="se-modal" style="max-width: 440px; padding: 18px 20px;">
+      <div class="se-modal-header" style="margin-bottom: 12px;">
+        <span class="se-modal-title" style="font-size: 15px;">💳 Your Spending Summary</span>
+        <button class="se-icon-btn" onclick="closeUserSpendingModal()">✕</button>
+      </div>
+      <div class="se-modal-body" style="gap: 14px;">
+        <div id="se-user-spending-header" style="background: var(--surface2); padding: 12px; border-radius: var(--radius-sm); text-align: center;"></div>
+        <div>
+          <div style="font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 8px;">🏷️ Your Spend by Category</div>
+          <div id="se-user-spending-categories" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

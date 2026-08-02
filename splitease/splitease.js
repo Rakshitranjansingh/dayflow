@@ -10,10 +10,10 @@ let groupExpenses = [];
 let groupSettlements = [];
 
 const TEMPLATES = {
-  tour: { name: 'Tour / Trip', icon: '🌴', colorClass: 'se-template-tour', categories: ['Travel', 'Hotel', 'Food', 'Sightseeing', 'Fuel', 'Misc'] },
-  flat: { name: 'Flat / Apartment', icon: '🏠', colorClass: 'se-template-flat', categories: ['Rent', 'Electricity', 'WiFi', 'Groceries', 'Maid', 'Misc'] },
-  outing: { name: 'Outing / Party', icon: '🎉', colorClass: 'se-template-outing', categories: ['Drinks', 'Food', 'Tickets', 'Cabs', 'Misc'] },
-  custom: { name: 'Custom Group', icon: '⚙️', colorClass: 'se-template-custom', categories: ['General', 'Food', 'Transport', 'Shopping', 'Other'] }
+  tour: { name: 'Tour', icon: '🌴', colorClass: 'se-template-tour', categories: ['Travel', 'Hotel', 'Food', 'Sightseeing', 'Fuel', 'Misc'] },
+  flat: { name: 'Flat', icon: '🏠', colorClass: 'se-template-flat', categories: ['Rent', 'Electricity', 'WiFi', 'Groceries', 'Maid', 'Misc'] },
+  outing: { name: 'Outing', icon: '🎉', colorClass: 'se-template-outing', categories: ['Drinks', 'Food', 'Tickets', 'Cabs', 'Misc'] },
+  custom: { name: 'Custom', icon: '⚙️', colorClass: 'se-template-custom', categories: ['General', 'Food', 'Transport', 'Shopping', 'Other'] }
 };
 
 /**
@@ -27,6 +27,7 @@ async function openSplitEasyApp() {
   if (seApp) seApp.style.display = 'flex';
 
   await initSplitEasyData();
+  initPullToRefresh();
 }
 
 /**
@@ -273,9 +274,13 @@ async function submitJoinGroupForm(e) {
   const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail : '';
   const userName = (typeof getUserIdentityName === 'function') ? getUserIdentityName() : 'You';
 
-  const joinedGrp = await splitEasyDB.joinGroupByShareCode(code, userEmail, userName);
-  if (joinedGrp) {
-    currentGroupId = joinedGrp.id;
+  const res = await splitEasyDB.joinGroupByShareCode(code, userEmail, userName);
+  if (res && res.error === 'INACTIVE_MEMBER') {
+    alert(res.message);
+    return;
+  }
+  if (res && res.id) {
+    currentGroupId = res.id;
     await initSplitEasyData();
   } else {
     alert(`Group code "${code.toUpperCase()}" not found. Please verify the code with your friend.`);
@@ -296,10 +301,14 @@ async function submitModalJoinGroup() {
   const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail : '';
   const userName = (typeof getUserIdentityName === 'function') ? getUserIdentityName() : 'You';
 
-  const joinedGrp = await splitEasyDB.joinGroupByShareCode(code, userEmail, userName);
-  if (joinedGrp) {
+  const res = await splitEasyDB.joinGroupByShareCode(code, userEmail, userName);
+  if (res && res.error === 'INACTIVE_MEMBER') {
+    alert(res.message);
+    return;
+  }
+  if (res && res.id) {
     closeCreateGroupModal();
-    currentGroupId = joinedGrp.id;
+    currentGroupId = res.id;
     await initSplitEasyData();
   } else {
     alert(`Group code "${code.toUpperCase()}" not found. Please verify the code with your friend.`);
@@ -328,17 +337,20 @@ function renderExpensesList(container) {
     const payer = groupMembers.find(m => m.id === exp.paid_by_member_id);
     const item = document.createElement('div');
     item.className = 'se-expense-item';
+    item.onclick = () => openEditExpenseModal(exp.id);
+    item.style.cursor = 'pointer';
+    item.title = 'Tap to Edit Expense';
     item.innerHTML = `
       <div class="se-exp-left">
         <div class="se-exp-icon">${getCategoryIcon(exp.category)}</div>
         <div class="se-exp-details">
           <div class="se-exp-title">${escapeHtml(exp.title)}</div>
-          <div class="se-exp-sub">Paid by <strong>${escapeHtml(payer ? payer.name : 'Unknown')}</strong> • ${exp.date} ${exp.include_payer ? '(Inc. Payer)' : '(Excl. Payer)'}</div>
+          <div class="se-exp-sub">Paid by <strong>${escapeHtml(payer ? payer.name : 'Unknown')}</strong> • ${exp.date}</div>
         </div>
       </div>
       <div class="se-exp-right">
         <div class="se-exp-amount">${activeGroup.currency}${Number(exp.amount).toFixed(2)}</div>
-        <div class="se-exp-badge">${exp.category}</div>
+        <div class="se-exp-badge" style="display:inline-flex; align-items:center; gap:3px;">${exp.category} ✏️</div>
       </div>
     `;
     ledger.appendChild(item);
@@ -393,7 +405,7 @@ function renderSimplifiedDebts(container) {
 }
 
 /**
- * Renders member roster.
+ * Renders member roster (Active members & Strikethrough Removed members).
  */
 function renderMembersList(container) {
   const list = document.createElement('div');
@@ -404,12 +416,18 @@ function renderMembersList(container) {
   groupMembers.forEach((m, idx) => {
     const item = document.createElement('div');
     item.className = 'se-expense-item';
-    const canDelete = idx > 0; // Admin (first member) cannot delete themselves
+    const isInactive = Boolean(m.is_inactive);
+    const canDelete = idx > 0 && !isInactive;
+
     item.innerHTML = `
       <div class="se-exp-left">
-        <div class="se-avatar" style="background: ${m.avatar_color || '#2D6BE4'};">${m.name.charAt(0).toUpperCase()}</div>
+        <div class="se-avatar" style="background: ${m.avatar_color || '#2D6BE4'}; opacity: ${isInactive ? 0.5 : 1};">${m.name.charAt(0).toUpperCase()}</div>
         <div style="display:flex; flex-direction:column;">
-          <div class="se-exp-title">${escapeHtml(m.name)} ${idx === 0 ? '<span style="font-size:11px; opacity:0.7;">(Admin)</span>' : ''}</div>
+          <div class="se-exp-title" style="${isInactive ? 'text-decoration: line-through; opacity: 0.6;' : ''}">
+            ${escapeHtml(m.name)} 
+            ${idx === 0 ? '<span style="font-size:11px; opacity:0.7;">(Admin)</span>' : ''}
+            ${isInactive ? '<span style="font-size:10px; color:var(--red); text-decoration:none; font-weight:700;"> (Removed Member)</span>' : ''}
+          </div>
           <div class="se-exp-sub" style="font-size:11px; opacity:0.7;">${escapeHtml(m.email || 'No email attached')}</div>
         </div>
       </div>
@@ -452,13 +470,147 @@ async function promptAddMember() {
 }
 
 /**
- * Remove member from group.
+ * Remove member from group (Strikethrough & revoke group access).
  */
 async function removeMember(memberId, memberName) {
-  if (confirm(`Are you sure you want to remove ${memberName} from this group?`)) {
+  if (confirm(`Are you sure you want to remove ${memberName}? They will be struck through, excluded from future expenses, and lose access to this group.`)) {
     await splitEasyDB.deleteMember(memberId);
     await loadActiveGroupData(currentGroupId);
   }
+}
+
+/* ============================================================
+   GROUP SPENDING & YOUR SPENDING STATS BREAKDOWN MODALS
+   ============================================================ */
+
+function openGroupSpendingModal() {
+  if (!activeGroup || groupExpenses.length === 0) {
+    alert('No expenses recorded in this group yet.');
+    return;
+  }
+
+  const modal = document.getElementById('se-group-spending-modal');
+  const membersWrap = document.getElementById('se-group-spending-members');
+  const catWrap = document.getElementById('se-group-spending-categories');
+
+  if (!modal || !membersWrap || !catWrap) return;
+
+  const curr = activeGroup.currency || '₹';
+  let totalGroupSpent = 0;
+
+  // Calculate member contributions (Who Spent)
+  const memberSpentMap = {};
+  groupMembers.forEach(m => memberSpentMap[m.id] = 0);
+
+  // Calculate category totals (Where Spent)
+  const catSpentMap = {};
+
+  groupExpenses.forEach(exp => {
+    const amt = Number(exp.amount) || 0;
+    totalGroupSpent += amt;
+    if (memberSpentMap[exp.paid_by_member_id] !== undefined) {
+      memberSpentMap[exp.paid_by_member_id] += amt;
+    }
+    const cat = exp.category || 'General';
+    catSpentMap[cat] = (catSpentMap[cat] || 0) + amt;
+  });
+
+  // Render Who Spent
+  membersWrap.innerHTML = groupMembers.map(m => {
+    const spent = memberSpentMap[m.id] || 0;
+    const pct = totalGroupSpent > 0 ? Math.round((spent / totalGroupSpent) * 100) : 0;
+    return `
+      <div>
+        <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:600; margin-bottom:2px;">
+          <span>${escapeHtml(m.name)} ${m.is_inactive ? '(Removed)' : ''}</span>
+          <span>${curr}${spent.toFixed(2)} (${pct}%)</span>
+        </div>
+        <div style="height:6px; background:var(--surface2); border-radius:3px; overflow:hidden;">
+          <div style="width:${pct}%; height:100%; background:${m.avatar_color || 'var(--accent)'}; border-radius:3px;"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Render Where Spent
+  catWrap.innerHTML = Object.entries(catSpentMap).map(([cat, amt]) => {
+    const pct = totalGroupSpent > 0 ? Math.round((amt / totalGroupSpent) * 100) : 0;
+    return `
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; background:var(--surface2); border-radius:var(--radius-sm);">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:16px;">${getCategoryIcon(cat)}</span>
+          <span style="font-size:12px; font-weight:600;">${cat}</span>
+        </div>
+        <div style="font-size:12px; font-weight:700;">${curr}${amt.toFixed(2)} <span style="font-size:10px; opacity:0.7;">(${pct}%)</span></div>
+      </div>
+    `;
+  }).join('');
+
+  modal.style.display = 'flex';
+}
+
+function closeGroupSpendingModal() {
+  const modal = document.getElementById('se-group-spending-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function openUserSpendingModal() {
+  if (!activeGroup) return;
+
+  const modal = document.getElementById('se-user-spending-modal');
+  const header = document.getElementById('se-user-spending-header');
+  const catWrap = document.getElementById('se-user-spending-categories');
+
+  if (!modal || !header || !catWrap) return;
+
+  const curr = activeGroup.currency || '₹';
+  const userMember = groupMembers[0]; // Active logged-in user
+  if (!userMember) return;
+
+  let totalPaidByYou = 0;
+  const userCatMap = {};
+
+  groupExpenses.forEach(exp => {
+    if (exp.paid_by_member_id === userMember.id) {
+      const amt = Number(exp.amount) || 0;
+      totalPaidByYou += amt;
+      const cat = exp.category || 'General';
+      userCatMap[cat] = (userCatMap[cat] || 0) + amt;
+    }
+  });
+
+  header.innerHTML = `
+    <div style="font-size: 11px; text-transform: uppercase; color: var(--text2); font-weight: 700;">Total Paid by You</div>
+    <div style="font-size: 22px; font-weight: 800; color: var(--accent); margin-top: 2px;">${curr}${totalPaidByYou.toFixed(2)}</div>
+  `;
+
+  if (Object.keys(userCatMap).length === 0) {
+    catWrap.innerHTML = `
+      <div style="text-align: center; padding: 20px; font-size: 12px; color: var(--text2);">
+        You haven't paid for any expenses in this group yet.
+      </div>
+    `;
+  } else {
+    catWrap.innerHTML = Object.entries(userCatMap).map(([cat, amt]) => {
+      const pct = totalPaidByYou > 0 ? Math.round((amt / totalPaidByYou) * 100) : 0;
+      return `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; background:var(--surface2); border-radius:var(--radius-sm);">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:16px;">${getCategoryIcon(cat)}</span>
+            <span style="font-size:12px; font-weight:600;">${cat}</span>
+          </div>
+          <div style="font-size:12px; font-weight:700;">${curr}${amt.toFixed(2)} <span style="font-size:10px; opacity:0.7;">(${pct}%)</span></div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  modal.style.display = 'flex';
+}
+
+function closeUserSpendingModal() {
+  const modal = document.getElementById('se-user-spending-modal');
+  if (modal) modal.style.display = 'none';
 }
 
 let selectedFriendSuggestions = new Set();
@@ -540,7 +692,7 @@ async function submitCreateGroup(e) {
   const userName = getUserIdentityName();
   const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail : '';
   const newGrp = await splitEasyDB.createGroup(nameInput.value.trim(), tplSelect.value, currSelect.value);
-  await splitEasyDB.addMember(newGrp.id, userEmail, `${userName} (Payer)`, '#2D6BE4');
+  await splitEasyDB.addMember(newGrp.id, userEmail, userName, '#2D6BE4');
 
   // Add all selected friend suggestions
   const colors = ['#22C55E', '#8B5CF6', '#F97316', '#EF4444', '#EAB308'];
@@ -558,15 +710,17 @@ async function submitCreateGroup(e) {
 /**
  * Opens Add Expense Modal.
  */
-function handleSplitModeChange(mode) {
-  const box = document.getElementById('se-custom-split-box');
+function handleSplitModeChange(mode, target = 'add') {
+  const boxId = target === 'edit' ? 'se-edit-custom-split-box' : 'se-custom-split-box';
+  const box = document.getElementById(boxId);
   if (box) {
     box.style.display = mode === 'custom' ? 'block' : 'none';
   }
 }
 
-function toggleSelectAllSplitMembers() {
-  const checkboxes = document.querySelectorAll('.se-split-member-cb');
+function toggleSelectAllSplitMembers(target = 'add') {
+  const selector = target === 'edit' ? '.se-edit-split-member-cb' : '.se-split-member-cb';
+  const checkboxes = document.querySelectorAll(selector);
   if (checkboxes.length === 0) return;
   const anyUnchecked = Array.from(checkboxes).some(cb => !cb.checked);
   checkboxes.forEach(cb => cb.checked = anyUnchecked);
@@ -603,7 +757,7 @@ function openAddExpenseModal() {
 
   if (customCbWrap) {
     customCbWrap.innerHTML = groupMembers.map(m => `
-      <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; cursor: pointer;">
         <input type="checkbox" class="se-split-member-cb" value="${m.id}" checked>
         <span>${escapeHtml(m.name)}</span>
       </label>
@@ -618,23 +772,79 @@ function closeAddExpenseModal() {
   if (modal) modal.style.display = 'none';
 }
 
-/**
- * Submit New Expense with Custom Member Selection & "Include Me" toggle handling.
- */
-async function submitAddExpense(e) {
-  e.preventDefault();
-  const title = document.getElementById('se-exp-title-input').value;
-  const amount = Number(document.getElementById('se-exp-amount-input').value);
-  const payerId = document.getElementById('se-expense-payer').value;
-  const category = document.getElementById('se-expense-category').value;
-  const includePayer = document.getElementById('se-include-payer-toggle').checked;
-  const splitMode = document.getElementById('se-expense-split-mode').value;
+function openEditExpenseModal(expId) {
+  const exp = groupExpenses.find(e => e.id === expId);
+  if (!exp) return;
 
-  if (!title || !amount || amount <= 0) return;
+  const modal = document.getElementById('se-edit-expense-modal');
+  const idInput = document.getElementById('se-edit-exp-id');
+  const titleInput = document.getElementById('se-edit-exp-title');
+  const amountInput = document.getElementById('se-edit-exp-amount');
+  const payerSelect = document.getElementById('se-edit-exp-payer');
+  const categorySelect = document.getElementById('se-edit-exp-category');
+  const splitModeSelect = document.getElementById('se-edit-exp-split-mode');
+  const includePayerCb = document.getElementById('se-edit-include-payer');
+  const customCbWrap = document.getElementById('se-edit-custom-split-checkboxes');
+  const customBox = document.getElementById('se-edit-custom-split-box');
+
+  if (idInput) idInput.value = exp.id;
+  if (titleInput) titleInput.value = exp.title;
+  if (amountInput) amountInput.value = exp.amount;
+
+  if (categorySelect && activeGroup) {
+    const tpl = TEMPLATES[activeGroup.template_type] || TEMPLATES.custom;
+    categorySelect.innerHTML = tpl.categories.map(c => `<option value="${c}" ${c === exp.category ? 'selected' : ''}>${c}</option>`).join('');
+  }
+
+  if (payerSelect) {
+    payerSelect.innerHTML = groupMembers.map(m => `<option value="${m.id}" ${m.id === exp.paid_by_member_id ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('');
+  }
+
+  if (includePayerCb) {
+    includePayerCb.checked = exp.include_payer !== undefined ? exp.include_payer : true;
+  }
+
+  const isCustom = exp.split_type === 'custom' || (exp.splits && exp.splits.length < groupMembers.length);
+  if (splitModeSelect) {
+    splitModeSelect.value = isCustom ? 'custom' : 'all';
+  }
+  if (customBox) {
+    customBox.style.display = isCustom ? 'block' : 'none';
+  }
+
+  const activeSplitMemberIds = new Set(exp.splits ? exp.splits.map(s => s.member_id) : groupMembers.map(m => m.id));
+  if (customCbWrap) {
+    customCbWrap.innerHTML = groupMembers.map(m => `
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; cursor: pointer;">
+        <input type="checkbox" class="se-edit-split-member-cb" value="${m.id}" ${activeSplitMemberIds.has(m.id) ? 'checked' : ''}>
+        <span>${escapeHtml(m.name)}</span>
+      </label>
+    `).join('');
+  }
+
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeEditExpenseModal() {
+  const modal = document.getElementById('se-edit-expense-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function submitEditExpense(e) {
+  e.preventDefault();
+  const expId = document.getElementById('se-edit-exp-id').value;
+  const title = document.getElementById('se-edit-exp-title').value;
+  const amount = Number(document.getElementById('se-edit-exp-amount').value);
+  const payerId = document.getElementById('se-edit-exp-payer').value;
+  const category = document.getElementById('se-edit-exp-category').value;
+  const includePayer = document.getElementById('se-edit-include-payer').checked;
+  const splitMode = document.getElementById('se-edit-exp-split-mode').value;
+
+  if (!expId || !title || !amount || amount <= 0) return;
 
   let selectedMemberIds = [];
   if (splitMode === 'custom') {
-    const checkedCbs = document.querySelectorAll('.se-split-member-cb:checked');
+    const checkedCbs = document.querySelectorAll('.se-edit-split-member-cb:checked');
     selectedMemberIds = Array.from(checkedCbs).map(cb => cb.value);
     if (selectedMemberIds.length === 0) {
       alert('Please select at least one member to include in the split!');
@@ -646,8 +856,7 @@ async function submitAddExpense(e) {
 
   const splits = calculateSplitAmounts(amount, selectedMemberIds, payerId, includePayer, 'equal');
 
-  const newExp = await splitEasyDB.addExpense({
-    group_id: currentGroupId,
+  await splitEasyDB.updateExpense(expId, {
     title,
     amount,
     paid_by_member_id: payerId,
@@ -655,6 +864,21 @@ async function submitAddExpense(e) {
     category,
     split_type: splitMode === 'custom' ? 'custom' : 'equal'
   }, splits);
+
+  closeEditExpenseModal();
+  await loadActiveGroupData(currentGroupId);
+}
+
+async function submitDeleteExpense() {
+  const expId = document.getElementById('se-edit-exp-id').value;
+  if (!expId) return;
+
+  if (confirm('Are you sure you want to delete this expense?')) {
+    await splitEasyDB.deleteExpense(expId);
+    closeEditExpenseModal();
+    await loadActiveGroupData(currentGroupId);
+  }
+}
 
   // --- DAYFLOW MAIN EXPENSE TRACKER INTEGRATION ---
   try {
@@ -783,4 +1007,84 @@ function getCategoryIcon(cat = '') {
 
 function escapeHtml(str = '') {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/**
+ * Initializes Touch-based Pull-To-Refresh for SplitEasy mobile & desktop views.
+ */
+function initPullToRefresh() {
+  const body = document.querySelector('#splitease-app .se-body');
+  const ptr = document.getElementById('se-ptr-indicator');
+  if (!body || !ptr || ptr.dataset.initialized === 'true') return;
+
+  ptr.dataset.initialized = 'true';
+  const text = ptr.querySelector('.se-ptr-text');
+  const spinner = ptr.querySelector('.se-ptr-spinner');
+
+  let startY = 0;
+  let currentY = 0;
+  let isPulling = false;
+  let isRefreshing = false;
+  const THRESHOLD = 60;
+
+  body.addEventListener('touchstart', (e) => {
+    if (body.scrollTop <= 2 && !isRefreshing) {
+      startY = e.touches[0].clientY;
+      isPulling = true;
+    }
+  }, { passive: true });
+
+  body.addEventListener('touchmove', (e) => {
+    if (!isPulling || isRefreshing) return;
+    currentY = e.touches[0].clientY;
+    const diff = currentY - startY;
+
+    if (diff > 0 && body.scrollTop <= 2) {
+      const pullDistance = Math.min(diff * 0.45, 75);
+      ptr.style.height = `${pullDistance}px`;
+      ptr.classList.add('visible');
+
+      if (pullDistance >= THRESHOLD) {
+        if (text) text.textContent = 'Release to refresh';
+        if (spinner) spinner.style.transform = 'rotate(180deg)';
+      } else {
+        if (text) text.textContent = 'Pull down to refresh';
+        if (spinner) spinner.style.transform = 'rotate(0deg)';
+      }
+    }
+  }, { passive: true });
+
+  body.addEventListener('touchend', async () => {
+    if (!isPulling || isRefreshing) return;
+    isPulling = false;
+    const diff = currentY - startY;
+    const pullDistance = Math.min(diff * 0.45, 75);
+
+    if (pullDistance >= THRESHOLD && body.scrollTop <= 2) {
+      isRefreshing = true;
+      ptr.style.height = '42px';
+      if (text) text.textContent = 'Refreshing data...';
+      if (spinner) {
+        spinner.classList.add('spinning');
+        spinner.style.transform = 'rotate(0deg)';
+      }
+
+      try {
+        await initSplitEasyData();
+      } catch (err) {
+        console.warn('Pull-to-refresh failed:', err);
+      }
+
+      setTimeout(() => {
+        ptr.style.height = '0px';
+        ptr.classList.remove('visible');
+        if (spinner) spinner.classList.remove('spinning');
+        if (text) text.textContent = 'Pull down to refresh';
+        isRefreshing = false;
+      }, 500);
+    } else {
+      ptr.style.height = '0px';
+      ptr.classList.remove('visible');
+    }
+  });
 }
