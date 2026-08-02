@@ -108,13 +108,12 @@ class SplitEasyDBAdapter {
 
   // --- GROUP OPERATIONS ---
 
-  async getGroups(userEmail = '', userName = '') {
+  async getGroups(userEmail = '') {
     this.purgeLegacySampleData();
     let allGroups = [];
     let allMembers = [];
 
     const cleanEmail = (userEmail || '').trim().toLowerCase();
-    const cleanName = (userName || '').trim().toLowerCase();
 
     if (this.supabaseClient) {
       try {
@@ -140,17 +139,16 @@ class SplitEasyDBAdapter {
       allMembers = this._get(STORAGE_KEYS.MEMBERS);
     }
 
-    // Strict membership check: Only include groups where userEmail or userName is an explicit member
-    const userGroupIds = new Set();
+    // Strict membership check: ONLY include groups where userEmail is an explicit member
+    if (!cleanEmail) {
+      const localGroupIds = new Set(allMembers.map(m => m.group_id));
+      return allGroups.filter(g => localGroupIds.has(g.id));
+    }
 
+    const userGroupIds = new Set();
     allMembers.forEach(m => {
       const mEmail = (m.email || '').trim().toLowerCase();
-      const mName = (m.name || '').trim().toLowerCase();
-
-      const isEmailMatch = Boolean(cleanEmail && mEmail && mEmail === cleanEmail);
-      const isNameMatch = Boolean(cleanName && mName && (mName === cleanName || mName === `${cleanName} (payer)`));
-
-      if (isEmailMatch || isNameMatch) {
+      if (mEmail && mEmail === cleanEmail) {
         userGroupIds.add(m.group_id);
       }
     });
