@@ -19,7 +19,9 @@
 <link rel="stylesheet" href="content/content.css">
 <link rel="stylesheet" href="thoughts/thoughts.css">
 <link rel="stylesheet" href="challenge/challenge.css">
-<!-- Google Identity Services client script for Drive syncing -->
+<link rel="stylesheet" href="splitease/splitease.css">
+<!-- Supabase JS Client & Google Identity Services -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <style>
@@ -508,10 +510,11 @@
     ⚠️ <span id="alert-text"></span>
   </div>
 
-  <!-- Homepage Section Switcher (Tools vs Grow) -->
+  <!-- Homepage Section Switcher (Tools vs Grow vs Utils) -->
   <div class="homepage-tabs">
     <button class="home-tab active" id="tab-btn-tools" onclick="switchHomeTab('tools')">Tools</button>
     <button class="home-tab" id="tab-btn-grow" onclick="switchHomeTab('grow')">Grow</button>
+    <button class="home-tab" id="tab-btn-utils" onclick="switchHomeTab('utils')">Utils</button>
   </div>
 
   <!-- Tools Grid -->
@@ -543,6 +546,15 @@
     <div class="tool-btn" id="platform-add-course" style="display:none;" onclick="openAddCourseApp()">
       <div class="tool-icon">🎓➕</div>
       <div class="tool-name">Add Course</div>
+    </div>
+  </div>
+
+  <!-- Utils Grid -->
+  <div class="tool-grid" id="home-grid-utils" style="display: none; margin-bottom: 24px;">
+    <div class="tool-btn" onclick="openSplitEasyApp()">
+      <div class="tool-icon">₹</div>
+      <div class="tool-name">SplitEasy</div>
+      <div class="tool-badge" id="splitease-badge" style="display:none; background: var(--green);"></div>
     </div>
   </div>
 
@@ -1025,6 +1037,25 @@ function saveState() {
   try { localStorage.setItem(DB_KEY, JSON.stringify(state)); } catch(e) {}
 }
 
+window.logPersonalExpenseFromSplitEasy = function(title, amount, category) {
+  try {
+    const today = (typeof getTodayStr === 'function') ? getTodayStr() : new Date().toISOString().split('T')[0];
+    state.expenses = state.expenses || {};
+    if (!state.expenses[today]) state.expenses[today] = [];
+    state.expenses[today].push({
+      id: 'se_' + Date.now(),
+      amount: Number(amount),
+      category: category || 'Other',
+      note: '[SplitEasy] ' + title,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+    saveState();
+    if (typeof renderStats === 'function') renderStats();
+  } catch (e) {
+    console.warn('Personal expense log error:', e);
+  }
+};
+
 // ============================================================
 // ONBOARDING
 // ============================================================
@@ -1456,20 +1487,18 @@ function renderPanel(name) {
 function switchHomeTab(tab) {
   const btnTools = document.getElementById('tab-btn-tools');
   const btnGrow = document.getElementById('tab-btn-grow');
+  const btnUtils = document.getElementById('tab-btn-utils');
   const gridTools = document.getElementById('home-grid-tools');
   const gridGrow = document.getElementById('home-grid-grow');
+  const gridUtils = document.getElementById('home-grid-utils');
   
-  if (tab === 'tools') {
-    if (btnTools) btnTools.classList.add('active');
-    if (btnGrow) btnGrow.classList.remove('active');
-    if (gridTools) gridTools.style.display = 'grid';
-    if (gridGrow) gridGrow.style.display = 'none';
-  } else {
-    if (btnTools) btnTools.classList.remove('active');
-    if (btnGrow) btnGrow.classList.add('active');
-    if (gridTools) gridTools.style.display = 'none';
-    if (gridGrow) gridGrow.style.display = 'grid';
-  }
+  if (btnTools) btnTools.classList.toggle('active', tab === 'tools');
+  if (btnGrow) btnGrow.classList.toggle('active', tab === 'grow');
+  if (btnUtils) btnUtils.classList.toggle('active', tab === 'utils');
+
+  if (gridTools) gridTools.style.display = (tab === 'tools') ? 'grid' : 'none';
+  if (gridGrow) gridGrow.style.display = (tab === 'grow') ? 'grid' : 'none';
+  if (gridUtils) gridUtils.style.display = (tab === 'utils') ? 'grid' : 'none';
 }
 
 function openPanel(name) {
@@ -3347,8 +3376,162 @@ function closePublisherRequestModal() {
   const modal = document.getElementById('publisher-request-modal');
   if (modal) modal.classList.remove('show');
 }
-
 </script>
+
+<!-- SPLITEASY FULL-SCREEN PLATFORM APP -->
+<div id="splitease-app">
+  <!-- Top Navbar -->
+  <div class="se-navbar">
+    <button class="se-back-btn" onclick="closeSplitEasyApp()">🌊 BeCreator</button>
+    <div class="se-app-title">₹ SplitEasy</div>
+    <div class="se-header-actions">
+      <button class="se-icon-btn" onclick="openSupabaseSettingsModal()" title="Database Settings">⚡</button>
+      <button class="se-icon-btn" onclick="openCreateGroupModal()" title="New Group">➕</button>
+    </div>
+  </div>
+
+  <!-- Main Body -->
+  <div class="se-body">
+    <div class="se-group-header">
+      <div class="se-group-select-wrap">
+        <select id="se-group-select" class="se-group-select" onchange="loadActiveGroupData(this.value)"></select>
+        <span id="se-template-badge" class="se-template-badge"></span>
+      </div>
+      <span id="se-share-code" style="font-size: 13px; font-weight: 700; color: var(--text2);"></span>
+    </div>
+
+    <!-- Stats -->
+    <div class="se-stats-grid">
+      <div class="se-stat-card">
+        <span class="se-stat-title">Total Group Spent</span>
+        <span id="se-stat-total-exp" class="se-stat-value">₹0.00</span>
+      </div>
+      <div class="se-stat-card">
+        <span class="se-stat-title">Your Balance</span>
+        <span id="se-stat-my-balance" class="se-stat-value">₹0.00</span>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="se-tabs">
+      <button class="se-tab-btn active" data-tab="expenses" onclick="switchSplitEasyTab('expenses')">Expenses</button>
+      <button class="se-tab-btn" data-tab="debts" onclick="switchSplitEasyTab('debts')">Simplify Debts</button>
+      <button class="se-tab-btn" data-tab="members" onclick="switchSplitEasyTab('members')">Members</button>
+    </div>
+
+    <!-- Tab Content -->
+    <div id="se-tab-container"></div>
+  </div>
+
+  <!-- Floating Action Button (+ Expense) -->
+  <button class="se-fab" onclick="openAddExpenseModal()">➕ Add Expense</button>
+
+  <!-- CREATE GROUP MODAL -->
+  <div id="se-create-group-modal" class="se-modal-overlay">
+    <div class="se-modal">
+      <div class="se-modal-header">
+        <span class="se-modal-title">Create New Group</span>
+        <button class="se-icon-btn" onclick="closeCreateGroupModal()">✕</button>
+      </div>
+      <form onsubmit="submitCreateGroup(event)" class="se-modal-body">
+        <div>
+          <label style="font-size: 13px; font-weight: 700; margin-bottom: 4px; display: block;">Group Name</label>
+          <input type="text" id="se-new-group-name" class="input" placeholder="e.g. Goa Trip 2026" required>
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 700; margin-bottom: 4px; display: block;">Template</label>
+          <select id="se-new-group-template" class="input">
+            <option value="tour">🌴 Tour / Trip</option>
+            <option value="flat">🏠 Flat / Apartment</option>
+            <option value="outing">🎉 Outing / Party</option>
+            <option value="custom">⚙️ Custom Group</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 700; margin-bottom: 4px; display: block;">Currency Symbol</label>
+          <select id="se-new-group-currency" class="input">
+            <option value="₹">₹ (INR)</option>
+            <option value="$">$ (USD)</option>
+            <option value="€">€ (EUR)</option>
+            <option value="£">£ (GBP)</option>
+          </select>
+        </div>
+        <!-- QUICK ADD FREQUENT FRIENDS SUGGESTIONS -->
+        <div id="se-group-friend-suggestions"></div>
+        <button type="submit" class="btn btn-primary btn-full">Create Group</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ADD EXPENSE MODAL -->
+  <div id="se-add-expense-modal" class="se-modal-overlay">
+    <div class="se-modal">
+      <div class="se-modal-header">
+        <span class="se-modal-title">Add New Expense</span>
+        <button class="se-icon-btn" onclick="closeAddExpenseModal()">✕</button>
+      </div>
+      <form onsubmit="submitAddExpense(event)" class="se-modal-body">
+        <div>
+          <label style="font-size: 13px; font-weight: 700; margin-bottom: 4px; display: block;">Description</label>
+          <input type="text" id="se-exp-title-input" class="input" placeholder="e.g. Hotel Booking or Dinner" required>
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 700; margin-bottom: 4px; display: block;">Amount</label>
+          <input type="number" step="0.01" id="se-exp-amount-input" class="input" placeholder="0.00" required>
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 700; margin-bottom: 4px; display: block;">Paid By</label>
+          <select id="se-expense-payer" class="input"></select>
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 700; margin-bottom: 4px; display: block;">Category</label>
+          <select id="se-expense-category" class="input"></select>
+        </div>
+        <!-- INCLUDE ME TOGGLE SWITCH -->
+        <div class="se-toggle-wrapper">
+          <div class="se-toggle-label">
+            <span class="se-toggle-title">Include Me in Split</span>
+            <span class="se-toggle-sub">Uncheck if you paid on behalf of others only</span>
+          </div>
+          <label class="se-switch">
+            <input type="checkbox" id="se-include-payer-toggle" checked>
+            <span class="se-slider"></span>
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">Save Expense</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- SUPABASE SETTINGS MODAL -->
+  <div id="se-supabase-modal" class="se-modal-overlay">
+    <div class="se-modal">
+      <div class="se-modal-header">
+        <span class="se-modal-title">⚡ Supabase Cloud DB Settings</span>
+        <button class="se-icon-btn" onclick="closeSupabaseSettingsModal()">✕</button>
+      </div>
+      <form onsubmit="submitSupabaseSettings(event)" class="se-modal-body">
+        <div style="font-size: 13px; color: var(--text2); line-height: 1.5;">
+          Connect your free Supabase database for live multi-device real-time sync.
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 700; margin-bottom: 4px; display: block;">Supabase Project URL</label>
+          <input type="url" id="se-supabase-url" class="input" placeholder="https://xyz.supabase.co">
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: 700; margin-bottom: 4px; display: block;">Supabase Anon Public Key</label>
+          <input type="text" id="se-supabase-key" class="input" placeholder="eyJhY..." style="font-family: monospace; font-size: 12px;">
+        </div>
+        <div id="se-supabase-status" style="font-size: 13px; font-weight: 700;"></div>
+        <div style="display: flex; gap: 8px;">
+          <button type="submit" class="btn btn-primary" style="flex: 1;">Connect Supabase</button>
+          <button type="button" class="btn btn-secondary" onclick="disconnectSupabase()">Disconnect</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script src="camera/camera.js"></script>
 <script src="learn/learn.js"></script>
 <script src="learn/addCourse.js"></script>
@@ -3357,5 +3540,8 @@ function closePublisherRequestModal() {
 <script src="thoughts/thoughts.js"></script>
 <script src="challenge/challenge_data.js"></script>
 <script src="challenge/challenge.js"></script>
+<script src="splitease/debtSolver.js"></script>
+<script src="splitease/dbAdapter.js"></script>
+<script src="splitease/splitease.js"></script>
 </body>
 </html>
