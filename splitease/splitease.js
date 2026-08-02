@@ -772,6 +772,63 @@ function closeAddExpenseModal() {
   if (modal) modal.style.display = 'none';
 }
 
+/**
+ * Submit New Expense with Custom Member Selection & "Include Me" toggle handling.
+ */
+async function submitAddExpense(e) {
+  e.preventDefault();
+  const title = document.getElementById('se-exp-title-input').value;
+  const amount = Number(document.getElementById('se-exp-amount-input').value);
+  const payerId = document.getElementById('se-expense-payer').value;
+  const category = document.getElementById('se-expense-category').value;
+  const includePayer = document.getElementById('se-include-payer-toggle').checked;
+  const splitMode = document.getElementById('se-expense-split-mode').value;
+
+  if (!title || !amount || amount <= 0) return;
+
+  let selectedMemberIds = [];
+  if (splitMode === 'custom') {
+    const checkedCbs = document.querySelectorAll('.se-split-member-cb:checked');
+    selectedMemberIds = Array.from(checkedCbs).map(cb => cb.value);
+    if (selectedMemberIds.length === 0) {
+      alert('Please select at least one member to include in the split!');
+      return;
+    }
+  } else {
+    const activeMembers = groupMembers.filter(m => !m.is_inactive);
+    selectedMemberIds = activeMembers.map(m => m.id);
+  }
+
+  const splits = calculateSplitAmounts(amount, selectedMemberIds, payerId, includePayer, 'equal');
+
+  const newExp = await splitEasyDB.addExpense({
+    group_id: currentGroupId,
+    title,
+    amount,
+    paid_by_member_id: payerId,
+    include_payer: includePayer,
+    category,
+    split_type: splitMode === 'custom' ? 'custom' : 'equal'
+  }, splits);
+
+  // --- DAYFLOW MAIN EXPENSE TRACKER INTEGRATION ---
+  try {
+    const userMember = groupMembers[0];
+    if (userMember && window.logPersonalExpenseFromSplitEasy) {
+      const userSplit = splits.find(s => s.member_id === userMember.id);
+      const personalAmt = userSplit ? userSplit.split_amount : (payerId === userMember.id ? amount : 0);
+      if (personalAmt > 0) {
+        window.logPersonalExpenseFromSplitEasy(title, personalAmt, category);
+      }
+    }
+  } catch (err) {
+    console.warn('DayFlow personal expense sync failed:', err);
+  }
+
+  closeAddExpenseModal();
+  await loadActiveGroupData(currentGroupId);
+}
+
 function openEditExpenseModal(expId) {
   const exp = groupExpenses.find(e => e.id === expId);
   if (!exp) return;
@@ -878,25 +935,6 @@ async function submitDeleteExpense() {
     closeEditExpenseModal();
     await loadActiveGroupData(currentGroupId);
   }
-}
-
-  // --- DAYFLOW MAIN EXPENSE TRACKER INTEGRATION ---
-  try {
-    // If payer is 'You' (first member), calculate user's share and log to DayFlow
-    const userMember = groupMembers[0];
-    if (userMember && window.logPersonalExpenseFromSplitEasy) {
-      const userSplit = splits.find(s => s.member_id === userMember.id);
-      const personalAmt = userSplit ? userSplit.split_amount : (payerId === userMember.id ? amount : 0);
-      if (personalAmt > 0) {
-        window.logPersonalExpenseFromSplitEasy(title, personalAmt, category);
-      }
-    }
-  } catch (err) {
-    console.warn('DayFlow personal expense sync failed:', err);
-  }
-
-  closeAddExpenseModal();
-  await loadActiveGroupData(currentGroupId);
 }
 
 /**
