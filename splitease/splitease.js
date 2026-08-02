@@ -261,6 +261,8 @@ function renderTabContent() {
     renderSimplifiedDebts(container);
   } else if (currentTab === 'members') {
     renderMembersList(container);
+  } else if (currentTab === 'checklist') {
+    renderChecklist(container);
   }
 }
 
@@ -482,14 +484,198 @@ async function removeMember(memberId, memberName) {
 }
 
 /* ============================================================
+   GROUP CHECKLIST & BE CREATOR TO-DO LIST INTEGRATION
+   ============================================================ */
+
+function getLoggedInUserMember() {
+  const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail.trim().toLowerCase() : '';
+  const userName = (typeof getUserIdentityName === 'function') ? getUserIdentityName().trim().toLowerCase() : '';
+
+  return groupMembers.find(m => {
+    const mEmail = (m.email || '').trim().toLowerCase();
+    const mName = (m.name || '').trim().toLowerCase();
+    return (userEmail && mEmail && mEmail === userEmail) || (userName && mName && mName === userName);
+  }) || groupMembers[0];
+}
+
+function syncChecklistToMainTodo(item, groupName) {
+  if (typeof state === 'undefined' || !state.todos) return;
+
+  const userMember = getLoggedInUserMember();
+  if (!userMember) return;
+
+  const isAssignedToUser = item.assigned_to_member_id && String(item.assigned_to_member_id) === String(userMember.id);
+  const todoId = 'se-todo-' + item.id;
+  const todoText = `[SplitEasy: ${groupName}] ${item.title}`;
+  const existingIdx = state.todos.findIndex(t => t.id === todoId);
+
+  if (isAssignedToUser) {
+    if (existingIdx !== -1) {
+      state.todos[existingIdx].done = Boolean(item.is_completed);
+      state.todos[existingIdx].text = todoText;
+      state.todos[existingIdx].note = item.note || '';
+    } else {
+      state.todos.push({
+        id: todoId,
+        text: todoText,
+        note: item.note || '',
+        done: Boolean(item.is_completed),
+        createdDate: state.selectedDate || new Date().toISOString().split('T')[0],
+        source: 'splitease'
+      });
+    }
+  } else if (existingIdx !== -1) {
+    state.todos.splice(existingIdx, 1);
+  }
+
+  if (typeof saveState === 'function') saveState();
+  if (typeof updateTodoBadge === 'function') updateTodoBadge();
+  if (typeof updateAlertBar === 'function') updateAlertBar();
+}
+
+async function renderChecklist(container) {
+  if (!activeGroup) return;
+
+  const checklists = await splitEasyDB.getChecklists(currentGroupId);
+  const activeMembers = groupMembers.filter(m => !m.is_inactive);
+
+  // Sync assigned items to main BeCreator To-Do list
+  checklists.forEach(item => syncChecklistToMainTodo(item, activeGroup.name));
+
+  const wrap = document.createElement('div');
+  wrap.style.display = 'flex';
+  wrap.style.flexDirection = 'column';
+  wrap.style.gap = '12px';
+
+  // Add Task Form
+  const formBox = document.createElement('form');
+  formBox.onsubmit = (e) => submitAddChecklistItem(e);
+  formBox.style.background = 'var(--surface2)';
+  formBox.style.padding = '12px';
+  formBox.style.borderRadius = 'var(--radius-sm)';
+  formBox.style.border = '1px solid var(--border)';
+  formBox.style.display = 'flex';
+  formBox.style.flexDirection = 'column';
+  formBox.style.gap = '8px';
+
+  formBox.innerHTML = `
+    <div style="font-size:12px; font-weight:700; color:var(--text);">☑️ Add Group Checklist Item</div>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+      <input type="text" id="se-cl-title-input" class="input" placeholder="Task description..." required style="font-size:12px; padding:6px 10px; grid-column: 1 / -1;">
+      <div>
+        <label style="font-size:10px; font-weight:600; color:var(--text2); display:block; margin-bottom:2px;">Assign To (Optional)</label>
+        <select id="se-cl-assign-select" class="input" style="font-size:11px; padding:4px 8px;">
+          <option value="">🌐 Unassigned (Everyone)</option>
+          ${activeMembers.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:flex; align-items:flex-end;">
+        <button type="submit" class="btn btn-primary btn-full btn-sm" style="font-size:11px; padding:6px 10px;">➕ Add Task</button>
+      </div>
+    </div>
+  `;
+  wrap.appendChild(formBox);
+
+  // Task Items List
+  const list = document.createElement('div');
+  list.style.display = 'flex';
+  list.style.flexDirection = 'column';
+  list.style.gap = '8px';
+
+  if (checklists.length === 0) {
+    list.innerHTML = `
+      <div style="text-align: center; padding: 30px 16px; color: var(--text2);">
+        <div style="font-size: 32px; margin-bottom: 6px;">☑️</div>
+        <div style="font-size: 14px; font-weight: 700;">Group Checklist Empty</div>
+        <div style="font-size: 12px;">Add shared tasks above (e.g. Pack tents, Buy groceries, Book hotel).</div>
+      </div>
+    `;
+  } else {
+    checklists.forEach(item => {
+      const isDone = Boolean(item.is_completed);
+      const assignee = groupMembers.find(m => m.id === item.assigned_to_member_id);
+
+      const el = document.createElement('div');
+      el.className = 'se-expense-item';
+      el.style.padding = '10px 12px';
+      el.style.opacity = isDone ? '0.7' : '1';
+
+      el.innerHTML = `
+        <div class="se-exp-left" style="gap:10px; flex:1;">
+          <input type="checkbox" ${isDone ? 'checked' : ''} onchange="toggleChecklistItemState('${item.id}', this.checked)" style="width:16px; height:16px; cursor:pointer;">
+          <div style="display:flex; flex-direction:column; gap:2px; flex:1;">
+            <div style="font-size:12px; font-weight:600; color:var(--text); ${isDone ? 'text-decoration: line-through; opacity: 0.7;' : ''}">${escapeHtml(item.title)}</div>
+            ${item.note ? `<div style="font-size:11px; color:var(--text2); display:flex; align-items:center; gap:4px;">📝 ${escapeHtml(item.note)}</div>` : ''}
+            <div style="font-size:10px; color:var(--text2); display:flex; align-items:center; gap:4px; margin-top:2px;">
+              ${assignee ? `<span class="se-exp-badge" style="background:${assignee.avatar_color || '#2D6BE4'}20; color:${assignee.avatar_color || '#2D6BE4'}; font-size:10px;">👤 ${escapeHtml(assignee.name)}</span>` : '<span style="opacity:0.6;">🌐 Unassigned</span>'}
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:4px;">
+          <button class="se-icon-btn" onclick="promptChecklistNote('${item.id}', '${escapeHtml(item.note || '')}')" style="width:28px; height:28px; font-size:12px;" title="Add / Edit Note">📝</button>
+          <button class="se-icon-btn" onclick="removeChecklistItem('${item.id}')" style="width:28px; height:28px; font-size:12px; color:var(--red);">🗑️</button>
+        </div>
+      `;
+      list.appendChild(el);
+    });
+  }
+
+  wrap.appendChild(list);
+  container.appendChild(wrap);
+}
+
+async function promptChecklistNote(itemId, currentNote = '') {
+  const newNote = prompt('Enter or update note for this task:', currentNote);
+  if (newNote === null) return;
+
+  await splitEasyDB.updateChecklistNote(itemId, newNote.trim());
+  await loadActiveGroupData(currentGroupId);
+}
+
+async function submitAddChecklistItem(e) {
+  e.preventDefault();
+  const input = document.getElementById('se-cl-title-input');
+  const assignSelect = document.getElementById('se-cl-assign-select');
+
+  if (!input || !input.value.trim() || !currentGroupId) return;
+
+  const title = input.value.trim();
+  const assignedTo = assignSelect ? assignSelect.value : null;
+
+  await splitEasyDB.addChecklistItem({
+    group_id: currentGroupId,
+    title,
+    assigned_to_member_id: assignedTo,
+    is_completed: false
+  });
+
+  await loadActiveGroupData(currentGroupId);
+}
+
+async function toggleChecklistItemState(itemId, isCompleted) {
+  await splitEasyDB.toggleChecklistItem(itemId, isCompleted);
+  await loadActiveGroupData(currentGroupId);
+}
+
+async function removeChecklistItem(itemId) {
+  if (confirm('Delete this checklist item?')) {
+    if (typeof state !== 'undefined' && state.todos) {
+      const todoId = 'se-todo-' + itemId;
+      state.todos = state.todos.filter(t => t.id !== todoId);
+      if (typeof saveState === 'function') saveState();
+      if (typeof updateTodoBadge === 'function') updateTodoBadge();
+    }
+    await splitEasyDB.deleteChecklistItem(itemId);
+    await loadActiveGroupData(currentGroupId);
+  }
+}
+
+/* ============================================================
    GROUP SPENDING & YOUR SPENDING STATS BREAKDOWN MODALS
    ============================================================ */
 
 function openGroupSpendingModal() {
-  if (!activeGroup || groupExpenses.length === 0) {
-    alert('No expenses recorded in this group yet.');
-    return;
-  }
+  if (!activeGroup) return;
 
   const modal = document.getElementById('se-group-spending-modal');
   const membersWrap = document.getElementById('se-group-spending-members');
@@ -517,36 +703,44 @@ function openGroupSpendingModal() {
     catSpentMap[cat] = (catSpentMap[cat] || 0) + amt;
   });
 
-  // Render Who Spent
-  membersWrap.innerHTML = groupMembers.map(m => {
-    const spent = memberSpentMap[m.id] || 0;
-    const pct = totalGroupSpent > 0 ? Math.round((spent / totalGroupSpent) * 100) : 0;
-    return `
-      <div>
-        <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:600; margin-bottom:2px;">
-          <span>${escapeHtml(m.name)} ${m.is_inactive ? '(Removed)' : ''}</span>
-          <span>${curr}${spent.toFixed(2)} (${pct}%)</span>
+  if (groupMembers.length === 0) {
+    membersWrap.innerHTML = `<div style="text-align:center; padding:10px; font-size:12px; color:var(--text2);">No members in group yet.</div>`;
+  } else {
+    // Render Who Spent
+    membersWrap.innerHTML = groupMembers.map(m => {
+      const spent = memberSpentMap[m.id] || 0;
+      const pct = totalGroupSpent > 0 ? Math.round((spent / totalGroupSpent) * 100) : 0;
+      return `
+        <div>
+          <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:600; margin-bottom:2px;">
+            <span>${escapeHtml(m.name)} ${m.is_inactive ? '(Removed)' : ''}</span>
+            <span>${curr}${spent.toFixed(2)} (${pct}%)</span>
+          </div>
+          <div style="height:6px; background:var(--surface2); border-radius:3px; overflow:hidden;">
+            <div style="width:${pct}%; height:100%; background:${m.avatar_color || 'var(--accent)'}; border-radius:3px;"></div>
+          </div>
         </div>
-        <div style="height:6px; background:var(--surface2); border-radius:3px; overflow:hidden;">
-          <div style="width:${pct}%; height:100%; background:${m.avatar_color || 'var(--accent)'}; border-radius:3px;"></div>
-        </div>
-      </div>
-    `;
-  }).join('');
+      `;
+    }).join('');
+  }
 
-  // Render Where Spent
-  catWrap.innerHTML = Object.entries(catSpentMap).map(([cat, amt]) => {
-    const pct = totalGroupSpent > 0 ? Math.round((amt / totalGroupSpent) * 100) : 0;
-    return `
-      <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; background:var(--surface2); border-radius:var(--radius-sm);">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span style="font-size:16px;">${getCategoryIcon(cat)}</span>
-          <span style="font-size:12px; font-weight:600;">${cat}</span>
+  if (Object.keys(catSpentMap).length === 0) {
+    catWrap.innerHTML = `<div style="text-align:center; padding:10px; font-size:12px; color:var(--text2);">No category expenses logged yet.</div>`;
+  } else {
+    // Render Where Spent
+    catWrap.innerHTML = Object.entries(catSpentMap).map(([cat, amt]) => {
+      const pct = totalGroupSpent > 0 ? Math.round((amt / totalGroupSpent) * 100) : 0;
+      return `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; background:var(--surface2); border-radius:var(--radius-sm);">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:16px;">${getCategoryIcon(cat)}</span>
+            <span style="font-size:12px; font-weight:600;">${cat}</span>
+          </div>
+          <div style="font-size:12px; font-weight:700;">${curr}${amt.toFixed(2)} <span style="font-size:10px; opacity:0.7;">(${pct}%)</span></div>
         </div>
-        <div style="font-size:12px; font-weight:700;">${curr}${amt.toFixed(2)} <span style="font-size:10px; opacity:0.7;">(${pct}%)</span></div>
-      </div>
-    `;
-  }).join('');
+      `;
+    }).join('');
+  }
 
   modal.style.display = 'flex';
 }
@@ -566,23 +760,32 @@ function openUserSpendingModal() {
   if (!modal || !header || !catWrap) return;
 
   const curr = activeGroup.currency || '₹';
-  const userMember = groupMembers[0]; // Active logged-in user
-  if (!userMember) return;
+
+  const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail.trim().toLowerCase() : '';
+  const userName = (typeof getUserIdentityName === 'function') ? getUserIdentityName().trim().toLowerCase() : '';
+
+  const userMember = groupMembers.find(m => {
+    const mEmail = (m.email || '').trim().toLowerCase();
+    const mName = (m.name || '').trim().toLowerCase();
+    return (userEmail && mEmail && mEmail === userEmail) || (userName && mName && mName === userName);
+  }) || groupMembers[0];
 
   let totalPaidByYou = 0;
   const userCatMap = {};
 
-  groupExpenses.forEach(exp => {
-    if (exp.paid_by_member_id === userMember.id) {
-      const amt = Number(exp.amount) || 0;
-      totalPaidByYou += amt;
-      const cat = exp.category || 'General';
-      userCatMap[cat] = (userCatMap[cat] || 0) + amt;
-    }
-  });
+  if (userMember) {
+    groupExpenses.forEach(exp => {
+      if (exp.paid_by_member_id === userMember.id) {
+        const amt = Number(exp.amount) || 0;
+        totalPaidByYou += amt;
+        const cat = exp.category || 'General';
+        userCatMap[cat] = (userCatMap[cat] || 0) + amt;
+      }
+    });
+  }
 
   header.innerHTML = `
-    <div style="font-size: 11px; text-transform: uppercase; color: var(--text2); font-weight: 700;">Total Paid by You</div>
+    <div style="font-size: 11px; text-transform: uppercase; color: var(--text2); font-weight: 700;">Total Paid by ${userMember ? escapeHtml(userMember.name) : 'You'}</div>
     <div style="font-size: 22px; font-weight: 800; color: var(--accent); margin-top: 2px;">${curr}${totalPaidByYou.toFixed(2)}</div>
   `;
 
@@ -728,9 +931,49 @@ function toggleSelectAllSplitMembers(target = 'add') {
   checkboxes.forEach(cb => cb.checked = anyUnchecked);
 }
 
+let customGroupCategories = new Set();
+
+function populateCategorySelect(selectEl, selectedCat = '') {
+  if (!selectEl || !activeGroup) return;
+
+  const tpl = TEMPLATES[activeGroup.template_type] || TEMPLATES.custom;
+  const categories = new Set(tpl.categories);
+
+  // Add custom categories from expenses & user additions
+  groupExpenses.forEach(exp => {
+    if (exp.category) categories.add(exp.category);
+  });
+  customGroupCategories.forEach(c => categories.add(c));
+
+  if (selectedCat) categories.add(selectedCat);
+
+  let html = Array.from(categories).map(c => `<option value="${c}" ${c === selectedCat ? 'selected' : ''}>${getCategoryIcon(c)} ${c}</option>`).join('');
+  html += `<option value="__ADD_NEW__">➕ Add Custom Category...</option>`;
+
+  selectEl.innerHTML = html;
+  if (selectedCat && categories.has(selectedCat)) {
+    selectEl.value = selectedCat;
+  }
+}
+
+function handleCategorySelectChange(selectEl) {
+  if (!selectEl) return;
+  if (selectEl.value === '__ADD_NEW__') {
+    const customName = prompt('Enter custom category name (e.g., Shopping, Gaming, Drinks):');
+    if (customName && customName.trim()) {
+      const cleanName = customName.trim();
+      customGroupCategories.add(cleanName);
+      populateCategorySelect(selectEl, cleanName);
+    } else {
+      selectEl.selectedIndex = 0;
+    }
+  }
+}
+
 function openAddExpenseModal() {
-  if (groupMembers.length === 0) {
-    alert('Please add members to the group first!');
+  const activeMembers = groupMembers.filter(m => !m.is_inactive);
+  if (activeMembers.length === 0) {
+    alert('Please add active members to the group first!');
     return;
   }
 
@@ -742,8 +985,7 @@ function openAddExpenseModal() {
   const customBox = document.getElementById('se-custom-split-box');
 
   if (categorySelect && activeGroup) {
-    const tpl = TEMPLATES[activeGroup.template_type] || TEMPLATES.custom;
-    categorySelect.innerHTML = tpl.categories.map(c => `<option value="${c}">${c}</option>`).join('');
+    populateCategorySelect(categorySelect);
   }
 
   if (payerSelect) {
@@ -851,8 +1093,7 @@ function openEditExpenseModal(expId) {
   if (amountInput) amountInput.value = exp.amount;
 
   if (categorySelect && activeGroup) {
-    const tpl = TEMPLATES[activeGroup.template_type] || TEMPLATES.custom;
-    categorySelect.innerHTML = tpl.categories.map(c => `<option value="${c}" ${c === exp.category ? 'selected' : ''}>${c}</option>`).join('');
+    populateCategorySelect(categorySelect, exp.category);
   }
 
   if (payerSelect) {

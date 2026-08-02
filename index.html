@@ -2381,9 +2381,11 @@ function renderTodo() {
       <div class="todo-check ${t.done?'done':''}" onclick="toggleTodo('${t.id}')"></div>
       <div style="flex:1">
         <div class="todo-text ${t.done?'done':''}">${t.text}</div>
+        ${t.note ? `<div class="todo-note" style="font-size:11px; color:var(--text2); margin-top:2px;">📝 ${t.note}</div>` : ''}
         ${showDate?`<div class="todo-meta">📅 ${formatDateShort(t.createdDate)}</div>`:''}
-        ${t.source==='journal'?'<span class="todo-source">🎙️ from journal</span>':t.source==='chat'?'<span class="todo-source">💬 from chat</span>':''}
+        ${t.source==='journal'?'<span class="todo-source">🎙️ from journal</span>':t.source==='chat'?'<span class="todo-source">💬 from chat</span>':t.source==='splitease'?'<span class="todo-source">🤝 from SplitEasy</span>':''}
       </div>
+      <span class="todo-note-btn" onclick="addTodoNote('${t.id}')" title="Add / Edit Note" style="cursor:pointer; font-size:12px; margin-right:6px;">📝</span>
       <span class="todo-del" onclick="deleteTodo('${t.id}')">✕</span>
     </div>`).join('') : `<div class="empty-state"><div class="e-icon">✅</div><div class="e-text">${todoTab==='pending'?'All tasks completed! Great job!':'No tasks yet. Add one above.'}</div></div>`;
 
@@ -2422,10 +2424,34 @@ function addTodo() {
 
 function toggleTodo(id) {
   const t = state.todos.find(t => t.id === id);
-  if (t) { t.done = !t.done; saveState(); updateTodoBadge(); updateAlertBar(); openPanel('todo'); }
+  if (t) {
+    t.done = !t.done;
+    if (id.startsWith('se-todo-') && typeof splitEasyDB !== 'undefined') {
+      const itemId = id.replace('se-todo-', '');
+      splitEasyDB.toggleChecklistItem(itemId, t.done);
+    }
+    saveState(); updateTodoBadge(); updateAlertBar(); openPanel('todo');
+  }
+}
+
+function addTodoNote(id) {
+  const t = state.todos.find(t => t.id === id);
+  if (!t) return;
+  const newNote = prompt('Enter or update note for this task:', t.note || '');
+  if (newNote === null) return;
+  t.note = newNote.trim();
+  if (id.startsWith('se-todo-') && typeof splitEasyDB !== 'undefined') {
+    const itemId = id.replace('se-todo-', '');
+    splitEasyDB.updateChecklistNote(itemId, t.note);
+  }
+  saveState(); updateTodoBadge(); updateAlertBar(); openPanel('todo');
 }
 
 function deleteTodo(id) {
+  if (id.startsWith('se-todo-') && typeof splitEasyDB !== 'undefined') {
+    const itemId = id.replace('se-todo-', '');
+    splitEasyDB.deleteChecklistItem(itemId);
+  }
   state.todos = state.todos.filter(t => t.id !== id);
   saveState(); updateTodoBadge(); updateAlertBar(); openPanel('todo');
 }
@@ -3428,6 +3454,7 @@ function closePublisherRequestModal() {
       <button class="se-tab-btn active" data-tab="expenses" onclick="switchSplitEasyTab('expenses')">Expenses</button>
       <button class="se-tab-btn" data-tab="debts" onclick="switchSplitEasyTab('debts')">Simplify Debts</button>
       <button class="se-tab-btn" data-tab="members" onclick="switchSplitEasyTab('members')">Members</button>
+      <button class="se-tab-btn" data-tab="checklist" onclick="switchSplitEasyTab('checklist')">CheckList ☑️</button>
     </div>
 
     <!-- Tab Content -->
@@ -3523,7 +3550,7 @@ function closePublisherRequestModal() {
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
           <div>
             <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Category</label>
-            <select id="se-expense-category" class="input" style="font-size: 12px; padding: 6px 10px;"></select>
+            <select id="se-expense-category" class="input" style="font-size: 12px; padding: 6px 10px;" onchange="handleCategorySelectChange(this)"></select>
           </div>
           <div>
             <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Split Between</label>
@@ -3590,7 +3617,7 @@ function closePublisherRequestModal() {
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
           <div>
             <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Category</label>
-            <select id="se-edit-exp-category" class="input" style="font-size: 12px; padding: 6px 10px;"></select>
+            <select id="se-edit-exp-category" class="input" style="font-size: 12px; padding: 6px 10px;" onchange="handleCategorySelectChange(this)"></select>
           </div>
           <div>
             <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Split Between</label>
@@ -3625,6 +3652,10 @@ function closePublisherRequestModal() {
           <button type="button" class="btn btn-secondary btn-sm" onclick="submitDeleteExpense()" style="color: var(--red); border-color: #FCA5A5;">🗑️ Delete</button>
           <button type="submit" class="btn btn-primary btn-full btn-sm">Update Expense</button>
         </div>
+      </form>
+    </div>
+  </div>
+
   <!-- TOTAL GROUP SPENDING STATS MODAL -->
   <div id="se-group-spending-modal" class="se-modal-overlay">
     <div class="se-modal" style="max-width: 440px; padding: 18px 20px;">
@@ -3674,8 +3705,8 @@ function closePublisherRequestModal() {
 <script src="thoughts/thoughts.js"></script>
 <script src="challenge/challenge_data.js"></script>
 <script src="challenge/challenge.js"></script>
-<script src="splitease/debtSolver.js?v=1.0.3"></script>
-<script src="splitease/dbAdapter.js?v=1.0.3"></script>
-<script src="splitease/splitease.js?v=1.0.3"></script>
+<script src="splitease/debtSolver.js?v=1.0.9"></script>
+<script src="splitease/dbAdapter.js?v=1.0.9"></script>
+<script src="splitease/splitease.js?v=1.0.9"></script>
 </body>
 </html>

@@ -36,10 +36,20 @@ BeCreator is a **Progressive Web App (PWA)** — a single HTML file you host for
 - **Pending tab** — All incomplete tasks across all days, so nothing ever gets lost
 - Tasks auto-added from journal entries when AI detects action items
 - Badge count visible on the homepage
-### 💸 Expense Tracker
-- Two-tap logging: amount + category
-- Categories: Food, Transport, Shopping, Health, Entertainment, Other
-- Today's total and this month's total always on the homepage
+### 💸 Expense Tracker & 🤝 SplitEasy
+- **Personal Expenses**: Two-tap logging (amount + category), with daily & monthly totals on homepage.
+- **SplitEasy (Group Expense & Debt Settlement Utility)**:
+  - **Custom Group Templates**: Quick setup for **🌴 Tour**, **🏠 Flat**, **🎉 Outing**, or **⚙️ Custom** groups.
+  - **Easy Joining via Share Code**: 1-tap join using a shareable 6-character code (e.g., `GOA202`) or invite by Email ID.
+  - **Parallel Minimal Add & Edit Expense**: Compact 2-column forms with Category, Amount, Paid By, and custom member selection.
+  - **🏷️ Custom Categories**: Add custom categories on the fly via **➕ Add Custom Category...** in the dropdown.
+  - **Flexible Member Splits**: Choose **👥 Everyone** or **🎯 Select Members...** with an **Include Payer** toggle.
+  - **Simplify Debts Solver**: Automatically minimizes transaction count to settle all group debts in fewer payments.
+  - **📊 Interactive Spending Analytics**: Tap *Total Group Spent* or *You Spent* cards for instant visual charts showing member contributions and category breakdowns.
+  - **☑️ Group CheckList**: Collaborative task checklist with member assignments (`👤 Assigned to: Rakshit` / `🌐 Unassigned`).
+  - **🔄 Automatic BeCreator To-Do Sync**: Tasks assigned to you automatically sync into BeCreator's main To-Do list as `[SplitEasy: Group Name] Task Title`!
+  - **☁️ Supabase Real-Time Cloud Sync**: Seamless real-time sync across devices with glowing status indicator (🟢 Synced / 🔴 Local Mode).
+  - **🛡️ Inactive Member Security**: Strikethrough display for removed members; inactive users are blocked from re-joining via code unless added back by an admin.
 ### ⏱️ Focus Timer
 - **Stopwatch** — Track how long you work
 - **Countdown Timer** — Set any duration
@@ -158,7 +168,7 @@ This means you can:
 **Throughout the day:**
 - Log meals as you eat with a photo
 - Check off habits in **Habits**
-- Add expenses with 2 taps in **Expenses**
+- Add personal expenses or log shared group bills in **SplitEasy 🤝** (Tour 🌴, Flat 🏠, Outing 🎉)
 - Use **Focus** timer for work sessions
 - Voice journal quick thoughts anytime
 **Evening:**

@@ -11,6 +11,7 @@ const STORAGE_KEYS = {
   MEMBERS: 'dayflow_splitease_members',
   EXPENSES: 'dayflow_splitease_expenses',
   SETTLEMENTS: 'dayflow_splitease_settlements',
+  CHECKLISTS: 'dayflow_splitease_checklists',
   SUPABASE_CONFIG: 'dayflow_splitease_supabase_config'
 };
 
@@ -591,6 +592,104 @@ class SplitEasyDBAdapter {
     }
 
     return newSettlement;
+  }
+
+  // --- CHECKLIST OPERATIONS ---
+
+  async getChecklists(groupId) {
+    if (this.supabaseClient) {
+      try {
+        const { data, error } = await this.supabaseClient
+          .from('splitease_checklists')
+          .select('*')
+          .eq('group_id', groupId)
+          .order('created_at', { ascending: true });
+        if (!error && data) {
+          const allChecklists = this._get(STORAGE_KEYS.CHECKLISTS).filter(c => c.group_id !== groupId);
+          this._set(STORAGE_KEYS.CHECKLISTS, [...allChecklists, ...data]);
+          return data;
+        }
+      } catch (err) {
+        console.warn('Supabase fetch checklists failed:', err);
+      }
+    }
+
+    const allChecklists = this._get(STORAGE_KEYS.CHECKLISTS);
+    return allChecklists.filter(c => c.group_id === groupId);
+  }
+
+  async addChecklistItem(itemData) {
+    const newItem = {
+      id: this._generateId(),
+      group_id: itemData.group_id,
+      title: itemData.title,
+      note: itemData.note || '',
+      assigned_to_member_id: itemData.assigned_to_member_id || null,
+      is_completed: Boolean(itemData.is_completed),
+      created_at: new Date().toISOString()
+    };
+
+    const allChecklists = this._get(STORAGE_KEYS.CHECKLISTS);
+    allChecklists.push(newItem);
+    this._set(STORAGE_KEYS.CHECKLISTS, allChecklists);
+
+    if (this.supabaseClient) {
+      try {
+        await this.supabaseClient.from('splitease_checklists').insert([newItem]);
+      } catch (err) {
+        console.warn('Failed to insert checklist item into Supabase:', err);
+      }
+    }
+
+    return newItem;
+  }
+
+  async updateChecklistNote(itemId, note) {
+    let allChecklists = this._get(STORAGE_KEYS.CHECKLISTS);
+    const idx = allChecklists.findIndex(c => c.id === itemId);
+    if (idx !== -1) {
+      allChecklists[idx].note = note;
+      this._set(STORAGE_KEYS.CHECKLISTS, allChecklists);
+    }
+
+    if (this.supabaseClient) {
+      try {
+        await this.supabaseClient.from('splitease_checklists').update({ note }).eq('id', itemId);
+      } catch (err) {
+        console.warn('Failed to update checklist note in Supabase:', err);
+      }
+    }
+  }
+
+  async toggleChecklistItem(itemId, isCompleted) {
+    let allChecklists = this._get(STORAGE_KEYS.CHECKLISTS);
+    const idx = allChecklists.findIndex(c => c.id === itemId);
+    if (idx !== -1) {
+      allChecklists[idx].is_completed = Boolean(isCompleted);
+      this._set(STORAGE_KEYS.CHECKLISTS, allChecklists);
+    }
+
+    if (this.supabaseClient) {
+      try {
+        await this.supabaseClient.from('splitease_checklists').update({ is_completed: Boolean(isCompleted) }).eq('id', itemId);
+      } catch (err) {
+        console.warn('Failed to toggle checklist item in Supabase:', err);
+      }
+    }
+  }
+
+  async deleteChecklistItem(itemId) {
+    let allChecklists = this._get(STORAGE_KEYS.CHECKLISTS);
+    allChecklists = allChecklists.filter(c => c.id !== itemId);
+    this._set(STORAGE_KEYS.CHECKLISTS, allChecklists);
+
+    if (this.supabaseClient) {
+      try {
+        await this.supabaseClient.from('splitease_checklists').delete().eq('id', itemId);
+      } catch (err) {
+        console.warn('Failed to delete checklist item from Supabase:', err);
+      }
+    }
   }
 }
 

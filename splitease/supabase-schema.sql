@@ -66,11 +66,25 @@ CREATE TABLE IF NOT EXISTS splitease_settlements (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 6. CHECKLISTS TABLE
+CREATE TABLE IF NOT EXISTS splitease_checklists (
+    id VARCHAR(100) PRIMARY KEY,
+    group_id VARCHAR(100) REFERENCES splitease_groups(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    note TEXT DEFAULT '',
+    assigned_to_member_id VARCHAR(100) REFERENCES splitease_members(id) ON DELETE SET NULL,
+    is_completed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE splitease_checklists ADD COLUMN IF NOT EXISTS note TEXT DEFAULT '';
+
 -- INDEXES FOR FAST QUERYING
 CREATE INDEX IF NOT EXISTS idx_members_group ON splitease_members(group_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_group ON splitease_expenses(group_id);
 CREATE INDEX IF NOT EXISTS idx_splits_expense ON splitease_expense_splits(expense_id);
 CREATE INDEX IF NOT EXISTS idx_settlements_group ON splitease_settlements(group_id);
+CREATE INDEX IF NOT EXISTS idx_checklists_group ON splitease_checklists(group_id);
 CREATE INDEX IF NOT EXISTS idx_groups_code ON splitease_groups(share_code);
 
 -- ROW LEVEL SECURITY (RLS) POLICIES
@@ -79,6 +93,7 @@ ALTER TABLE splitease_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE splitease_expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE splitease_expense_splits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE splitease_settlements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE splitease_checklists ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Public Read Access Groups" ON splitease_groups;
 DROP POLICY IF EXISTS "Public Insert Access Groups" ON splitease_groups;
@@ -87,6 +102,7 @@ DROP POLICY IF EXISTS "Public Access Members" ON splitease_members;
 DROP POLICY IF EXISTS "Public Access Expenses" ON splitease_expenses;
 DROP POLICY IF EXISTS "Public Access Splits" ON splitease_expense_splits;
 DROP POLICY IF EXISTS "Public Access Settlements" ON splitease_settlements;
+DROP POLICY IF EXISTS "Public Access Checklists" ON splitease_checklists;
 
 CREATE POLICY "Public Read Access Groups" ON splitease_groups FOR SELECT USING (true);
 CREATE POLICY "Public Insert Access Groups" ON splitease_groups FOR INSERT WITH CHECK (true);
@@ -95,3 +111,4 @@ CREATE POLICY "Public Access Members" ON splitease_members FOR ALL USING (true);
 CREATE POLICY "Public Access Expenses" ON splitease_expenses FOR ALL USING (true);
 CREATE POLICY "Public Access Splits" ON splitease_expense_splits FOR ALL USING (true);
 CREATE POLICY "Public Access Settlements" ON splitease_settlements FOR ALL USING (true);
+CREATE POLICY "Public Access Checklists" ON splitease_checklists FOR ALL USING (true);
