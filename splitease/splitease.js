@@ -558,6 +558,20 @@ async function submitCreateGroup(e) {
 /**
  * Opens Add Expense Modal.
  */
+function handleSplitModeChange(mode) {
+  const box = document.getElementById('se-custom-split-box');
+  if (box) {
+    box.style.display = mode === 'custom' ? 'block' : 'none';
+  }
+}
+
+function toggleSelectAllSplitMembers() {
+  const checkboxes = document.querySelectorAll('.se-split-member-cb');
+  if (checkboxes.length === 0) return;
+  const anyUnchecked = Array.from(checkboxes).some(cb => !cb.checked);
+  checkboxes.forEach(cb => cb.checked = anyUnchecked);
+}
+
 function openAddExpenseModal() {
   if (groupMembers.length === 0) {
     alert('Please add members to the group first!');
@@ -567,6 +581,9 @@ function openAddExpenseModal() {
   const modal = document.getElementById('se-add-expense-modal');
   const categorySelect = document.getElementById('se-expense-category');
   const payerSelect = document.getElementById('se-expense-payer');
+  const splitModeSelect = document.getElementById('se-expense-split-mode');
+  const customCbWrap = document.getElementById('se-custom-split-checkboxes');
+  const customBox = document.getElementById('se-custom-split-box');
 
   if (categorySelect && activeGroup) {
     const tpl = TEMPLATES[activeGroup.template_type] || TEMPLATES.custom;
@@ -575,6 +592,22 @@ function openAddExpenseModal() {
 
   if (payerSelect) {
     payerSelect.innerHTML = groupMembers.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+  }
+
+  if (splitModeSelect) {
+    splitModeSelect.value = 'all';
+  }
+  if (customBox) {
+    customBox.style.display = 'none';
+  }
+
+  if (customCbWrap) {
+    customCbWrap.innerHTML = groupMembers.map(m => `
+      <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+        <input type="checkbox" class="se-split-member-cb" value="${m.id}" checked>
+        <span>${escapeHtml(m.name)}</span>
+      </label>
+    `).join('');
   }
 
   if (modal) modal.style.display = 'flex';
@@ -586,7 +619,7 @@ function closeAddExpenseModal() {
 }
 
 /**
- * Submit New Expense with "Include Me" toggle handling.
+ * Submit New Expense with Custom Member Selection & "Include Me" toggle handling.
  */
 async function submitAddExpense(e) {
   e.preventDefault();
@@ -595,11 +628,23 @@ async function submitAddExpense(e) {
   const payerId = document.getElementById('se-expense-payer').value;
   const category = document.getElementById('se-expense-category').value;
   const includePayer = document.getElementById('se-include-payer-toggle').checked;
+  const splitMode = document.getElementById('se-expense-split-mode').value;
 
   if (!title || !amount || amount <= 0) return;
 
-  const memberIds = groupMembers.map(m => m.id);
-  const splits = calculateSplitAmounts(amount, memberIds, payerId, includePayer, 'equal');
+  let selectedMemberIds = [];
+  if (splitMode === 'custom') {
+    const checkedCbs = document.querySelectorAll('.se-split-member-cb:checked');
+    selectedMemberIds = Array.from(checkedCbs).map(cb => cb.value);
+    if (selectedMemberIds.length === 0) {
+      alert('Please select at least one member to include in the split!');
+      return;
+    }
+  } else {
+    selectedMemberIds = groupMembers.map(m => m.id);
+  }
+
+  const splits = calculateSplitAmounts(amount, selectedMemberIds, payerId, includePayer, 'equal');
 
   const newExp = await splitEasyDB.addExpense({
     group_id: currentGroupId,
@@ -608,7 +653,7 @@ async function submitAddExpense(e) {
     paid_by_member_id: payerId,
     include_payer: includePayer,
     category,
-    split_type: 'equal'
+    split_type: splitMode === 'custom' ? 'custom' : 'equal'
   }, splits);
 
   // --- DAYFLOW MAIN EXPENSE TRACKER INTEGRATION ---
