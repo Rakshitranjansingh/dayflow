@@ -154,6 +154,53 @@ class SplitEasyDBAdapter {
     return newGroup;
   }
 
+  async joinGroupByShareCode(shareCode, userEmail = '', userName = '') {
+    const cleanCode = (shareCode || '').trim().toUpperCase();
+    if (!cleanCode) return null;
+
+    let targetGroup = null;
+
+    if (this.supabaseClient) {
+      try {
+        const { data, error } = await this.supabaseClient
+          .from('splitease_groups')
+          .select('*')
+          .eq('share_code', cleanCode)
+          .single();
+        if (!error && data) {
+          targetGroup = data;
+        }
+      } catch (e) {
+        console.warn('Supabase share code search failed:', e);
+      }
+    }
+
+    if (!targetGroup) {
+      const allGroups = this._get(STORAGE_KEYS.GROUPS);
+      targetGroup = allGroups.find(g => g.share_code === cleanCode);
+    }
+
+    if (!targetGroup) return null;
+
+    const localGroups = this._get(STORAGE_KEYS.GROUPS);
+    if (!localGroups.find(g => g.id === targetGroup.id)) {
+      localGroups.unshift(targetGroup);
+      this._set(STORAGE_KEYS.GROUPS, localGroups);
+    }
+
+    const members = await this.getMembers(targetGroup.id);
+    const displayName = userName || (userEmail ? userEmail.split('@')[0] : 'Member');
+    const existing = members.find(m => (userEmail && m.email === userEmail) || m.name === displayName);
+
+    if (!existing) {
+      const colors = ['#2D6BE4', '#22C55E', '#8B5CF6', '#F97316', '#EF4444'];
+      const avatarColor = colors[Math.floor(Math.random() * colors.length)];
+      await this.addMember(targetGroup.id, userEmail, displayName, avatarColor);
+    }
+
+    return targetGroup;
+  }
+
   // --- MEMBER OPERATIONS ---
 
   async getMembers(groupId) {

@@ -81,6 +81,7 @@ async function initSplitEasyData() {
     groupMembers = [];
     groupExpenses = [];
     groupSettlements = [];
+    updateUIElementsVisibility();
     renderGroupHeader();
     renderGroupStats();
     renderTabContent();
@@ -195,10 +196,25 @@ function switchSplitEasyTab(tabName) {
   renderTabContent();
 }
 
+function updateUIElementsVisibility() {
+  const grpHeader = document.querySelector('.se-group-header');
+  const statsGrid = document.querySelector('.se-stats-grid');
+  const tabs = document.querySelector('.se-tabs');
+  const fab = document.querySelector('.se-fab');
+
+  const hasGroup = !!activeGroup;
+
+  if (grpHeader) grpHeader.style.display = hasGroup ? 'flex' : 'none';
+  if (statsGrid) statsGrid.style.display = hasGroup ? 'grid' : 'none';
+  if (tabs) tabs.style.display = hasGroup ? 'flex' : 'none';
+  if (fab) fab.style.display = hasGroup ? 'flex' : 'none';
+}
+
 /**
- * Renders tab content body.
+ * Renders tab content body or 2-option Landing Screen if no groups exist.
  */
 function renderTabContent() {
+  updateUIElementsVisibility();
   const container = document.getElementById('se-tab-container');
   if (!container) return;
 
@@ -206,11 +222,29 @@ function renderTabContent() {
 
   if (!activeGroup) {
     container.innerHTML = `
-      <div style="text-align: center; padding: 40px 20px; color: var(--text2);">
-        <div style="font-size: 36px; margin-bottom: 8px;">🤝</div>
-        <div style="font-size: 15px; font-weight: 700;">No groups created yet</div>
-        <div style="font-size: 12px; margin-bottom: 16px;">Tap "+ New Group" above to start splitting expenses with friends.</div>
-        <button class="btn btn-primary btn-sm" onclick="openCreateGroupModal()">➕ Create New Group</button>
+      <div style="max-width: 440px; margin: 20px auto; text-align: center; background: var(--surface); padding: 24px 20px; border-radius: var(--radius-sm); border: 1px solid var(--border); box-shadow: var(--shadow);">
+        <div style="font-size: 38px; margin-bottom: 8px;">🤝</div>
+        <div style="font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 4px;">Welcome to SplitEasy</div>
+        <div style="font-size: 12px; color: var(--text2); margin-bottom: 20px; line-height: 1.4;">Split bills, track group expenses, and calculate simplified settlements easily.</div>
+
+        <!-- OPTION 1: JOIN GROUP -->
+        <div style="background: var(--surface2); padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); margin-bottom: 12px; text-align: left;">
+          <div style="font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 2px;">1. Join an Existing Group</div>
+          <div style="font-size: 11px; color: var(--text2); margin-bottom: 8px;">Enter the Group Code provided by your friend:</div>
+          <form onsubmit="submitJoinGroupForm(event)" style="display: flex; gap: 6px;">
+            <input type="text" id="se-join-code-input" class="input" placeholder="e.g. GOA202" style="text-transform: uppercase; font-weight: 700; letter-spacing: 1px; font-size: 12px;" required>
+            <button type="submit" class="btn btn-secondary btn-sm" style="white-space: nowrap; font-size: 12px;">Join Group ➔</button>
+          </form>
+        </div>
+
+        <div style="font-size: 11px; color: var(--text3); margin: 8px 0; font-weight: 700;">OR</div>
+
+        <!-- OPTION 2: CREATE GROUP -->
+        <div style="background: var(--surface2); padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); text-align: left;">
+          <div style="font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 2px;">2. Create a New Group</div>
+          <div style="font-size: 11px; color: var(--text2); margin-bottom: 10px;">Start a fresh trip, flat, or outing tab:</div>
+          <button class="btn btn-primary btn-full btn-sm" onclick="openCreateGroupModal()">➕ Create New Group</button>
+        </div>
       </div>
     `;
     return;
@@ -222,6 +256,51 @@ function renderTabContent() {
     renderSimplifiedDebts(container);
   } else if (currentTab === 'members') {
     renderMembersList(container);
+  }
+}
+
+/**
+ * Join group by share code form handler (Landing View).
+ */
+async function submitJoinGroupForm(e) {
+  e.preventDefault();
+  const input = document.getElementById('se-join-code-input');
+  if (!input || !input.value.trim()) return;
+
+  const code = input.value.trim();
+  const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail : '';
+  const userName = (typeof getUserIdentityName === 'function') ? getUserIdentityName() : 'You';
+
+  const joinedGrp = await splitEasyDB.joinGroupByShareCode(code, userEmail, userName);
+  if (joinedGrp) {
+    currentGroupId = joinedGrp.id;
+    await initSplitEasyData();
+  } else {
+    alert(`Group code "${code.toUpperCase()}" not found. Please verify the code with your friend.`);
+  }
+}
+
+/**
+ * Join group by share code (Top Navbar Modal Handler).
+ */
+async function submitModalJoinGroup() {
+  const input = document.getElementById('se-modal-join-code');
+  if (!input || !input.value.trim()) {
+    alert('Please enter a valid group code');
+    return;
+  }
+
+  const code = input.value.trim();
+  const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail : '';
+  const userName = (typeof getUserIdentityName === 'function') ? getUserIdentityName() : 'You';
+
+  const joinedGrp = await splitEasyDB.joinGroupByShareCode(code, userEmail, userName);
+  if (joinedGrp) {
+    closeCreateGroupModal();
+    currentGroupId = joinedGrp.id;
+    await initSplitEasyData();
+  } else {
+    alert(`Group code "${code.toUpperCase()}" not found. Please verify the code with your friend.`);
   }
 }
 
