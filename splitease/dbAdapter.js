@@ -108,12 +108,13 @@ class SplitEasyDBAdapter {
 
   // --- GROUP OPERATIONS ---
 
-  async getGroups(userEmail = '') {
+  async getGroups(userEmail = '', userName = '') {
     this.purgeLegacySampleData();
     let allGroups = [];
     let allMembers = [];
 
     const cleanEmail = (userEmail || '').trim().toLowerCase();
+    const cleanName = (userName || '').trim().toLowerCase();
 
     if (this.supabaseClient) {
       try {
@@ -139,19 +140,34 @@ class SplitEasyDBAdapter {
       allMembers = this._get(STORAGE_KEYS.MEMBERS);
     }
 
-    // Strict membership check: ONLY include groups where userEmail is an explicit member
-    if (!cleanEmail) {
-      const localGroupIds = new Set(allMembers.map(m => m.group_id));
-      return allGroups.filter(g => localGroupIds.has(g.id));
-    }
-
     const userGroupIds = new Set();
+
     allMembers.forEach(m => {
       if (m.is_inactive) return; // Inactive / removed members lose access!
+
       const mEmail = (m.email || '').trim().toLowerCase();
-      if (mEmail && mEmail === cleanEmail) {
+      const mName = (m.name || '').trim().toLowerCase();
+
+      const isEmailMatch = Boolean(cleanEmail && mEmail && mEmail === cleanEmail);
+      const isNameMatch = Boolean(cleanName && mName && (mName === cleanName || mName.startsWith(cleanName)));
+
+      // Auto-backfill email for legacy member rows if missing
+      if (!mEmail && cleanEmail && isNameMatch) {
+        m.email = cleanEmail;
+        if (this.supabaseClient) {
+          this.supabaseClient.from('splitease_members').update({ email: cleanEmail }).eq('id', m.id).then(() => {});
+        }
+      }
+
+      if (isEmailMatch || isNameMatch || (!cleanEmail && !cleanName)) {
         userGroupIds.add(m.group_id);
       }
+    });
+
+    // Fallback for local cache groups created on this device
+    const localGroups = this._get(STORAGE_KEYS.GROUPS);
+    localGroups.forEach(g => {
+      userGroupIds.add(g.id);
     });
 
     return allGroups.filter(g => userGroupIds.has(g.id));
