@@ -370,40 +370,78 @@ function renderSimplifiedDebts(container) {
   const balances = calculateNetBalances(groupMembers, groupExpenses, groupSettlements);
   const transactions = simplifyDebts(balances, groupMembers);
 
-  if (transactions.length === 0) {
-    container.innerHTML = `
-      <div style="text-align: center; padding: 40px 20px; color: var(--green);">
-        <div style="font-size: 40px; margin-bottom: 8px;">🎉</div>
-        <div style="font-size: 18px; font-weight: 800;">Everyone is settled up!</div>
-        <div style="font-size: 13px; color: var(--text2);">No outstanding payments required.</div>
-      </div>
-    `;
-    return;
-  }
-
   const wrap = document.createElement('div');
   wrap.style.display = 'flex';
   wrap.style.flexDirection = 'column';
   wrap.style.gap = '12px';
 
-  transactions.forEach(t => {
-    const card = document.createElement('div');
-    card.className = 'se-debt-card';
-    card.innerHTML = `
-      <div class="se-debt-flow">
-        <div class="se-avatar" style="background: var(--red);">${t.fromName.charAt(0)}</div>
-        <span>${escapeHtml(t.fromName)}</span>
-        <span class="se-arrow">➔</span>
-        <div class="se-avatar" style="background: var(--green);">${t.toName.charAt(0)}</div>
-        <span>${escapeHtml(t.toName)}</span>
+  if (transactions.length === 0) {
+    const emptyBox = document.createElement('div');
+    emptyBox.style.textAlign = 'center';
+    emptyBox.style.padding = '30px 20px';
+    emptyBox.style.color = 'var(--green)';
+    emptyBox.innerHTML = `
+      <div style="font-size: 40px; margin-bottom: 8px;">🎉</div>
+      <div style="font-size: 18px; font-weight: 800;">Everyone is settled up!</div>
+      <div style="font-size: 13px; color: var(--text2);">No outstanding payments required.</div>
+    `;
+    wrap.appendChild(emptyBox);
+  } else {
+    transactions.forEach(t => {
+      const card = document.createElement('div');
+      card.className = 'se-debt-card';
+      card.innerHTML = `
+        <div class="se-debt-flow">
+          <div class="se-avatar" style="background: var(--red);">${t.fromName.charAt(0)}</div>
+          <span>${escapeHtml(t.fromName)}</span>
+          <span class="se-arrow">➔</span>
+          <div class="se-avatar" style="background: var(--green);">${t.toName.charAt(0)}</div>
+          <span>${escapeHtml(t.toName)}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 18px; font-weight: 800; color: var(--text);">${activeGroup.currency}${t.amount.toFixed(2)}</span>
+          <button class="btn btn-sm btn-success" onclick="openSettleUpModal('${t.fromId}', '${t.toId}', ${t.amount})">Settle</button>
+        </div>
+      `;
+      wrap.appendChild(card);
+    });
+  }
+
+  // SETTLEMENT HISTORY LOG SECTION
+  if (groupSettlements.length > 0) {
+    const historyBox = document.createElement('div');
+    historyBox.style.marginTop = '16px';
+    historyBox.style.borderTop = '1px dashed var(--border)';
+    historyBox.style.paddingTop = '14px';
+
+    historyBox.innerHTML = `
+      <div style="font-size: 12px; font-weight: 800; color: var(--text); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+        <span>🤝 Settlement History Log</span>
+        <span style="font-size: 11px; color: var(--text2); font-weight: 600;">${groupSettlements.length} Recorded</span>
       </div>
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="font-size: 18px; font-weight: 800; color: var(--text);">${activeGroup.currency}${t.amount.toFixed(2)}</span>
-        <button class="btn btn-sm btn-success" onclick="openSettleUpModal('${t.fromId}', '${t.toId}', ${t.amount})">Settle</button>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        ${groupSettlements.map(s => {
+          const fromMem = groupMembers.find(m => m.id === s.from_member_id);
+          const toMem = groupMembers.find(m => m.id === s.to_member_id);
+          return `
+            <div class="se-expense-item" style="padding: 10px 12px; background: var(--surface2);">
+              <div class="se-exp-left">
+                <div class="se-avatar" style="background: var(--green); font-size: 12px; width: 32px; height: 32px;">🤝</div>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <div style="font-size: 12px; font-weight: 700; color: var(--text);">
+                    ${escapeHtml(fromMem ? fromMem.name : 'Member')} paid ${activeGroup.currency}${Number(s.amount).toFixed(2)} to ${escapeHtml(toMem ? toMem.name : 'Member')}
+                  </div>
+                  <div style="font-size: 10px; color: var(--text2);">Settled on ${s.date || 'Recent'}</div>
+                </div>
+              </div>
+              <div class="se-exp-badge" style="background: #22C55E20; color: #22C55E; font-weight: 700; font-size: 10px;">✅ Settled</div>
+            </div>
+          `;
+        }).join('')}
       </div>
     `;
-    wrap.appendChild(card);
-  });
+    wrap.appendChild(historyBox);
+  }
 
   container.appendChild(wrap);
 }
@@ -1309,8 +1347,15 @@ function initPullToRefresh() {
   const THRESHOLD = 60;
 
   body.addEventListener('touchstart', (e) => {
+    // Ignore touchstart on buttons, inputs, selects, cards, modals and tabs
+    if (e.target.closest('button, input, select, textarea, label, .btn, .se-icon-btn, .se-tab-btn, .se-modal, .se-expense-item, .se-stat-card, .se-debt-card')) {
+      isPulling = false;
+      return;
+    }
+
     if (body.scrollTop <= 2 && !isRefreshing) {
       startY = e.touches[0].clientY;
+      currentY = startY;
       isPulling = true;
     }
   }, { passive: true });

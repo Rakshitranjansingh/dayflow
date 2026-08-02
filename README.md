@@ -45,6 +45,7 @@ BeCreator is a **Progressive Web App (PWA)** — a single HTML file you host for
   - **🏷️ Custom Categories**: Add custom categories on the fly via **➕ Add Custom Category...** in the dropdown.
   - **Flexible Member Splits**: Choose **👥 Everyone** or **🎯 Select Members...** with an **Include Payer** toggle.
   - **Simplify Debts Solver**: Automatically minimizes transaction count to settle all group debts in fewer payments.
+  - **🤝 Settlement History Log**: Complete audit trail under *Simplify Debts* recording who paid whom, settled amount, and date with `✅ Settled` badges.
   - **📊 Interactive Spending Analytics**: Tap *Total Group Spent* or *You Spent* cards for instant visual charts showing member contributions and category breakdowns.
   - **☑️ Group CheckList**: Collaborative task checklist with member assignments (`👤 Assigned to: Rakshit` / `🌐 Unassigned`).
   - **🔄 Automatic BeCreator To-Do Sync**: Tasks assigned to you automatically sync into BeCreator's main To-Do list as `[SplitEasy: Group Name] Task Title`!
