@@ -3,8 +3,8 @@
 // ============================================================
 
 // Default Supabase Cloud DB credentials for Option A (Pre-filled out-of-the-box access)
-const DEFAULT_SUPABASE_URL = ""; // e.g. "https://your-project.supabase.co"
-const DEFAULT_SUPABASE_ANON_KEY = ""; // e.g. "eyJhY..."
+const DEFAULT_SUPABASE_URL = "https://bfrmezyvfyzetzxdepdk.supabase.co";
+const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_68W9NaVNNUrM4U5Hwl9owQ_6PGlChG6";
 
 const STORAGE_KEYS = {
   GROUPS: 'dayflow_splitease_groups',
@@ -67,6 +67,10 @@ class SplitEasyDBAdapter {
     } catch (e) {
       return null;
     }
+  }
+
+  isSupabaseConnected() {
+    return !!this.supabaseClient;
   }
 
   // --- LOCAL STORAGE HELPERS ---
@@ -172,11 +176,13 @@ class SplitEasyDBAdapter {
     return allMembers.filter(m => m.group_id === groupId);
   }
 
-  async addMember(groupId, name, avatarColor = '#2D6BE4') {
+  async addMember(groupId, email = '', name = '', avatarColor = '#2D6BE4') {
+    const displayName = name || (email ? email.split('@')[0] : 'Member');
     const newMember = {
       id: this._generateId(),
       group_id: groupId,
-      name,
+      email: email || '',
+      name: displayName,
       avatar_color: avatarColor,
       created_at: new Date().toISOString()
     };
@@ -194,6 +200,20 @@ class SplitEasyDBAdapter {
     }
 
     return newMember;
+  }
+
+  async deleteMember(memberId) {
+    let allMembers = this._get(STORAGE_KEYS.MEMBERS);
+    allMembers = allMembers.filter(m => m.id !== memberId);
+    this._set(STORAGE_KEYS.MEMBERS, allMembers);
+
+    if (this.supabaseClient) {
+      try {
+        await this.supabaseClient.from('splitease_members').delete().eq('id', memberId);
+      } catch (err) {
+        console.warn('Failed to delete member from Supabase:', err);
+      }
+    }
   }
 
   async getRecentFriends() {

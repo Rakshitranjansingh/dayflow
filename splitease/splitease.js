@@ -47,9 +47,27 @@ function closeSplitEasyApp() {
 }
 
 /**
+ * Updates navbar sync status dot (Green = Supabase Cloud Synced, Red = Local Storage Only).
+ */
+function updateSyncIndicator() {
+  const dot = document.getElementById('se-sync-dot');
+  if (!dot) return;
+
+  const isCloudSynced = (typeof splitEasyDB !== 'undefined' && splitEasyDB.isSupabaseConnected && splitEasyDB.isSupabaseConnected());
+  if (isCloudSynced) {
+    dot.className = 'se-sync-dot synced';
+    dot.title = '🟢 Synced with Supabase Cloud Database';
+  } else {
+    dot.className = 'se-sync-dot local';
+    dot.title = '🔴 Operating in Local Mode (Local Storage only)';
+  }
+}
+
+/**
  * Initializes SplitEasy group list, loads active group data or creates default group.
  */
 async function initSplitEasyData() {
+  updateSyncIndicator();
   const groups = await splitEasyDB.getGroups();
   const selectEl = document.getElementById('se-group-select');
 
@@ -58,13 +76,15 @@ async function initSplitEasyData() {
   selectEl.innerHTML = '';
   
   if (groups.length === 0) {
-    // Create default sample group for first-time user
-    const userName = (typeof getUserIdentityName === 'function') ? getUserIdentityName() : 'You';
-    const defaultGrp = await splitEasyDB.createGroup('Goa Trip 🌴', 'tour', '₹');
-    await splitEasyDB.addMember(defaultGrp.id, `${userName} (Payer)`, '#2D6BE4');
-    await splitEasyDB.addMember(defaultGrp.id, 'Rahul', '#22C55E');
-    await splitEasyDB.addMember(defaultGrp.id, 'Priya', '#8B5CF6');
-    groups.push(defaultGrp);
+    currentGroupId = null;
+    activeGroup = null;
+    groupMembers = [];
+    groupExpenses = [];
+    groupSettlements = [];
+    renderGroupHeader();
+    renderGroupStats();
+    renderTabContent();
+    return;
   }
 
   groups.forEach(g => {
@@ -86,15 +106,21 @@ async function initSplitEasyData() {
  * Loads group members, expenses, settlements and renders view.
  */
 async function loadActiveGroupData(groupId) {
+  updateSyncIndicator();
   currentGroupId = groupId;
   const groups = await splitEasyDB.getGroups();
   activeGroup = groups.find(g => g.id === groupId);
 
-  if (!activeGroup) return;
-
-  groupMembers = await splitEasyDB.getMembers(groupId);
-  groupExpenses = await splitEasyDB.getExpenses(groupId);
-  groupSettlements = await splitEasyDB.getSettlements(groupId);
+  if (!activeGroup) {
+    currentGroupId = null;
+    groupMembers = [];
+    groupExpenses = [];
+    groupSettlements = [];
+  } else {
+    groupMembers = await splitEasyDB.getMembers(groupId);
+    groupExpenses = await splitEasyDB.getExpenses(groupId);
+    groupSettlements = await splitEasyDB.getSettlements(groupId);
+  }
 
   renderGroupHeader();
   renderGroupStats();
@@ -106,45 +132,54 @@ async function loadActiveGroupData(groupId) {
  */
 function renderGroupHeader() {
   const tplBadge = document.getElementById('se-template-badge');
-  if (tplBadge && activeGroup) {
-    const tpl = TEMPLATES[activeGroup.template_type] || TEMPLATES.custom;
-    tplBadge.className = `se-template-badge ${tpl.colorClass}`;
-    tplBadge.innerHTML = `${tpl.icon} ${tpl.name}`;
+  if (tplBadge) {
+    if (activeGroup) {
+      const tpl = TEMPLATES[activeGroup.template_type] || TEMPLATES.custom;
+      tplBadge.style.display = 'inline-flex';
+      tplBadge.className = `se-template-badge ${tpl.colorClass}`;
+      tplBadge.innerHTML = `${tpl.icon} ${tpl.name}`;
+    } else {
+      tplBadge.style.display = 'none';
+    }
   }
 
   const shareCodeEl = document.getElementById('se-share-code');
-  if (shareCodeEl && activeGroup) {
-    shareCodeEl.textContent = `Code: ${activeGroup.share_code}`;
+  if (shareCodeEl) {
+    shareCodeEl.textContent = activeGroup ? `Code: ${activeGroup.share_code}` : '';
   }
 }
 
 /**
- * Renders balance cards and net summary.
+ * Renders 3 parallel balance cards (Total Group Spent, You Spent, Your Balance).
  */
 function renderGroupStats() {
+  const curr = activeGroup ? activeGroup.currency : '₹';
   const balances = calculateNetBalances(groupMembers, groupExpenses, groupSettlements);
   
-  // Calculate total expense amount
+  // 1. Total Group Spent
   const totalExp = groupExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-
   const totalExpEl = document.getElementById('se-stat-total-exp');
-  if (totalExpEl) totalExpEl.textContent = `${activeGroup.currency}${totalExp.toFixed(2)}`;
+  if (totalExpEl) totalExpEl.textContent = `${curr}${totalExp.toFixed(2)}`;
 
-  // Find user's balance (first member or member named 'You')
+  // 2. You Spent (Amount paid by current user)
   const userMember = groupMembers[0];
-  const userNet = userMember ? (balances[userMember.id] || 0) : 0;
+  const userPaid = userMember ? groupExpenses.filter(e => e.paid_by_member_id === userMember.id).reduce((sum, e) => sum + (Number(e.amount) || 0), 0) : 0;
+  const youSpentEl = document.getElementById('se-stat-you-spent');
+  if (youSpentEl) youSpentEl.textContent = `${curr}${userPaid.toFixed(2)}`;
 
+  // 3. Your Balance
+  const userNet = userMember ? (balances[userMember.id] || 0) : 0;
   const myBalEl = document.getElementById('se-stat-my-balance');
   if (myBalEl) {
     if (userNet > 0) {
       myBalEl.className = 'se-stat-value se-val-green';
-      myBalEl.textContent = `+${activeGroup.currency}${userNet.toFixed(2)} (Owed to you)`;
+      myBalEl.textContent = `+${curr}${userNet.toFixed(2)}`;
     } else if (userNet < 0) {
       myBalEl.className = 'se-stat-value se-val-red';
-      myBalEl.textContent = `-${activeGroup.currency}${Math.abs(userNet).toFixed(2)} (You owe)`;
+      myBalEl.textContent = `-${curr}${Math.abs(userNet).toFixed(2)}`;
     } else {
       myBalEl.className = 'se-stat-value se-val-neutral';
-      myBalEl.textContent = `${activeGroup.currency}0.00 (Settled)`;
+      myBalEl.textContent = `${curr}0.00`;
     }
   }
 }
@@ -168,6 +203,18 @@ function renderTabContent() {
   if (!container) return;
 
   container.innerHTML = '';
+
+  if (!activeGroup) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 40px 20px; color: var(--text2);">
+        <div style="font-size: 36px; margin-bottom: 8px;">🤝</div>
+        <div style="font-size: 15px; font-weight: 700;">No groups created yet</div>
+        <div style="font-size: 12px; margin-bottom: 16px;">Tap "+ New Group" above to start splitting expenses with friends.</div>
+        <button class="btn btn-primary btn-sm" onclick="openCreateGroupModal()">➕ Create New Group</button>
+      </div>
+    `;
+    return;
+  }
 
   if (currentTab === 'expenses') {
     renderExpensesList(container);
@@ -273,14 +320,19 @@ function renderMembersList(container) {
   list.style.flexDirection = 'column';
   list.style.gap = '10px';
 
-  groupMembers.forEach(m => {
+  groupMembers.forEach((m, idx) => {
     const item = document.createElement('div');
     item.className = 'se-expense-item';
+    const canDelete = idx > 0; // Admin (first member) cannot delete themselves
     item.innerHTML = `
       <div class="se-exp-left">
-        <div class="se-avatar" style="background: ${m.avatar_color || '#2D6BE4'};">${m.name.charAt(0)}</div>
-        <div class="se-exp-title">${escapeHtml(m.name)}</div>
+        <div class="se-avatar" style="background: ${m.avatar_color || '#2D6BE4'};">${m.name.charAt(0).toUpperCase()}</div>
+        <div style="display:flex; flex-direction:column;">
+          <div class="se-exp-title">${escapeHtml(m.name)} ${idx === 0 ? '<span style="font-size:11px; opacity:0.7;">(Admin)</span>' : ''}</div>
+          <div class="se-exp-sub" style="font-size:11px; opacity:0.7;">${escapeHtml(m.email || 'No email attached')}</div>
+        </div>
       </div>
+      ${canDelete ? `<button class="se-icon-btn" style="width:32px; height:32px; font-size:13px; color:var(--red);" onclick="removeMember('${m.id}', '${escapeHtml(m.name)}')">🗑️</button>` : ''}
     `;
     list.appendChild(item);
   });
@@ -288,7 +340,7 @@ function renderMembersList(container) {
   const addBtn = document.createElement('button');
   addBtn.className = 'btn btn-secondary btn-full';
   addBtn.style.marginTop = '12px';
-  addBtn.innerHTML = '👤 Add New Member';
+  addBtn.innerHTML = '👤 Add Member by Email ID';
   addBtn.onclick = promptAddMember;
   list.appendChild(addBtn);
 
@@ -296,14 +348,34 @@ function renderMembersList(container) {
 }
 
 /**
- * Prompt to create new member.
+ * Prompt to create new member by Email ID.
  */
 async function promptAddMember() {
-  const name = prompt('Enter member name:');
-  if (name && name.trim()) {
-    const colors = ['#2D6BE4', '#22C55E', '#8B5CF6', '#F97316', '#EF4444'];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
-    await splitEasyDB.addMember(currentGroupId, name.trim(), randomColor);
+  if (!currentGroupId) {
+    alert('Please select or create a group first!');
+    return;
+  }
+
+  const emailInput = prompt('Enter Member Email ID (e.g. friend@gmail.com):');
+  if (!emailInput || !emailInput.trim()) return;
+
+  const email = emailInput.trim();
+  let name = email.split('@')[0];
+  const customName = prompt(`Display name for ${email}:`, name);
+  if (customName && customName.trim()) name = customName.trim();
+
+  const colors = ['#2D6BE4', '#22C55E', '#8B5CF6', '#F97316', '#EF4444', '#EAB308'];
+  const randomColor = colors[Math.floor(Math.random() * colors.length)];
+  await splitEasyDB.addMember(currentGroupId, email, name, randomColor);
+  await loadActiveGroupData(currentGroupId);
+}
+
+/**
+ * Remove member from group.
+ */
+async function removeMember(memberId, memberName) {
+  if (confirm(`Are you sure you want to remove ${memberName} from this group?`)) {
+    await splitEasyDB.deleteMember(memberId);
     await loadActiveGroupData(currentGroupId);
   }
 }
