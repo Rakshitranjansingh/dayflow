@@ -108,8 +108,10 @@ class SplitEasyDBAdapter {
 
   // --- GROUP OPERATIONS ---
 
-  async getGroups() {
+  async getGroups(userEmail = '', userName = '') {
     this.purgeLegacySampleData();
+    let allGroups = [];
+
     if (this.supabaseClient) {
       try {
         const { data, error } = await this.supabaseClient
@@ -117,14 +119,36 @@ class SplitEasyDBAdapter {
           .select('*')
           .order('created_at', { ascending: false });
         if (!error && data) {
-          this._set(STORAGE_KEYS.GROUPS, data); // Keep local cache updated
-          return data;
+          allGroups = data;
+          this._set(STORAGE_KEYS.GROUPS, data);
         }
       } catch (err) {
         console.warn('Supabase fetch groups failed, using local cache:', err);
+        allGroups = this._get(STORAGE_KEYS.GROUPS);
       }
+    } else {
+      allGroups = this._get(STORAGE_KEYS.GROUPS);
     }
-    return this._get(STORAGE_KEYS.GROUPS);
+
+    // Filter groups so users ONLY see groups where they are explicitly a member
+    const allMembers = this._get(STORAGE_KEYS.MEMBERS);
+    const userGroupIds = new Set();
+
+    const cleanEmail = (userEmail || '').trim().toLowerCase();
+    const cleanName = (userName || '').trim().toLowerCase();
+
+    allMembers.forEach(m => {
+      const mEmail = (m.email || '').trim().toLowerCase();
+      const mName = (m.name || '').trim().toLowerCase();
+
+      if ((cleanEmail && mEmail === cleanEmail) ||
+          (cleanName && (mName === cleanName || mName === `${cleanName} (payer)`)) ||
+          (mName.includes('(payer)'))) {
+        userGroupIds.add(m.group_id);
+      }
+    });
+
+    return allGroups.filter(g => userGroupIds.has(g.id));
   }
 
   async createGroup(name, templateType = 'custom', currency = '₹') {

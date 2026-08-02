@@ -68,7 +68,9 @@ function updateSyncIndicator() {
  */
 async function initSplitEasyData() {
   updateSyncIndicator();
-  const groups = await splitEasyDB.getGroups();
+  const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail : '';
+  const userName = (typeof getUserIdentityName === 'function') ? getUserIdentityName() : '';
+  const groups = await splitEasyDB.getGroups(userEmail, userName);
   const selectEl = document.getElementById('se-group-select');
 
   if (!selectEl) return;
@@ -109,7 +111,9 @@ async function initSplitEasyData() {
 async function loadActiveGroupData(groupId) {
   updateSyncIndicator();
   currentGroupId = groupId;
-  const groups = await splitEasyDB.getGroups();
+  const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail : '';
+  const userName = (typeof getUserIdentityName === 'function') ? getUserIdentityName() : '';
+  const groups = await splitEasyDB.getGroups(userEmail, userName);
   activeGroup = groups.find(g => g.id === groupId);
 
   if (!activeGroup) {
