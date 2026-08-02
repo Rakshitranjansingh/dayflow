@@ -540,8 +540,9 @@ async function submitCreateGroup(e) {
   if (!nameInput || !nameInput.value.trim()) return;
 
   const userName = getUserIdentityName();
+  const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail : '';
   const newGrp = await splitEasyDB.createGroup(nameInput.value.trim(), tplSelect.value, currSelect.value);
-  await splitEasyDB.addMember(newGrp.id, `${userName} (Payer)`, '#2D6BE4');
+  await splitEasyDB.addMember(newGrp.id, userEmail, `${userName} (Payer)`, '#2D6BE4');
 
   // Add all selected friend suggestions
   const colors = ['#22C55E', '#8B5CF6', '#F97316', '#EF4444', '#EAB308'];

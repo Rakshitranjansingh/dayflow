@@ -111,39 +111,46 @@ class SplitEasyDBAdapter {
   async getGroups(userEmail = '', userName = '') {
     this.purgeLegacySampleData();
     let allGroups = [];
+    let allMembers = [];
+
+    const cleanEmail = (userEmail || '').trim().toLowerCase();
+    const cleanName = (userName || '').trim().toLowerCase();
 
     if (this.supabaseClient) {
       try {
-        const { data, error } = await this.supabaseClient
-          .from('splitease_groups')
-          .select('*')
-          .order('created_at', { ascending: false });
-        if (!error && data) {
-          allGroups = data;
-          this._set(STORAGE_KEYS.GROUPS, data);
+        const [grpRes, memRes] = await Promise.all([
+          this.supabaseClient.from('splitease_groups').select('*').order('created_at', { ascending: false }),
+          this.supabaseClient.from('splitease_members').select('*')
+        ]);
+        if (!grpRes.error && grpRes.data) {
+          allGroups = grpRes.data;
+          this._set(STORAGE_KEYS.GROUPS, grpRes.data);
+        }
+        if (!memRes.error && memRes.data) {
+          allMembers = memRes.data;
+          this._set(STORAGE_KEYS.MEMBERS, memRes.data);
         }
       } catch (err) {
         console.warn('Supabase fetch groups failed, using local cache:', err);
         allGroups = this._get(STORAGE_KEYS.GROUPS);
+        allMembers = this._get(STORAGE_KEYS.MEMBERS);
       }
     } else {
       allGroups = this._get(STORAGE_KEYS.GROUPS);
+      allMembers = this._get(STORAGE_KEYS.MEMBERS);
     }
 
-    // Filter groups so users ONLY see groups where they are explicitly a member
-    const allMembers = this._get(STORAGE_KEYS.MEMBERS);
+    // Strict membership check: Only include groups where userEmail or userName is an explicit member
     const userGroupIds = new Set();
-
-    const cleanEmail = (userEmail || '').trim().toLowerCase();
-    const cleanName = (userName || '').trim().toLowerCase();
 
     allMembers.forEach(m => {
       const mEmail = (m.email || '').trim().toLowerCase();
       const mName = (m.name || '').trim().toLowerCase();
 
-      if ((cleanEmail && mEmail === cleanEmail) ||
-          (cleanName && (mName === cleanName || mName === `${cleanName} (payer)`)) ||
-          (mName.includes('(payer)'))) {
+      const isEmailMatch = Boolean(cleanEmail && mEmail && mEmail === cleanEmail);
+      const isNameMatch = Boolean(cleanName && mName && (mName === cleanName || mName === `${cleanName} (payer)`));
+
+      if (isEmailMatch || isNameMatch) {
         userGroupIds.add(m.group_id);
       }
     });
