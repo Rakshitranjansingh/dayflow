@@ -70,70 +70,120 @@ function updateSyncIndicator() {
  */
 async function initSplitEasyData() {
   updateSyncIndicator();
-  const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail : '';
-  const userName = (typeof getUserIdentityName === 'function') ? getUserIdentityName() : '';
-  const groups = await splitEasyDB.getGroups(userEmail, userName);
   const selectEl = document.getElementById('se-group-select');
-
   if (!selectEl) return;
 
-  selectEl.innerHTML = '';
-  
-  if (groups.length === 0) {
-    currentGroupId = null;
-    activeGroup = null;
-    groupMembers = [];
-    groupExpenses = [];
-    groupSettlements = [];
+  // FAST PATH 1: Instant render from Local Cache (0ms latency!)
+  const localGroups = splitEasyDB.getGroupsLocal();
+  populateGroupDropdown(localGroups);
+
+  if (localGroups.length > 0) {
+    if (!currentGroupId || !localGroups.find(g => g.id === currentGroupId)) {
+      currentGroupId = localGroups[0].id;
+    }
+    selectEl.value = currentGroupId;
+    await loadActiveGroupData(currentGroupId);
+  } else {
     updateUIElementsVisibility();
     renderGroupHeader();
     renderGroupStats();
     renderTabContent();
-    return;
   }
 
+  // BACKGROUND PATH 2: Sync with Cloud asynchronously
+  if (splitEasyDB.supabaseClient) {
+    try {
+      const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail : '';
+      const userName = (typeof getUserIdentityName === 'function') ? getUserIdentityName() : '';
+      const cloudGroups = await splitEasyDB.getGroups(userEmail, userName);
+      
+      populateGroupDropdown(cloudGroups);
+      if (cloudGroups.length > 0) {
+        if (!currentGroupId || !cloudGroups.find(g => g.id === currentGroupId)) {
+          currentGroupId = cloudGroups[0].id;
+        }
+        selectEl.value = currentGroupId;
+        await loadActiveGroupData(currentGroupId);
+      }
+    } catch (e) {
+      console.warn('Background group sync error:', e);
+    }
+  }
+}
+
+function populateGroupDropdown(groups = []) {
+  const selectEl = document.getElementById('se-group-select');
+  if (!selectEl) return;
+  selectEl.innerHTML = '';
   groups.forEach(g => {
     const opt = document.createElement('option');
     opt.value = g.id;
     opt.textContent = `${TEMPLATES[g.template_type]?.icon || '🤝'} ${g.name}`;
     selectEl.appendChild(opt);
   });
-
-  if (!currentGroupId || !groups.find(g => g.id === currentGroupId)) {
-    currentGroupId = groups[0].id;
-  }
-
-  selectEl.value = currentGroupId;
-  await loadActiveGroupData(currentGroupId);
 }
 
 /**
  * Loads group members, expenses, settlements and renders view.
+ * Uses Instant Local Cache Load + Parallel Background Supabase Fetch.
  */
 async function loadActiveGroupData(groupId) {
   updateSyncIndicator();
   currentGroupId = groupId;
-  const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail : '';
-  const userName = (typeof getUserIdentityName === 'function') ? getUserIdentityName() : '';
-  const groups = await splitEasyDB.getGroups(userEmail, userName);
-  activeGroup = groups.find(g => g.id === groupId);
 
-  if (!activeGroup) {
-    currentGroupId = null;
+  // FAST PATH 1: Instant Local Cache Read (0ms UI latency!)
+  const localGroups = splitEasyDB.getGroupsLocal();
+  activeGroup = localGroups.find(g => g.id === groupId) || activeGroup;
+
+  if (activeGroup) {
+    groupMembers = splitEasyDB.getMembersLocal(groupId);
+    groupExpenses = splitEasyDB.getExpensesLocal(groupId);
+    groupSettlements = splitEasyDB.getSettlementsLocal(groupId);
+    groupPools = splitEasyDB.getPoolsLocal(groupId);
+  } else {
     groupMembers = [];
     groupExpenses = [];
     groupSettlements = [];
     groupPools = [];
-  } else {
-    groupMembers = await splitEasyDB.getMembers(groupId);
-    groupExpenses = await splitEasyDB.getExpenses(groupId);
-    groupSettlements = await splitEasyDB.getSettlements(groupId);
-    groupPools = await splitEasyDB.getPools(groupId);
   }
 
+  // Render UI IMMEDIATELY with local cache (Zero lag!)
+  updateUIElementsVisibility();
   renderGroupHeader();
   renderGroupStats();
   renderTabContent();
+
+  // BACKGROUND PATH 2: Fetch from Supabase concurrently in background
+  if (splitEasyDB.supabaseClient && groupId) {
+    try {
+      const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail : '';
+      const userName = (typeof getUserIdentityName === 'function') ? getUserIdentityName() : '';
+
+      const [cloudGroups, mems, exps, setts, pools] = await Promise.all([
+        splitEasyDB.getGroups(userEmail, userName),
+        splitEasyDB.getMembers(groupId),
+        splitEasyDB.getExpenses(groupId),
+        splitEasyDB.getSettlements(groupId),
+        splitEasyDB.getPools(groupId)
+      ]);
+
+      if (currentGroupId === groupId) {
+        activeGroup = cloudGroups.find(g => g.id === groupId) || activeGroup;
+        groupMembers = mems;
+        groupExpenses = exps;
+        groupSettlements = setts;
+        groupPools = pools;
+
+        // Re-render updated cloud data smoothly
+        updateUIElementsVisibility();
+        renderGroupHeader();
+        renderGroupStats();
+        renderTabContent();
+      }
+    } catch (err) {
+      console.warn('Background cloud fetch warning:', err);
+    }
+  }
 }
 
 /**
@@ -161,8 +211,8 @@ function renderGroupHeader() {
       }
       code = activeGroup.share_code || '';
     }
-    shareCodeEl.textContent = code ? `🔑 Code: ${code}` : '';
-    shareCodeEl.style.display = code ? 'inline-block' : 'none';
+    shareCodeEl.innerHTML = code ? `🔑 ${code} <span style="opacity: 0.7; font-size: 10px;">📋</span>` : '';
+    shareCodeEl.style.display = code ? 'inline-flex' : 'none';
   }
 }
 

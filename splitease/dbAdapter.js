@@ -74,6 +74,32 @@ class SplitEasyDBAdapter {
     return !!this.supabaseClient;
   }
 
+  // --- INSTANT LOCAL CACHE GETTERS (0ms UI Latency) ---
+
+  getGroupsLocal() {
+    return this._get(STORAGE_KEYS.GROUPS);
+  }
+
+  getMembersLocal(groupId) {
+    const all = this._get(STORAGE_KEYS.MEMBERS);
+    return all.filter(m => m.group_id === groupId);
+  }
+
+  getExpensesLocal(groupId) {
+    const all = this._get(STORAGE_KEYS.EXPENSES);
+    return all.filter(e => e.group_id === groupId);
+  }
+
+  getSettlementsLocal(groupId) {
+    const all = this._get(STORAGE_KEYS.SETTLEMENTS);
+    return all.filter(s => s.group_id === groupId);
+  }
+
+  getPoolsLocal(groupId) {
+    const all = this._get(STORAGE_KEYS.POOLS);
+    return all.filter(p => p.group_id === groupId);
+  }
+
   // --- LOCAL STORAGE HELPERS ---
 
   _get(key, defaultValue = []) {
