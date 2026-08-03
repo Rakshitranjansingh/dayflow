@@ -193,26 +193,7 @@ function renderLearnContent() {
         </div>
       </div>
 
-      <!-- Java -->
-      <div class="learn-course-card" id="learn-card-java">
-        <div class="learn-course-banner">☕</div>
-        <div class="learn-course-body">
-          <div class="learn-course-header">
-            <div class="learn-course-title" style="color: var(--orange);">Java Development</div>
-            ${javaBadgeHtml}
-          </div>
-          <div class="learn-course-desc">Master Java from basics to advanced. Variables, OOP, Collections, and more.</div>
-          <div class="learn-course-meta">
-            <span>📚 12 lessons</span>
-            <span>📝 3 quizzes</span>
-            <span>⏱️ ~4 hrs</span>
-          </div>
-          ${javaProgressHtml}
-          <div class="learn-course-footer">
-            ${javaProgressTextHtml}
-            ${javaBtnHtml}
-          </div>
-        </div>
+      <!-- Java (Disabled for now) -->
       </div>
     </div>
   `;
