@@ -485,7 +485,7 @@ class SplitEasyDBAdapter {
 
     if (this.supabaseClient) {
       try {
-        const dbPaidById = (newExpense.paid_by_member_id === '__POOL__') ? newExpense.group_id : newExpense.paid_by_member_id;
+        const dbPaidById = (newExpense.paid_by_member_id === '__POOL__' || newExpense.paid_by_member_id === newExpense.group_id) ? null : newExpense.paid_by_member_id;
         // Insert main expense
         await this.supabaseClient.from('splitease_expenses').insert([{
           id: newExpense.id,
@@ -538,7 +538,7 @@ class SplitEasyDBAdapter {
 
     if (this.supabaseClient) {
       try {
-        const dbPaidById = (updatedExpense.paid_by_member_id === '__POOL__') ? updatedExpense.group_id : updatedExpense.paid_by_member_id;
+        const dbPaidById = (updatedExpense.paid_by_member_id === '__POOL__' || updatedExpense.paid_by_member_id === updatedExpense.group_id) ? null : updatedExpense.paid_by_member_id;
         await this.supabaseClient.from('splitease_expenses').update({
           title: updatedExpense.title,
           amount: updatedExpense.amount,
