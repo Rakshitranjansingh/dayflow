@@ -154,7 +154,15 @@ function renderGroupHeader() {
 
   const shareCodeEl = document.getElementById('se-share-code');
   if (shareCodeEl) {
-    shareCodeEl.textContent = activeGroup ? `Code: ${activeGroup.share_code}` : '';
+    let code = '';
+    if (activeGroup) {
+      if (!activeGroup.share_code && activeGroup.id) {
+        activeGroup.share_code = activeGroup.id.substring(0, 6).toUpperCase();
+      }
+      code = activeGroup.share_code || '';
+    }
+    shareCodeEl.textContent = code ? `🔑 Code: ${code}` : '';
+    shareCodeEl.style.display = code ? 'inline-block' : 'none';
   }
 }
 
@@ -794,12 +802,18 @@ function openPoolBreakdownModal() {
     historyList.innerHTML = html;
   }
 
-  if (modal) modal.classList.add('show');
+  if (modal) {
+    modal.classList.add('show');
+    modal.style.display = 'flex';
+  }
 }
 
 function closePoolBreakdownModal() {
   const modal = document.getElementById('se-pool-breakdown-modal');
-  if (modal) modal.classList.remove('show');
+  if (modal) {
+    modal.classList.remove('show');
+    modal.style.display = 'none';
+  }
 }
 
 /**
@@ -962,12 +976,18 @@ function openBalanceLogsModal() {
     }
   }
 
-  if (modal) modal.classList.add('show');
+  if (modal) {
+    modal.classList.add('show');
+    modal.style.display = 'flex';
+  }
 }
 
 function closeBalanceLogsModal() {
   const modal = document.getElementById('se-balance-logs-modal');
-  if (modal) modal.classList.remove('show');
+  if (modal) {
+    modal.classList.remove('show');
+    modal.style.display = 'none';
+  }
 }
 
 function openAddPoolModal() {
@@ -981,12 +1001,18 @@ function openAddPoolModal() {
   if (typeSelect) typeSelect.value = 'lumpsum';
   updatePoolCalculationDisplay();
 
-  if (modal) modal.classList.add('show');
+  if (modal) {
+    modal.classList.add('show');
+    modal.style.display = 'flex';
+  }
 }
 
 function closeAddPoolModal() {
   const modal = document.getElementById('se-add-pool-modal');
-  if (modal) modal.classList.remove('show');
+  if (modal) {
+    modal.classList.remove('show');
+    modal.style.display = 'none';
+  }
 }
 
 function updatePoolCalculationDisplay() {
