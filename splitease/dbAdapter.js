@@ -12,6 +12,7 @@ const STORAGE_KEYS = {
   EXPENSES: 'dayflow_splitease_expenses',
   SETTLEMENTS: 'dayflow_splitease_settlements',
   CHECKLISTS: 'dayflow_splitease_checklists',
+  POOLS: 'dayflow_splitease_pools',
   SUPABASE_CONFIG: 'dayflow_splitease_supabase_config'
 };
 
@@ -716,6 +717,59 @@ class SplitEasyDBAdapter {
         console.warn('Failed to delete checklist item from Supabase:', err);
       }
     }
+  }
+
+  // --- GROUP POOL FUND OPERATIONS ---
+
+  async getPools(groupId) {
+    if (!groupId) return [];
+
+    if (this.supabaseClient) {
+      try {
+        const { data, error } = await this.supabaseClient
+          .from('splitease_pools')
+          .select('*')
+          .eq('group_id', groupId)
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          const allPools = this._get(STORAGE_KEYS.POOLS).filter(p => p.group_id !== groupId);
+          this._set(STORAGE_KEYS.POOLS, [...allPools, ...data]);
+          return data;
+        }
+      } catch (err) {
+        console.warn('Supabase fetch pools failed:', err);
+      }
+    }
+
+    const allPools = this._get(STORAGE_KEYS.POOLS);
+    return allPools.filter(p => p.group_id === groupId);
+  }
+
+  async addPoolContribution(poolData) {
+    const newPool = {
+      id: this._generateId(),
+      group_id: poolData.group_id,
+      title: poolData.title || 'Pool Fund',
+      contribution_type: poolData.contribution_type || 'lumpsum',
+      amount_per_unit: Number(poolData.amount_per_unit) || 0,
+      total_collected: Number(poolData.total_collected) || 0,
+      created_at: new Date().toISOString()
+    };
+
+    const allPools = this._get(STORAGE_KEYS.POOLS);
+    allPools.unshift(newPool);
+    this._set(STORAGE_KEYS.POOLS, allPools);
+
+    if (this.supabaseClient) {
+      try {
+        await this.supabaseClient.from('splitease_pools').insert([newPool]);
+      } catch (err) {
+        console.warn('Failed to insert pool contribution into Supabase:', err);
+      }
+    }
+
+    return newPool;
   }
 }
 
