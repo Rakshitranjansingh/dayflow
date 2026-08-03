@@ -9,12 +9,19 @@
 <meta name="apple-mobile-web-app-title" content="BeCreator">
 <title>BeCreator</title>
 <link rel="icon" href="favicon.png" type="image/x-icon">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Inter:wght@300;400;500;700;900&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="learn/learn.css">
 <link rel="stylesheet" href="learn/addCourse.css">
 <link rel="stylesheet" href="camera/camera.css">
 <link rel="stylesheet" href="hunt/hunt.css">
 <link rel="stylesheet" href="content/content.css">
-<!-- Google Identity Services client script for Drive syncing -->
+<link rel="stylesheet" href="thoughts/thoughts.css">
+<link rel="stylesheet" href="challenge/challenge.css">
+<link rel="stylesheet" href="splitease/splitease.css">
+<!-- Supabase JS Client & Google Identity Services -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <style>
@@ -308,8 +315,75 @@
   .month-nav-btn { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text2); padding: 4px 8px; }
   .month-nav-label { font-size: 14px; font-weight: 600; }
 
+  /* Homepage Tabs navigation */
+  .homepage-tabs {
+    display: flex;
+    gap: 16px;
+    margin: 16px 20px 8px;
+    border-bottom: 1.5px solid var(--border);
+    padding-bottom: 6px;
+  }
+  .home-tab {
+    background: none;
+    border: none;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text3);
+    cursor: pointer;
+    padding: 4px 0;
+    position: relative;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: color 0.2s;
+  }
+  .home-tab:hover {
+    color: var(--text2);
+  }
+  .home-tab.active {
+    color: var(--text);
+  }
+  .home-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--text);
+    border-radius: 2px;
+  }
+
   /* MISC */
   .section-label { font-size: 12px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 20px 8px; }
+
+  /* Daily Challenge Card (Homepage) */
+  .home-challenge-card {
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 16px 20px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+    text-align: center;
+    transition: transform 0.15s;
+  }
+  .home-challenge-card:active {
+    transform: scale(0.98);
+  }
+  .home-challenge-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .home-challenge-text {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--text);
+    font-weight: 500;
+  }
 </style>
 </head>
 <body>
@@ -327,7 +401,7 @@
   <div class="ob-step active" id="ob-step-1">
     <div class="ob-logo">🌊</div>
     <div class="ob-title">Welcome to BeCreator</div>
-    <div class="ob-sub">Your intelligent daily companion. Track habits, journal your day, and grow — all in one place.</div>
+    <div class="ob-sub">Your intelligent daily companion. Track habits, journal your day, and grow — all in one place. Add this page to your homepage for quick access and better access.</div>
     <button class="ob-btn" onclick="obNext(2)">Get Started →</button>
   </div>
 
@@ -423,17 +497,30 @@
     <iframe id="quotes-frame" src="quotes.html" scrolling="no" frameborder="0" style="width:100%;border:none;border-radius:14px;height:85px"></iframe>
   </div>
 
+  <!-- Daily Challenge Card (Homepage) -->
+  <div style="margin: 0 20px 16px">
+    <div class="home-challenge-card" onclick="openPanel('challenge')">
+      <div class="home-challenge-badge" id="home-challenge-badge">Day 000 · Phase</div>
+      <div class="home-challenge-text" id="home-challenge-text">Loading daily challenge...</div>
+    </div>
+  </div>
+
   <!-- Alert Bar -->
   <div class="alert-bar" id="alert-bar" onclick="openPanel('todo')">
     ⚠️ <span id="alert-text"></span>
   </div>
 
-  <!-- Tool Grid -->
-  <div class="section-label">Tools</div>
-  <div class="tool-grid">
+  <!-- Homepage Section Switcher (Tools vs Grow vs Utils) -->
+  <div class="homepage-tabs">
+    <button class="home-tab active" id="tab-btn-tools" onclick="switchHomeTab('tools')">Tools</button>
+    <button class="home-tab" id="tab-btn-grow" onclick="switchHomeTab('grow')">Grow</button>
+    <button class="home-tab" id="tab-btn-utils" onclick="switchHomeTab('utils')">Utils</button>
+  </div>
+
+  <!-- Tools Grid -->
+  <div class="tool-grid" id="home-grid-tools">
     <div class="tool-btn" onclick="openPanel('chat')"><div class="tool-icon">💬</div><div class="tool-name">Chat</div></div>
     <div class="tool-btn" onclick="openPanel('formatter')"><div class="tool-icon">📝</div><div class="tool-name">Text Format</div></div>
-    <div class="tool-btn" onclick="openPanel('habits')"><div class="tool-icon">📈</div><div class="tool-name">Habits</div></div>
     <div class="tool-btn" onclick="openPanel('journal')"><div class="tool-icon">🎙️</div><div class="tool-name">Journal</div></div>
     <div class="tool-btn" onclick="openPanel('todo')">
       <div class="tool-icon">✅</div><div class="tool-name">To-Do</div>
@@ -441,13 +528,12 @@
     </div>
     <div class="tool-btn" onclick="openPanel('log')"><div class="tool-icon">📖</div><div class="tool-name">Daily Log</div></div>
     <div class="tool-btn" onclick="openPanel('focus')"><div class="tool-icon">⏱️</div><div class="tool-name">Focus</div></div>
-    <div class="tool-btn" onclick="openCinematicCamera()"><div class="tool-icon">📸</div><div class="tool-name">Cinema Cam</div></div>
     <div class="tool-btn" onclick="openPanel('content')"><div class="tool-icon">🎬</div><div class="tool-name">Content</div></div>
+    <div class="tool-btn" onclick="openPanel('thoughts')"><div class="tool-icon">💭</div><div class="tool-name">Thoughts</div></div>
   </div>
 
-  <!-- Platforms Section -->
-  <!-- <div class="section-label">Platforms</div>
-  <div class="tool-grid" style="margin-bottom: 24px;">
+  <!-- Grow Grid -->
+  <div class="tool-grid" id="home-grid-grow" style="display: none; margin-bottom: 24px;">
     <div class="tool-btn" onclick="openLearnApp()">
       <div class="tool-icon">🎓</div>
       <div class="tool-name">Learn</div>
@@ -461,7 +547,16 @@
       <div class="tool-icon">🎓➕</div>
       <div class="tool-name">Add Course</div>
     </div>
-  </div> -->
+  </div>
+
+  <!-- Utils Grid -->
+  <div class="tool-grid" id="home-grid-utils" style="display: none; margin-bottom: 24px;">
+    <div class="tool-btn" onclick="openSplitEasyApp()">
+      <div class="tool-icon">₹</div>
+      <div class="tool-name">SplitEase</div>
+      <div class="tool-badge" id="splitease-badge" style="display:none; background: var(--green);"></div>
+    </div>
+  </div>
 
 </div>
 
@@ -544,6 +639,15 @@
       <button class="btn btn-primary" id="hunt-search-btn" onclick="searchJobsFromHunt()" style="margin-top:16px;width:100%;height:44px;font-size:14px;font-weight:600">
         🔍 Search Matching Openings
       </button>
+    </div>
+
+    <!-- Past Searches History -->
+    <div class="hunt-card" id="hunt-history-card" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+        <div class="hunt-card-title" style="margin-bottom:0">🕒 Past Searches</div>
+        <button onclick="clearHuntHistory()" style="font-size:11px; color:var(--text3); border:none; background:none; cursor:pointer; font-weight:600">Clear All</button>
+      </div>
+      <div id="hunt-history-list" style="display:flex; flex-direction:column; gap:8px; max-height:180px; overflow-y:auto; padding-right:4px"></div>
     </div>
 
     <!-- STATUS -->
@@ -809,16 +913,16 @@ let state = {
   habits: {       
     categories: [
       { id: 'skill', name: 'Skill', icon: '🧠', items: [
-        { id: 's1', name: 'Read / Learn', done: {} },
-        { id: 's2', name: 'Practice skill', done: {} }
+        { id: 's1', name: 'Read 10 pages a day', done: {} },
+        
       ]},
       { id: 'body', name: 'Body', icon: '💪', items: [
         { id: 'b1', name: 'Exercise', done: {} },
-        { id: 'b2', name: 'Drink water', done: {} }
+        { id: 'b2', name: 'Drink 12 glasses water', done: {} }
       ]},
       { id: 'money', name: 'Money', icon: '💰', items: [
         { id: 'm1', name: 'Track expenses', done: {} },
-        { id: 'm2', name: 'Save / Invest', done: {} }
+        { id: 'm2', name: 'Invest', done: {} }
       ]}
     ]
   },
@@ -860,11 +964,18 @@ function getModelList() {
     return ['gemini-2.5-flash']; // Use standard active generation endpoints
   }
   return [
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-3.1-flash-lite',
+    'gemini-3.0-flash',
+    'gemini-2.5-flash-tts',
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite',
-    'gemini-3.5-flash',
-    'gemini-3.1-flash-lite',
     'gemini-2.0-flash',
+    'gemma-4-26b',
+    'gemini-embedding-002',
+    'gemini-embedding-001',
     'gemini-1.5-flash',
     'gemini-1.5-pro'
   ];
@@ -898,6 +1009,26 @@ function loadState() {
       state.dailyLogs = state.dailyLogs || {};
       state.chatHistory = state.chatHistory || [];
       state.learning = state.learning || { enrollments: {} };
+
+      // Sync default habit names from source code declarations
+      const defaultHabitsMap = {
+        's1': 'Read 10 pages a day',
+        'b1': 'Exercise',
+        'b2': 'Drink 12 glasses water',
+        'm1': 'Track expenses',
+        'm2': 'Invest'
+      };
+      if (state.habits && state.habits.categories) {
+        state.habits.categories.forEach(cat => {
+          if (cat.items) {
+            cat.items.forEach(item => {
+              if (defaultHabitsMap[item.id] && item.name !== defaultHabitsMap[item.id]) {
+                item.name = defaultHabitsMap[item.id];
+              }
+            });
+          }
+        });
+      }
     }
   } catch(e) {}
 }
@@ -905,6 +1036,25 @@ function loadState() {
 function saveState() {
   try { localStorage.setItem(DB_KEY, JSON.stringify(state)); } catch(e) {}
 }
+
+window.logPersonalExpenseFromSplitEasy = function(title, amount, category) {
+  try {
+    const today = (typeof getTodayStr === 'function') ? getTodayStr() : new Date().toISOString().split('T')[0];
+    state.expenses = state.expenses || {};
+    if (!state.expenses[today]) state.expenses[today] = [];
+    state.expenses[today].push({
+      id: 'se_' + Date.now(),
+      amount: Number(amount),
+      category: category || 'Other',
+      note: '[SplitEase] ' + title,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+    saveState();
+    if (typeof renderStats === 'function') renderStats();
+  } catch (e) {
+    console.warn('Personal expense log error:', e);
+  }
+};
 
 // ============================================================
 // ONBOARDING
@@ -1175,6 +1325,9 @@ function initApp() {
   updateTodoBadge();
   if (typeof updateLearnBadge === 'function') updateLearnBadge();
   checkCreatorAccess();
+  if (typeof updateHomepageChallengeCard === 'function') {
+    updateHomepageChallengeCard();
+  }
 }
 
 function updateLearnCard() {
@@ -1307,7 +1460,8 @@ const panelTitles = {
   chat: '💬 Chat', formatter: '📝 Text Formatter', nutrition: '🍎 Nutrition',
   habits: '📈 Habits', journal: '🎙️ Journal', todo: '✅ To-Do',
   expenses: '💸 Expenses', log: '📖 Daily Log', sleep: '😴 Sleep',
-  focus: '⏱️ Focus', settings: '⚙️ Settings', content: '🎬 Content Script'
+  focus: '⏱️ Focus', settings: '⚙️ Settings', content: '🎬 Content Script',
+  thoughts: '💭 Thoughts', challenge: '🎯 Challenge'
 };
 
 function renderPanel(name) {
@@ -1324,8 +1478,27 @@ function renderPanel(name) {
     case 'focus': return renderFocus();
     case 'settings': return renderSettings();
     case 'content': return renderContentPanel();
+    case 'thoughts': return renderThoughtsPanelUI();
+    case 'challenge': return renderChallengePanelUI();
     default: return '<div class="empty-state">Panel content not found.</div>';
   }
+}
+
+function switchHomeTab(tab) {
+  const btnTools = document.getElementById('tab-btn-tools');
+  const btnGrow = document.getElementById('tab-btn-grow');
+  const btnUtils = document.getElementById('tab-btn-utils');
+  const gridTools = document.getElementById('home-grid-tools');
+  const gridGrow = document.getElementById('home-grid-grow');
+  const gridUtils = document.getElementById('home-grid-utils');
+  
+  if (btnTools) btnTools.classList.toggle('active', tab === 'tools');
+  if (btnGrow) btnGrow.classList.toggle('active', tab === 'grow');
+  if (btnUtils) btnUtils.classList.toggle('active', tab === 'utils');
+
+  if (gridTools) gridTools.style.display = (tab === 'tools') ? 'grid' : 'none';
+  if (gridGrow) gridGrow.style.display = (tab === 'grow') ? 'grid' : 'none';
+  if (gridUtils) gridUtils.style.display = (tab === 'utils') ? 'grid' : 'none';
 }
 
 function openPanel(name) {
@@ -2208,9 +2381,11 @@ function renderTodo() {
       <div class="todo-check ${t.done?'done':''}" onclick="toggleTodo('${t.id}')"></div>
       <div style="flex:1">
         <div class="todo-text ${t.done?'done':''}">${t.text}</div>
+        ${t.note ? `<div class="todo-note" style="font-size:11px; color:var(--text2); margin-top:2px; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; max-width:250px; cursor:pointer;" onclick="openTodoNoteModal('${t.id}', '${escapeHtml(t.text)}', '${escapeHtml(t.note)}')">📝 ${t.note}</div>` : ''}
         ${showDate?`<div class="todo-meta">📅 ${formatDateShort(t.createdDate)}</div>`:''}
-        ${t.source==='journal'?'<span class="todo-source">🎙️ from journal</span>':t.source==='chat'?'<span class="todo-source">💬 from chat</span>':''}
+        ${t.source==='journal'?'<span class="todo-source">🎙️ from journal</span>':t.source==='chat'?'<span class="todo-source">💬 from chat</span>':t.source==='splitease'?'<span class="todo-source">🤝 from SplitEase</span>':''}
       </div>
+      <span class="todo-note-btn" onclick="addTodoNote('${t.id}')" title="Add / View Full Note" style="cursor:pointer; font-size:12px; margin-right:6px;">📝</span>
       <span class="todo-del" onclick="deleteTodo('${t.id}')">✕</span>
     </div>`).join('') : `<div class="empty-state"><div class="e-icon">✅</div><div class="e-text">${todoTab==='pending'?'All tasks completed! Great job!':'No tasks yet. Add one above.'}</div></div>`;
 
@@ -2249,10 +2424,27 @@ function addTodo() {
 
 function toggleTodo(id) {
   const t = state.todos.find(t => t.id === id);
-  if (t) { t.done = !t.done; saveState(); updateTodoBadge(); updateAlertBar(); openPanel('todo'); }
+  if (t) {
+    t.done = !t.done;
+    if (id.startsWith('se-todo-') && typeof splitEasyDB !== 'undefined') {
+      const itemId = id.replace('se-todo-', '');
+      splitEasyDB.toggleChecklistItem(itemId, t.done);
+    }
+    saveState(); updateTodoBadge(); updateAlertBar(); openPanel('todo');
+  }
+}
+
+function addTodoNote(id) {
+  const t = state.todos.find(t => t.id === id);
+  if (!t) return;
+  openTodoNoteModal(t.id, t.text, t.note || '');
 }
 
 function deleteTodo(id) {
+  if (id.startsWith('se-todo-') && typeof splitEasyDB !== 'undefined') {
+    const itemId = id.replace('se-todo-', '');
+    splitEasyDB.deleteChecklistItem(itemId);
+  }
   state.todos = state.todos.filter(t => t.id !== id);
   saveState(); updateTodoBadge(); updateAlertBar(); openPanel('todo');
 }
@@ -2480,21 +2672,43 @@ async function generateDailyLog() {
   const todos = state.todos.filter(t => t.createdDate === d);
   const journals = state.journal[d] || [];
   const insights = (state.chatInsights || []).filter(i => i.date === d);
+  const thoughts = (state.thoughts || {})[d] || [];
+
+  let todayChallenge = null;
+  if (state.challenges && typeof CHALLENGE_ITEMS !== 'undefined') {
+    for (const day in state.challenges) {
+      const entry = state.challenges[day];
+      if (entry && entry.completed && entry.date === d) {
+        const item = CHALLENGE_ITEMS.find(i => i.day === parseInt(day));
+        if (item) {
+          todayChallenge = {
+            day: item.day,
+            phase: item.phaseName,
+            task: item.text,
+            notes: entry.note || ''
+          };
+        }
+        break;
+      }
+    }
+  }
 
   const data = {
     date: d, sleep: sl, meals, expenses: exps, todos,
-    journals: journals.map(j=>j.text), insights: insights.map(i=>i.text)
+    journals: journals.map(j=>j.text), insights: insights.map(i=>i.text),
+    thoughts: thoughts,
+    challenge: todayChallenge
   };
 
   const prompt = `You are generating a personal daily blog entry for a productivity app called BeCreator.
 Based on this data, write a warm, personal, first-person blog entry. Use the EXACT format below.
-Also return a day score out of 100 based on productivity, health, and habits.
+Also return a day score out of 100 based on productivity, health, habits, and self-improvement challenge progress.
 
 Data: ${JSON.stringify(data)}
 
 Return ONLY valid JSON (no markdown):
 {
-  "blog": "Full blog with these sections separated by newlines:\\n🌅 MORNING\\n[sleep/wake info]\\n\\n🧠 WHAT I LEARNED TODAY\\n[insights from chat/journal]\\n\\n✅ WHAT I DID\\n[todos, habits]\\n\\n🍎 HOW I FUELLED\\n[nutrition summary]\\n\\n💸 MONEY\\n[expenses]\\n\\n🌙 REFLECTION\\n[journal summary, mood]",
+  "blog": "Full blog with these sections separated by newlines:\\n🌅 MORNING\\n[sleep/wake info]\\n\\n🧠 WHAT I LEARNED TODAY\\n[insights from chat/journal/thoughts/daily challenges completed]\\n\\n✅ WHAT I DID\\n[todos, habits, daily self-improvement challenge completion details and logging notes]\\n\\n🍎 HOW I FUELLED\\n[nutrition summary]\\n\\n💸 MONEY\\n[expenses]\\n\\n🌙 REFLECTION\\n[journal/thought/challenge reflection summaries, mood]",
   "score": 75,
   "summary": "one line summary"
 }`;
@@ -2678,6 +2892,17 @@ function renderSettings() {
       </div>
     </div>
     <div class="settings-section">
+      <h3>Reset Challenges</h3>
+      <div class="settings-row">
+        <div class="settings-row-icon">🎯</div>
+        <div class="settings-row-content">
+          <div class="settings-row-label">365 Days of 0.5%</div>
+          <div class="settings-row-sub">Reset all challenge progress and logs back to Day 1.</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="resetChallengeProgress()" style="color: var(--red); border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); font-weight:700">Reset</button>
+      </div>
+    </div>
+    <div class="settings-section">
       <h3>Data</h3>
       <div class="settings-row">
         <button class="data-btn" onclick="exportData()">📤 Export</button>
@@ -2845,45 +3070,81 @@ function cleanAndParseJSON(rawText) {
     clean = clean.trim();
   }
 
-  // 2. Extract potential inner JSON structure
+  // 2. Extract JSON starting from first '{'
   const startBrace = clean.indexOf('{');
-  const endBrace = clean.lastIndexOf('}');
-  if (startBrace !== -1 && endBrace !== -1 && endBrace > startBrace) {
-    clean = clean.substring(startBrace, endBrace + 1);
+  if (startBrace !== -1) {
+    clean = clean.substring(startBrace);
   }
 
   // 3. Attempt natural parse
   try {
     return JSON.parse(clean);
   } catch (e) {
-    console.warn("Standard JSON parse failed. Attempting to escape unescaped control characters...", e);
+    console.warn("Standard JSON parse failed. Attempting self-healing for truncated or invalid JSON...", e);
   }
 
-  // 4. Fallback repair: Escape literal inside-string newlines
+  // 4. Run Self-Healing on the JSON string
   let repaired = "";
+  let stack = [];
   let inString = false;
   let escapeActive = false;
+  
   for (let i = 0; i < clean.length; i++) {
-    let char = clean[i];
-    if (char === '"' && !escapeActive) {
-      inString = !inString;
-    }
+    const char = clean[i];
+    
+    // Repair literal unescaped newlines inside strings on the fly
     if (inString && (char === '\n' || char === '\r')) {
-      repaired += "\\n"; // Replace literal newline inside JSON double quotes with string format
-    } else {
-      repaired += char;
+      repaired += "\\n";
+      continue;
     }
-    if (char === '\\' && inString) {
-      escapeActive = !escapeActive;
+
+    repaired += char;
+
+    if (inString) {
+      if (char === '\\') {
+        escapeActive = !escapeActive;
+      } else if (char === '"' && !escapeActive) {
+        inString = false;
+      } else {
+        escapeActive = false;
+      }
     } else {
-      escapeActive = false;
+      if (char === '"') {
+        inString = true;
+        escapeActive = false;
+      } else if (char === '{' || char === '[') {
+        stack.push(char);
+      } else if (char === '}') {
+        if (stack[stack.length - 1] === '{') stack.pop();
+      } else if (char === ']') {
+        if (stack[stack.length - 1] === '[') stack.pop();
+      }
     }
   }
 
+  // Close unclosed string
+  if (inString) {
+    repaired += '"';
+  }
+
+  // Clean trailing commas at the truncation point
+  repaired = repaired.trim().replace(/,\s*$/, '');
+
+  // Close remaining open brackets/braces
+  while (stack.length > 0) {
+    const openChar = stack.pop();
+    if (openChar === '{') {
+      repaired += '}';
+    } else if (openChar === '[') {
+      repaired += ']';
+    }
+  }
+
+  // 5. Attempt final parse on healed JSON
   try {
     return JSON.parse(repaired);
   } catch (e2) {
-    console.error("Critical JSON Parsing failure. Sanitized String:", repaired);
+    console.error("Critical JSON Healing failure. Sanitized String:", repaired);
     throw new Error("Unable to parse AI response. Please try submitting again.");
   }
 }
@@ -2973,16 +3234,15 @@ function clearAllData() {
     currentMonth: { y: new Date().getFullYear(), m: new Date().getMonth() },
     sleep: {}, habits: { categories: [
       { id: 'skill', name: 'Skill', icon: '🧠', items: [
-        { id: 's1', name: 'Read / Learn', done: {} },
-        { id: 's2', name: 'Practice skill', done: {} }
+        { id: 's1', name: 'Read 10 pages', done: {} }
       ]},
       { id: 'body', name: 'Body', icon: '💪', items: [
         { id: 'b1', name: 'Exercise', done: {} },
-        { id: 'b2', name: 'Drink water', done: {} }
+        { id: 'b2', name: 'Drink 12 glasses water', done: {} }
       ]},
       { id: 'money', name: 'Money', icon: '💰', items: [
         { id: 'm1', name: 'Track expenses', done: {} },
-        { id: 'm2', name: 'Save / Invest', done: {} }
+        { id: 'm2', name: 'Invest', done: {} }
       ]}
     ]}, nutrition: {}, expenses: {}, todos: [], journal: {},
     chatInsights: [], dailyLogs: {}, chatHistory: [], setupDone: true };
@@ -3004,6 +3264,12 @@ function initPanelJS(name) {
   }
   if (name === 'content') {
     initContentPanel();
+  }
+  if (name === 'thoughts') {
+    initThoughtsPanel();
+  }
+  if (name === 'challenge') {
+    initChallengePanel();
   }
 }
 
@@ -3129,12 +3395,410 @@ function closePublisherRequestModal() {
   const modal = document.getElementById('publisher-request-modal');
   if (modal) modal.classList.remove('show');
 }
-
 </script>
+
+<!-- SPLITEASY FULL-SCREEN PLATFORM APP -->
+<div id="splitease-app">
+  <!-- Top Navbar -->
+  <div class="se-navbar">
+    <button class="se-back-btn" onclick="closeSplitEasyApp()">🌊 BeCreator</button>
+    <div class="se-app-title">
+      ₹ SplitEase
+      <span id="se-sync-dot" class="se-sync-dot local" title="Checking sync status..."></span>
+    </div>
+    <div class="se-header-actions">
+      <button class="se-icon-btn" onclick="openCreateGroupModal()" title="New Group">➕</button>
+    </div>
+  </div>
+
+  <!-- Main Body -->
+  <div class="se-body">
+    <!-- PULL TO REFRESH INDICATOR -->
+    <div id="se-ptr-indicator" class="se-ptr-indicator">
+      <span class="se-ptr-spinner">🔄</span>
+      <span class="se-ptr-text">Pull down to refresh</span>
+    </div>
+    <div class="se-group-header">
+      <div class="se-group-select-wrap">
+        <select id="se-group-select" class="se-group-select" onchange="loadActiveGroupData(this.value)"></select>
+        <span id="se-template-badge" class="se-template-badge"></span>
+        <span id="se-share-code" class="se-code-pill" onclick="copyGroupInviteText()" title="Tap to copy invite link"></span>
+      </div>
+    </div>
+
+    <!-- 4 Parallel Stats Cards -->
+    <div class="se-stats-grid">
+      <div class="se-stat-card" onclick="openPoolBreakdownModal()" style="cursor: pointer;" title="Click for Budget / Pool Fund Details">
+        <span class="se-stat-title">Budget</span>
+        <span id="se-stat-pool-fund" class="se-stat-value">₹0.00</span>
+      </div>
+      <div class="se-stat-card" onclick="openGroupSpendingModal()" style="cursor: pointer;" title="Click for Group Spending Breakdown">
+        <span class="se-stat-title">Expense</span>
+        <span id="se-stat-total-exp" class="se-stat-value">₹0.00</span>
+      </div>
+      <div class="se-stat-card" onclick="openUserSpendingModal()" style="cursor: pointer;" title="Click for Your Spending Summary">
+        <span class="se-stat-title">You Spent 💳</span>
+        <span id="se-stat-you-spent" class="se-stat-value">₹0.00</span>
+      </div>
+      <div class="se-stat-card" onclick="openBalanceLogsModal()" style="cursor: pointer;" title="Click for Chronological Activity Logs">
+        <span class="se-stat-title">Your Balance ⚖️</span>
+        <span id="se-stat-my-balance" class="se-stat-value">₹0.00</span>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="se-tabs">
+      <button class="se-tab-btn active" data-tab="expenses" onclick="switchSplitEasyTab('expenses')">Expenses</button>
+      <button class="se-tab-btn" data-tab="debts" onclick="switchSplitEasyTab('debts')">Simplify Debts</button>
+      <button class="se-tab-btn" data-tab="members" onclick="switchSplitEasyTab('members')">Members</button>
+      <button class="se-tab-btn" data-tab="checklist" onclick="switchSplitEasyTab('checklist')">CheckList ☑️</button>
+    </div>
+
+    <!-- Tab Content -->
+    <div id="se-tab-container"></div>
+  </div>
+
+  <!-- Floating Action Button (+ Expense) -->
+  <button class="se-fab" onclick="openAddExpenseModal()">➕ Add Expense</button>
+
+  <!-- CREATE / JOIN GROUP MODAL -->
+  <div id="se-create-group-modal" class="se-modal-overlay">
+    <div class="se-modal">
+      <div class="se-modal-header">
+        <span class="se-modal-title">Group Options</span>
+        <button class="se-icon-btn" onclick="closeCreateGroupModal()">✕</button>
+      </div>
+      <div class="se-modal-body">
+        <!-- FIRST OPTION: JOIN GROUP VIA CODE -->
+        <div style="background: var(--surface2); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); margin-bottom: 14px;">
+          <label style="font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 2px; display: block;">1. Join Existing Group via Code</label>
+          <div style="font-size: 11px; color: var(--text2); margin-bottom: 8px;">Enter the Group Code shared by your friend:</div>
+          <div style="display: flex; gap: 6px;">
+            <input type="text" id="se-modal-join-code" class="input" placeholder="e.g. GOA202" style="text-transform: uppercase; font-weight: 700; letter-spacing: 1px; font-size: 12px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="submitModalJoinGroup()" style="white-space: nowrap; font-size: 12px;">Join Group ➔</button>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
+          <div style="flex: 1; height: 1px; background: var(--border);"></div>
+          <span style="font-size: 10px; font-weight: 700; color: var(--text3);">OR CREATE GROUP</span>
+          <div style="flex: 1; height: 1px; background: var(--border);"></div>
+        </div>
+
+        <!-- SECOND OPTION: CREATE NEW GROUP -->
+        <form onsubmit="submitCreateGroup(event)">
+          <div style="margin-bottom: 12px;">
+            <label style="font-size: 12px; font-weight: 700; margin-bottom: 4px; display: block;">2. Group Name</label>
+            <input type="text" id="se-new-group-name" class="input" placeholder="e.g. Goa Trip 2026" required style="font-size: 12px;">
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label style="font-size: 12px; font-weight: 700; margin-bottom: 4px; display: block;">Template</label>
+            <select id="se-new-group-template" class="input" style="font-size: 12px;">
+              <option value="tour">🌴 Tour / Trip</option>
+              <option value="flat">🏠 Flat / Apartment</option>
+              <option value="outing">🎉 Outing / Party</option>
+              <option value="custom">⚙️ Custom Group</option>
+            </select>
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label style="font-size: 12px; font-weight: 700; margin-bottom: 4px; display: block;">Currency Symbol</label>
+            <select id="se-new-group-currency" class="input" style="font-size: 12px;">
+              <option value="₹">₹ (INR)</option>
+              <option value="$">$ (USD)</option>
+              <option value="€">€ (EUR)</option>
+              <option value="£">£ (GBP)</option>
+            </select>
+          </div>
+          <!-- QUICK ADD FREQUENT FRIENDS SUGGESTIONS -->
+          <div id="se-group-friend-suggestions"></div>
+          <button type="submit" class="btn btn-primary btn-full btn-sm">Create Group</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD EXPENSE MODAL (COMPACT & PARALLEL LAYOUT) -->
+  <div id="se-add-expense-modal" class="se-modal-overlay">
+    <div class="se-modal" style="max-width: 420px; padding: 18px 20px;">
+      <div class="se-modal-header" style="margin-bottom: 14px;">
+        <span class="se-modal-title" style="font-size: 15px;">Add New Expense</span>
+        <button class="se-icon-btn" onclick="closeAddExpenseModal()">✕</button>
+      </div>
+      <form onsubmit="submitAddExpense(event)" class="se-modal-body" style="gap: 10px;">
+        <!-- ROW 1: DESCRIPTION -->
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Description</label>
+          <input type="text" id="se-exp-title-input" class="input" placeholder="e.g. Hotel Booking or Dinner" required style="font-size: 12px; padding: 6px 10px;">
+        </div>
+
+        <!-- ROW 2: PARALLEL AMOUNT & PAID BY -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Amount</label>
+            <input type="number" step="0.01" id="se-exp-amount-input" class="input" placeholder="0.00" required style="font-size: 12px; padding: 6px 10px; font-weight: 700;">
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Paid By</label>
+            <select id="se-expense-payer" class="input" style="font-size: 12px; padding: 6px 10px;"></select>
+          </div>
+        </div>
+
+        <!-- ROW 3: PARALLEL CATEGORY & SPLIT BETWEEN -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Category</label>
+            <select id="se-expense-category" class="input" style="font-size: 12px; padding: 6px 10px;" onchange="handleCategorySelectChange(this)"></select>
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Split Between</label>
+            <select id="se-expense-split-mode" class="input" style="font-size: 12px; padding: 6px 10px;" onchange="handleSplitModeChange(this.value, 'add')">
+              <option value="all">👥 Everyone</option>
+              <option value="custom">🎯 Select Members...</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- CUSTOM MEMBER SELECTION BOX -->
+        <div id="se-custom-split-box" style="display: none; background: var(--surface2); padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+            <span style="font-size: 11px; font-weight: 700; color: var(--text);">Include in Split:</span>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleSelectAllSplitMembers('add')" style="font-size: 10px; padding: 2px 6px;">Select All / Clear</button>
+          </div>
+          <div id="se-custom-split-checkboxes" style="display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto;"></div>
+        </div>
+
+        <!-- INCLUDE ME TOGGLE SWITCH -->
+        <div class="se-toggle-wrapper" style="padding: 8px 10px;">
+          <div class="se-toggle-label">
+            <span class="se-toggle-title" style="font-size: 12px;">Include Payer in Split</span>
+          </div>
+          <label class="se-switch" style="width: 38px; height: 20px;">
+            <input type="checkbox" id="se-include-payer-toggle" checked>
+            <span class="se-slider"></span>
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full btn-sm">Save Expense</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- EDIT EXPENSE MODAL -->
+  <div id="se-edit-expense-modal" class="se-modal-overlay">
+    <div class="se-modal" style="max-width: 420px; padding: 18px 20px;">
+      <div class="se-modal-header" style="margin-bottom: 14px;">
+        <span class="se-modal-title" style="font-size: 15px;">Edit Expense</span>
+        <button class="se-icon-btn" onclick="closeEditExpenseModal()">✕</button>
+      </div>
+      <form onsubmit="submitEditExpense(event)" class="se-modal-body" style="gap: 10px;">
+        <input type="hidden" id="se-edit-exp-id">
+        <!-- ROW 1: DESCRIPTION -->
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Description</label>
+          <input type="text" id="se-edit-exp-title" class="input" required style="font-size: 12px; padding: 6px 10px;">
+        </div>
+
+        <!-- ROW 2: PARALLEL AMOUNT & PAID BY -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Amount</label>
+            <input type="number" step="0.01" id="se-edit-exp-amount" class="input" required style="font-size: 12px; padding: 6px 10px; font-weight: 700;">
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Paid By</label>
+            <select id="se-edit-exp-payer" class="input" style="font-size: 12px; padding: 6px 10px;"></select>
+          </div>
+        </div>
+
+        <!-- ROW 3: PARALLEL CATEGORY & SPLIT BETWEEN -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Category</label>
+            <select id="se-edit-exp-category" class="input" style="font-size: 12px; padding: 6px 10px;" onchange="handleCategorySelectChange(this)"></select>
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Split Between</label>
+            <select id="se-edit-exp-split-mode" class="input" style="font-size: 12px; padding: 6px 10px;" onchange="handleSplitModeChange(this.value, 'edit')">
+              <option value="all">👥 Everyone</option>
+              <option value="custom">🎯 Select Members...</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- CUSTOM MEMBER SELECTION BOX -->
+        <div id="se-edit-custom-split-box" style="display: none; background: var(--surface2); padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+            <span style="font-size: 11px; font-weight: 700; color: var(--text);">Include in Split:</span>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleSelectAllSplitMembers('edit')" style="font-size: 10px; padding: 2px 6px;">Select All / Clear</button>
+          </div>
+          <div id="se-edit-custom-split-checkboxes" style="display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto;"></div>
+        </div>
+
+        <!-- INCLUDE ME TOGGLE SWITCH -->
+        <div class="se-toggle-wrapper" style="padding: 8px 10px;">
+          <div class="se-toggle-label">
+            <span class="se-toggle-title" style="font-size: 12px;">Include Payer in Split</span>
+          </div>
+          <label class="se-switch" style="width: 38px; height: 20px;">
+            <input type="checkbox" id="se-edit-include-payer" checked>
+            <span class="se-slider"></span>
+          </label>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-top: 4px;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="submitDeleteExpense()" style="color: var(--red); border-color: #FCA5A5;">🗑️ Delete</button>
+          <button type="submit" class="btn btn-primary btn-full btn-sm">Update Expense</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOTAL GROUP SPENDING STATS MODAL -->
+  <div id="se-group-spending-modal" class="se-modal-overlay">
+    <div class="se-modal" style="max-width: 440px; padding: 18px 20px;">
+      <div class="se-modal-header" style="margin-bottom: 12px;">
+        <span class="se-modal-title" style="font-size: 15px;">📊 Group Spending Breakdown</span>
+        <button class="se-icon-btn" onclick="closeGroupSpendingModal()">✕</button>
+      </div>
+      <div class="se-modal-body" style="gap: 14px;">
+        <!-- WHO SPENT SECTION -->
+        <div>
+          <div style="font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 8px;">👥 Member Contributions (Who Paid)</div>
+          <div id="se-group-spending-members" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        </div>
+        <div style="height: 1px; background: var(--border);"></div>
+        <!-- WHERE SPENT SECTION -->
+        <div>
+          <div style="font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 8px;">🏷️ Category Breakdown (Where Spent)</div>
+          <div id="se-group-spending-categories" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- YOUR SPENDING STATS MODAL -->
+  <div id="se-user-spending-modal" class="se-modal-overlay">
+    <div class="se-modal" style="max-width: 440px; padding: 18px 20px;">
+      <div class="se-modal-header" style="margin-bottom: 12px;">
+        <span class="se-modal-title" style="font-size: 15px;">💳 Your Spending Summary</span>
+        <button class="se-icon-btn" onclick="closeUserSpendingModal()">✕</button>
+      </div>
+      <div class="se-modal-body" style="gap: 14px;">
+        <div id="se-user-spending-header" style="background: var(--surface2); padding: 12px; border-radius: var(--radius-sm); text-align: center;"></div>
+        <div>
+          <div style="font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 8px;">🏷️ Your Spend by Category</div>
+          <div id="se-user-spending-categories" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MULTILINE TODO NOTE MODAL -->
+  <div id="se-todo-note-modal" class="se-modal-overlay">
+    <div class="se-modal" style="max-width: 400px; padding: 18px 20px;">
+      <div class="se-modal-header" style="margin-bottom: 12px;">
+        <span class="se-modal-title" style="font-size: 15px;">📝 Task Note & Context</span>
+        <button class="se-icon-btn" onclick="closeTodoNoteModal()">✕</button>
+      </div>
+      <div class="se-modal-body" style="gap: 12px;">
+        <input type="hidden" id="se-note-target-id">
+        <div id="se-note-task-title" style="font-size: 12px; font-weight: 700; color: var(--text);"></div>
+        <textarea id="se-note-textarea" class="input" rows="4" placeholder="Add multiline notes, links, instructions, or details..." style="font-size: 12px; padding: 10px; width: 100%; resize: vertical;"></textarea>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeTodoNoteModal()">Cancel</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="saveTodoNoteFromModal()">Save Note</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- POOL FUND BREAKDOWN MODAL -->
+  <div id="se-pool-breakdown-modal" class="se-modal-overlay">
+    <div class="se-modal" style="max-width: 440px; padding: 18px 20px;">
+      <div class="se-modal-header" style="margin-bottom: 12px;">
+        <span class="se-modal-title" style="font-size: 15px;">🏦 Group Pool Fund Details</span>
+        <button class="se-icon-btn" onclick="closePoolBreakdownModal()">✕</button>
+      </div>
+      <div class="se-modal-body" style="gap: 14px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: var(--surface2); padding: 12px; border-radius: var(--radius-sm); text-align: center;">
+          <div>
+            <div style="font-size: 10px; font-weight: 700; color: var(--text2); text-transform: uppercase;">Total Pool Collected</div>
+            <div id="se-pool-total-collected" style="font-size: 16px; font-weight: 800; color: var(--green);">₹0.00</div>
+          </div>
+          <div>
+            <div style="font-size: 10px; font-weight: 700; color: var(--text2); text-transform: uppercase;">Pool Contributions</div>
+            <div id="se-pool-total-contributions" style="font-size: 16px; font-weight: 800; color: var(--text);">0 Entries</div>
+          </div>
+        </div>
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="font-size: 12px; font-weight: 700; color: var(--text);">📜 Pool Contribution History</div>
+            <button class="btn btn-primary btn-sm" onclick="openAddPoolModal()" style="font-size: 11px; padding: 4px 8px;">➕ Add Pool Fund</button>
+          </div>
+          <div id="se-pool-history-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD POOL CONTRIBUTION MODAL -->
+  <div id="se-add-pool-modal" class="se-modal-overlay">
+    <div class="se-modal" style="max-width: 400px; padding: 18px 20px;">
+      <div class="se-modal-header" style="margin-bottom: 12px;">
+        <span class="se-modal-title" style="font-size: 15px;">💰 Add Pool Fund Contribution</span>
+        <button class="se-icon-btn" onclick="closeAddPoolModal()">✕</button>
+      </div>
+      <form onsubmit="submitAddPoolContribution(event)" class="se-modal-body" style="gap: 12px;">
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Contribution Title</label>
+          <input type="text" id="se-pool-title-input" class="input" placeholder="e.g. Initial Kitty, General Fund" required style="font-size: 12px; padding: 6px 10px;">
+        </div>
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Contribution Type</label>
+          <select id="se-pool-type-select" class="input" style="font-size: 12px; padding: 6px 10px;" onchange="updatePoolCalculationDisplay()">
+            <option value="lumpsum">💰 Lump Sum (Fixed Total)</option>
+            <option value="perhead">👤 Per Head (Amount per Member)</option>
+          </select>
+        </div>
+        <div>
+          <label id="se-pool-amount-label" style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Amount</label>
+          <input type="number" step="0.01" min="1" id="se-pool-amount-input" class="input" placeholder="0.00" required style="font-size: 12px; padding: 6px 10px;" oninput="updatePoolCalculationDisplay()">
+        </div>
+        <div id="se-pool-calc-info" style="background: var(--surface2); padding: 8px 10px; border-radius: var(--radius-sm); font-size: 11px; color: var(--text2); text-align: center; display: none;"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeAddPoolModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">Save Pool Contribution</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- CHRONOLOGICAL ACTIVITY LOGS MODAL -->
+  <div id="se-balance-logs-modal" class="se-modal-overlay">
+    <div class="se-modal" style="max-width: 440px; padding: 18px 20px;">
+      <div class="se-modal-header" style="margin-bottom: 12px;">
+        <span class="se-modal-title" style="font-size: 15px;">📜 Group Activity & Balance Log</span>
+        <button class="se-icon-btn" onclick="closeBalanceLogsModal()">✕</button>
+      </div>
+      <div class="se-modal-body" style="gap: 12px;">
+        <div id="se-balance-logs-summary" style="background: var(--surface2); padding: 10px 12px; border-radius: var(--radius-sm); font-size: 12px; display: flex; justify-content: space-between; align-items: center;"></div>
+        <div style="font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase;">Timeline (Newest First)</div>
+        <div id="se-balance-logs-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="camera/camera.js"></script>
 <script src="learn/learn.js"></script>
 <script src="learn/addCourse.js"></script>
 <script src="hunt/hunt.js"></script>
 <script src="content/content.js"></script>
+<script src="thoughts/thoughts.js"></script>
+<script src="challenge/challenge_data.js"></script>
+<script src="challenge/challenge.js"></script>
+<script src="splitease/debtSolver.js?v=1.0.23"></script>
+<script src="splitease/dbAdapter.js?v=1.0.23"></script>
+<script src="splitease/splitease.js?v=1.0.23"></script>
 </body>
 </html>

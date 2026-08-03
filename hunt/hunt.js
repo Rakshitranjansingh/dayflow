@@ -54,8 +54,14 @@ async function callGeminiWithSearch(prompt, modelIndex = 0) {
         tools: [{ google_search: {} }],
         generationConfig: {
           temperature: 0.2,
-          maxOutputTokens: 4096
-        }
+          maxOutputTokens: 8192
+        },
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+        ]
       })
     });
   } catch (netErr) {
@@ -135,9 +141,10 @@ CANDIDATE PROFILE:
 
 YOUR TASK:
 1. Search for actual current job openings matching this profile.
-2. Find 6-10 real job listings with actual details.
+2. Find 3-5 real job listings with actual details. Keep descriptions very brief (max 2 sentences) to ensure fast, stable completion.
 3. For each job, provide a match score (0-100) based on how well it fits the candidate's profile.
-4. Also write a brief 2-sentence profile analysis.
+4. Write a brief 2-sentence profile analysis.
+5. CRITICAL: Ensure all double quotes inside string fields (like description, title, company) are strictly escaped as \\" or replaced with single quotes, and avoid any unescaped literal newlines inside strings.
 
 Respond ONLY with valid JSON in this exact format (no markdown, no backticks, no extra text):
 {
@@ -149,7 +156,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no backticks, no
       "location": "City, Country or Remote",
       "workType": "Remote/Hybrid/On-site",
       "salary": "Salary range or null",
-      "description": "Description of the role and fit.",
+      "description": "Short 1-2 sentence description of the role.",
       "skills": ["skill1", "skill2"],
       "matchScore": 85,
       "applyUrl": "https://actual-job-url.com",
@@ -161,23 +168,68 @@ Respond ONLY with valid JSON in this exact format (no markdown, no backticks, no
 
   try {
     const data = await callGeminiWithSearch(prompt);
+    console.log('[Hunt Debug] Raw Gemini Response:', data);
     
     if (statusText) statusText.innerHTML = '<div class="spinner" style="margin:0 auto 10px"></div>Analyzing matches and scores...';
 
     const candidate = data.candidates?.[0];
     if (!candidate) throw new Error('No candidate responses returned from Gemini.');
     
-    const fullText = (candidate.content?.parts || []).map(p => p.text || '').join('\n');
+    // Join all parts (ensuring we capture all chunks if the response was split into segments)
+    let fullText = (candidate.content?.parts || []).map(p => p.text || '').join('\n');
+    
+    // If the model repeated itself or output draft/grounded duplicates, extract the final block
+    const lastAnalysisIndex = fullText.lastIndexOf('"analysis"');
+    if (lastAnalysisIndex !== -1) {
+      const startBraceIndex = fullText.lastIndexOf('{', lastAnalysisIndex);
+      if (startBraceIndex !== -1) {
+        fullText = fullText.substring(startBraceIndex);
+      }
+    }
+    
+    console.log('[Hunt Debug] Extracted Text:', fullText);
     if (!fullText) throw new Error('Empty text content received.');
 
-    // Parse JSON - clean markdown formatting if present
-    const cleanJson = fullText.replace(/```json|```/g, '').trim();
-    const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON payload returned in text.');
-
-    const parsed = JSON.parse(jsonMatch[0]);
-    if (!parsed.jobs || !Array.isArray(parsed.jobs)) {
+    const parsed = cleanAndParseJSON(fullText);
+    if (!parsed || !parsed.jobs || !Array.isArray(parsed.jobs)) {
       throw new Error('Malformed jobs structure received.');
+    }
+
+    // Save to history list
+    if (typeof state !== 'undefined') {
+      state.huntHistory = state.huntHistory || [];
+      const queryKey = JSON.stringify({
+        title: jobTitle,
+        location: location,
+        skills: skills,
+        level: level,
+        workType: workType,
+        experience: experience
+      });
+      state.huntHistory = state.huntHistory.filter(item => {
+        const itemKey = JSON.stringify(item.query);
+        return itemKey !== queryKey;
+      });
+
+      state.huntHistory.unshift({
+        timestamp: Date.now(),
+        query: {
+          title: jobTitle,
+          location: location,
+          skills: skills,
+          level: level,
+          workType: workType,
+          experience: experience
+        },
+        data: parsed
+      });
+
+      if (state.huntHistory.length > 15) {
+        state.huntHistory.pop();
+      }
+
+      if (typeof saveState === 'function') saveState();
+      renderHuntHistory();
     }
 
     renderHuntResults(parsed);
@@ -253,6 +305,94 @@ function renderHuntResults(data) {
   resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+function renderHuntHistory() {
+  const card = document.getElementById('hunt-history-card');
+  const list = document.getElementById('hunt-history-list');
+  if (!card || !list || typeof state === 'undefined') return;
+
+  const history = state.huntHistory || [];
+  if (history.length === 0) {
+    card.style.display = 'none';
+    return;
+  }
+
+  card.style.display = 'block';
+  list.innerHTML = '';
+
+  history.forEach((item, index) => {
+    const itemEl = document.createElement('div');
+    itemEl.className = 'hunt-history-item';
+    itemEl.setAttribute('onclick', `restoreHuntSearch(${index})`);
+    
+    itemEl.style.display = 'flex';
+    itemEl.style.justifyContent = 'space-between';
+    itemEl.style.alignItems = 'center';
+    itemEl.style.padding = '10px 14px';
+    itemEl.style.background = 'var(--surface)';
+    itemEl.style.border = '1px solid var(--border)';
+    itemEl.style.borderRadius = '10px';
+    itemEl.style.cursor = 'pointer';
+    itemEl.style.transition = 'background 0.2s';
+    
+    itemEl.innerHTML = `
+      <div style="flex:1; min-width:0; padding-right:10px">
+        <div style="font-size:12px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis">
+          ${escapeHtml(item.query.title || 'Job Search')}
+        </div>
+        <div style="font-size:10px; color:var(--text3); margin-top:2px">
+          ${item.query.location ? `📍 ${escapeHtml(item.query.location)} · ` : ''}${item.data?.jobs?.length || 0} jobs · ${new Date(item.timestamp).toLocaleDateString()}
+        </div>
+      </div>
+      <button onclick="deleteHuntHistoryItem(${index}, event)" style="background:none; border:none; color:var(--text3); font-size:12px; cursor:pointer; padding:4px; display:flex; align-items:center; justify-content:center" title="Delete Search">🗑️</button>
+    `;
+    list.appendChild(itemEl);
+  });
+}
+
+function restoreHuntSearch(index) {
+  if (typeof state === 'undefined' || !state.huntHistory || !state.huntHistory[index]) return;
+  const item = state.huntHistory[index];
+  
+  const titleEl = document.getElementById('h-title');
+  const locEl = document.getElementById('h-location');
+  const skillsEl = document.getElementById('h-skills');
+  const levelEl = document.getElementById('h-level');
+  const workEl = document.getElementById('h-workType');
+  const expEl = document.getElementById('h-experience');
+  
+  if (titleEl) titleEl.value = item.query.title || '';
+  if (locEl) locEl.value = item.query.location || '';
+  if (skillsEl) skillsEl.value = item.query.skills || '';
+  if (levelEl) levelEl.value = item.query.level || '';
+  if (workEl) workEl.value = item.query.workType || '';
+  if (expEl) expEl.value = item.query.experience || '';
+  
+  saveHuntFormState();
+  renderHuntResults(item.data);
+}
+
+function deleteHuntHistoryItem(index, event) {
+  if (event) event.stopPropagation();
+  if (typeof state === 'undefined' || !state.huntHistory) return;
+  
+  state.huntHistory.splice(index, 1);
+  if (typeof saveState === 'function') saveState();
+  renderHuntHistory();
+}
+
+function clearHuntHistory() {
+  if (typeof state === 'undefined') return;
+  
+  state.huntHistory = [];
+  if (typeof saveState === 'function') saveState();
+  renderHuntHistory();
+}
+
+window.restoreHuntSearch = restoreHuntSearch;
+window.deleteHuntHistoryItem = deleteHuntHistoryItem;
+window.clearHuntHistory = clearHuntHistory;
+window.renderHuntHistory = renderHuntHistory;
+
 function escapeHtml(str) {
   if (!str) return '';
   return String(str)
@@ -274,6 +414,7 @@ function openHuntApp() {
   if (huntApp) huntApp.style.display = 'flex';
   
   loadHuntFormState();
+  renderHuntHistory();
 }
 
 // Global exposure in case of direct onclick routing calls
@@ -299,6 +440,7 @@ function initHuntListeners() {
   });
   
   loadHuntFormState();
+  renderHuntHistory();
   
   const container = document.getElementById('hunt-app');
   if (container) {

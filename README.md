@@ -36,10 +36,26 @@ BeCreator is a **Progressive Web App (PWA)** — a single HTML file you host for
 - **Pending tab** — All incomplete tasks across all days, so nothing ever gets lost
 - Tasks auto-added from journal entries when AI detects action items
 - Badge count visible on the homepage
-### 💸 Expense Tracker
-- Two-tap logging: amount + category
-- Categories: Food, Transport, Shopping, Health, Entertainment, Other
-- Today's total and this month's total always on the homepage
+### 💸 Expense Tracker & 🤝 SplitEase
+- **Personal Expenses**: Two-tap logging (amount + category), with daily & monthly totals on homepage.
+- **SplitEase (Group Expense & Debt Settlement Utility)**:
+  - **Custom Group Templates**: Quick setup for **🌴 Tour**, **🏠 Flat**, **🎉 Outing**, or **⚙️ Custom** groups.
+  - **Easy Joining via Share Code**: 1-tap join using a shareable 6-character code (e.g., `GOA202`) or invite by Email ID.
+  - **Parallel Minimal Add & Edit Expense**: Compact 2-column forms with Category, Amount, Paid By, and custom member selection.
+  - **🏷️ Custom Categories**: Add custom categories on the fly via **➕ Add Custom Category...** in the dropdown.
+  - **Flexible Member Splits**: Choose **👥 Everyone** or **🎯 Select Members...** with an **Include Payer** toggle.
+  - **Simplify Debts Solver**: Automatically minimizes transaction count to settle all group debts in fewer payments.
+  - **🤝 Settlement History Log**: Complete audit trail under *Simplify Debts* recording who paid whom, settled amount, and date with `✅ Settled` badges.
+  - **🏦 Group Pool Fund**: Collect group kitty money via **💰 Lump Sum Total** or **👤 Per Head Amount** (auto-calculates per-head totals as group members grow).
+  - **4 Parallel Stat Cards**: Presents **Budget**, **Expense**, **You Spent 💳**, and **Your Balance ⚖️** side-by-side on 1 row!
+  - **📋 1-Tap Group Invitation Copy**: Tap the group share code to copy a formatted invitation message with join code and link directly to clipboard.
+  - **📜 Chronological Activity Log**: Tap **Your Balance ⚖️** to view a complete timeline of expenses, pool contributions, and settlements in descending order (newest first).
+  - **🏦 Group Pool Fund as Payer**: Pay group expenses directly out of the collective **Budget / Pool Fund**, automatically deducting from pool balance without creating member debt.
+  - **📝 Multiline Task Notes**: 1-line note preview in lists; tap the `📝` icon to open a dedicated modal for viewing and editing full multiline notes, links, and details.
+  - **☑️ Group CheckList**: Collaborative task checklist with member assignments (`👤 Assigned to: Rakshit` / `🌐 Unassigned`).
+  - **🔄 Automatic BeCreator To-Do Sync**: Tasks assigned to you automatically sync into BeCreator's main To-Do list as `[SplitEase: Group Name] Task Title`!
+  - **☁️ Supabase Real-Time Cloud Sync**: Seamless real-time sync across devices with glowing status indicator (🟢 Synced / 🔴 Local Mode).
+  - **🛡️ Inactive Member Security**: Strikethrough display for removed members; inactive users are blocked from re-joining via code unless added back by an admin.
 ### ⏱️ Focus Timer
 - **Stopwatch** — Track how long you work
 - **Countdown Timer** — Set any duration
@@ -158,7 +174,7 @@ This means you can:
 **Throughout the day:**
 - Log meals as you eat with a photo
 - Check off habits in **Habits**
-- Add expenses with 2 taps in **Expenses**
+- Add personal expenses or log shared group bills in **SplitEase 🤝** (Tour 🌴, Flat 🏠, Outing 🎉)
 - Use **Focus** timer for work sessions
 - Voice journal quick thoughts anytime
 **Evening:**
