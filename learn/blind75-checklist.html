@@ -67,7 +67,111 @@
     line-height: 1.6;
   }
 
+    /* HEADER NAV */
+  .dayflow-nav-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .nav-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 7px 14px;
+    border-radius: 20px;
+    transition: all 0.2s ease;
+    font-family: var(--sans);
+  }
+  .nav-back-btn:hover {
+    background: var(--accent-glow);
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateX(-2px);
+  }
+  .nav-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .nav-title {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text);
+  }
+  .nav-subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--surface2);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 500;
+  }
+  .nav-right {
+    width: 80px;
+  }
+
   /* HEADER */
+  header {
+    padding: 36px 24px 28px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    top: -80px; left: 50%;
+    transform: translateX(-50%);
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+
+  h1 {
+    font-family: var(--sans);
+    font-size: clamp(32px, 5vw, 48px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text);
+    background: linear-gradient(135deg, var(--text) 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 400;
+    max-width: 480px;
+    margin: 0 auto 28px;
+  }
   header {
     padding: 48px 24px 32px;
     text-align: center;
@@ -95,15 +199,16 @@
   }
 
   h1 {
-    font-family: var(--mono);
-    font-size: clamp(28px, 5vw, 52px);
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    background: linear-gradient(135deg, #fff 0%, #a89fff 100%);
+    font-family: var(--sans);
+    font-size: clamp(32px, 5vw, 48px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text);
+    background: linear-gradient(135deg, var(--text) 0%, var(--accent) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
 
   .subtitle {
@@ -559,10 +664,16 @@
 </style>
 </head>
 <body>
-<div class="dayflow-nav-header" style="background: var(--surface); padding: 14px 20px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;">
-  <a class="back-btn" href="../index.html?page=learn" style="display: flex; align-items: center; gap: 6px; color: var(--accent); font-size: 13px; font-weight: 600; text-decoration: none; background: var(--surface2); border: 1px solid var(--border); padding: 6px 12px; border-radius: var(--radius-sm); font-family: var(--sans);">🌊 BeCreator Learn</a>
-  <div style="font-weight: 700; font-size: 15px; font-family: var(--sans);">🎯 Blind 75 (Java)</div>
-  <div style="width: 110px;"></div>
+<div class="dayflow-nav-header">
+  <a class="nav-back-btn" href="../index.html?page=learn">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    <span>Learn</span>
+  </a>
+  <div class="nav-title-wrap">
+    <span class="nav-title">Blind 75</span>
+    <span class="nav-subtitle">Java</span>
+  </div>
+  <div class="nav-right"></div>
 </div>
 
 <header>
@@ -2497,16 +2608,68 @@ const categories = [
 // Total question count check
 const totalQ = categories.reduce((s,c) => s+c.questions.length, 0);
 
-// ─── STATE ────────────────────────────────────────────────────────────────────
+// ─── STATE & BE CREATOR SYNC ──────────────────────────────────────────────────
+const DB_KEY = 'becreator_v1';
 const STORAGE_KEY = 'blind75_done_v1';
-let done = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+
+function loadAppState() {
+  try {
+    let s = localStorage.getItem(DB_KEY);
+    if (!s) s = localStorage.getItem('dayflow_v1');
+    return s ? JSON.parse(s) : {};
+  } catch(e) { return {}; }
+}
+
+function saveAppState(appState) {
+  try { localStorage.setItem(DB_KEY, JSON.stringify(appState)); } catch(e) {}
+}
+
+function loadInitialDone() {
+  try {
+    const appState = loadAppState();
+    const enrollment = appState.learning?.enrollments?.blind75;
+    if (enrollment && Array.isArray(enrollment.completed) && enrollment.completed.length > 0) {
+      return new Set(enrollment.completed);
+    }
+  } catch(e) {}
+  try {
+    return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+  } catch(e) { return new Set(); }
+}
+
+let done = loadInitialDone();
+let openCats = new Set();
+let openDetails = new Set();
 let currentFilter = 'all';
 
-function saveDone() { localStorage.setItem(STORAGE_KEY, JSON.stringify([...done])); }
+function saveDone() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([...done]));
+  
+  const appState = loadAppState();
+  if (!appState.learning) appState.learning = { enrollments: {} };
+  if (!appState.learning.enrollments) appState.learning.enrollments = {};
+  
+  const completedIds = Array.from(done);
+  const pct = Math.round((completedIds.length / 75) * 100);
+  
+  appState.learning.enrollments.blind75 = {
+    enrolled: true,
+    enrolledDate: appState.learning.enrollments.blind75?.enrolledDate || new Date().toISOString().split('T')[0],
+    completed: completedIds,
+    progress: pct,
+    lastStudied: new Date().toISOString()
+  };
+  saveAppState(appState);
+}
 
 function toggleDone(id) {
   if (done.has(id)) done.delete(id);
   else done.add(id);
+  
+  // Find category for this question and keep it open
+  const cat = categories.find(c => c.questions.some(q => q.id === id));
+  if (cat) openCats.add(cat.name);
+  
   saveDone();
   renderAll();
 }
@@ -2536,19 +2699,22 @@ function renderAll() {
     const catTotal = cat.questions.length;
     const pct = Math.round((catDone / catTotal) * 100);
 
+    const isOpen = openCats.has(cat.name) || Boolean(query);
+
     const catEl = document.createElement('div');
     catEl.className = 'category';
+    const escapedName = cat.name.replace(/'/g, "\'");
     catEl.innerHTML = `
-      <div class="cat-header" onclick="toggleCat(this)">
+      <div class="cat-header" onclick="toggleCat(this, '${escapedName}')">
         <div class="cat-icon">${cat.icon}</div>
         <div class="cat-info">
           <div class="cat-name">${cat.name}</div>
           <div class="cat-meta">${catDone}/${catTotal} solved</div>
         </div>
         <div class="cat-progress-bar"><div class="cat-progress-fill" style="width:${pct}%"></div></div>
-        <span class="cat-chevron${query ? ' open' : ''}">▶</span>
+        <span class="cat-chevron${isOpen ? ' open' : ''}">▶</span>
       </div>
-      <div class="questions${query ? ' open' : ''}">
+      <div class="questions${isOpen ? ' open' : ''}">
         ${visibleQs.map(q => renderQuestion(q)).join('')}
       </div>
     `;
@@ -2562,6 +2728,7 @@ function renderAll() {
 
 function renderQuestion(q) {
   const isDone = done.has(q.id);
+  const isDetailOpen = openDetails.has(q.id);
   return `
     <div class="q-row${isDone ? ' done' : ''}" id="qrow-${q.id}">
       <div class="q-main" onclick="toggleDetail(${q.id}, event)">
@@ -2569,9 +2736,9 @@ function renderQuestion(q) {
         <span class="q-num">${q.id}</span>
         <span class="q-title-text">${q.title}</span>
         <span class="diff-badge diff-${q.diff}">${q.diff}</span>
-        <span class="q-chevron" id="chev-${q.id}">▶</span>
+        <span class="q-chevron${isDetailOpen ? ' open' : ''}" id="chev-${q.id}">▶</span>
       </div>
-      <div class="q-detail" id="detail-${q.id}">
+      <div class="q-detail${isDetailOpen ? ' open' : ''}" id="detail-${q.id}">
         <div class="q-description">${q.desc}</div>
         <button class="solution-toggle" onclick="toggleSolution(${q.id}, this)">
           <span>💡 Show Solution & Approach</span>
@@ -2601,8 +2768,10 @@ function updateProgress() {
   const total = done.size;
   const circ = 327; // 2π × 52
   const offset = circ - (total / 75) * circ;
-  document.getElementById('progressRing').style.strokeDashoffset = offset;
-  document.getElementById('doneCount').textContent = total;
+  const ring = document.getElementById('progressRing');
+  if (ring) ring.style.strokeDashoffset = offset;
+  const doneCnt = document.getElementById('doneCount');
+  if (doneCnt) doneCnt.textContent = total;
 
   let easy = 0, med = 0, hard = 0;
   categories.forEach(cat => cat.questions.forEach(q => {
@@ -2611,24 +2780,34 @@ function updateProgress() {
     else if (q.diff === 'medium') med++;
     else hard++;
   }));
-  document.getElementById('easyDone').textContent = easy;
-  document.getElementById('medDone').textContent = med;
-  document.getElementById('hardDone').textContent = hard;
+  const eEl = document.getElementById('easyDone');
+  if (eEl) eEl.textContent = easy;
+  const mEl = document.getElementById('medDone');
+  if (mEl) mEl.textContent = med;
+  const hEl = document.getElementById('hardDone');
+  if (hEl) hEl.textContent = hard;
 }
 
 // ─── INTERACTIONS ─────────────────────────────────────────────────────────────
-function toggleCat(header) {
+function toggleCat(header, catName) {
   const qs = header.nextElementSibling;
   const chev = header.querySelector('.cat-chevron');
-  qs.classList.toggle('open');
-  chev.classList.toggle('open');
+  const isOpen = qs.classList.toggle('open');
+  chev.classList.toggle('open', isOpen);
+  if (catName) {
+    if (isOpen) openCats.add(catName);
+    else openCats.delete(catName);
+  }
 }
 
 function toggleDetail(id, e) {
   const detail = document.getElementById(`detail-${id}`);
   const chev = document.getElementById(`chev-${id}`);
-  detail.classList.toggle('open');
-  chev.classList.toggle('open');
+  if (!detail) return;
+  const isOpen = detail.classList.toggle('open');
+  if (chev) chev.classList.toggle('open', isOpen);
+  if (isOpen) openDetails.add(id);
+  else openDetails.delete(id);
 }
 
 function toggleSolution(id, btn) {

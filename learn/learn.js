@@ -1,3 +1,42 @@
+function syncLearnState() {
+  try {
+    let raw = localStorage.getItem('becreator_v1') || localStorage.getItem('dayflow_v1');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.learning) {
+        if (typeof state !== 'undefined') {
+          if (!state.learning) state.learning = { enrollments: {} };
+          state.learning.enrollments = { ...state.learning.enrollments, ...parsed.learning.enrollments };
+        }
+      }
+    }
+  } catch(e) {}
+
+  // Backup state sync directly from blind75_done_v1
+  try {
+    const b75DoneStr = localStorage.getItem('blind75_done_v1');
+    if (b75DoneStr) {
+      const doneArr = JSON.parse(b75DoneStr);
+      if (Array.isArray(doneArr)) {
+        if (typeof state !== 'undefined') {
+          if (!state.learning) state.learning = { enrollments: {} };
+          if (!state.learning.enrollments) state.learning.enrollments = {};
+          
+          const existing = state.learning.enrollments.blind75 || {};
+          const pct = Math.round((doneArr.length / 75) * 100);
+          state.learning.enrollments.blind75 = {
+            enrolled: true,
+            enrolledDate: existing.enrolledDate || new Date().toISOString().split('T')[0],
+            completed: doneArr,
+            progress: pct,
+            lastStudied: existing.lastStudied || new Date().toISOString()
+          };
+        }
+      }
+    }
+  } catch(e) {}
+}
+
 // ============================================================
 // DAYFLOW LEARN PLATFORM ENGINE
 // ============================================================
@@ -48,6 +87,7 @@ function closeLearnApp() {
  * Renders the HTML content for the Learn courses hub dynamically based on state.
  */
 function renderLearnContent() {
+  syncLearnState();
   const contentWrap = document.getElementById('learn-app-content');
   if (!contentWrap) return;
 
@@ -291,6 +331,7 @@ function closeLearnModal() {
  * Updates the progress badge on the dashboard platforms button.
  */
 function updateLearnBadge() {
+  syncLearnState();
   const enrollments = state.learning?.enrollments || {};
   const activeEnrolled = Object.values(enrollments).filter(e => e.enrolled);
   const badge = document.getElementById('learn-badge');

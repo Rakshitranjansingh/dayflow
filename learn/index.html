@@ -230,16 +230,36 @@
 const DB_KEY = 'becreator_v1';
 
 function loadState() {
+  let stateObj = {};
   try {
     let s = localStorage.getItem(DB_KEY);
-    if (!s) {
-      s = localStorage.getItem('dayflow_v1');
-      if (s) {
-        localStorage.setItem(DB_KEY, s); // Migrate immediately
+    if (!s) s = localStorage.getItem('dayflow_v1');
+    stateObj = s ? JSON.parse(s) : {};
+  } catch(e) { stateObj = {}; }
+
+  if (!stateObj.learning) stateObj.learning = { enrollments: {} };
+  if (!stateObj.learning.enrollments) stateObj.learning.enrollments = {};
+
+  // Backup sync for Blind 75
+  try {
+    const b75DoneStr = localStorage.getItem('blind75_done_v1');
+    if (b75DoneStr) {
+      const doneArr = JSON.parse(b75DoneStr);
+      if (Array.isArray(doneArr)) {
+        const existing = stateObj.learning.enrollments.blind75 || {};
+        const pct = Math.round((doneArr.length / 75) * 100);
+        stateObj.learning.enrollments.blind75 = {
+          enrolled: true,
+          enrolledDate: existing.enrolledDate || new Date().toISOString().split('T')[0],
+          completed: doneArr,
+          progress: pct,
+          lastStudied: existing.lastStudied || new Date().toISOString()
+        };
       }
     }
-    return s ? JSON.parse(s) : {};
-  } catch(e) { return {}; }
+  } catch(e) {}
+
+  return stateObj;
 }
 
 function saveState(state) {
@@ -253,6 +273,7 @@ if (!state.learning) state.learning = { enrollments: {} };
 // INIT
 // ============================================================
 function init() {
+  state = loadState();
   updateHeroStats();
   updateCourseCards();
 }
