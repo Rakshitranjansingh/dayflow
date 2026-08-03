@@ -23,6 +23,11 @@ function calculateNetBalances(members, expenses = [], settlements = []) {
     const paidById = exp.paid_by_member_id;
     const amount = Number(exp.amount) || 0;
 
+    if (paidById === '__POOL__') {
+      // Paid directly out of collective pool fund; no member owes debt to another member for this expense
+      return;
+    }
+
     if (balances[paidById] !== undefined) {
       balances[paidById] += amount;
     }

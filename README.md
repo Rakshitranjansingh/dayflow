@@ -46,7 +46,9 @@ BeCreator is a **Progressive Web App (PWA)** — a single HTML file you host for
   - **Flexible Member Splits**: Choose **👥 Everyone** or **🎯 Select Members...** with an **Include Payer** toggle.
   - **Simplify Debts Solver**: Automatically minimizes transaction count to settle all group debts in fewer payments.
   - **🤝 Settlement History Log**: Complete audit trail under *Simplify Debts* recording who paid whom, settled amount, and date with `✅ Settled` badges.
-  - **📊 Interactive Spending Analytics**: Tap *Total Group Spent* or *You Spent* cards for instant visual charts showing member contributions and category breakdowns.
+  - **🏦 Group Pool Fund**: Collect group kitty money via **💰 Lump Sum Total** or **👤 Per Head Amount** (auto-calculates per-head totals as group members grow).
+  - **4 Parallel Stat Cards**: Reduced font sizes to present **Total Group Spent 📊**, **You Spent 💳**, **Pool Fund 🏦**, and **Your Balance ⚖️** side-by-side on 1 row!
+  - **📝 Multiline Task Notes**: 1-line note preview in lists; tap the `📝` icon to open a dedicated modal for viewing and editing full multiline notes, links, and details.
   - **☑️ Group CheckList**: Collaborative task checklist with member assignments (`👤 Assigned to: Rakshit` / `🌐 Unassigned`).
   - **🔄 Automatic BeCreator To-Do Sync**: Tasks assigned to you automatically sync into BeCreator's main To-Do list as `[SplitEasy: Group Name] Task Title`!
   - **☁️ Supabase Real-Time Cloud Sync**: Seamless real-time sync across devices with glowing status indicator (🟢 Synced / 🔴 Local Mode).

@@ -2381,11 +2381,11 @@ function renderTodo() {
       <div class="todo-check ${t.done?'done':''}" onclick="toggleTodo('${t.id}')"></div>
       <div style="flex:1">
         <div class="todo-text ${t.done?'done':''}">${t.text}</div>
-        ${t.note ? `<div class="todo-note" style="font-size:11px; color:var(--text2); margin-top:2px;">📝 ${t.note}</div>` : ''}
+        ${t.note ? `<div class="todo-note" style="font-size:11px; color:var(--text2); margin-top:2px; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; max-width:250px; cursor:pointer;" onclick="openTodoNoteModal('${t.id}', '${escapeHtml(t.text)}', '${escapeHtml(t.note)}')">📝 ${t.note}</div>` : ''}
         ${showDate?`<div class="todo-meta">📅 ${formatDateShort(t.createdDate)}</div>`:''}
         ${t.source==='journal'?'<span class="todo-source">🎙️ from journal</span>':t.source==='chat'?'<span class="todo-source">💬 from chat</span>':t.source==='splitease'?'<span class="todo-source">🤝 from SplitEasy</span>':''}
       </div>
-      <span class="todo-note-btn" onclick="addTodoNote('${t.id}')" title="Add / Edit Note" style="cursor:pointer; font-size:12px; margin-right:6px;">📝</span>
+      <span class="todo-note-btn" onclick="addTodoNote('${t.id}')" title="Add / View Full Note" style="cursor:pointer; font-size:12px; margin-right:6px;">📝</span>
       <span class="todo-del" onclick="deleteTodo('${t.id}')">✕</span>
     </div>`).join('') : `<div class="empty-state"><div class="e-icon">✅</div><div class="e-text">${todoTab==='pending'?'All tasks completed! Great job!':'No tasks yet. Add one above.'}</div></div>`;
 
@@ -2437,14 +2437,7 @@ function toggleTodo(id) {
 function addTodoNote(id) {
   const t = state.todos.find(t => t.id === id);
   if (!t) return;
-  const newNote = prompt('Enter or update note for this task:', t.note || '');
-  if (newNote === null) return;
-  t.note = newNote.trim();
-  if (id.startsWith('se-todo-') && typeof splitEasyDB !== 'undefined') {
-    const itemId = id.replace('se-todo-', '');
-    splitEasyDB.updateChecklistNote(itemId, t.note);
-  }
-  saveState(); updateTodoBadge(); updateAlertBar(); openPanel('todo');
+  openTodoNoteModal(t.id, t.text, t.note || '');
 }
 
 function deleteTodo(id) {
@@ -3433,15 +3426,19 @@ function closePublisherRequestModal() {
       <span id="se-share-code" style="font-size: 13px; font-weight: 700; color: var(--text2);"></span>
     </div>
 
-    <!-- 3 Parallel Stats Cards -->
+    <!-- 4 Parallel Stats Cards -->
     <div class="se-stats-grid">
       <div class="se-stat-card" onclick="openGroupSpendingModal()" style="cursor: pointer;" title="Click for Group Spending Stats">
-        <span class="se-stat-title">Total Group Spent 📊</span>
+        <span class="se-stat-title">Expense</span>
         <span id="se-stat-total-exp" class="se-stat-value">₹0.00</span>
       </div>
       <div class="se-stat-card" onclick="openUserSpendingModal()" style="cursor: pointer;" title="Click for Your Spending Stats">
         <span class="se-stat-title">You Spent 💳</span>
         <span id="se-stat-you-spent" class="se-stat-value">₹0.00</span>
+      </div>
+      <div class="se-stat-card" onclick="openPoolBreakdownModal()" style="cursor: pointer;" title="Click for Pool Fund / Budget Details">
+        <span class="se-stat-title">Budget</span>
+        <span id="se-stat-pool-fund" class="se-stat-value">₹0.00</span>
       </div>
       <div class="se-stat-card">
         <span class="se-stat-title">Your Balance ⚖️</span>
@@ -3695,6 +3692,86 @@ function closePublisherRequestModal() {
       </div>
     </div>
   </div>
+
+  <!-- MULTILINE TODO NOTE MODAL -->
+  <div id="se-todo-note-modal" class="se-modal-overlay">
+    <div class="se-modal" style="max-width: 400px; padding: 18px 20px;">
+      <div class="se-modal-header" style="margin-bottom: 12px;">
+        <span class="se-modal-title" style="font-size: 15px;">📝 Task Note & Context</span>
+        <button class="se-icon-btn" onclick="closeTodoNoteModal()">✕</button>
+      </div>
+      <div class="se-modal-body" style="gap: 12px;">
+        <input type="hidden" id="se-note-target-id">
+        <div id="se-note-task-title" style="font-size: 12px; font-weight: 700; color: var(--text);"></div>
+        <textarea id="se-note-textarea" class="input" rows="4" placeholder="Add multiline notes, links, instructions, or details..." style="font-size: 12px; padding: 10px; width: 100%; resize: vertical;"></textarea>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeTodoNoteModal()">Cancel</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="saveTodoNoteFromModal()">Save Note</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- POOL FUND BREAKDOWN MODAL -->
+  <div id="se-pool-breakdown-modal" class="se-modal-overlay">
+    <div class="se-modal" style="max-width: 440px; padding: 18px 20px;">
+      <div class="se-modal-header" style="margin-bottom: 12px;">
+        <span class="se-modal-title" style="font-size: 15px;">🏦 Group Pool Fund Details</span>
+        <button class="se-icon-btn" onclick="closePoolBreakdownModal()">✕</button>
+      </div>
+      <div class="se-modal-body" style="gap: 14px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: var(--surface2); padding: 12px; border-radius: var(--radius-sm); text-align: center;">
+          <div>
+            <div style="font-size: 10px; font-weight: 700; color: var(--text2); text-transform: uppercase;">Total Pool Collected</div>
+            <div id="se-pool-total-collected" style="font-size: 16px; font-weight: 800; color: var(--green);">₹0.00</div>
+          </div>
+          <div>
+            <div style="font-size: 10px; font-weight: 700; color: var(--text2); text-transform: uppercase;">Pool Contributions</div>
+            <div id="se-pool-total-contributions" style="font-size: 16px; font-weight: 800; color: var(--text);">0 Entries</div>
+          </div>
+        </div>
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="font-size: 12px; font-weight: 700; color: var(--text);">📜 Pool Contribution History</div>
+            <button class="btn btn-primary btn-sm" onclick="openAddPoolModal()" style="font-size: 11px; padding: 4px 8px;">➕ Add Pool Fund</button>
+          </div>
+          <div id="se-pool-history-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD POOL CONTRIBUTION MODAL -->
+  <div id="se-add-pool-modal" class="se-modal-overlay">
+    <div class="se-modal" style="max-width: 400px; padding: 18px 20px;">
+      <div class="se-modal-header" style="margin-bottom: 12px;">
+        <span class="se-modal-title" style="font-size: 15px;">💰 Add Pool Fund Contribution</span>
+        <button class="se-icon-btn" onclick="closeAddPoolModal()">✕</button>
+      </div>
+      <form onsubmit="submitAddPoolContribution(event)" class="se-modal-body" style="gap: 12px;">
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Contribution Title</label>
+          <input type="text" id="se-pool-title-input" class="input" placeholder="e.g. Initial Kitty, General Fund" required style="font-size: 12px; padding: 6px 10px;">
+        </div>
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Contribution Type</label>
+          <select id="se-pool-type-select" class="input" style="font-size: 12px; padding: 6px 10px;" onchange="updatePoolCalculationDisplay()">
+            <option value="lumpsum">💰 Lump Sum (Fixed Total)</option>
+            <option value="perhead">👤 Per Head (Amount per Member)</option>
+          </select>
+        </div>
+        <div>
+          <label id="se-pool-amount-label" style="font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; display: block;">Amount</label>
+          <input type="number" step="0.01" min="1" id="se-pool-amount-input" class="input" placeholder="0.00" required style="font-size: 12px; padding: 6px 10px;" oninput="updatePoolCalculationDisplay()">
+        </div>
+        <div id="se-pool-calc-info" style="background: var(--surface2); padding: 8px 10px; border-radius: var(--radius-sm); font-size: 11px; color: var(--text2); text-align: center; display: none;"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeAddPoolModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">Save Pool Contribution</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <script src="camera/camera.js"></script>
@@ -3705,8 +3782,8 @@ function closePublisherRequestModal() {
 <script src="thoughts/thoughts.js"></script>
 <script src="challenge/challenge_data.js"></script>
 <script src="challenge/challenge.js"></script>
-<script src="splitease/debtSolver.js?v=1.0.10"></script>
-<script src="splitease/dbAdapter.js?v=1.0.10"></script>
-<script src="splitease/splitease.js?v=1.0.10"></script>
+<script src="splitease/debtSolver.js?v=1.0.13"></script>
+<script src="splitease/dbAdapter.js?v=1.0.13"></script>
+<script src="splitease/splitease.js?v=1.0.13"></script>
 </body>
 </html>

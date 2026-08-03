@@ -3,11 +3,12 @@
 // ============================================================
 
 let currentGroupId = null;
-let currentTab = 'expenses'; // 'expenses', 'debts', 'members'
+let currentTab = 'expenses'; // 'expenses', 'debts', 'members', 'checklist'
 let activeGroup = null;
 let groupMembers = [];
 let groupExpenses = [];
 let groupSettlements = [];
+let groupPools = [];
 
 const TEMPLATES = {
   tour: { name: 'Tour', icon: '🌴', colorClass: 'se-template-tour', categories: ['Travel', 'Hotel', 'Food', 'Sightseeing', 'Fuel', 'Misc'] },
@@ -122,10 +123,12 @@ async function loadActiveGroupData(groupId) {
     groupMembers = [];
     groupExpenses = [];
     groupSettlements = [];
+    groupPools = [];
   } else {
     groupMembers = await splitEasyDB.getMembers(groupId);
     groupExpenses = await splitEasyDB.getExpenses(groupId);
     groupSettlements = await splitEasyDB.getSettlements(groupId);
+    groupPools = await splitEasyDB.getPools(groupId);
   }
 
   renderGroupHeader();
@@ -156,7 +159,7 @@ function renderGroupHeader() {
 }
 
 /**
- * Renders 3 parallel balance cards (Total Group Spent, You Spent, Your Balance).
+ * Renders 4 parallel balance cards (Total Group Spent, You Spent, Pool Fund, Your Balance).
  */
 function renderGroupStats() {
   const curr = activeGroup ? activeGroup.currency : '₹';
@@ -173,7 +176,12 @@ function renderGroupStats() {
   const youSpentEl = document.getElementById('se-stat-you-spent');
   if (youSpentEl) youSpentEl.textContent = `${curr}${userPaid.toFixed(2)}`;
 
-  // 3. Your Balance
+  // 3. Pool Fund
+  const totalPool = groupPools.reduce((sum, p) => sum + (Number(p.total_collected) || 0), 0);
+  const poolFundEl = document.getElementById('se-stat-pool-fund');
+  if (poolFundEl) poolFundEl.textContent = `${curr}${totalPool.toFixed(2)}`;
+
+  // 4. Your Balance
   const userNet = userMember ? (balances[userMember.id] || 0) : 0;
   const myBalEl = document.getElementById('se-stat-my-balance');
   if (myBalEl) {
@@ -338,7 +346,8 @@ function renderExpensesList(container) {
   ledger.className = 'se-ledger';
 
   groupExpenses.forEach(exp => {
-    const payer = groupMembers.find(m => m.id === exp.paid_by_member_id);
+    const isPoolPayer = exp.paid_by_member_id === '__POOL__';
+    const payerName = isPoolPayer ? '🏦 Group Pool Fund' : (groupMembers.find(m => m.id === exp.paid_by_member_id)?.name || 'Unknown');
     const item = document.createElement('div');
     item.className = 'se-expense-item';
     item.onclick = () => openEditExpenseModal(exp.id);
@@ -349,7 +358,7 @@ function renderExpensesList(container) {
         <div class="se-exp-icon">${getCategoryIcon(exp.category)}</div>
         <div class="se-exp-details">
           <div class="se-exp-title">${escapeHtml(exp.title)}</div>
-          <div class="se-exp-sub">Paid by <strong>${escapeHtml(payer ? payer.name : 'Unknown')}</strong> • ${exp.date}</div>
+          <div class="se-exp-sub">Paid by <strong style="${isPoolPayer ? 'color: var(--purple, #8B5CF6); font-weight: 700;' : ''}">${escapeHtml(payerName)}</strong> • ${exp.date}</div>
         </div>
       </div>
       <div class="se-exp-right">
@@ -643,14 +652,14 @@ async function renderChecklist(container) {
           <input type="checkbox" ${isDone ? 'checked' : ''} onchange="toggleChecklistItemState('${item.id}', this.checked)" style="width:16px; height:16px; cursor:pointer;">
           <div style="display:flex; flex-direction:column; gap:2px; flex:1;">
             <div style="font-size:12px; font-weight:600; color:var(--text); ${isDone ? 'text-decoration: line-through; opacity: 0.7;' : ''}">${escapeHtml(item.title)}</div>
-            ${item.note ? `<div style="font-size:11px; color:var(--text2); display:flex; align-items:center; gap:4px;">📝 ${escapeHtml(item.note)}</div>` : ''}
+            ${item.note ? `<div style="font-size:11px; color:var(--text2); display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; max-width:250px; cursor:pointer;" onclick="openTodoNoteModal('${item.id}', '${escapeHtml(item.title)}', '${escapeHtml(item.note)}')">📝 ${escapeHtml(item.note)}</div>` : ''}
             <div style="font-size:10px; color:var(--text2); display:flex; align-items:center; gap:4px; margin-top:2px;">
               ${assignee ? `<span class="se-exp-badge" style="background:${assignee.avatar_color || '#2D6BE4'}20; color:${assignee.avatar_color || '#2D6BE4'}; font-size:10px;">👤 ${escapeHtml(assignee.name)}</span>` : '<span style="opacity:0.6;">🌐 Unassigned</span>'}
             </div>
           </div>
         </div>
         <div style="display:flex; align-items:center; gap:4px;">
-          <button class="se-icon-btn" onclick="promptChecklistNote('${item.id}', '${escapeHtml(item.note || '')}')" style="width:28px; height:28px; font-size:12px;" title="Add / Edit Note">📝</button>
+          <button class="se-icon-btn" onclick="openTodoNoteModal('${item.id}', '${escapeHtml(item.title)}', '${escapeHtml(item.note || '')}')" style="width:28px; height:28px; font-size:12px;" title="Add / View Full Note">📝</button>
           <button class="se-icon-btn" onclick="removeChecklistItem('${item.id}')" style="width:28px; height:28px; font-size:12px; color:var(--red);">🗑️</button>
         </div>
       `;
@@ -662,12 +671,209 @@ async function renderChecklist(container) {
   container.appendChild(wrap);
 }
 
-async function promptChecklistNote(itemId, currentNote = '') {
-  const newNote = prompt('Enter or update note for this task:', currentNote);
-  if (newNote === null) return;
+function promptChecklistNote(itemId, titleText, currentNote = '') {
+  openTodoNoteModal(itemId, titleText, currentNote);
+}
 
-  await splitEasyDB.updateChecklistNote(itemId, newNote.trim());
+/* ============================================================
+   MULTILINE TODO NOTE MODAL HANDLERS
+   ============================================================ */
+
+function openTodoNoteModal(targetId, titleText, currentNote = '') {
+  const modal = document.getElementById('se-todo-note-modal');
+  const targetInput = document.getElementById('se-note-target-id');
+  const titleEl = document.getElementById('se-note-task-title');
+  const textarea = document.getElementById('se-note-textarea');
+
+  if (targetInput) targetInput.value = targetId;
+  if (titleEl) titleEl.textContent = titleText;
+  if (textarea) textarea.value = currentNote;
+
+  if (modal) modal.classList.add('show');
+}
+
+function closeTodoNoteModal() {
+  const modal = document.getElementById('se-todo-note-modal');
+  if (modal) modal.classList.remove('show');
+}
+
+async function saveTodoNoteFromModal() {
+  const targetId = document.getElementById('se-note-target-id')?.value;
+  const textarea = document.getElementById('se-note-textarea');
+  if (!targetId || !textarea) return;
+
+  const noteText = textarea.value.trim();
+
+  // If BeCreator Main To-Do Task
+  if (typeof state !== 'undefined' && state.todos) {
+    const t = state.todos.find(item => item.id === targetId);
+    if (t) {
+      t.note = noteText;
+      if (typeof saveState === 'function') saveState();
+      if (typeof updateTodoBadge === 'function') updateTodoBadge();
+      if (typeof updateAlertBar === 'function') updateAlertBar();
+      if (typeof openPanel === 'function' && document.getElementById('panel-todo')?.classList.contains('active')) {
+        openPanel('todo');
+      }
+    }
+  }
+
+  // If SplitEasy Checklist Item
+  if (targetId.startsWith('se-todo-') || splitEasyDB) {
+    const itemId = targetId.startsWith('se-todo-') ? targetId.replace('se-todo-', '') : targetId;
+    await splitEasyDB.updateChecklistNote(itemId, noteText);
+    if (currentGroupId) await loadActiveGroupData(currentGroupId);
+  }
+
+  closeTodoNoteModal();
+}
+
+/* ============================================================
+   GROUP POOL FUND MODAL HANDLERS
+   ============================================================ */
+
+function openPoolBreakdownModal() {
+  if (!activeGroup) return;
+  const modal = document.getElementById('se-pool-breakdown-modal');
+  const totalCollectedEl = document.getElementById('se-pool-total-collected');
+  const totalContribsEl = document.getElementById('se-pool-total-contributions');
+  const historyList = document.getElementById('se-pool-history-list');
+
+  const curr = activeGroup.currency || '₹';
+  const totalCollected = groupPools.reduce((sum, p) => sum + (Number(p.total_collected) || 0), 0);
+  const poolExpenses = groupExpenses.filter(e => e.paid_by_member_id === '__POOL__');
+  const poolSpent = poolExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const availablePool = totalCollected - poolSpent;
+
+  if (totalCollectedEl) totalCollectedEl.textContent = `${curr}${availablePool.toFixed(2)}`;
+  if (totalContribsEl) totalContribsEl.textContent = `Spent: ${curr}${poolSpent.toFixed(2)}`;
+
+  if (historyList) {
+    let html = '';
+    if (groupPools.length === 0 && poolExpenses.length === 0) {
+      html = `
+        <div style="text-align: center; padding: 20px 10px; color: var(--text2); font-size: 12px;">
+          No pool contributions added yet. Tap <b>➕ Add Pool Fund</b> to collect money!
+        </div>
+      `;
+    } else {
+      if (groupPools.length > 0) {
+        html += `<div style="font-size: 11px; font-weight: 700; color: var(--green); margin-bottom: 4px;">💰 Pool Collections (+${curr}${totalCollected.toFixed(2)})</div>`;
+        html += groupPools.map(p => `
+          <div class="se-expense-item" style="padding: 8px 10px; background: var(--surface2);">
+            <div class="se-exp-left">
+              <div class="se-avatar" style="background: var(--purple, #8B5CF6); font-size: 11px; width: 28px; height: 28px;">🏦</div>
+              <div style="display: flex; flex-direction: column; gap: 1px;">
+                <div style="font-size: 11px; font-weight: 700; color: var(--text);">${escapeHtml(p.title)}</div>
+                <div style="font-size: 9px; color: var(--text2);">
+                  ${p.contribution_type === 'perhead' ? `👤 ${curr}${Number(p.amount_per_unit).toFixed(2)} / head (${groupMembers.length} members)` : `💰 Lump Sum`}
+                </div>
+              </div>
+            </div>
+            <div style="font-size: 12px; font-weight: 800; color: var(--green);">+${curr}${Number(p.total_collected).toFixed(2)}</div>
+          </div>
+        `).join('');
+      }
+
+      if (poolExpenses.length > 0) {
+        html += `<div style="font-size: 11px; font-weight: 700; color: var(--red); margin: 8px 0 4px 0;">💸 Expenses Paid Out of Pool (-${curr}${poolSpent.toFixed(2)})</div>`;
+        html += poolExpenses.map(e => `
+          <div class="se-expense-item" style="padding: 8px 10px; background: var(--surface2);">
+            <div class="se-exp-left">
+              <div style="font-size: 14px;">${getCategoryIcon(e.category)}</div>
+              <div style="display: flex; flex-direction: column; gap: 1px;">
+                <div style="font-size: 11px; font-weight: 700; color: var(--text);">${escapeHtml(e.title)}</div>
+                <div style="font-size: 9px; color: var(--text2);">${e.date}</div>
+              </div>
+            </div>
+            <div style="font-size: 12px; font-weight: 800; color: var(--red);">-${curr}${Number(e.amount).toFixed(2)}</div>
+          </div>
+        `).join('');
+      }
+    }
+    historyList.innerHTML = html;
+  }
+
+  if (modal) modal.classList.add('show');
+}
+
+function closePoolBreakdownModal() {
+  const modal = document.getElementById('se-pool-breakdown-modal');
+  if (modal) modal.classList.remove('show');
+}
+
+function openAddPoolModal() {
+  const modal = document.getElementById('se-add-pool-modal');
+  const titleInput = document.getElementById('se-pool-title-input');
+  const amountInput = document.getElementById('se-pool-amount-input');
+  const typeSelect = document.getElementById('se-pool-type-select');
+
+  if (titleInput) titleInput.value = '';
+  if (amountInput) amountInput.value = '';
+  if (typeSelect) typeSelect.value = 'lumpsum';
+  updatePoolCalculationDisplay();
+
+  if (modal) modal.classList.add('show');
+}
+
+function closeAddPoolModal() {
+  const modal = document.getElementById('se-add-pool-modal');
+  if (modal) modal.classList.remove('show');
+}
+
+function updatePoolCalculationDisplay() {
+  const typeSelect = document.getElementById('se-pool-type-select');
+  const amountInput = document.getElementById('se-pool-amount-input');
+  const labelEl = document.getElementById('se-pool-amount-label');
+  const infoEl = document.getElementById('se-pool-calc-info');
+
+  if (!typeSelect || !amountInput || !labelEl || !infoEl) return;
+
+  const isPerHead = typeSelect.value === 'perhead';
+  const val = Number(amountInput.value) || 0;
+  const curr = activeGroup ? activeGroup.currency : '₹';
+  const memberCount = groupMembers.length || 1;
+
+  if (isPerHead) {
+    labelEl.textContent = 'Amount Per Head (Per Member)';
+    infoEl.style.display = 'block';
+    const calculatedTotal = val * memberCount;
+    infoEl.innerHTML = `👤 <b>${curr}${val.toFixed(2)}</b> per head × <b>${memberCount} members</b> = Total Pool: <b style="color:var(--green);">${curr}${calculatedTotal.toFixed(2)}</b>`;
+  } else {
+    labelEl.textContent = 'Lump Sum Amount';
+    infoEl.style.display = 'none';
+  }
+}
+
+async function submitAddPoolContribution(e) {
+  e.preventDefault();
+  if (!currentGroupId) return;
+
+  const titleInput = document.getElementById('se-pool-title-input');
+  const typeSelect = document.getElementById('se-pool-type-select');
+  const amountInput = document.getElementById('se-pool-amount-input');
+
+  if (!titleInput || !typeSelect || !amountInput) return;
+
+  const title = titleInput.value.trim();
+  const contribution_type = typeSelect.value;
+  const unitAmount = Number(amountInput.value) || 0;
+  if (unitAmount <= 0) return;
+
+  const memberCount = groupMembers.length || 1;
+  const total_collected = contribution_type === 'perhead' ? (unitAmount * memberCount) : unitAmount;
+
+  await splitEasyDB.addPoolContribution({
+    group_id: currentGroupId,
+    title,
+    contribution_type,
+    amount_per_unit: unitAmount,
+    total_collected
+  });
+
+  closeAddPoolModal();
   await loadActiveGroupData(currentGroupId);
+  openPoolBreakdownModal();
 }
 
 async function submitAddChecklistItem(e) {
@@ -1027,7 +1233,14 @@ function openAddExpenseModal() {
   }
 
   if (payerSelect) {
-    payerSelect.innerHTML = groupMembers.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+    const curr = activeGroup ? activeGroup.currency : '₹';
+    const totalPoolCollected = groupPools.reduce((sum, p) => sum + (Number(p.total_collected) || 0), 0);
+    const poolSpent = groupExpenses.filter(e => e.paid_by_member_id === '__POOL__').reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    const poolAvail = totalPoolCollected - poolSpent;
+
+    let opts = groupMembers.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+    opts += `<option value="__POOL__">🏦 Group Pool Fund (${curr}${poolAvail.toFixed(2)} available)</option>`;
+    payerSelect.innerHTML = opts;
   }
 
   if (splitModeSelect) {
@@ -1135,7 +1348,14 @@ function openEditExpenseModal(expId) {
   }
 
   if (payerSelect) {
-    payerSelect.innerHTML = groupMembers.map(m => `<option value="${m.id}" ${m.id === exp.paid_by_member_id ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('');
+    const curr = activeGroup ? activeGroup.currency : '₹';
+    const totalPoolCollected = groupPools.reduce((sum, p) => sum + (Number(p.total_collected) || 0), 0);
+    const poolSpent = groupExpenses.filter(e => e.paid_by_member_id === '__POOL__').reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    const poolAvail = totalPoolCollected - poolSpent;
+
+    let opts = groupMembers.map(m => `<option value="${m.id}" ${m.id === exp.paid_by_member_id ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('');
+    opts += `<option value="__POOL__" ${exp.paid_by_member_id === '__POOL__' ? 'selected' : ''}>🏦 Group Pool Fund (${curr}${poolAvail.toFixed(2)} available)</option>`;
+    payerSelect.innerHTML = opts;
   }
 
   if (includePayerCb) {
