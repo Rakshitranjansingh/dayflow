@@ -437,9 +437,13 @@ class SplitEasyDBAdapter {
           .eq('group_id', groupId)
           .order('created_at', { ascending: false });
         if (!error && data) {
+          const normalizedData = data.map(item => ({
+            ...item,
+            paid_by_member_id: (!item.paid_by_member_id || item.paid_by_member_id === '__POOL__' || item.paid_by_member_id === item.group_id) ? '__POOL__' : item.paid_by_member_id
+          }));
           const allExp = this._get(STORAGE_KEYS.EXPENSES).filter(e => e.group_id !== groupId);
-          this._set(STORAGE_KEYS.EXPENSES, [...allExp, ...data]);
-          return data;
+          this._set(STORAGE_KEYS.EXPENSES, [...allExp, ...normalizedData]);
+          return normalizedData;
         }
       } catch (err) {
         console.warn('Supabase fetch expenses failed:', err);
@@ -447,7 +451,10 @@ class SplitEasyDBAdapter {
     }
 
     const allExp = this._get(STORAGE_KEYS.EXPENSES);
-    return allExp.filter(e => e.group_id === groupId);
+    return allExp.filter(e => e.group_id === groupId).map(item => ({
+      ...item,
+      paid_by_member_id: (!item.paid_by_member_id || item.paid_by_member_id === '__POOL__' || item.paid_by_member_id === item.group_id) ? '__POOL__' : item.paid_by_member_id
+    }));
   }
 
   async addExpense(expenseData, splitsData = []) {
@@ -478,13 +485,14 @@ class SplitEasyDBAdapter {
 
     if (this.supabaseClient) {
       try {
+        const dbPaidById = (newExpense.paid_by_member_id === '__POOL__' || newExpense.paid_by_member_id === newExpense.group_id) ? null : newExpense.paid_by_member_id;
         // Insert main expense
         await this.supabaseClient.from('splitease_expenses').insert([{
           id: newExpense.id,
           group_id: newExpense.group_id,
           title: newExpense.title,
           amount: newExpense.amount,
-          paid_by_member_id: newExpense.paid_by_member_id,
+          paid_by_member_id: dbPaidById,
           include_payer: newExpense.include_payer,
           category: newExpense.category,
           split_type: newExpense.split_type,
@@ -530,10 +538,11 @@ class SplitEasyDBAdapter {
 
     if (this.supabaseClient) {
       try {
+        const dbPaidById = (updatedExpense.paid_by_member_id === '__POOL__' || updatedExpense.paid_by_member_id === updatedExpense.group_id) ? null : updatedExpense.paid_by_member_id;
         await this.supabaseClient.from('splitease_expenses').update({
           title: updatedExpense.title,
           amount: updatedExpense.amount,
-          paid_by_member_id: updatedExpense.paid_by_member_id,
+          paid_by_member_id: dbPaidById,
           include_payer: updatedExpense.include_payer,
           category: updatedExpense.category,
           split_type: updatedExpense.split_type
