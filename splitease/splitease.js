@@ -713,14 +713,14 @@ async function renderChecklist(container) {
           <input type="checkbox" ${isDone ? 'checked' : ''} onchange="toggleChecklistItemState('${item.id}', this.checked)" style="width:16px; height:16px; cursor:pointer;">
           <div style="display:flex; flex-direction:column; gap:2px; flex:1;">
             <div style="font-size:12px; font-weight:600; color:var(--text); ${isDone ? 'text-decoration: line-through; opacity: 0.7;' : ''}">${escapeHtml(item.title)}</div>
-            ${item.note ? `<div style="font-size:11px; color:var(--text2); display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; max-width:250px; cursor:pointer;" onclick="openTodoNoteModal('${item.id}', '${escapeHtml(item.title)}', '${escapeHtml(item.note)}')">📝 ${escapeHtml(item.note)}</div>` : ''}
+            ${item.note ? `<div style="font-size:11px; color:var(--text2); display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; max-width:250px; cursor:pointer;" onclick="openTodoNoteModal('${item.id}', '${escapeHtml(item.title).replace(/'/g, "\\'")}', '${escapeHtml(item.note).replace(/'/g, "\\'")}')">📝 ${escapeHtml(item.note)}</div>` : ''}
             <div style="font-size:10px; color:var(--text2); display:flex; align-items:center; gap:4px; margin-top:2px;">
               ${assignee ? `<span class="se-exp-badge" style="background:${assignee.avatar_color || '#2D6BE4'}20; color:${assignee.avatar_color || '#2D6BE4'}; font-size:10px;">👤 ${escapeHtml(assignee.name)}</span>` : '<span style="opacity:0.6;">🌐 Unassigned</span>'}
             </div>
           </div>
         </div>
         <div style="display:flex; align-items:center; gap:4px;">
-          <button class="se-icon-btn" onclick="openTodoNoteModal('${item.id}', '${escapeHtml(item.title)}', '${escapeHtml(item.note || '')}')" style="width:28px; height:28px; font-size:12px;" title="Add / View Full Note">📝</button>
+          <button class="se-icon-btn" onclick="openTodoNoteModal('${item.id}', '${escapeHtml(item.title).replace(/'/g, "\\'")}', '${escapeHtml(item.note || '').replace(/'/g, "\\'")}')" style="width:28px; height:28px; font-size:12px;" title="Add / View Full Note">📝</button>
           <button class="se-icon-btn" onclick="removeChecklistItem('${item.id}')" style="width:28px; height:28px; font-size:12px; color:var(--red);">🗑️</button>
         </div>
       `;
@@ -750,12 +750,18 @@ function openTodoNoteModal(targetId, titleText, currentNote = '') {
   if (titleEl) titleEl.textContent = titleText;
   if (textarea) textarea.value = currentNote;
 
-  if (modal) modal.classList.add('show');
+  if (modal) {
+    modal.classList.add('show');
+    modal.style.display = 'flex';
+  }
 }
 
 function closeTodoNoteModal() {
   const modal = document.getElementById('se-todo-note-modal');
-  if (modal) modal.classList.remove('show');
+  if (modal) {
+    modal.classList.remove('show');
+    modal.style.display = 'none';
+  }
 }
 
 async function saveTodoNoteFromModal() {
@@ -1466,6 +1472,35 @@ function handleCategorySelectChange(selectEl) {
   }
 }
 
+function handlePayerSelectChange(payerSelectEl) {
+  if (!payerSelectEl) return;
+  const isPool = (payerSelectEl.value === '__POOL__');
+  
+  const modal = payerSelectEl.closest('.se-modal');
+  if (!modal) return;
+
+  const toggle = modal.querySelector('#se-include-payer-toggle, #se-edit-include-payer');
+  const toggleWrap = toggle ? toggle.closest('.se-toggle-wrapper') : null;
+
+  if (isPool) {
+    if (toggle) toggle.checked = false;
+    if (toggleWrap) {
+      toggleWrap.style.opacity = '0.6';
+      toggleWrap.style.pointerEvents = 'none';
+      const titleSpan = toggleWrap.querySelector('.se-toggle-title');
+      if (titleSpan) titleSpan.textContent = 'Paid from Group Pool (Payer Excluded)';
+    }
+  } else {
+    if (toggle) toggle.checked = true;
+    if (toggleWrap) {
+      toggleWrap.style.opacity = '1';
+      toggleWrap.style.pointerEvents = 'auto';
+      const titleSpan = toggleWrap.querySelector('.se-toggle-title');
+      if (titleSpan) titleSpan.textContent = 'Include Payer in Split';
+    }
+  }
+}
+
 function openAddExpenseModal() {
   const activeMembers = groupMembers.filter(m => !m.is_inactive);
   if (activeMembers.length === 0) {
@@ -1493,6 +1528,7 @@ function openAddExpenseModal() {
     let opts = groupMembers.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
     opts += `<option value="__POOL__">🏦 Group Pool Fund (${curr}${poolAvail.toFixed(2)} available)</option>`;
     payerSelect.innerHTML = opts;
+    handlePayerSelectChange(payerSelect);
   }
 
   if (splitModeSelect) {
@@ -1546,7 +1582,7 @@ async function submitAddExpense(e) {
     selectedMemberIds = activeMembers.map(m => m.id);
   }
 
-  const splits = calculateSplitAmounts(amount, selectedMemberIds, payerId, includePayer, 'equal');
+  const splits = (payerId === '__POOL__') ? [] : calculateSplitAmounts(amount, selectedMemberIds, payerId, includePayer, 'equal');
 
   const newExp = await splitEasyDB.addExpense({
     group_id: currentGroupId,
@@ -1561,7 +1597,7 @@ async function submitAddExpense(e) {
   // --- DAYFLOW MAIN EXPENSE TRACKER INTEGRATION ---
   try {
     const userMember = groupMembers[0];
-    if (userMember && window.logPersonalExpenseFromSplitEasy) {
+    if (userMember && window.logPersonalExpenseFromSplitEasy && payerId !== '__POOL__') {
       const userSplit = splits.find(s => s.member_id === userMember.id);
       const personalAmt = userSplit ? userSplit.split_amount : (payerId === userMember.id ? amount : 0);
       if (personalAmt > 0) {
@@ -1608,6 +1644,7 @@ function openEditExpenseModal(expId) {
     let opts = groupMembers.map(m => `<option value="${m.id}" ${m.id === exp.paid_by_member_id ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('');
     opts += `<option value="__POOL__" ${exp.paid_by_member_id === '__POOL__' ? 'selected' : ''}>🏦 Group Pool Fund (${curr}${poolAvail.toFixed(2)} available)</option>`;
     payerSelect.innerHTML = opts;
+    handlePayerSelectChange(payerSelect);
   }
 
   if (includePayerCb) {
@@ -1664,7 +1701,7 @@ async function submitEditExpense(e) {
     selectedMemberIds = groupMembers.map(m => m.id);
   }
 
-  const splits = calculateSplitAmounts(amount, selectedMemberIds, payerId, includePayer, 'equal');
+  const splits = (payerId === '__POOL__') ? [] : calculateSplitAmounts(amount, selectedMemberIds, payerId, includePayer, 'equal');
 
   await splitEasyDB.updateExpense(expId, {
     title,
