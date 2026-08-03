@@ -553,7 +553,7 @@
   <div class="tool-grid" id="home-grid-utils" style="display: none; margin-bottom: 24px;">
     <div class="tool-btn" onclick="openSplitEasyApp()">
       <div class="tool-icon">₹</div>
-      <div class="tool-name">SplitEasy</div>
+      <div class="tool-name">SplitEase</div>
       <div class="tool-badge" id="splitease-badge" style="display:none; background: var(--green);"></div>
     </div>
   </div>
@@ -1046,7 +1046,7 @@ window.logPersonalExpenseFromSplitEasy = function(title, amount, category) {
       id: 'se_' + Date.now(),
       amount: Number(amount),
       category: category || 'Other',
-      note: '[SplitEasy] ' + title,
+      note: '[SplitEase] ' + title,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     });
     saveState();
@@ -2383,7 +2383,7 @@ function renderTodo() {
         <div class="todo-text ${t.done?'done':''}">${t.text}</div>
         ${t.note ? `<div class="todo-note" style="font-size:11px; color:var(--text2); margin-top:2px; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; max-width:250px; cursor:pointer;" onclick="openTodoNoteModal('${t.id}', '${escapeHtml(t.text)}', '${escapeHtml(t.note)}')">📝 ${t.note}</div>` : ''}
         ${showDate?`<div class="todo-meta">📅 ${formatDateShort(t.createdDate)}</div>`:''}
-        ${t.source==='journal'?'<span class="todo-source">🎙️ from journal</span>':t.source==='chat'?'<span class="todo-source">💬 from chat</span>':t.source==='splitease'?'<span class="todo-source">🤝 from SplitEasy</span>':''}
+        ${t.source==='journal'?'<span class="todo-source">🎙️ from journal</span>':t.source==='chat'?'<span class="todo-source">💬 from chat</span>':t.source==='splitease'?'<span class="todo-source">🤝 from SplitEase</span>':''}
       </div>
       <span class="todo-note-btn" onclick="addTodoNote('${t.id}')" title="Add / View Full Note" style="cursor:pointer; font-size:12px; margin-right:6px;">📝</span>
       <span class="todo-del" onclick="deleteTodo('${t.id}')">✕</span>
@@ -3403,7 +3403,7 @@ function closePublisherRequestModal() {
   <div class="se-navbar">
     <button class="se-back-btn" onclick="closeSplitEasyApp()">🌊 BeCreator</button>
     <div class="se-app-title">
-      ₹ SplitEasy
+      ₹ SplitEase
       <span id="se-sync-dot" class="se-sync-dot local" title="Checking sync status..."></span>
     </div>
     <div class="se-header-actions">
@@ -3423,24 +3423,24 @@ function closePublisherRequestModal() {
         <select id="se-group-select" class="se-group-select" onchange="loadActiveGroupData(this.value)"></select>
         <span id="se-template-badge" class="se-template-badge"></span>
       </div>
-      <span id="se-share-code" style="font-size: 13px; font-weight: 700; color: var(--text2);"></span>
+      <span id="se-share-code" style="font-size: 13px; font-weight: 700; color: var(--accent); cursor: pointer;" onclick="copyGroupInviteText()" title="Click to copy invitation link"></span>
     </div>
 
     <!-- 4 Parallel Stats Cards -->
     <div class="se-stats-grid">
-      <div class="se-stat-card" onclick="openGroupSpendingModal()" style="cursor: pointer;" title="Click for Group Spending Stats">
-        <span class="se-stat-title">Expense</span>
-        <span id="se-stat-total-exp" class="se-stat-value">₹0.00</span>
-      </div>
-      <div class="se-stat-card" onclick="openUserSpendingModal()" style="cursor: pointer;" title="Click for Your Spending Stats">
-        <span class="se-stat-title">You Spent 💳</span>
-        <span id="se-stat-you-spent" class="se-stat-value">₹0.00</span>
-      </div>
-      <div class="se-stat-card" onclick="openPoolBreakdownModal()" style="cursor: pointer;" title="Click for Pool Fund / Budget Details">
+      <div class="se-stat-card" onclick="openPoolBreakdownModal()" style="cursor: pointer;" title="Click for Budget / Pool Fund Details">
         <span class="se-stat-title">Budget</span>
         <span id="se-stat-pool-fund" class="se-stat-value">₹0.00</span>
       </div>
-      <div class="se-stat-card">
+      <div class="se-stat-card" onclick="openGroupSpendingModal()" style="cursor: pointer;" title="Click for Group Spending Breakdown">
+        <span class="se-stat-title">Expense</span>
+        <span id="se-stat-total-exp" class="se-stat-value">₹0.00</span>
+      </div>
+      <div class="se-stat-card" onclick="openUserSpendingModal()" style="cursor: pointer;" title="Click for Your Spending Summary">
+        <span class="se-stat-title">You Spent 💳</span>
+        <span id="se-stat-you-spent" class="se-stat-value">₹0.00</span>
+      </div>
+      <div class="se-stat-card" onclick="openBalanceLogsModal()" style="cursor: pointer;" title="Click for Chronological Activity Logs">
         <span class="se-stat-title">Your Balance ⚖️</span>
         <span id="se-stat-my-balance" class="se-stat-value">₹0.00</span>
       </div>
@@ -3770,6 +3770,18 @@ function closePublisherRequestModal() {
           <button type="submit" class="btn btn-primary btn-sm">Save Pool Contribution</button>
         </div>
       </form>
+  <!-- CHRONOLOGICAL ACTIVITY LOGS MODAL -->
+  <div id="se-balance-logs-modal" class="se-modal-overlay">
+    <div class="se-modal" style="max-width: 440px; padding: 18px 20px;">
+      <div class="se-modal-header" style="margin-bottom: 12px;">
+        <span class="se-modal-title" style="font-size: 15px;">📜 Group Activity & Balance Log</span>
+        <button class="se-icon-btn" onclick="closeBalanceLogsModal()">✕</button>
+      </div>
+      <div class="se-modal-body" style="gap: 12px;">
+        <div id="se-balance-logs-summary" style="background: var(--surface2); padding: 10px 12px; border-radius: var(--radius-sm); font-size: 12px; display: flex; justify-content: space-between; align-items: center;"></div>
+        <div style="font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase;">Timeline (Newest First)</div>
+        <div id="se-balance-logs-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto;"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -3782,8 +3794,8 @@ function closePublisherRequestModal() {
 <script src="thoughts/thoughts.js"></script>
 <script src="challenge/challenge_data.js"></script>
 <script src="challenge/challenge.js"></script>
-<script src="splitease/debtSolver.js?v=1.0.13"></script>
-<script src="splitease/dbAdapter.js?v=1.0.13"></script>
-<script src="splitease/splitease.js?v=1.0.13"></script>
+<script src="splitease/debtSolver.js?v=1.0.16"></script>
+<script src="splitease/dbAdapter.js?v=1.0.16"></script>
+<script src="splitease/splitease.js?v=1.0.16"></script>
 </body>
 </html>

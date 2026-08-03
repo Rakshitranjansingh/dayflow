@@ -237,7 +237,7 @@ function renderTabContent() {
     container.innerHTML = `
       <div style="max-width: 440px; margin: 20px auto; text-align: center; background: var(--surface); padding: 24px 20px; border-radius: var(--radius-sm); border: 1px solid var(--border); box-shadow: var(--shadow);">
         <div style="font-size: 38px; margin-bottom: 8px;">🤝</div>
-        <div style="font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 4px;">Welcome to SplitEasy</div>
+        <div style="font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 4px;">Welcome to SplitEase</div>
         <div style="font-size: 12px; color: var(--text2); margin-bottom: 20px; line-height: 1.4;">Split bills, track group expenses, and calculate simplified settlements easily.</div>
 
         <!-- OPTION 1: JOIN GROUP -->
@@ -553,7 +553,7 @@ function syncChecklistToMainTodo(item, groupName) {
 
   const isAssignedToUser = item.assigned_to_member_id && String(item.assigned_to_member_id) === String(userMember.id);
   const todoId = 'se-todo-' + item.id;
-  const todoText = `[SplitEasy: ${groupName}] ${item.title}`;
+  const todoText = `[SplitEase: ${groupName}] ${item.title}`;
   const existingIdx = state.todos.findIndex(t => t.id === todoId);
 
   if (isAssignedToUser) {
@@ -799,6 +799,174 @@ function openPoolBreakdownModal() {
 
 function closePoolBreakdownModal() {
   const modal = document.getElementById('se-pool-breakdown-modal');
+  if (modal) modal.classList.remove('show');
+}
+
+/**
+ * Copies formatted invitation text with Group Code to clipboard.
+ */
+function copyGroupInviteText() {
+  if (!activeGroup) return;
+
+  const code = activeGroup.share_code;
+  const name = activeGroup.name;
+  const link = `${window.location.origin}${window.location.pathname}?page=splitease&code=${code}`;
+
+  const inviteMsg = `Hey! You're invited to join our "${name}" group on SplitEase!\n\n🔑 Group Code: ${code}\n🔗 Join Link: ${link}`;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(inviteMsg).then(() => {
+      if (typeof showToast === 'function') {
+        showToast('📋 Invitation copied to clipboard!');
+      } else {
+        alert('📋 Invitation copied to clipboard!');
+      }
+    }).catch(err => {
+      console.warn('Clipboard write failed:', err);
+      prompt('Copy this invitation text:', inviteMsg);
+    });
+  } else {
+    prompt('Copy this invitation text:', inviteMsg);
+  }
+}
+
+/* ============================================================
+   CHRONOLOGICAL ACTIVITY & BALANCE LOGS MODAL
+   ============================================================ */
+
+function openBalanceLogsModal() {
+  if (!activeGroup) return;
+
+  const modal = document.getElementById('se-balance-logs-modal');
+  const summaryEl = document.getElementById('se-balance-logs-summary');
+  const listEl = document.getElementById('se-balance-logs-list');
+
+  const curr = activeGroup.currency || '₹';
+  const balances = calculateNetBalances(groupMembers, groupExpenses, groupSettlements);
+  const userMember = getLoggedInUserMember();
+  const userNet = userMember ? (balances[userMember.id] || 0) : 0;
+
+  if (summaryEl) {
+    const netClass = userNet > 0 ? 'color: var(--green);' : userNet < 0 ? 'color: var(--red);' : 'color: var(--text);';
+    const netStatus = userNet > 0 ? `You are owed ${curr}${userNet.toFixed(2)}` : userNet < 0 ? `You owe ${curr}${Math.abs(userNet).toFixed(2)}` : `You are all settled up!`;
+    summaryEl.innerHTML = `
+      <span>👤 Member: <b>${escapeHtml(userMember ? userMember.name : 'You')}</b></span>
+      <span style="font-weight: 800; ${netClass}">${netStatus}</span>
+    `;
+  }
+
+  // Combine All Activities (Expenses, Settlements, Pool Contributions) into a Chronological List
+  const activities = [];
+
+  // Expenses
+  groupExpenses.forEach(e => {
+    const isPool = e.paid_by_member_id === '__POOL__';
+    const payerName = isPool ? '🏦 Group Pool Fund' : (groupMembers.find(m => m.id === e.paid_by_member_id)?.name || 'Member');
+    const mySplit = e.splits ? e.splits.find(s => s.member_id === userMember?.id) : null;
+    const myShare = mySplit ? Number(mySplit.split_amount) || 0 : 0;
+
+    activities.push({
+      type: 'expense',
+      timestamp: new Date(e.created_at || e.date || 0).getTime(),
+      dateStr: e.date || 'Recent',
+      title: e.title,
+      category: e.category,
+      payerName,
+      amount: Number(e.amount) || 0,
+      myShare
+    });
+  });
+
+  // Settlements
+  groupSettlements.forEach(s => {
+    const fromMem = groupMembers.find(m => m.id === s.from_member_id);
+    const toMem = groupMembers.find(m => m.id === s.to_member_id);
+
+    activities.push({
+      type: 'settlement',
+      timestamp: new Date(s.created_at || s.date || 0).getTime(),
+      dateStr: s.date || 'Recent',
+      title: `${fromMem ? fromMem.name : 'Member'} settled with ${toMem ? toMem.name : 'Member'}`,
+      amount: Number(s.amount) || 0
+    });
+  });
+
+  // Pool Contributions
+  groupPools.forEach(p => {
+    activities.push({
+      type: 'pool',
+      timestamp: new Date(p.created_at || 0).getTime(),
+      dateStr: p.created_at ? new Date(p.created_at).toLocaleDateString() : 'Recent',
+      title: p.title,
+      amount: Number(p.total_collected) || 0,
+      contributionType: p.contribution_type
+    });
+  });
+
+  // Sort Chronologically Descending (Newest First)
+  activities.sort((a, b) => b.timestamp - a.timestamp);
+
+  if (listEl) {
+    if (activities.length === 0) {
+      listEl.innerHTML = `
+        <div style="text-align: center; padding: 20px 10px; color: var(--text2); font-size: 12px;">
+          No activity logs recorded yet for this group.
+        </div>
+      `;
+    } else {
+      listEl.innerHTML = activities.map(act => {
+        if (act.type === 'expense') {
+          return `
+            <div class="se-expense-item" style="padding: 10px 12px; background: var(--surface2);">
+              <div class="se-exp-left">
+                <div style="font-size: 16px;">${getCategoryIcon(act.category)}</div>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <div style="font-size: 12px; font-weight: 700; color: var(--text);">${escapeHtml(act.title)}</div>
+                  <div style="font-size: 10px; color: var(--text2);">
+                    Paid by <b>${escapeHtml(act.payerName)}</b> • ${act.dateStr}
+                    ${act.myShare > 0 ? ` • <span style="color:var(--text);">Your share: ${curr}${act.myShare.toFixed(2)}</span>` : ''}
+                  </div>
+                </div>
+              </div>
+              <div style="font-size: 13px; font-weight: 800; color: var(--text);">${curr}${act.amount.toFixed(2)}</div>
+            </div>
+          `;
+        } else if (act.type === 'settlement') {
+          return `
+            <div class="se-expense-item" style="padding: 10px 12px; background: var(--surface2);">
+              <div class="se-exp-left">
+                <div class="se-avatar" style="background: var(--green); font-size: 11px; width: 28px; height: 28px;">🤝</div>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <div style="font-size: 12px; font-weight: 700; color: var(--text);">${escapeHtml(act.title)}</div>
+                  <div style="font-size: 10px; color: var(--text2);">Settlement payment on ${act.dateStr}</div>
+                </div>
+              </div>
+              <div class="se-exp-badge" style="background: #22C55E20; color: #22C55E; font-weight: 700; font-size: 11px;">${curr}${act.amount.toFixed(2)}</div>
+            </div>
+          `;
+        } else if (act.type === 'pool') {
+          return `
+            <div class="se-expense-item" style="padding: 10px 12px; background: var(--surface2);">
+              <div class="se-exp-left">
+                <div class="se-avatar" style="background: var(--purple, #8B5CF6); font-size: 11px; width: 28px; height: 28px;">🏦</div>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <div style="font-size: 12px; font-weight: 700; color: var(--text);">${escapeHtml(act.title)} (Budget Pool)</div>
+                  <div style="font-size: 10px; color: var(--text2);">Collected ${act.contributionType === 'perhead' ? 'per member' : 'lump sum'} • ${act.dateStr}</div>
+                </div>
+              </div>
+              <div style="font-size: 13px; font-weight: 800; color: var(--green);">+${curr}${act.amount.toFixed(2)}</div>
+            </div>
+          `;
+        }
+      }).join('');
+    }
+  }
+
+  if (modal) modal.classList.add('show');
+}
+
+function closeBalanceLogsModal() {
+  const modal = document.getElementById('se-balance-logs-modal');
   if (modal) modal.classList.remove('show');
 }
 
