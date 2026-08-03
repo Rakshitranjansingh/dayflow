@@ -2640,6 +2640,7 @@ function loadInitialDone() {
 let done = loadInitialDone();
 let openCats = new Set();
 let openDetails = new Set();
+let openSolutions = new Set();
 let currentFilter = 'all';
 
 function saveDone() {
@@ -2663,10 +2664,16 @@ function saveDone() {
 }
 
 function toggleDone(id) {
-  if (done.has(id)) done.delete(id);
-  else done.add(id);
+  if (done.has(id)) {
+    done.delete(id);
+  } else {
+    done.add(id);
+    // Collapse only the completed question detail card
+    openDetails.delete(id);
+    openSolutions.delete(id);
+  }
   
-  // Find category for this question and keep it open
+  // Ensure the parent category stays OPEN
   const cat = categories.find(c => c.questions.some(q => q.id === id));
   if (cat) openCats.add(cat.name);
   
@@ -2729,6 +2736,7 @@ function renderAll() {
 function renderQuestion(q) {
   const isDone = done.has(q.id);
   const isDetailOpen = openDetails.has(q.id);
+  const isSolOpen = openSolutions.has(q.id);
   return `
     <div class="q-row${isDone ? ' done' : ''}" id="qrow-${q.id}">
       <div class="q-main" onclick="toggleDetail(${q.id}, event)">
@@ -2740,11 +2748,11 @@ function renderQuestion(q) {
       </div>
       <div class="q-detail${isDetailOpen ? ' open' : ''}" id="detail-${q.id}">
         <div class="q-description">${q.desc}</div>
-        <button class="solution-toggle" onclick="toggleSolution(${q.id}, this)">
+        <button class="solution-toggle${isSolOpen ? ' open' : ''}" onclick="toggleSolution(${q.id}, this)">
           <span>💡 Show Solution & Approach</span>
           <span class="arrow">▶</span>
         </button>
-        <div class="solution-content" id="sol-${q.id}">
+        <div class="solution-content${isSolOpen ? ' open' : ''}" id="sol-${q.id}">
           <h4>// approach</h4>
           <p>${q.approach}</p>
           <div class="code-block">${q.code}</div>
@@ -2812,8 +2820,11 @@ function toggleDetail(id, e) {
 
 function toggleSolution(id, btn) {
   const sol = document.getElementById(`sol-${id}`);
-  sol.classList.toggle('open');
-  btn.classList.toggle('open');
+  if (!sol) return;
+  const isOpen = sol.classList.toggle('open');
+  if (btn) btn.classList.toggle('open', isOpen);
+  if (isOpen) openSolutions.add(id);
+  else openSolutions.delete(id);
 }
 
 function setFilter(f, btn) {
