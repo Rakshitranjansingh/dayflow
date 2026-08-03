@@ -1582,7 +1582,7 @@ async function submitAddExpense(e) {
     selectedMemberIds = activeMembers.map(m => m.id);
   }
 
-  const splits = calculateSplitAmounts(amount, selectedMemberIds, payerId, includePayer, 'equal');
+  const splits = (payerId === '__POOL__') ? [] : calculateSplitAmounts(amount, selectedMemberIds, payerId, includePayer, 'equal');
 
   const newExp = await splitEasyDB.addExpense({
     group_id: currentGroupId,
@@ -1597,7 +1597,7 @@ async function submitAddExpense(e) {
   // --- DAYFLOW MAIN EXPENSE TRACKER INTEGRATION ---
   try {
     const userMember = groupMembers[0];
-    if (userMember && window.logPersonalExpenseFromSplitEasy) {
+    if (userMember && window.logPersonalExpenseFromSplitEasy && payerId !== '__POOL__') {
       const userSplit = splits.find(s => s.member_id === userMember.id);
       const personalAmt = userSplit ? userSplit.split_amount : (payerId === userMember.id ? amount : 0);
       if (personalAmt > 0) {
@@ -1644,6 +1644,7 @@ function openEditExpenseModal(expId) {
     let opts = groupMembers.map(m => `<option value="${m.id}" ${m.id === exp.paid_by_member_id ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('');
     opts += `<option value="__POOL__" ${exp.paid_by_member_id === '__POOL__' ? 'selected' : ''}>🏦 Group Pool Fund (${curr}${poolAvail.toFixed(2)} available)</option>`;
     payerSelect.innerHTML = opts;
+    handlePayerSelectChange(payerSelect);
   }
 
   if (includePayerCb) {
@@ -1700,7 +1701,7 @@ async function submitEditExpense(e) {
     selectedMemberIds = groupMembers.map(m => m.id);
   }
 
-  const splits = calculateSplitAmounts(amount, selectedMemberIds, payerId, includePayer, 'equal');
+  const splits = (payerId === '__POOL__') ? [] : calculateSplitAmounts(amount, selectedMemberIds, payerId, includePayer, 'equal');
 
   await splitEasyDB.updateExpense(expId, {
     title,
