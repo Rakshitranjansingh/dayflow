@@ -57,6 +57,7 @@ function renderLearnContent() {
   const completed = Object.values(enrollments).filter(e => e.progress >= 100).length;
   const streak = Math.max(...Object.values(enrollments).map(e => e.streak || 0), 0);
 
+  // Java Course State
   const javaEnrollment = enrollments.java;
   let javaBadgeHtml = '<span class="learn-course-badge learn-badge-new" id="learn-badge-java">New</span>';
   let javaBtnHtml = '<button class="learn-enroll-btn learn-btn-enroll" id="learn-btn-java" onclick="handleCourseAction(\'java\')">Enroll Free</button>';
@@ -78,6 +79,30 @@ function renderLearnContent() {
       </div>
     `;
     javaProgressTextHtml = `<span class="learn-course-progress-text" id="learn-progress-text-java">${done}/12 lessons · ${progressVal}%</span>`;
+  }
+
+  // Blind 75 Course State
+  const b75Enrollment = enrollments.blind75;
+  let b75BadgeHtml = '<span class="learn-course-badge learn-badge-new" id="learn-badge-blind75">New</span>';
+  let b75BtnHtml = '<button class="learn-enroll-btn learn-btn-enroll" id="learn-btn-blind75" onclick="handleCourseAction(\'blind75\')">Enroll Free</button>';
+  let b75ProgressHtml = `
+    <div class="learn-course-progress" id="learn-progress-blind75" style="display:none">
+      <div class="learn-course-progress-fill" id="learn-progress-fill-blind75" style="width:0%"></div>
+    </div>
+  `;
+  let b75ProgressTextHtml = '<span class="learn-course-progress-text" id="learn-progress-text-blind75"></span>';
+
+  if (b75Enrollment?.enrolled) {
+    const done = b75Enrollment.completed?.length || 0;
+    const progressVal = b75Enrollment.progress || 0;
+    b75BadgeHtml = '<span class="learn-course-badge learn-badge-enrolled" id="learn-badge-blind75">✅ Enrolled</span>';
+    b75BtnHtml = '<button class="learn-enroll-btn learn-btn-continue" id="learn-btn-blind75" onclick="handleCourseAction(\'blind75\')">Continue →</button>';
+    b75ProgressHtml = `
+      <div class="learn-course-progress" id="learn-progress-blind75" style="display:block">
+        <div class="learn-course-progress-fill" id="learn-progress-fill-blind75" style="width:${progressVal}%"></div>
+      </div>
+    `;
+    b75ProgressTextHtml = `<span class="learn-course-progress-text" id="learn-progress-text-blind75">${done}/75 problems · ${progressVal}%</span>`;
   }
 
   contentWrap.innerHTML = `
@@ -105,6 +130,28 @@ function renderLearnContent() {
     <!-- COURSES -->
     <div class="learn-section">
       <div class="learn-section-title">Available Courses</div>
+
+      <!-- Blind 75 (Java) -->
+      <div class="learn-course-card" id="learn-card-blind75">
+        <div class="learn-course-banner" style="background: linear-gradient(135deg, #6C63FF 0%, #2D6BE4 100%); color: #fff;">🎯</div>
+        <div class="learn-course-body">
+          <div class="learn-course-header">
+            <div class="learn-course-title" style="color: var(--accent);">Blind 75 (DSA in Java)</div>
+            ${b75BadgeHtml}
+          </div>
+          <div class="learn-course-desc">Master 75 essential LeetCode Data Structures & Algorithms problems with production-ready Java solutions.</div>
+          <div class="learn-course-meta">
+            <span>🎯 75 problems</span>
+            <span>🏷️ 10 categories</span>
+            <span>☕ Java</span>
+          </div>
+          ${b75ProgressHtml}
+          <div class="learn-course-footer">
+            ${b75ProgressTextHtml}
+            ${b75BtnHtml}
+          </div>
+        </div>
+      </div>
 
       <!-- Java -->
       <div class="learn-course-card" id="learn-card-java">
@@ -137,11 +184,43 @@ function renderLearnContent() {
 function handleCourseAction(courseId) {
   const enrollment = state.learning?.enrollments?.[courseId];
   if (enrollment?.enrolled) {
-    // Already enrolled — navigate to the course directory page
-    window.location.href = `learn/Java/index.html`;
+    if (courseId === 'blind75') {
+      window.location.href = `learn/blind75/index.html`;
+    } else {
+      window.location.href = `learn/Java/index.html`;
+    }
   } else {
     // Launch enrollment overlay modal
     pendingLearnCourse = courseId;
+    const modalIcon = document.getElementById('learn-modal-icon');
+    const modalTitle = document.getElementById('learn-modal-title');
+    const modalSub = document.getElementById('learn-modal-sub');
+    const modalStats = document.getElementById('learn-modal-stats');
+
+    if (courseId === 'blind75') {
+      if (modalIcon) modalIcon.textContent = '🎯';
+      if (modalTitle) modalTitle.textContent = 'Blind 75 (DSA in Java)';
+      if (modalSub) modalSub.textContent = 'Master the 75 most essential LeetCode Data Structures & Algorithms problems with full Java solutions.';
+      if (modalStats) {
+        modalStats.innerHTML = `
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">75</div><div class="learn-modal-stat-lbl">Problems</div></div>
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">10</div><div class="learn-modal-stat-lbl">Topics</div></div>
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">Free</div><div class="learn-modal-stat-lbl">Cost</div></div>
+        `;
+      }
+    } else {
+      if (modalIcon) modalIcon.textContent = '☕';
+      if (modalTitle) modalTitle.textContent = 'Java Development';
+      if (modalSub) modalSub.textContent = 'Start your Java learning journey today. Track your progress, earn streaks, and get certified.';
+      if (modalStats) {
+        modalStats.innerHTML = `
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">12</div><div class="learn-modal-stat-lbl">Lessons</div></div>
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">3</div><div class="learn-modal-stat-lbl">Quizzes</div></div>
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">Free</div><div class="learn-modal-stat-lbl">Cost</div></div>
+        `;
+      }
+    }
+
     const modal = document.getElementById('learn-enroll-modal');
     if (modal) modal.classList.add('show');
   }
@@ -157,7 +236,9 @@ function confirmLearnEnroll() {
   if (!state.learning) state.learning = { enrollments: {} };
   if (!state.learning.enrollments) state.learning.enrollments = {};
 
-  state.learning.enrollments[pendingLearnCourse] = {
+  const courseId = pendingLearnCourse;
+
+  state.learning.enrollments[courseId] = {
     enrolled: true,
     enrolledDate: new Date().toISOString().split('T')[0],
     completed: [],
@@ -173,9 +254,12 @@ function confirmLearnEnroll() {
   if (!state.habits) state.habits = { categories: [] };
   const skillCat = state.habits.categories?.find(c => c.id === 'skill');
   if (skillCat) {
-    const alreadyExists = skillCat.items?.find(i => i.name === '☕ Study Java');
+    const habitName = courseId === 'blind75' ? '🎯 Study Blind 75' : '☕ Study Java';
+    const habitId = `learn-${courseId}`;
+    const alreadyExists = skillCat.items?.find(i => i.id === habitId || i.name === habitName);
     if (!alreadyExists) {
-      skillCat.items.push({ id: 'learn-java', name: '☕ Study Java', done: {} });
+      if (!skillCat.items) skillCat.items = [];
+      skillCat.items.push({ id: habitId, name: habitName, done: {} });
     }
   }
 
@@ -184,12 +268,13 @@ function confirmLearnEnroll() {
   renderLearnContent();
   updateLearnBadge();
 
+  const isBlind75 = courseId === 'blind75';
   if (typeof showToast === 'function') {
-    showToast('✅ Enrolled! Starting Java journey...');
+    showToast(`✅ Enrolled! Starting ${isBlind75 ? 'Blind 75' : 'Java'} journey...`);
   }
   
   setTimeout(() => {
-    window.location.href = `learn/Java/index.html`;
+    window.location.href = isBlind75 ? `learn/blind75/index.html` : `learn/Java/index.html`;
   }, 1000);
 }
 
@@ -206,15 +291,18 @@ function closeLearnModal() {
  * Updates the progress badge on the dashboard platforms button.
  */
 function updateLearnBadge() {
-  const java = state.learning?.enrollments?.java;
+  const enrollments = state.learning?.enrollments || {};
+  const activeEnrolled = Object.values(enrollments).filter(e => e.enrolled);
   const badge = document.getElementById('learn-badge');
   if (!badge) return;
 
-  if (!java?.enrolled) {
+  if (activeEnrolled.length === 0) {
     badge.style.display = 'none';
     return;
   }
 
+  const maxProgress = Math.max(...activeEnrolled.map(e => e.progress || 0));
   badge.style.display = 'block';
-  badge.textContent = `${java.progress || 0}%`;
+  badge.textContent = `${maxProgress}%`;
 }
+

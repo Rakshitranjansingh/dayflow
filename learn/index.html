@@ -122,6 +122,30 @@
 <div class="section">
   <div class="section-title">Available Courses</div>
 
+  <!-- Blind 75 -->
+  <div class="course-card" id="card-blind75">
+    <div class="course-banner" style="background: linear-gradient(135deg, #6C63FF 0%, #2D6BE4 100%); color: #fff;">🎯</div>
+    <div class="course-body">
+      <div class="course-header">
+        <div class="course-title" style="color: var(--accent);">Blind 75 (DSA in Java)</div>
+        <span class="course-badge badge-new" id="badge-blind75">New</span>
+      </div>
+      <div class="course-desc">Master 75 essential LeetCode Data Structures & Algorithms problems with production-ready Java solutions.</div>
+      <div class="course-meta">
+        <span>🎯 75 problems</span>
+        <span>🏷️ 10 categories</span>
+        <span>☕ Java</span>
+      </div>
+      <div class="course-progress" id="progress-blind75" style="display:none">
+        <div class="course-progress-fill" id="progress-fill-blind75" style="width:0%"></div>
+      </div>
+      <div class="course-footer">
+        <span class="course-progress-text" id="progress-text-blind75"></span>
+        <button class="enroll-btn btn-enroll" id="btn-blind75" onclick="handleCourseAction('blind75')">Enroll Free</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Java -->
   <div class="course-card" id="card-java">
     <div class="course-banner course-banner-java">☕</div>
@@ -186,8 +210,8 @@
   <div class="modal">
     <div class="modal-icon" id="modal-icon">☕</div>
     <div class="modal-title" id="modal-title">Java Development</div>
-    <div class="modal-sub">Start your Java learning journey today. Track your progress, earn streaks, and get certified.</div>
-    <div class="modal-stats">
+    <div class="modal-sub" id="modal-sub">Start your Java learning journey today. Track your progress, earn streaks, and get certified.</div>
+    <div class="modal-stats" id="modal-stats">
       <div class="modal-stat"><div class="modal-stat-val">12</div><div class="modal-stat-lbl">Lessons</div></div>
       <div class="modal-stat"><div class="modal-stat-val">3</div><div class="modal-stat-lbl">Quizzes</div></div>
       <div class="modal-stat"><div class="modal-stat-val">Free</div><div class="modal-stat-lbl">Cost</div></div>
@@ -244,6 +268,7 @@ function updateHeroStats() {
 }
 
 function updateCourseCards() {
+  updateCourseCard('blind75');
   updateCourseCard('java');
 }
 
@@ -255,7 +280,7 @@ function updateCourseCard(courseId) {
   const progressFill = document.getElementById(`progress-fill-${courseId}`);
   const progressText = document.getElementById(`progress-text-${courseId}`);
 
-  if (enrollment?.enrolled) {
+  if (enrollment?.enrolled && badge && btn && progressBar && progressFill && progressText) {
     badge.textContent = '✅ Enrolled';
     badge.className = 'course-badge badge-enrolled';
     btn.textContent = 'Continue →';
@@ -263,7 +288,9 @@ function updateCourseCard(courseId) {
     progressBar.style.display = 'block';
     progressFill.style.width = (enrollment.progress || 0) + '%';
     const done = enrollment.completed?.length || 0;
-    progressText.textContent = `${done}/12 lessons · ${enrollment.progress || 0}%`;
+    const total = courseId === 'blind75' ? 75 : 12;
+    const unit = courseId === 'blind75' ? 'problems' : 'lessons';
+    progressText.textContent = `${done}/${total} ${unit} · ${enrollment.progress || 0}%`;
   }
 }
 
@@ -276,10 +303,39 @@ function handleCourseAction(courseId) {
   const enrollment = state.learning?.enrollments?.[courseId];
   if (enrollment?.enrolled) {
     // Already enrolled — go to course
-    window.location.href = `java/index.html`;
+    window.location.href = courseId === 'blind75' ? `blind75/index.html` : `java/index.html`;
   } else {
     // Show enroll modal
     pendingCourse = courseId;
+    const modalIcon = document.getElementById('modal-icon');
+    const modalTitle = document.getElementById('modal-title');
+    const modalSub = document.getElementById('modal-sub');
+    const modalStats = document.getElementById('modal-stats');
+
+    if (courseId === 'blind75') {
+      if (modalIcon) modalIcon.textContent = '🎯';
+      if (modalTitle) modalTitle.textContent = 'Blind 75 (DSA in Java)';
+      if (modalSub) modalSub.textContent = 'Master 75 essential LeetCode Data Structures & Algorithms problems with full Java solutions.';
+      if (modalStats) {
+        modalStats.innerHTML = `
+          <div class="modal-stat"><div class="modal-stat-val">75</div><div class="modal-stat-lbl">Problems</div></div>
+          <div class="modal-stat"><div class="modal-stat-val">10</div><div class="modal-stat-lbl">Topics</div></div>
+          <div class="modal-stat"><div class="modal-stat-val">Free</div><div class="modal-stat-lbl">Cost</div></div>
+        `;
+      }
+    } else {
+      if (modalIcon) modalIcon.textContent = '☕';
+      if (modalTitle) modalTitle.textContent = 'Java Development';
+      if (modalSub) modalSub.textContent = 'Start your Java learning journey today. Track your progress, earn streaks, and get certified.';
+      if (modalStats) {
+        modalStats.innerHTML = `
+          <div class="modal-stat"><div class="modal-stat-val">12</div><div class="modal-stat-lbl">Lessons</div></div>
+          <div class="modal-stat"><div class="modal-stat-val">3</div><div class="modal-stat-lbl">Quizzes</div></div>
+          <div class="modal-stat"><div class="modal-stat-val">Free</div><div class="modal-stat-lbl">Cost</div></div>
+        `;
+      }
+    }
+
     document.getElementById('enroll-modal').classList.add('show');
   }
 }
@@ -289,7 +345,9 @@ function confirmEnroll() {
   if (!state.learning) state.learning = { enrollments: {} };
   if (!state.learning.enrollments) state.learning.enrollments = {};
 
-  state.learning.enrollments[pendingCourse] = {
+  const courseId = pendingCourse;
+
+  state.learning.enrollments[courseId] = {
     enrolled: true,
     enrolledDate: new Date().toISOString().split('T')[0],
     completed: [],
@@ -305,9 +363,12 @@ function confirmEnroll() {
   if (!state.habits) state.habits = { categories: [] };
   const skillCat = state.habits.categories?.find(c => c.id === 'skill');
   if (skillCat) {
-    const alreadyExists = skillCat.items?.find(i => i.name === '☕ Study Java');
+    const habitName = courseId === 'blind75' ? '🎯 Study Blind 75' : '☕ Study Java';
+    const habitId = `learn-${courseId}`;
+    const alreadyExists = skillCat.items?.find(i => i.id === habitId || i.name === habitName);
     if (!alreadyExists) {
-      skillCat.items.push({ id: 'learn-java', name: '☕ Study Java', done: {} });
+      if (!skillCat.items) skillCat.items = [];
+      skillCat.items.push({ id: habitId, name: habitName, done: {} });
     }
   }
 
@@ -315,9 +376,11 @@ function confirmEnroll() {
   closeModal();
   updateCourseCards();
   updateHeroStats();
-  showToast('✅ Enrolled! Starting Java journey...');
-  setTimeout(() => { window.location.href = `java/index.html`; }, 1000);
+  const isBlind75 = courseId === 'blind75';
+  showToast(`✅ Enrolled! Starting ${isBlind75 ? 'Blind 75' : 'Java'} journey...`);
+  setTimeout(() => { window.location.href = isBlind75 ? `blind75/index.html` : `java/index.html`; }, 1000);
 }
+
 
 function closeModal() {
   document.getElementById('enroll-modal').classList.remove('show');
