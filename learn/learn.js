@@ -12,6 +12,35 @@ function syncLearnState() {
     }
   } catch(e) {}
 
+    // Backup state sync directly from java_at_a_glance_done_v1
+  try {
+    const javaRefDoneStr = localStorage.getItem('java_at_a_glance_done_v1');
+    if (javaRefDoneStr) {
+      const parsedProgress = JSON.parse(javaRefDoneStr);
+      if (parsedProgress && typeof parsedProgress === 'object') {
+        if (typeof state !== 'undefined') {
+          if (!state.learning) state.learning = { enrollments: {} };
+          if (!state.learning.enrollments) state.learning.enrollments = {};
+          
+          const dsRead = Object.keys(parsedProgress.ds || {}).filter(k=>parsedProgress.ds[k]).length;
+          const algoRead = Object.keys(parsedProgress.algo || {}).filter(k=>parsedProgress.algo[k]).length;
+          const cheatsheetRead = parsedProgress.cheatsheet ? 1 : 0;
+          const readTotal = dsRead + algoRead + cheatsheetRead;
+          const pct = Math.round((readTotal / 24) * 100);
+          
+          const existing = state.learning.enrollments.java_at_a_glance || {};
+          state.learning.enrollments.java_at_a_glance = {
+            enrolled: true,
+            enrolledDate: existing.enrolledDate || new Date().toISOString().split('T')[0],
+            completed: Object.keys(parsedProgress.ds || {}).filter(k=>parsedProgress.ds[k]).concat(Object.keys(parsedProgress.algo || {}).filter(k=>parsedProgress.algo[k])),
+            progress: pct,
+            lastStudied: existing.lastStudied || new Date().toISOString()
+          };
+        }
+      }
+    }
+  } catch(e) {}
+
   // Backup state sync directly from blind75_done_v1
   try {
     const b75DoneStr = localStorage.getItem('blind75_done_v1');
@@ -121,6 +150,30 @@ function renderLearnContent() {
     javaProgressTextHtml = `<span class="learn-course-progress-text" id="learn-progress-text-java">${done}/12 lessons · ${progressVal}%</span>`;
   }
 
+  // Java at a glance Course State
+  const javaRefEnrollment = enrollments.java_at_a_glance;
+  let javaRefBadgeHtml = '<span class="learn-course-badge learn-badge-new" id="learn-badge-java_at_a_glance">New</span>';
+  let javaRefBtnHtml = '<button class="learn-enroll-btn learn-btn-enroll" id="learn-btn-java_at_a_glance" onclick="handleCourseAction(\'java_at_a_glance\')">Enroll Free</button>';
+  let javaRefProgressHtml = `
+    <div class="learn-course-progress" id="learn-progress-java_at_a_glance" style="display:none">
+      <div class="learn-course-progress-fill" id="learn-progress-fill-java_at_a_glance" style="width:0%"></div>
+    </div>
+  `;
+  let javaRefProgressTextHtml = '<span class="learn-course-progress-text" id="learn-progress-text-java_at_a_glance"></span>';
+
+  if (javaRefEnrollment?.enrolled) {
+    const done = javaRefEnrollment.completed?.length || 0;
+    const progressVal = javaRefEnrollment.progress || 0;
+    javaRefBadgeHtml = '<span class="learn-course-badge learn-badge-enrolled" id="learn-badge-java_at_a_glance">✅ Enrolled</span>';
+    javaRefBtnHtml = '<button class="learn-enroll-btn learn-btn-continue" id="learn-btn-java_at_a_glance" onclick="handleCourseAction(\'java_at_a_glance\')">Continue →</button>';
+    javaRefProgressHtml = `
+      <div class="learn-course-progress" id="learn-progress-java_at_a_glance" style="display:block">
+        <div class="learn-course-progress-fill" id="learn-progress-fill-java_at_a_glance" style="width:${progressVal}%"></div>
+      </div>
+    `;
+    javaRefProgressTextHtml = `<span class="learn-course-progress-text" id="learn-progress-text-java_at_a_glance">${done} items read · ${progressVal}%</span>`;
+  }
+
   // Blind 75 Course State
   const b75Enrollment = enrollments.blind75;
   let b75BadgeHtml = '<span class="learn-course-badge learn-badge-new" id="learn-badge-blind75">New</span>';
@@ -172,6 +225,29 @@ function renderLearnContent() {
       <div class="learn-section-title">Available Courses</div>
 
       <!-- Blind 75 (Java) -->
+      <!-- Java at a glance -->
+      <div class="learn-course-card" id="learn-card-java_at_a_glance">
+        <div class="learn-course-banner" style="background: linear-gradient(135deg, #FF9A3C 0%, #FF6B6B 100%); color: #fff;">☕</div>
+        <div class="learn-course-body">
+          <div class="learn-course-header">
+            <div class="learn-course-title" style="color: var(--orange);">Java at a glance</div>
+            ${javaRefBadgeHtml}
+          </div>
+          <div class="learn-course-desc">Master Java DSA references, data structures, algorithm patterns, complexity cheatsheet, and interview Q&A.</div>
+          <div class="learn-course-meta">
+            <span>📦 Data Structures</span>
+            <span>⚙️ Algo Patterns</span>
+            <span>🧠 Quiz & Interview</span>
+          </div>
+          ${javaRefProgressHtml}
+          <div class="learn-course-footer">
+            ${javaRefProgressTextHtml}
+            ${javaRefBtnHtml}
+          </div>
+        </div>
+      </div>
+
+      
       <div class="learn-course-card" id="learn-card-blind75">
         <div class="learn-course-banner" style="background: linear-gradient(135deg, #6C63FF 0%, #2D6BE4 100%); color: #fff;">🎯</div>
         <div class="learn-course-body">
@@ -205,10 +281,23 @@ function renderLearnContent() {
 function handleCourseAction(courseId) {
   const enrollment = state.learning?.enrollments?.[courseId];
   if (enrollment?.enrolled) {
-    if (courseId === 'blind75') {
+        if (courseId === 'java_at_a_glance') {
+      if (modalIcon) modalIcon.textContent = '☕';
+      if (modalTitle) modalTitle.textContent = 'Java at a glance';
+      if (modalSub) modalSub.textContent = 'Complete Java DSA reference, key methods, time complexities, algorithm patterns, and bonus interview Q&A.';
+      if (modalStats) {
+        modalStats.innerHTML = `
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">5</div><div class="learn-modal-stat-lbl">Sections</div></div>
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">24</div><div class="learn-modal-stat-lbl">Topics</div></div>
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">Free</div><div class="learn-modal-stat-lbl">Cost</div></div>
+        `;
+      }
+    } else if (courseId === 'blind75') {
       window.location.href = `learn/blind75/index.html`;
+    } else if (courseId === 'java_at_a_glance') {
+      window.location.href = `learn/java-at-a-glance/index.html`;
     } else {
-      window.location.href = `learn/Java/index.html`;
+      window.location.href = `learn/java-at-a-glance/index.html`;
     }
   } else {
     // Launch enrollment overlay modal
@@ -218,7 +307,18 @@ function handleCourseAction(courseId) {
     const modalSub = document.getElementById('learn-modal-sub');
     const modalStats = document.getElementById('learn-modal-stats');
 
-    if (courseId === 'blind75') {
+        if (courseId === 'java_at_a_glance') {
+      if (modalIcon) modalIcon.textContent = '☕';
+      if (modalTitle) modalTitle.textContent = 'Java at a glance';
+      if (modalSub) modalSub.textContent = 'Complete Java DSA reference, key methods, time complexities, algorithm patterns, and bonus interview Q&A.';
+      if (modalStats) {
+        modalStats.innerHTML = `
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">5</div><div class="learn-modal-stat-lbl">Sections</div></div>
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">24</div><div class="learn-modal-stat-lbl">Topics</div></div>
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">Free</div><div class="learn-modal-stat-lbl">Cost</div></div>
+        `;
+      }
+    } else if (courseId === 'blind75') {
       if (modalIcon) modalIcon.textContent = '🎯';
       if (modalTitle) modalTitle.textContent = 'Blind 75 (DSA in Java)';
       if (modalSub) modalSub.textContent = 'Master the 75 most essential LeetCode Data Structures & Algorithms problems with full Java solutions.';
@@ -295,7 +395,7 @@ function confirmLearnEnroll() {
   }
   
   setTimeout(() => {
-    window.location.href = isBlind75 ? `learn/blind75/index.html` : `learn/Java/index.html`;
+    window.location.href = courseId === 'blind75' ? `learn/blind75/index.html` : `learn/java-at-a-glance/index.html`;
   }, 1000);
 }
 
