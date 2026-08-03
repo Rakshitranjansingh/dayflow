@@ -1044,6 +1044,7 @@ function closeBalanceLogsModal() {
 }
 
 function openAddPoolModal() {
+  closePoolBreakdownModal();
   const modal = document.getElementById('se-add-pool-modal');
   const titleInput = document.getElementById('se-pool-title-input');
   const amountInput = document.getElementById('se-pool-amount-input');
@@ -1119,8 +1120,12 @@ async function submitAddPoolContribution(e) {
   });
 
   closeAddPoolModal();
+  closePoolBreakdownModal();
   await loadActiveGroupData(currentGroupId);
-  openPoolBreakdownModal();
+
+  if (typeof showToast === 'function') {
+    showToast('💰 Pool fund contribution added!');
+  }
 }
 
 async function submitAddChecklistItem(e) {
