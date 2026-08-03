@@ -1472,6 +1472,35 @@ function handleCategorySelectChange(selectEl) {
   }
 }
 
+function handlePayerSelectChange(payerSelectEl) {
+  if (!payerSelectEl) return;
+  const isPool = (payerSelectEl.value === '__POOL__');
+  
+  const modal = payerSelectEl.closest('.se-modal');
+  if (!modal) return;
+
+  const toggle = modal.querySelector('#se-include-payer-toggle, #se-edit-include-payer');
+  const toggleWrap = toggle ? toggle.closest('.se-toggle-wrapper') : null;
+
+  if (isPool) {
+    if (toggle) toggle.checked = false;
+    if (toggleWrap) {
+      toggleWrap.style.opacity = '0.6';
+      toggleWrap.style.pointerEvents = 'none';
+      const titleSpan = toggleWrap.querySelector('.se-toggle-title');
+      if (titleSpan) titleSpan.textContent = 'Paid from Group Pool (Payer Excluded)';
+    }
+  } else {
+    if (toggle) toggle.checked = true;
+    if (toggleWrap) {
+      toggleWrap.style.opacity = '1';
+      toggleWrap.style.pointerEvents = 'auto';
+      const titleSpan = toggleWrap.querySelector('.se-toggle-title');
+      if (titleSpan) titleSpan.textContent = 'Include Payer in Split';
+    }
+  }
+}
+
 function openAddExpenseModal() {
   const activeMembers = groupMembers.filter(m => !m.is_inactive);
   if (activeMembers.length === 0) {
@@ -1499,6 +1528,7 @@ function openAddExpenseModal() {
     let opts = groupMembers.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
     opts += `<option value="__POOL__">🏦 Group Pool Fund (${curr}${poolAvail.toFixed(2)} available)</option>`;
     payerSelect.innerHTML = opts;
+    handlePayerSelectChange(payerSelect);
   }
 
   if (splitModeSelect) {
