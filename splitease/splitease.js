@@ -222,24 +222,27 @@ function renderGroupHeader() {
 function renderGroupStats() {
   const curr = activeGroup ? activeGroup.currency : '₹';
   const balances = calculateNetBalances(groupMembers, groupExpenses, groupSettlements);
-  
-  // 1. Total Group Spent
+  const userMember = getLoggedInUserMember();
+
+  // 1. Budget (Available Pool Fund = Total Collected - Pool Expenses)
+  const totalPoolCollected = groupPools.reduce((sum, p) => sum + (Number(p.total_collected) || 0), 0);
+  const poolSpent = groupExpenses.filter(e => e.paid_by_member_id === '__POOL__').reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const availableBudget = totalPoolCollected - poolSpent;
+
+  const poolFundEl = document.getElementById('se-stat-pool-fund');
+  if (poolFundEl) poolFundEl.textContent = `${curr}${availableBudget.toFixed(2)}`;
+
+  // 2. Total Group Expense
   const totalExp = groupExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const totalExpEl = document.getElementById('se-stat-total-exp');
   if (totalExpEl) totalExpEl.textContent = `${curr}${totalExp.toFixed(2)}`;
 
-  // 2. You Spent (Amount paid by current user)
-  const userMember = groupMembers[0];
+  // 3. You Spent (Amount paid by logged-in user)
   const userPaid = userMember ? groupExpenses.filter(e => e.paid_by_member_id === userMember.id).reduce((sum, e) => sum + (Number(e.amount) || 0), 0) : 0;
   const youSpentEl = document.getElementById('se-stat-you-spent');
   if (youSpentEl) youSpentEl.textContent = `${curr}${userPaid.toFixed(2)}`;
 
-  // 3. Pool Fund
-  const totalPool = groupPools.reduce((sum, p) => sum + (Number(p.total_collected) || 0), 0);
-  const poolFundEl = document.getElementById('se-stat-pool-fund');
-  if (poolFundEl) poolFundEl.textContent = `${curr}${totalPool.toFixed(2)}`;
-
-  // 4. Your Balance
+  // 4. Your Balance (Net balance of logged-in user)
   const userNet = userMember ? (balances[userMember.id] || 0) : 0;
   const myBalEl = document.getElementById('se-stat-my-balance');
   if (myBalEl) {
@@ -1230,12 +1233,16 @@ function openGroupSpendingModal() {
     }).join('');
   }
 
+  modal.classList.add('show');
   modal.style.display = 'flex';
 }
 
 function closeGroupSpendingModal() {
   const modal = document.getElementById('se-group-spending-modal');
-  if (modal) modal.style.display = 'none';
+  if (modal) {
+    modal.classList.remove('show');
+    modal.style.display = 'none';
+  }
 }
 
 function openUserSpendingModal() {
@@ -1248,15 +1255,7 @@ function openUserSpendingModal() {
   if (!modal || !header || !catWrap) return;
 
   const curr = activeGroup.currency || '₹';
-
-  const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail.trim().toLowerCase() : '';
-  const userName = (typeof getUserIdentityName === 'function') ? getUserIdentityName().trim().toLowerCase() : '';
-
-  const userMember = groupMembers.find(m => {
-    const mEmail = (m.email || '').trim().toLowerCase();
-    const mName = (m.name || '').trim().toLowerCase();
-    return (userEmail && mEmail && mEmail === userEmail) || (userName && mName && mName === userName);
-  }) || groupMembers[0];
+  const userMember = getLoggedInUserMember();
 
   let totalPaidByYou = 0;
   const userCatMap = {};
@@ -1298,12 +1297,16 @@ function openUserSpendingModal() {
     }).join('');
   }
 
+  modal.classList.add('show');
   modal.style.display = 'flex';
 }
 
 function closeUserSpendingModal() {
   const modal = document.getElementById('se-user-spending-modal');
-  if (modal) modal.style.display = 'none';
+  if (modal) {
+    modal.classList.remove('show');
+    modal.style.display = 'none';
+  }
 }
 
 let selectedFriendSuggestions = new Set();
