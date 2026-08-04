@@ -261,6 +261,30 @@ function loadState() {
     }
   } catch(e) {}
 
+  // Backup sync for Java at a Glance
+  try {
+    const javaRefDoneStr = localStorage.getItem('java_at_a_glance_done_v1');
+    if (javaRefDoneStr) {
+      const parsedProgress = JSON.parse(javaRefDoneStr);
+      if (parsedProgress && typeof parsedProgress === 'object') {
+        const dsRead = Object.keys(parsedProgress.ds || {}).filter(k=>parsedProgress.ds[k]).length;
+        const algoRead = Object.keys(parsedProgress.algo || {}).filter(k=>parsedProgress.algo[k]).length;
+        const cheatsheetRead = parsedProgress.cheatsheet ? 1 : 0;
+        const readTotal = dsRead + algoRead + cheatsheetRead;
+        const pct = Math.round((readTotal / 24) * 100);
+        
+        const existing = stateObj.learning.enrollments.java_at_a_glance || {};
+        stateObj.learning.enrollments.java_at_a_glance = {
+          enrolled: true,
+          enrolledDate: existing.enrolledDate || new Date().toISOString().split('T')[0],
+          completed: Object.keys(parsedProgress.ds || {}).filter(k=>parsedProgress.ds[k]).map(k=>`ds_${k}`).concat(Object.keys(parsedProgress.algo || {}).filter(k=>parsedProgress.algo[k]).map(k=>`algo_${k}`)).concat(parsedProgress.cheatsheet ? ['cheatsheet'] : []),
+          progress: pct,
+          lastStudied: existing.lastStudied || new Date().toISOString()
+        };
+      }
+    }
+  } catch(e) {}
+
   return stateObj;
 }
 

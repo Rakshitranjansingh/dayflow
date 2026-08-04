@@ -2621,20 +2621,26 @@ function loadAppState() {
 }
 
 function saveAppState(appState) {
-  try { localStorage.setItem(DB_KEY, JSON.stringify(appState)); } catch(e) {}
+  try {
+    localStorage.setItem(DB_KEY, JSON.stringify(appState));
+    localStorage.setItem('dayflow_v1', JSON.stringify(appState));
+  } catch(e) {}
 }
 
 function loadInitialDone() {
+  const resultSet = new Set();
+  try {
+    const fromLocal = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    if (Array.isArray(fromLocal)) fromLocal.forEach(id => resultSet.add(id));
+  } catch(e) {}
   try {
     const appState = loadAppState();
     const enrollment = appState.learning?.enrollments?.blind75;
-    if (enrollment && Array.isArray(enrollment.completed) && enrollment.completed.length > 0) {
-      return new Set(enrollment.completed);
+    if (enrollment && Array.isArray(enrollment.completed)) {
+      enrollment.completed.forEach(id => resultSet.add(id));
     }
   } catch(e) {}
-  try {
-    return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
-  } catch(e) { return new Set(); }
+  return resultSet;
 }
 
 let done = loadInitialDone();
