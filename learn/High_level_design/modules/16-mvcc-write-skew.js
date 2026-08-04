@@ -11,13 +11,26 @@ window.hldModulesData.push({
 
     <h3>The Write Skew Anomaly in Snapshot Isolation</h3>
     <p>Occurs when two parallel transactions read overlapping data, make disjoint writes, and violate a global domain constraint.</p>
-    <div class="code-block">
-Example Constraint: "At least 1 doctor must be on call."
-- Doctor A & B are currently on call.
-- Transaction 1 (Doctor A) -> Reads: 2 doctors on call. Takes leave (Sets Doctor A = off).
-- Transaction 2 (Doctor B) -> Reads: 2 doctors on call. Takes leave (Sets Doctor B = off).
-- RESULT: Both commit under Snapshot Isolation! Zero doctors left on call (Write Skew!).
+    
+    <div class="flow-container">
+      <div class="flow-step">
+        <span class="flow-step-num">!</span>
+        <div class="flow-step-content"><b>Constraint:</b> "At least 1 doctor must remain on call at all times." Doctor A and Doctor B are currently on call.</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">1</span>
+        <div class="flow-step-content"><b>Transaction 1 (Doctor A):</b> Reads: 2 doctors on call. Takes leave (Sets Doctor A = off).</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">2</span>
+        <div class="flow-step-content"><b>Transaction 2 (Doctor B):</b> Reads: 2 doctors on call. Takes leave (Sets Doctor B = off).</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">3</span>
+        <div class="flow-step-content"><b>Result:</b> Both commit under Snapshot Isolation! <b>Zero doctors left on call (Write Skew!).</b></div>
+      </div>
     </div>
+    <p><b>Fix:</b> Use <code>SELECT ... FOR UPDATE</code> (Explicit locking) or true <b>Serializable Isolation</b>.</p>
 
     <h3>📌 10 Important Architectural Points to Note</h3>
     <ol class="architect-points">

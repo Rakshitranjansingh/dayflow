@@ -10,11 +10,21 @@ window.hldModulesData.push({
     <p>Database performance and selection depend heavily on the underlying <b>Storage Engine Architecture</b>: B+ Trees vs Log-Structured Merge-Trees (LSM Trees).</p>
 
     <h3>LSM Trees (e.g. RocksDB, Cassandra, LevelDB)</h3>
-    <div class="code-block">
-Writes --> 1. Write-Ahead Log (WAL on Disk) + MemTable (In-RAM SkipList)
-           2. MemTable Full --> Flushed sequentially to SSTables (On-Disk Sorted Strings)
-Reads  --> Check MemTable -> Bloom Filter -> SSTable Index -> Disk
+    <div class="flow-container">
+      <div class="flow-step">
+        <span class="flow-step-num">1</span>
+        <div class="flow-step-content"><b>Write-Ahead Log (WAL) & MemTable:</b> Writes are appended to an on-disk WAL for crash recovery and simultaneously added to an in-RAM SkipList (MemTable).</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">2</span>
+        <div class="flow-step-content"><b>MemTable Flush to SSTable:</b> When MemTable fills up, it is flushed to disk sequentially as an immutable <b>Sorted String Table (SSTable)</b>.</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">3</span>
+        <div class="flow-step-content"><b>Read Path:</b> Checks MemTable first → In-Memory Bloom Filter → SSTable Index → Disk Read.</div>
+      </div>
     </div>
+
     <ul>
       <li><b>LSM Trees:</b> Converts random writes into fast <b>sequential disk writes</b>. High write throughput, but higher Read Amplification & Compaction CPU cost.</li>
       <li><b>B+ Trees (e.g. InnoDB, Postgres):</b> Updates pages in-place. Fast point reads, but high <b>Write Amplification</b> due to random disk I/O page updates.</li>

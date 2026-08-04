@@ -10,12 +10,27 @@ window.hldModulesData.push({
     <p>Building reliable payment APIs requires a strict <b>Distributed Locking + Idempotency State Machine</b> to prevent double-charging users during sub-millisecond duplicate submissions or network retries.</p>
 
     <h3>Idempotent Execution Workflow</h3>
-    <div class="code-block">
-1. Client -> POST /v1/charges (Header: Idempotency-Key: uuid-123)
-2. API Gateway -> Tries Redis SETNX lock: "lock:idempotency:uuid-123" with 30s TTL
-3. If Lock Acquired -> Status = IN_PROGRESS. Execute Payment Provider call.
-4. On Complete       -> Store Result in DB + Cache. Status = COMPLETED. Release Lock.
-5. If Lock Exists   -> Return HTTP 409 (Conflict) or poll for cached COMPLETED result.
+    <div class="flow-container">
+      <div class="flow-step">
+        <span class="flow-step-num">1</span>
+        <div class="flow-step-content"><b>Client Request:</b> Client sends <code>POST /v1/charges</code> with header <code>Idempotency-Key: uuid-123</code>.</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">2</span>
+        <div class="flow-step-content"><b>Acquire Lock:</b> API Gateway tries Redis <code>SETNX lock:idempotency:uuid-123</code> with 30s TTL.</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">3</span>
+        <div class="flow-step-content"><b>If Lock Acquired:</b> Set state <code>IN_PROGRESS</code>. Execute Payment Provider API call (Stripe/Bank).</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">4</span>
+        <div class="flow-step-content"><b>On Completion:</b> Store HTTP response body & status in DB/Cache linked to key. Set state <code>COMPLETED</code>. Release lock.</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">5</span>
+        <div class="flow-step-content"><b>If Lock Exists (Duplicate):</b> Return <b>HTTP 409 Conflict</b> or serve cached <code>COMPLETED</code> response payload without re-charging!</div>
+      </div>
     </div>
 
     <h3>📌 10 Important Architectural Points to Note</h3>

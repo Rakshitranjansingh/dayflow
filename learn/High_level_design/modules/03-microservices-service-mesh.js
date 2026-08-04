@@ -13,11 +13,19 @@ window.hldModulesData.push({
     <p>Embedding resiliency (retries, rate limiting, mTLS) inside application code causes multi-language maintenance hell. A <b>Sidecar Proxy (Envoy)</b> handles network concerns out-of-process.</p>
 
     <h3>Resiliency Patterns: Circuit Breaker & Bulkhead</h3>
-    <div class="code-block">
-Circuit Breaker States:
-[CLOSED] (Normal) ---High Failure Rate---> [OPEN] (Fails Fast immediately)
-    ^                                        |
-    |-------Half-Open Probe Succeeds---------v [HALF-OPEN] (Tests sample requests)
+    <div class="flow-container">
+      <div class="flow-step">
+        <span class="flow-step-num">1</span>
+        <div class="flow-step-content"><b>CLOSED State (Normal):</b> Traffic flows normally to downstream service while monitoring error rate.</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">2</span>
+        <div class="flow-step-content"><b>OPEN State (Fails Fast):</b> High failure/latency rate trips the breaker. All inbound calls fail immediately without hitting the broken dependency.</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">3</span>
+        <div class="flow-step-content"><b>HALF-OPEN State (Probe):</b> After a timeout cooldown, a small sample of probe requests test downstream health. If successful, resets to CLOSED.</div>
+      </div>
     </div>
 
     <h3>📌 10 Important Architectural Points to Note</h3>

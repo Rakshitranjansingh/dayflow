@@ -9,13 +9,31 @@ window.hldModulesData.push({
   content: `
     <p>When navigating System Design interviews and technical design reviews, use a structured <b>System Design Leadership Framework</b>:</p>
 
-    <div class="code-block">
-1. Clarify Requirements (Functional & Non-Functional: SLA, Latency, Scale)
-2. Capacity & Hardware Estimation (QPS, Storage, Memory, Bandwidth)
-3. API Design & Data Schemas (REST/gRPC, SQL/NoSQL Choice)
-4. High-Level Architecture Diagram (Gateway, Load Balancers, Services, Cache, Message Queues)
-5. Deep-Dive Component Design (Bottlenecks, Failure Modes, Race Conditions, Edge Cases)
-6. Trade-off Justifications & SLA Monitoring (p99 Latency, HA, RPO/RTO)
+    <div class="flow-container">
+      <div class="flow-step">
+        <span class="flow-step-num">1</span>
+        <div class="flow-step-content"><b>Clarify Requirements:</b> Define Functional & Non-Functional Goals (SLAs, p99 Latency, Traffic Scale).</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">2</span>
+        <div class="flow-step-content"><b>Capacity & Hardware Estimation:</b> Estimate QPS, Memory, Storage, and Network Bandwidth limits.</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">3</span>
+        <div class="flow-step-content"><b>API Design & Schemas:</b> Define endpoints (REST/gRPC) and data storage model (SQL vs NoSQL).</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">4</span>
+        <div class="flow-step-content"><b>High-Level Diagram:</b> Sketch API Gateway, Load Balancers, Services, Cache, and Message Queues.</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">5</span>
+        <div class="flow-step-content"><b>Deep-Dive Component Design:</b> Address single points of failure, bottlenecks, and edge cases.</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">6</span>
+        <div class="flow-step-content"><b>Trade-off Justifications & Observability:</b> Justify CAP/PACELC choices, p99 tail latency, and monitoring stack.</div>
+      </div>
     </div>
 
     <h3>📌 10 Important Architectural Points to Note</h3>

@@ -11,17 +11,19 @@ window.hldModulesData.push({
 
     <h3>Atomic Rate Limiting with Redis Lua Scripts</h3>
     <p>Redis executes Lua scripts <b>atomically in a single thread</b>, ensuring no concurrent gateway worker can read stale counter values between checks.</p>
+
     <div class="code-block">
--- Lua Script for Sliding Window Counter
-local key = KEYS[1]
-local limit = tonumber(ARGV[1])
-local current = tonumber(redis.call('get', key) or "0")
-if current + 1 > limit then
-    return 0 -- Rejected (HTTP 429)
-else
+<span class="keyword">-- Lua Script for Atomic Sliding Window Rate Limiting</span>
+<span class="keyword">local</span> key = KEYS[1]
+<span class="keyword">local</span> limit = tonumber(ARGV[1])
+<span class="keyword">local</span> current = tonumber(redis.call('get', key) or "0")
+
+<span class="keyword">if</span> current + 1 > limit <span class="keyword">then</span>
+    <span class="keyword">return</span> 0 <span class="highlight">-- Rejected (HTTP 429 Too Many Requests)</span>
+<span class="keyword">else</span>
     redis.call("INCRBY", key, 1)
-    return 1 -- Allowed
-end
+    <span class="keyword">return</span> 1 <span class="highlight">-- Allowed</span>
+<span class="keyword">end</span>
     </div>
 
     <h3>📌 10 Important Architectural Points to Note</h3>

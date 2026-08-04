@@ -9,10 +9,15 @@ window.hldModulesData.push({
   content: `
     <p>While the CAP Theorem describes distributed system behavior <b>during network partitions</b>, the <b>PACELC Theorem</b> extends this framework by evaluating system behavior during <i>normal, non-partitioned operations</i>.</p>
     
-    <div class="code-block">
-PACELC Rule:
-If Partition (P)  --> Choose Availability (A) OR Consistency (C)
-Else (E)          --> Choose Latency (L)      OR Consistency (C)
+    <div class="flow-container">
+      <div class="flow-step">
+        <span class="flow-step-num">1</span>
+        <div class="flow-step-content"><b>If Partition (P) Occurs:</b> System must choose between <b>Availability (A)</b> (responding immediately with potentially stale data) OR <b>Consistency (C)</b> (failing or blocking until data syncs).</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">2</span>
+        <div class="flow-step-content"><b>Else (E) Normal Operation:</b> System must choose between <b>Latency (L)</b> (returning local reads/writes fast) OR <b>Consistency (C)</b> (waiting for cross-replica sync).</div>
+      </div>
     </div>
 
     <h3>PACELC Trade-Off Examples</h3>
@@ -23,12 +28,16 @@ Else (E)          --> Choose Latency (L)      OR Consistency (C)
 
     <h3>Tunable Consistency Math (Quorum Formula)</h3>
     <p>For strong consistency in distributed leaderless clusters (Dynamo/Cassandra), configure Read (R), Write (W), and Replication Factor (N) to satisfy:</p>
-    <div class="code-block">
-Strong Consistency Formula:   R + W > N
-
-Example (N = 3):
-- Write Quorum (W = 2), Read Quorum (R = 2) ==> 2 + 2 = 4 > 3 (STRONG CONSISTENCY guaranteed)
-- Eventual Consistency (W = 1, R = 1)      ==> 1 + 1 = 2 < 3 (Fast, but Stale Reads possible)
+    
+    <div class="flow-container">
+      <div class="flow-step">
+        <span class="flow-step-num">✓</span>
+        <div class="flow-step-content"><b>Strong Consistency Formula:</b> <code>R + W > N</code><br>Example (Replication N = 3): Write Quorum W = 2, Read Quorum R = 2 (2 + 2 = 4 > 3). Guarantees read and write quorums overlap on at least 1 fresh node.</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">⚡</span>
+        <div class="flow-step-content"><b>Eventual Consistency Formula:</b> <code>R + W ≤ N</code><br>Example (Replication N = 3): Write Quorum W = 1, Read Quorum R = 1 (1 + 1 = 2 ≤ 3). Fast sub-millisecond responses, but stale reads possible.</div>
+      </div>
     </div>
 
     <h3>📌 10 Important Architectural Points to Note</h3>

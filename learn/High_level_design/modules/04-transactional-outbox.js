@@ -10,12 +10,27 @@ window.hldModulesData.push({
     <p>Updating a database and publishing a message queue event in two separate network calls introduces the <b>Dual-Write Problem</b>. If the application crashes or the network fails between operations, your database and message queue enter an inconsistent state.</p>
 
     <h3>The Transactional Outbox Pattern + Change Data Capture (CDC)</h3>
-    <div class="code-block">
-1. App Service -> Begins Local DB Transaction
-2. App Service -> Writes Business Data (e.g. Orders Table)
-3. App Service -> Writes Event to 'Outbox' Table (SAME DB Transaction!)
-4. DB Commit    -> Atomic 100% Guaranteed persistence!
-5. CDC Engine   -> Debezium reads DB binlog & streams Outbox events to Kafka
+    <div class="flow-container">
+      <div class="flow-step">
+        <span class="flow-step-num">1</span>
+        <div class="flow-step-content"><b>Begin Local DB Transaction:</b> The application service opens an ACID transaction on the local database.</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">2</span>
+        <div class="flow-step-content"><b>Write Business Data:</b> Insert/Update domain records (e.g. <code>orders</code> table).</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">3</span>
+        <div class="flow-step-content"><b>Write Outbox Event:</b> Insert event payload into an <code>outbox</code> table inside the <b>SAME local database transaction</b>.</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">4</span>
+        <div class="flow-step-content"><b>Commit DB Transaction:</b> Atomically guarantees both domain record and outbox event are persisted together.</div>
+      </div>
+      <div class="flow-step">
+        <span class="flow-step-num">5</span>
+        <div class="flow-step-content"><b>CDC Engine (Debezium):</b> Tails the DB binlog/WAL and asynchronously streams outbox events to Kafka topics without data loss.</div>
+      </div>
     </div>
 
     <h3>Fencing Tokens in Distributed Locks</h3>
