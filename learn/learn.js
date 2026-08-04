@@ -1,4 +1,10 @@
 function syncLearnState() {
+  // Purge legacy deleted course enrollments (e.g. java)
+  try {
+    if (typeof state !== 'undefined' && state.learning?.enrollments?.java) {
+      delete state.learning.enrollments.java;
+    }
+  } catch(e) {}
   try {
     let raw = localStorage.getItem('becreator_v1') || localStorage.getItem('dayflow_v1');
     if (raw) {
@@ -120,11 +126,14 @@ function renderLearnContent() {
   const contentWrap = document.getElementById('learn-app-content');
   if (!contentWrap) return;
 
-  // Retrieve state or fallback
+  // Retrieve state or fallback (filtered by active courses)
   const enrollments = state.learning?.enrollments || {};
-  const enrolled = Object.values(enrollments).filter(e => e.enrolled).length;
-  const completed = Object.values(enrollments).filter(e => e.progress >= 100).length;
-  const streak = Math.max(...Object.values(enrollments).map(e => e.streak || 0), 0);
+  const activeCourseIds = ['blind75', 'java_at_a_glance'];
+  const activeEnrollments = activeCourseIds.map(id => enrollments[id]).filter(e => e && e.enrolled);
+
+  const enrolled = activeEnrollments.length;
+  const completed = activeEnrollments.filter(e => e.progress >= 100).length;
+  const streak = Math.max(...activeEnrollments.map(e => e.streak || 0), 0);
 
   // Java Course State
   const javaEnrollment = enrollments.java;
@@ -281,18 +290,7 @@ function renderLearnContent() {
 function handleCourseAction(courseId) {
   const enrollment = state.learning?.enrollments?.[courseId];
   if (enrollment?.enrolled) {
-        if (courseId === 'java_at_a_glance') {
-      if (modalIcon) modalIcon.textContent = '☕';
-      if (modalTitle) modalTitle.textContent = 'Java at a glance';
-      if (modalSub) modalSub.textContent = 'Complete Java DSA reference, key methods, time complexities, algorithm patterns, and bonus interview Q&A.';
-      if (modalStats) {
-        modalStats.innerHTML = `
-          <div class="learn-modal-stat"><div class="learn-modal-stat-val">5</div><div class="learn-modal-stat-lbl">Sections</div></div>
-          <div class="learn-modal-stat"><div class="learn-modal-stat-val">24</div><div class="learn-modal-stat-lbl">Topics</div></div>
-          <div class="learn-modal-stat"><div class="learn-modal-stat-val">Free</div><div class="learn-modal-stat-lbl">Cost</div></div>
-        `;
-      }
-    } else if (courseId === 'blind75') {
+    if (courseId === 'blind75') {
       window.location.href = `learn/blind75/index.html`;
     } else if (courseId === 'java_at_a_glance') {
       window.location.href = `learn/java-at-a-glance/index.html`;
@@ -307,7 +305,7 @@ function handleCourseAction(courseId) {
     const modalSub = document.getElementById('learn-modal-sub');
     const modalStats = document.getElementById('learn-modal-stats');
 
-        if (courseId === 'java_at_a_glance') {
+    if (courseId === 'java_at_a_glance') {
       if (modalIcon) modalIcon.textContent = '☕';
       if (modalTitle) modalTitle.textContent = 'Java at a glance';
       if (modalSub) modalSub.textContent = 'Complete Java DSA reference, key methods, time complexities, algorithm patterns, and bonus interview Q&A.';
@@ -326,17 +324,6 @@ function handleCourseAction(courseId) {
         modalStats.innerHTML = `
           <div class="learn-modal-stat"><div class="learn-modal-stat-val">75</div><div class="learn-modal-stat-lbl">Problems</div></div>
           <div class="learn-modal-stat"><div class="learn-modal-stat-val">10</div><div class="learn-modal-stat-lbl">Topics</div></div>
-          <div class="learn-modal-stat"><div class="learn-modal-stat-val">Free</div><div class="learn-modal-stat-lbl">Cost</div></div>
-        `;
-      }
-    } else {
-      if (modalIcon) modalIcon.textContent = '☕';
-      if (modalTitle) modalTitle.textContent = 'Java Development';
-      if (modalSub) modalSub.textContent = 'Start your Java learning journey today. Track your progress, earn streaks, and get certified.';
-      if (modalStats) {
-        modalStats.innerHTML = `
-          <div class="learn-modal-stat"><div class="learn-modal-stat-val">12</div><div class="learn-modal-stat-lbl">Lessons</div></div>
-          <div class="learn-modal-stat"><div class="learn-modal-stat-val">3</div><div class="learn-modal-stat-lbl">Quizzes</div></div>
           <div class="learn-modal-stat"><div class="learn-modal-stat-val">Free</div><div class="learn-modal-stat-lbl">Cost</div></div>
         `;
       }
@@ -414,7 +401,8 @@ function closeLearnModal() {
 function updateLearnBadge() {
   syncLearnState();
   const enrollments = state.learning?.enrollments || {};
-  const activeEnrolled = Object.values(enrollments).filter(e => e.enrolled);
+  const activeCourseIds = ['blind75', 'java_at_a_glance'];
+  const activeEnrolled = activeCourseIds.map(id => enrollments[id]).filter(e => e && e.enrolled);
   const badge = document.getElementById('learn-badge');
   if (!badge) return;
 
