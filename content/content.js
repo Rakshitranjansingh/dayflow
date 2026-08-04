@@ -25,16 +25,21 @@ function renderContentPanel() {
       </div>
       
       <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn btn-primary" id="c-generate-btn" onclick="generateContentScript('standard')" style="flex:1;height:40px;font-weight:600;font-size:11px;padding:0 4px">
+        <button class="btn btn-primary" id="c-generate-btn" onclick="generateContentScript('standard')" style="flex:1;height:38px;font-weight:600;font-size:11px;padding:0 4px">
           🎬 2-Min Script
         </button>
-        <button class="btn btn-primary" id="c-dramatic-btn" onclick="generateContentScript('dramatic')" style="flex:1;height:40px;font-weight:600;font-size:11px;padding:0 4px;background:linear-gradient(135deg, #ff007f, #7f00ff);border:none;color:#ffffff">
+        <button class="btn btn-primary" id="c-dramatic-btn" onclick="generateContentScript('dramatic')" style="flex:1;height:38px;font-weight:600;font-size:11px;padding:0 4px;background:linear-gradient(135deg, #ff007f, #7f00ff);border:none;color:#ffffff">
           🎭 Dramatic Script
         </button>
       </div>
-      <button class="btn btn-secondary" id="c-own-script-btn" onclick="addOwnScript()" style="width:100%;height:34px;font-weight:600;margin-top:8px;font-size:11px">
-        ✍️ Add Own Script
-      </button>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-primary" id="c-story-btn" onclick="generateContentScript('storytelling')" style="flex:1;height:38px;font-weight:600;font-size:11px;padding:0 4px;background:linear-gradient(135deg, #6C63FF, #00D4AA);border:none;color:#ffffff" title="Generate script with hooks & storytelling format based on topic/instruction">
+          ✨ Get Script
+        </button>
+        <button class="btn btn-secondary" id="c-own-script-btn" onclick="addOwnScript()" style="flex:1;height:38px;font-weight:600;font-size:11px" title="Add or paste your own script directly">
+          ✍️ Add Own Script
+        </button>
+      </div>
       
       <div id="c-loading" style="display:none;margin-top:20px;text-align:center;color:var(--text2)">
         <div class="spinner" style="margin:0 auto 10px"></div>
@@ -231,12 +236,14 @@ async function generateContentScript(style = 'standard') {
 
   const generateBtn = document.getElementById('c-generate-btn');
   const dramaticBtn = document.getElementById('c-dramatic-btn');
+  const storyBtn = document.getElementById('c-story-btn');
   const loadingDiv = document.getElementById('c-loading');
   const loadingText = document.getElementById('c-loading-text');
   const resultDiv = document.getElementById('c-result-container');
   
   if (generateBtn) generateBtn.disabled = true;
   if (dramaticBtn) dramaticBtn.disabled = true;
+  if (storyBtn) storyBtn.disabled = true;
   if (loadingDiv) loadingDiv.style.display = 'block';
   if (resultDiv) resultDiv.style.display = 'none';
   if (loadingText) loadingText.textContent = 'Searching for trending news on the web...';
@@ -246,8 +253,41 @@ async function generateContentScript(style = 'standard') {
     brandingInstructions = `- Seamlessly integrate the channel name or motto line "${channelInfo}" in the script's intro or outro CTA.`;
   }
 
+  if (style === 'storytelling') {
+    if (!topic) {
+      if (typeof showToast === 'function') {
+        showToast('⚠️ Please enter a topic or instruction in the box above.');
+      }
+      if (generateBtn) generateBtn.disabled = false;
+      if (dramaticBtn) dramaticBtn.disabled = false;
+      if (storyBtn) storyBtn.disabled = false;
+      if (loadingDiv) loadingDiv.style.display = 'none';
+      return;
+    }
+    if (loadingText) loadingText.textContent = 'Crafting storytelling script with hooks...';
+  }
+
   let prompt = '';
-  if (style === 'dramatic') {
+  if (style === 'storytelling') {
+    prompt = `Generate a captivating, high-retention STORYTELLING video script with irresistible hooks based on this instruction/topic.
+Instruction/Topic requested: "${topic}"
+${brandingInstructions}
+
+CRITICAL STORYTELLING & HOOK RULES:
+- The script MUST follow an engaging STORYTELLING format (Setup -> Tension/Conflict -> Climax -> Resolution/Takeaway).
+- Opening HOOK (0:00 - 0:05): Must be hyper-engaging, creating an immediate curiosity gap or emotional hook.
+- Story Arc: Weave a narrative, case study, or storytelling journey rather than just listing bullet points.
+- Language style: Natural "Hinglish" as spoken by top Indian creators (Hindi words in Devanagari script, English words in English Roman script).
+- Structure it with timestamps for a 2-minute video:
+  ⏱️ 0:00-0:05 | [THE HOOK] - High-retention opening hook that creates instant curiosity
+  ⏱️ 0:05-0:20 | [THE STORY BEGINS] - Setting the scene & character/problem setup
+  ⏱️ 0:20-0:50 | [THE CONFLICT & STRUGGLE] - Unexpected twist, challenge, or rising tension
+  ⏱️ 0:50-1:20 | [THE TURNING POINT] - The solution, climax, or breakthrough moment
+  ⏱️ 1:20-1:45 | [THE LESSON & TAKEAWAY] - Core insight / moral / practical value for the viewer
+  ⏱️ 1:45-2:00 | [OUTRO + CTA] - Memorable concluding line & engagement call to action
+
+Return ONLY the final script formatted with time markers.`;
+  } else if (style === 'dramatic') {
     prompt = `Generate a highly dramatic, cinematic, and suspenseful 2-minute video script for a trending news topic.
 Topic/Keyword requested: ${topic || 'Find the latest major hot trending news of today using Google Search grounding.'}
 ${brandingInstructions}
@@ -313,7 +353,7 @@ Return ONLY the script formatted with time markers:
     }
     if (!fullText) throw new Error('Empty script text returned.');
 
-    const displayTopic = (style === 'dramatic' ? '🎭 [Dramatic] ' : '') + (topic || 'Auto-Detected Trend');
+    const displayTopic = (style === 'storytelling' ? '✨ [Story] ' : style === 'dramatic' ? '🎭 [Dramatic] ' : '') + (topic || 'Auto-Detected Trend');
     const newScript = {
       id: 'content_' + Date.now(),
       date: new Date().toLocaleString('en-IN'),
@@ -342,6 +382,7 @@ Return ONLY the script formatted with time markers:
   } finally {
     if (generateBtn) generateBtn.disabled = false;
     if (dramaticBtn) dramaticBtn.disabled = false;
+    if (storyBtn) storyBtn.disabled = false;
     if (loadingDiv) loadingDiv.style.display = 'none';
   }
 }
