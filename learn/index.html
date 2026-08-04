@@ -122,6 +122,30 @@
 <div class="section">
   <div class="section-title">Available Courses</div>
 
+  <!-- High-Level System Design (HLD) -->
+  <div class="course-card" id="card-High_level_design">
+    <div class="course-banner" style="background: linear-gradient(135deg, #6C63FF 0%, #00D4AA 100%); color: #fff;">🏗️</div>
+    <div class="course-body">
+      <div class="course-header">
+        <div class="course-title" style="color: var(--accent);">High-Level System Design (HLD)</div>
+        <span class="course-badge badge-new" id="badge-High_level_design">New</span>
+      </div>
+      <div class="course-desc">Master 18 essential system design modules: CAP theorem, microservices, consistent hashing, rate limiters, Kafka, caching & security.</div>
+      <div class="course-meta">
+        <span>🏗️ 18 modules</span>
+        <span>⚙️ System Scaling</span>
+        <span>📝 Interactive Quizzes</span>
+      </div>
+      <div class="course-progress" id="progress-High_level_design" style="display:none">
+        <div class="course-progress-fill" id="progress-fill-High_level_design" style="width:0%"></div>
+      </div>
+      <div class="course-footer">
+        <span class="course-progress-text" id="progress-text-High_level_design"></span>
+        <button class="enroll-btn btn-enroll" id="btn-High_level_design" onclick="handleCourseAction('High_level_design')">Enroll Free</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Java at a glance -->
   <div class="course-card" id="card-java_at_a_glance">
     <div class="course-banner" style="background: linear-gradient(135deg, #FF9A3C 0%, #FF6B6B 100%); color: #fff;">☕</div>
@@ -283,6 +307,23 @@ function loadState() {
         };
       }
     }
+  // Backup sync for High-Level Design
+  try {
+    const hldDoneStr = localStorage.getItem('High_level_design_done_v1') || localStorage.getItem('hld_course_done_v1');
+    if (hldDoneStr) {
+      const doneArr = JSON.parse(hldDoneStr);
+      if (Array.isArray(doneArr)) {
+        const existing = stateObj.learning.enrollments.High_level_design || {};
+        const pct = Math.round((doneArr.length / 18) * 100);
+        stateObj.learning.enrollments.High_level_design = {
+          enrolled: true,
+          enrolledDate: existing.enrolledDate || new Date().toISOString().split('T')[0],
+          completed: doneArr,
+          progress: pct,
+          lastStudied: existing.lastStudied || new Date().toISOString()
+        };
+      }
+    }
   } catch(e) {}
 
   return stateObj;
@@ -306,7 +347,7 @@ function init() {
 
 function updateHeroStats() {
   const enrollments = state.learning?.enrollments || {};
-  const activeCourseIds = ['blind75', 'java_at_a_glance'];
+  const activeCourseIds = ['blind75', 'java_at_a_glance', 'High_level_design'];
   const activeEnrollments = activeCourseIds.map(id => enrollments[id]).filter(e => e && e.enrolled);
 
   const enrolled = activeEnrollments.length;
@@ -319,6 +360,7 @@ function updateHeroStats() {
 }
 
 function updateCourseCards() {
+  updateCourseCard('High_level_design');
   updateCourseCard('java_at_a_glance');
   updateCourseCard('blind75');
 }
@@ -339,8 +381,8 @@ function updateCourseCard(courseId) {
     progressBar.style.display = 'block';
     progressFill.style.width = (enrollment.progress || 0) + '%';
     const done = enrollment.completed?.length || 0;
-    const total = courseId === 'blind75' ? 75 : 12;
-    const unit = courseId === 'blind75' ? 'problems' : 'lessons';
+    const total = courseId === 'blind75' ? 75 : courseId === 'High_level_design' ? 18 : 12;
+    const unit = courseId === 'blind75' ? 'problems' : courseId === 'High_level_design' ? 'topics' : 'items';
     progressText.textContent = `${done}/${total} ${unit} · ${enrollment.progress || 0}%`;
   }
 }
@@ -354,7 +396,7 @@ function handleCourseAction(courseId) {
   const enrollment = state.learning?.enrollments?.[courseId];
   if (enrollment?.enrolled) {
     // Already enrolled — go to course
-    window.location.href = courseId === 'blind75' ? `blind75/index.html` : `java/index.html`;
+    window.location.href = courseId === 'High_level_design' ? `High_level_design/index.html` : courseId === 'blind75' ? `blind75/index.html` : `java-at-a-glance/index.html`;
   } else {
     // Show enroll modal
     pendingCourse = courseId;
@@ -363,7 +405,18 @@ function handleCourseAction(courseId) {
     const modalSub = document.getElementById('modal-sub');
     const modalStats = document.getElementById('modal-stats');
 
-    if (courseId === 'blind75') {
+    if (courseId === 'High_level_design') {
+      if (modalIcon) modalIcon.textContent = '🏗️';
+      if (modalTitle) modalTitle.textContent = 'High-Level System Design (HLD)';
+      if (modalSub) modalSub.textContent = 'Master 18 core system design topics: OSI layers, CAP theorem, microservices, consistent hashing, rate limiters, Kafka, caching & security.';
+      if (modalStats) {
+        modalStats.innerHTML = `
+          <div class="modal-stat"><div class="modal-stat-val">18</div><div class="modal-stat-lbl">Modules</div></div>
+          <div class="modal-stat"><div class="modal-stat-val">18</div><div class="modal-stat-lbl">Quizzes</div></div>
+          <div class="modal-stat"><div class="modal-stat-val">Free</div><div class="modal-stat-lbl">Cost</div></div>
+        `;
+      }
+    } else if (courseId === 'blind75') {
       if (modalIcon) modalIcon.textContent = '🎯';
       if (modalTitle) modalTitle.textContent = 'Blind 75 (DSA in Java)';
       if (modalSub) modalSub.textContent = 'Master 75 essential LeetCode Data Structures & Algorithms problems with full Java solutions.';
@@ -428,8 +481,9 @@ function confirmEnroll() {
   updateCourseCards();
   updateHeroStats();
   const isBlind75 = courseId === 'blind75';
-  showToast(`✅ Enrolled! Starting ${isBlind75 ? 'Blind 75' : 'Java'} journey...`);
-  setTimeout(() => { window.location.href = isBlind75 ? `blind75/index.html` : `java/index.html`; }, 1000);
+  const isHLD = courseId === 'High_level_design';
+  showToast(`✅ Enrolled! Starting ${isHLD ? 'High-Level Design' : isBlind75 ? 'Blind 75' : 'Java'} journey...`);
+  setTimeout(() => { window.location.href = isHLD ? `High_level_design/index.html` : isBlind75 ? `blind75/index.html` : `java-at-a-glance/index.html`; }, 1000);
 }
 
 

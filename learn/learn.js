@@ -70,6 +70,30 @@ function syncLearnState() {
       }
     }
   } catch(e) {}
+
+  // Backup state sync directly from High_level_design_done_v1
+  try {
+    const hldDoneStr = localStorage.getItem('High_level_design_done_v1') || localStorage.getItem('hld_course_done_v1');
+    if (hldDoneStr) {
+      const doneArr = JSON.parse(hldDoneStr);
+      if (Array.isArray(doneArr)) {
+        if (typeof state !== 'undefined') {
+          if (!state.learning) state.learning = { enrollments: {} };
+          if (!state.learning.enrollments) state.learning.enrollments = {};
+          
+          const existing = state.learning.enrollments.High_level_design || {};
+          const pct = Math.round((doneArr.length / 18) * 100);
+          state.learning.enrollments.High_level_design = {
+            enrolled: true,
+            enrolledDate: existing.enrolledDate || new Date().toISOString().split('T')[0],
+            completed: doneArr,
+            progress: pct,
+            lastStudied: existing.lastStudied || new Date().toISOString()
+          };
+        }
+      }
+    }
+  } catch(e) {}
 }
 
 // ============================================================
@@ -128,12 +152,36 @@ function renderLearnContent() {
 
   // Retrieve state or fallback (filtered by active courses)
   const enrollments = state.learning?.enrollments || {};
-  const activeCourseIds = ['blind75', 'java_at_a_glance'];
+  const activeCourseIds = ['blind75', 'java_at_a_glance', 'High_level_design'];
   const activeEnrollments = activeCourseIds.map(id => enrollments[id]).filter(e => e && e.enrolled);
 
   const enrolled = activeEnrollments.length;
   const completed = activeEnrollments.filter(e => e.progress >= 100).length;
   const streak = Math.max(...activeEnrollments.map(e => e.streak || 0), 0);
+
+  // High_level_design Course State
+  const hldEnrollment = enrollments.High_level_design;
+  let hldBadgeHtml = '<span class="learn-course-badge learn-badge-new" id="learn-badge-High_level_design">New</span>';
+  let hldBtnHtml = '<button class="learn-enroll-btn learn-btn-enroll" id="learn-btn-High_level_design" onclick="handleCourseAction(\'High_level_design\')">Enroll Free</button>';
+  let hldProgressHtml = `
+    <div class="learn-course-progress" id="learn-progress-High_level_design" style="display:none">
+      <div class="learn-course-progress-fill" id="learn-progress-fill-High_level_design" style="width:0%"></div>
+    </div>
+  `;
+  let hldProgressTextHtml = '<span class="learn-course-progress-text" id="learn-progress-text-High_level_design"></span>';
+
+  if (hldEnrollment?.enrolled) {
+    const done = hldEnrollment.completed?.length || 0;
+    const progressVal = hldEnrollment.progress || 0;
+    hldBadgeHtml = '<span class="learn-course-badge learn-badge-enrolled" id="learn-badge-High_level_design">✅ Enrolled</span>';
+    hldBtnHtml = '<button class="learn-enroll-btn learn-btn-continue" id="learn-btn-High_level_design" onclick="handleCourseAction(\'High_level_design\')">Continue →</button>';
+    hldProgressHtml = `
+      <div class="learn-course-progress" id="learn-progress-High_level_design" style="display:block">
+        <div class="learn-course-progress-fill" id="learn-progress-fill-High_level_design" style="width:${progressVal}%"></div>
+      </div>
+    `;
+    hldProgressTextHtml = `<span class="learn-course-progress-text" id="learn-progress-text-High_level_design">${done}/18 topics · ${progressVal}%</span>`;
+  }
 
   // Java Course State
   const javaEnrollment = enrollments.java;
@@ -233,8 +281,27 @@ function renderLearnContent() {
     <div class="learn-section">
       <div class="learn-section-title">Available Courses</div>
 
-      <!-- Blind 75 (Java) -->
-      <!-- Java at a glance -->
+      <div class="learn-course-card" id="learn-card-High_level_design">
+        <div class="learn-course-banner" style="background: linear-gradient(135deg, #6C63FF 0%, #00D4AA 100%); color: #fff;">🏗️</div>
+        <div class="learn-course-body">
+          <div class="learn-course-header">
+            <div class="learn-course-title" style="color: var(--accent);">High-Level System Design (HLD)</div>
+            ${hldBadgeHtml}
+          </div>
+          <div class="learn-course-desc">Master 18 essential system design modules: CAP theorem, microservices, consistent hashing, rate limiters, Kafka, caching & security.</div>
+          <div class="learn-course-meta">
+            <span>🏗️ 18 modules</span>
+            <span>⚙️ System Scaling</span>
+            <span>📝 Interactive Quizzes</span>
+          </div>
+          ${hldProgressHtml}
+          <div class="learn-course-footer">
+            ${hldProgressTextHtml}
+            ${hldBtnHtml}
+          </div>
+        </div>
+      </div>
+
       <div class="learn-course-card" id="learn-card-java_at_a_glance">
         <div class="learn-course-banner" style="background: linear-gradient(135deg, #FF9A3C 0%, #FF6B6B 100%); color: #fff;">☕</div>
         <div class="learn-course-body">
@@ -294,8 +361,10 @@ function handleCourseAction(courseId) {
       window.location.href = `learn/blind75/index.html`;
     } else if (courseId === 'java_at_a_glance') {
       window.location.href = `learn/java-at-a-glance/index.html`;
+    } else if (courseId === 'High_level_design') {
+      window.location.href = `learn/High_level_design/index.html`;
     } else {
-      window.location.href = `learn/java-at-a-glance/index.html`;
+      window.location.href = `learn/High_level_design/index.html`;
     }
   } else {
     // Launch enrollment overlay modal
@@ -305,7 +374,18 @@ function handleCourseAction(courseId) {
     const modalSub = document.getElementById('learn-modal-sub');
     const modalStats = document.getElementById('learn-modal-stats');
 
-    if (courseId === 'java_at_a_glance') {
+    if (courseId === 'High_level_design') {
+      if (modalIcon) modalIcon.textContent = '🏗️';
+      if (modalTitle) modalTitle.textContent = 'High-Level System Design (HLD)';
+      if (modalSub) modalSub.textContent = 'Master 18 core system design topics: OSI layers, CAP theorem, microservices, consistent hashing, rate limiters, Kafka, caching & security.';
+      if (modalStats) {
+        modalStats.innerHTML = `
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">18</div><div class="learn-modal-stat-lbl">Modules</div></div>
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">18</div><div class="learn-modal-stat-lbl">Quizzes</div></div>
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">Free</div><div class="learn-modal-stat-lbl">Cost</div></div>
+        `;
+      }
+    } else if (courseId === 'java_at_a_glance') {
       if (modalIcon) modalIcon.textContent = '☕';
       if (modalTitle) modalTitle.textContent = 'Java at a glance';
       if (modalSub) modalSub.textContent = 'Complete Java DSA reference, key methods, time complexities, algorithm patterns, and bonus interview Q&A.';
@@ -377,12 +457,13 @@ function confirmLearnEnroll() {
   updateLearnBadge();
 
   const isBlind75 = courseId === 'blind75';
+  const isHLD = courseId === 'High_level_design';
   if (typeof showToast === 'function') {
-    showToast(`✅ Enrolled! Starting ${isBlind75 ? 'Blind 75' : 'Java'} journey...`);
+    showToast(`✅ Enrolled! Starting ${isHLD ? 'High-Level Design' : isBlind75 ? 'Blind 75' : 'Java'} journey...`);
   }
   
   setTimeout(() => {
-    window.location.href = courseId === 'blind75' ? `learn/blind75/index.html` : `learn/java-at-a-glance/index.html`;
+    window.location.href = isHLD ? `learn/High_level_design/index.html` : isBlind75 ? `learn/blind75/index.html` : `learn/java-at-a-glance/index.html`;
   }, 1000);
 }
 
@@ -401,7 +482,7 @@ function closeLearnModal() {
 function updateLearnBadge() {
   syncLearnState();
   const enrollments = state.learning?.enrollments || {};
-  const activeCourseIds = ['blind75', 'java_at_a_glance'];
+  const activeCourseIds = ['blind75', 'java_at_a_glance', 'High_level_design'];
   const activeEnrolled = activeCourseIds.map(id => enrollments[id]).filter(e => e && e.enrolled);
   const badge = document.getElementById('learn-badge');
   if (!badge) return;
