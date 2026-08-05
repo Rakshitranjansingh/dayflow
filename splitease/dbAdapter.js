@@ -104,11 +104,6 @@ class SplitEasyDBAdapter {
       }
     });
 
-    // Also include local groups created on this device for the authenticated user
-    allGroups.forEach(g => {
-      userGroupIds.add(g.id);
-    });
-
     return allGroups.filter(g => userGroupIds.has(g.id));
   }
 
@@ -229,12 +224,6 @@ class SplitEasyDBAdapter {
       if (isEmailMatch || isNameMatch) {
         userGroupIds.add(m.group_id);
       }
-    });
-
-    // Include local groups created on this device for the authenticated user
-    const localGroups = this._get(STORAGE_KEYS.GROUPS);
-    localGroups.forEach(g => {
-      userGroupIds.add(g.id);
     });
 
     return allGroups.filter(g => userGroupIds.has(g.id));
