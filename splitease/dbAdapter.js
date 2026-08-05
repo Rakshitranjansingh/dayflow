@@ -77,8 +77,29 @@ class SplitEasyDBAdapter {
 
   // --- INSTANT LOCAL CACHE GETTERS (0ms UI Latency) ---
 
-  getGroupsLocal() {
-    return this._get(STORAGE_KEYS.GROUPS);
+  getGroupsLocal(userEmail = '', userName = '') {
+    const cleanEmail = (userEmail || '').trim().toLowerCase();
+    const cleanName = (userName || '').trim().toLowerCase();
+
+    // MANDATORY SECURITY CHECK: Return 0 groups for unauthenticated visitors!
+    if (!cleanEmail) {
+      return [];
+    }
+
+    const allGroups = this._get(STORAGE_KEYS.GROUPS);
+    const allMembers = this._get(STORAGE_KEYS.MEMBERS);
+    const userGroupIds = new Set();
+
+    allMembers.forEach(m => {
+      if (m.is_inactive) return;
+      const mEmail = (m.email || '').trim().toLowerCase();
+      const mName = (m.name || '').trim().toLowerCase();
+      if ((cleanEmail && mEmail === cleanEmail) || (cleanName && mName === cleanName)) {
+        userGroupIds.add(m.group_id);
+      }
+    });
+
+    return allGroups.filter(g => userGroupIds.has(g.id));
   }
 
   getMembersLocal(groupId) {
@@ -138,11 +159,17 @@ class SplitEasyDBAdapter {
 
   async getGroups(userEmail = '', userName = '') {
     this.purgeLegacySampleData();
-    let allGroups = [];
-    let allMembers = [];
 
     const cleanEmail = (userEmail || '').trim().toLowerCase();
     const cleanName = (userName || '').trim().toLowerCase();
+
+    // MANDATORY SECURITY CHECK: Return 0 groups for unauthenticated visitors!
+    if (!cleanEmail) {
+      return [];
+    }
+
+    let allGroups = [];
+    let allMembers = [];
 
     if (this.supabaseClient) {
       try {
@@ -187,15 +214,9 @@ class SplitEasyDBAdapter {
         }
       }
 
-      if (isEmailMatch || isNameMatch || (!cleanEmail && !cleanName)) {
+      if (isEmailMatch || (isNameMatch && cleanName)) {
         userGroupIds.add(m.group_id);
       }
-    });
-
-    // Fallback for local cache groups created on this device
-    const localGroups = this._get(STORAGE_KEYS.GROUPS);
-    localGroups.forEach(g => {
-      userGroupIds.add(g.id);
     });
 
     return allGroups.filter(g => userGroupIds.has(g.id));
