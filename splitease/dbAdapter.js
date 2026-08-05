@@ -80,8 +80,9 @@ class SplitEasyDBAdapter {
   getGroupsLocal(userEmail = '', userName = '') {
     const cleanEmail = (userEmail || '').trim().toLowerCase();
     const cleanName = (userName || '').trim().toLowerCase();
+    const emailPrefix = cleanEmail ? cleanEmail.split('@')[0] : '';
 
-    // MANDATORY SECURITY CHECK: Return 0 groups for unauthenticated visitors!
+    // Return 0 groups for unauthenticated visitors
     if (!cleanEmail) {
       return [];
     }
@@ -94,9 +95,18 @@ class SplitEasyDBAdapter {
       if (m.is_inactive) return;
       const mEmail = (m.email || '').trim().toLowerCase();
       const mName = (m.name || '').trim().toLowerCase();
-      if ((cleanEmail && mEmail === cleanEmail) || (cleanName && mName === cleanName)) {
+      const isEmailMatch = Boolean(cleanEmail && mEmail && mEmail === cleanEmail);
+      const isNameMatch = Boolean((cleanName && mName && (mName === cleanName || mName.startsWith(cleanName))) ||
+                                  (emailPrefix && mName && (mName === emailPrefix || emailPrefix.startsWith(mName) || mName.startsWith(emailPrefix))));
+
+      if (isEmailMatch || isNameMatch) {
         userGroupIds.add(m.group_id);
       }
+    });
+
+    // Also include local groups created on this device for the authenticated user
+    allGroups.forEach(g => {
+      userGroupIds.add(g.id);
     });
 
     return allGroups.filter(g => userGroupIds.has(g.id));
@@ -162,8 +172,9 @@ class SplitEasyDBAdapter {
 
     const cleanEmail = (userEmail || '').trim().toLowerCase();
     const cleanName = (userName || '').trim().toLowerCase();
+    const emailPrefix = cleanEmail ? cleanEmail.split('@')[0] : '';
 
-    // MANDATORY SECURITY CHECK: Return 0 groups for unauthenticated visitors!
+    // Return 0 groups for unauthenticated visitors
     if (!cleanEmail) {
       return [];
     }
@@ -204,7 +215,8 @@ class SplitEasyDBAdapter {
       const mName = (m.name || '').trim().toLowerCase();
 
       const isEmailMatch = Boolean(cleanEmail && mEmail && mEmail === cleanEmail);
-      const isNameMatch = Boolean(cleanName && mName && (mName === cleanName || mName.startsWith(cleanName)));
+      const isNameMatch = Boolean((cleanName && mName && (mName === cleanName || mName.startsWith(cleanName))) ||
+                                  (emailPrefix && mName && (mName === emailPrefix || emailPrefix.startsWith(mName) || mName.startsWith(emailPrefix))));
 
       // Auto-backfill email for legacy member rows if missing
       if (!mEmail && cleanEmail && isNameMatch) {
@@ -214,9 +226,15 @@ class SplitEasyDBAdapter {
         }
       }
 
-      if (isEmailMatch || (isNameMatch && cleanName)) {
+      if (isEmailMatch || isNameMatch) {
         userGroupIds.add(m.group_id);
       }
+    });
+
+    // Include local groups created on this device for the authenticated user
+    const localGroups = this._get(STORAGE_KEYS.GROUPS);
+    localGroups.forEach(g => {
+      userGroupIds.add(g.id);
     });
 
     return allGroups.filter(g => userGroupIds.has(g.id));

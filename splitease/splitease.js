@@ -17,10 +17,30 @@ const TEMPLATES = {
   custom: { name: 'Custom', icon: '⚙️', colorClass: 'se-template-custom', categories: ['General', 'Food', 'Transport', 'Shopping', 'Other'] }
 };
 
+function getUserIdentityName() {
+  if (typeof state !== 'undefined' && state.name && state.name.trim()) {
+    return state.name.trim();
+  }
+  if (typeof state !== 'undefined' && state.userEmail && state.userEmail.trim()) {
+    return state.userEmail.split('@')[0].trim();
+  }
+  return '';
+}
+
 /**
  * Opens full-screen SplitEasy application view.
  */
 async function openSplitEasyApp() {
+  if (typeof checkMandatoryAuth === 'function') {
+    checkMandatoryAuth();
+  }
+
+  const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail : '';
+  if (!userEmail && typeof connectDrive === 'function') {
+    connectDrive();
+    return;
+  }
+
   const mainApp = document.getElementById('app');
   if (mainApp) mainApp.style.display = 'none';
 
