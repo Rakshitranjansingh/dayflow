@@ -244,12 +244,65 @@
     </div>
 
     <!-- HIDDEN YOUTUBE IFRAME PLAYER -->
-    <div id="youtube-player"></div>
+    <iframe id="youtube-iframe"
+        src="https://www.youtube-nocookie.com/embed/videoseries?list=PLIViRZmtnEnE&enablejsapi=1&autoplay=0&controls=0&loop=1&playsinline=1"
+        allow="autoplay; encrypted-media" allowfullscreen
+        style="position:fixed;bottom:-9999px;right:-9999px;width:1px;height:1px;opacity:0.01;pointer-events:none;border:none;"></iframe>
 
     <script>
-        let player = null;
         let isPlaying = false;
-        const PLAYLIST_ID = 'PLIViRZmtnEnE';
+        let iframeReady = false;
+
+        const iframe = document.getElementById('youtube-iframe');
+
+        function sendCommand(func, args) {
+            if (!iframe || !iframe.contentWindow) return;
+            iframe.contentWindow.postMessage(JSON.stringify({
+                event: 'command',
+                func: func,
+                args: args || []
+            }), '*');
+        }
+
+        // Listen for state changes from the iframe
+        window.addEventListener('message', function (e) {
+            let data;
+            try { data = JSON.parse(e.data); } catch { return; }
+
+            if (data.event === 'onReady') {
+                iframeReady = true;
+            }
+
+            if (data.event === 'infoDelivery' && data.info) {
+                const playIcon = document.getElementById('play-icon');
+                const state = data.info.playerState;
+                if (state === 1) { // PLAYING
+                    isPlaying = true;
+                    playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+                } else if (state === 2) { // PAUSED
+                    isPlaying = false;
+                    playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+                } else if (state === 0) { // ENDED
+                    sendCommand('nextVideo');
+                }
+            }
+        });
+
+        function togglePlay() {
+            if (isPlaying) {
+                sendCommand('pauseVideo');
+            } else {
+                sendCommand('playVideo');
+            }
+        }
+
+        function nextTrack() {
+            sendCommand('nextVideo');
+        }
+
+        function prevTrack() {
+            sendCommand('previousVideo');
+        }
 
         function goBack() {
             if (window.parent && typeof window.parent.closeRadioPlayerApp === 'function') {
@@ -257,90 +310,6 @@
             } else {
                 window.location.href = '../index.html?tab=utils';
             }
-        }
-
-        // LOAD YOUTUBE IFRAME API
-        const tag = document.createElement('script');
-        tag.src = "https://www.youtube.com/iframe_api";
-        const firstScriptTag = document.getElementsByTagName('script')[0];
-        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-
-        function onYouTubeIframeAPIReady() {
-            player = new YT.Player('youtube-player', {
-                height: '200',
-                width: '200',
-                playerVars: {
-                    'enablejsapi': 1,
-                    'origin': 'https://becreator.online',
-                    'listType': 'playlist',
-                    'list': PLAYLIST_ID,
-                    'autoplay': 0,
-                    'controls': 0,
-                    'loop': 1,
-                    'playsinline': 1
-                },
-                events: {
-                    'onReady': onPlayerReady,
-                    'onStateChange': onPlayerStateChange,
-                    'onError': onPlayerError
-                }
-            });
-        }
-
-        function onPlayerReady(event) {
-            if (player && typeof player.cuePlaylist === 'function') {
-                player.cuePlaylist({
-                    listType: 'playlist',
-                    list: PLAYLIST_ID
-                });
-            }
-        }
-
-        function togglePlay() {
-            if (!player) return;
-            const state = (typeof player.getPlayerState === 'function') ? player.getPlayerState() : -1;
-
-            if (state === YT.PlayerState.PLAYING) {
-                if (typeof player.pauseVideo === 'function') {
-                    player.pauseVideo();
-                }
-            } else {
-                if (typeof player.playVideo === 'function') {
-                    player.playVideo();
-                } else if (typeof player.loadPlaylist === 'function') {
-                    player.loadPlaylist({ listType: 'playlist', list: PLAYLIST_ID });
-                }
-            }
-        }
-
-        function nextTrack() {
-            if (player && typeof player.nextVideo === 'function') {
-                player.nextVideo();
-            }
-        }
-
-        function prevTrack() {
-            if (player && typeof player.previousVideo === 'function') {
-                player.previousVideo();
-            }
-        }
-
-        function onPlayerStateChange(event) {
-            const playIcon = document.getElementById('play-icon');
-
-            if (event.data === YT.PlayerState.PLAYING) {
-                isPlaying = true;
-                playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>'; // Pause icon
-            } else if (event.data === YT.PlayerState.PAUSED) {
-                isPlaying = false;
-                playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>'; // Play icon
-            } else if (event.data === YT.PlayerState.ENDED) {
-                nextTrack();
-            }
-        }
-
-        function onPlayerError() {
-            nextTrack();
         }
     </script>
 </body>
