@@ -35,7 +35,6 @@
             overflow: hidden;
         }
 
-        /* LIGHT OVERLAY FOR CRYSTAL CLEAR BACKGROUND IMAGE */
         body::before {
             content: '';
             position: absolute;
@@ -45,7 +44,6 @@
             z-index: 1;
         }
 
-        /* HEADER */
         .nav-header {
             width: 100%;
             display: flex;
@@ -96,7 +94,6 @@
             width: 100px;
         }
 
-        /* FLOATING BOTTOM AUDIO CONTROLLER CARD */
         .bottom-wrapper {
             position: fixed;
             bottom: 40px;
@@ -188,23 +185,11 @@
             height: 26px;
             fill: currentColor;
         }
-
-        /* OFF-SCREEN YOUTUBE CONTAINER */
-        #youtube-player {
-            position: fixed;
-            bottom: -9999px;
-            right: -9999px;
-            width: 1px;
-            height: 1px;
-            opacity: 0.01;
-            pointer-events: none;
-        }
     </style>
 </head>
 
 <body>
 
-    <!-- NAV HEADER -->
     <div class="nav-header">
         <button class="nav-back-btn" onclick="goBack()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -217,24 +202,18 @@
         <div class="header-spacer"></div>
     </div>
 
-    <!-- FLOATING BOTTOM AUDIO CONTROLLER CARD (NO TEXT, TRANSPARENT PILL CARD) -->
     <div class="bottom-wrapper">
         <div class="transparent-controller">
-            <!-- LAST / PREVIOUS BUTTON -->
             <button class="ctrl-btn" onclick="prevTrack()" title="Previous Song">
                 <svg class="ctrl-icon" viewBox="0 0 24 24">
                     <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
                 </svg>
             </button>
-
-            <!-- PLAY / PAUSE BUTTON -->
             <button class="ctrl-btn ctrl-btn-play" id="play-btn" onclick="togglePlay()" title="Play / Pause">
                 <svg class="ctrl-icon-large" id="play-icon" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                 </svg>
             </button>
-
-            <!-- NEXT BUTTON -->
             <button class="ctrl-btn" onclick="nextTrack()" title="Next Song">
                 <svg class="ctrl-icon" viewBox="0 0 24 24">
                     <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
@@ -243,77 +222,12 @@
         </div>
     </div>
 
-    <!-- HIDDEN YOUTUBE IFRAME PLAYER -->
-    <iframe id="youtube-iframe"
-        src="https://www.youtube.com/embed/videoseries?list=PLIViRZmtnEnE&enablejsapi=1&autoplay=0&controls=0&loop=1&playsinline=1&rel=0"
-        allow="autoplay; encrypted-media" allowfullscreen
-        style="position:fixed;bottom:-9999px;right:-9999px;width:200px;height:200px;opacity:0.01;pointer-events:none;border:none;"></iframe>
+    <!-- YouTube IFrame API approach — loaded via script tag so onYouTubeIframeAPIReady fires correctly -->
+    <div id="yt-container" style="position:fixed;top:-9999px;left:-9999px;width:320px;height:180px;"></div>
 
     <script>
-        let isPlaying = false;
-        let iframeReady = false;
-        let pendingPlay = false;
-
-        const iframe = document.getElementById('youtube-iframe');
-        const ORIGIN = 'https://becreator.online';
-
-        function sendCommand(func, args) {
-            if (!iframe || !iframe.contentWindow) return;
-            iframe.contentWindow.postMessage(JSON.stringify({
-                event: 'command',
-                func: func,
-                args: args || []
-            }), ORIGIN);
-        }
-
-        // Listen for state changes from the iframe
-        window.addEventListener('message', function (e) {
-            let data;
-            try { data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch { return; }
-
-            if (data.event === 'onReady') {
-                iframeReady = true;
-                if (pendingPlay) {
-                    pendingPlay = false;
-                    sendCommand('playVideo');
-                }
-            }
-
-            if (data.event === 'onStateChange') {
-                const playIcon = document.getElementById('play-icon');
-                const state = data.info;
-                if (state === 1) { // PLAYING
-                    isPlaying = true;
-                    playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
-                } else if (state === 2 || state === 5) { // PAUSED or CUED
-                    isPlaying = false;
-                    playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
-                } else if (state === 0) { // ENDED
-                    sendCommand('nextVideo');
-                }
-            }
-        });
-
-        function togglePlay() {
-            if (!iframeReady) {
-                // iframe not ready yet — queue the play for when onReady fires
-                pendingPlay = true;
-                return;
-            }
-            if (isPlaying) {
-                sendCommand('pauseVideo');
-            } else {
-                sendCommand('playVideo');
-            }
-        }
-
-        function nextTrack() {
-            sendCommand('nextVideo');
-        }
-
-        function prevTrack() {
-            sendCommand('previousVideo');
-        }
+        var player = null;
+        var isPlaying = false;
 
         function goBack() {
             if (window.parent && typeof window.parent.closeRadioPlayerApp === 'function') {
@@ -321,6 +235,69 @@
             } else {
                 window.location.href = '../index.html?tab=utils';
             }
+        }
+
+        // Inject YouTube IFrame API script
+        var tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(tag);
+
+        // YouTube calls this automatically when API is ready
+        window.onYouTubeIframeAPIReady = function () {
+            console.log('[YT] API ready');
+            player = new YT.Player('yt-container', {
+                width: '320',
+                height: '180',
+                playerVars: {
+                    listType: 'playlist',
+                    list: 'PLIViRZmtnEnE',
+                    autoplay: 0,
+                    controls: 0,
+                    loop: 1,
+                    playsinline: 1,
+                    rel: 0
+                },
+                events: {
+                    onReady: function (e) {
+                        console.log('[YT] player ready');
+                    },
+                    onStateChange: function (e) {
+                        console.log('[YT] state changed to:', e.data);
+                        var icon = document.getElementById('play-icon');
+                        if (e.data === YT.PlayerState.PLAYING) {
+                            isPlaying = true;
+                            icon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+                        } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.CUED) {
+                            isPlaying = false;
+                            icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+                        } else if (e.data === YT.PlayerState.ENDED) {
+                            player.nextVideo();
+                        }
+                    },
+                    onError: function (e) {
+                        console.log('[YT] error:', e.data);
+                        if (player) player.nextVideo();
+                    }
+                }
+            });
+        };
+
+        function togglePlay() {
+            console.log('[YT] togglePlay | player:', !!player, '| isPlaying:', isPlaying);
+            if (!player) return;
+            if (isPlaying) {
+                player.pauseVideo();
+            } else {
+                player.playVideo();
+            }
+        }
+
+        function nextTrack() {
+            if (player) player.nextVideo();
+        }
+
+        function prevTrack() {
+            if (player) player.previousVideo();
         }
     </script>
 </body>
