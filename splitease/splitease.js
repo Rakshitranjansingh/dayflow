@@ -17,10 +17,30 @@ const TEMPLATES = {
   custom: { name: 'Custom', icon: '⚙️', colorClass: 'se-template-custom', categories: ['General', 'Food', 'Transport', 'Shopping', 'Other'] }
 };
 
+function getUserIdentityName() {
+  if (typeof state !== 'undefined' && state.name && state.name.trim()) {
+    return state.name.trim();
+  }
+  if (typeof state !== 'undefined' && state.userEmail && state.userEmail.trim()) {
+    return state.userEmail.split('@')[0].trim();
+  }
+  return '';
+}
+
 /**
  * Opens full-screen SplitEasy application view.
  */
 async function openSplitEasyApp() {
+  if (typeof checkMandatoryAuth === 'function') {
+    checkMandatoryAuth();
+  }
+
+  const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail : '';
+  if (!userEmail && typeof connectDrive === 'function') {
+    connectDrive();
+    return;
+  }
+
   const mainApp = document.getElementById('app');
   if (mainApp) mainApp.style.display = 'none';
 
@@ -73,8 +93,11 @@ async function initSplitEasyData() {
   const selectEl = document.getElementById('se-group-select');
   if (!selectEl) return;
 
+  const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail : '';
+  const userName = (typeof getUserIdentityName === 'function') ? getUserIdentityName() : '';
+
   // FAST PATH 1: Instant render from Local Cache (0ms latency!)
-  const localGroups = splitEasyDB.getGroupsLocal();
+  const localGroups = splitEasyDB.getGroupsLocal(userEmail, userName);
   populateGroupDropdown(localGroups);
 
   if (localGroups.length > 0) {
@@ -93,8 +116,6 @@ async function initSplitEasyData() {
   // BACKGROUND PATH 2: Sync with Cloud asynchronously
   if (splitEasyDB.supabaseClient) {
     try {
-      const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail : '';
-      const userName = (typeof getUserIdentityName === 'function') ? getUserIdentityName() : '';
       const cloudGroups = await splitEasyDB.getGroups(userEmail, userName);
       
       populateGroupDropdown(cloudGroups);
@@ -131,8 +152,11 @@ async function loadActiveGroupData(groupId) {
   updateSyncIndicator();
   currentGroupId = groupId;
 
+  const userEmail = (typeof state !== 'undefined' && state.userEmail) ? state.userEmail : '';
+  const userName = (typeof getUserIdentityName === 'function') ? getUserIdentityName() : '';
+
   // FAST PATH 1: Instant Local Cache Read (0ms UI latency!)
-  const localGroups = splitEasyDB.getGroupsLocal();
+  const localGroups = splitEasyDB.getGroupsLocal(userEmail, userName);
   activeGroup = localGroups.find(g => g.id === groupId) || activeGroup;
 
   if (activeGroup) {
