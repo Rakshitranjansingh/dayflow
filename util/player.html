@@ -222,12 +222,21 @@
         </div>
     </div>
 
-    <!-- YouTube IFrame API approach — loaded via script tag so onYouTubeIframeAPIReady fires correctly -->
+    <!-- Off-screen YouTube API Container -->
     <div id="yt-container" style="position:fixed;top:-9999px;left:-9999px;width:320px;height:180px;"></div>
 
     <script>
         var player = null;
         var isPlaying = false;
+        var useFallbackAudio = false;
+
+        // Guaranteed embeddable YouTube Lofi tracks
+        var embeddableVideos = ['jfKfPfyJRdk', '5qap5aO4i9A', 'DWcJFNfaw9c', '4xDzrJKXOOY', 'Dx5qFacd8Fw', '7NOSDKbA6lU'];
+        var embedIdx = 0;
+
+        // High Quality 24/7 Lofi MP3 Stream fallback
+        var audioStream = new Audio('https://stream.zeno.fm/f3wvbbqmdg8uv');
+        audioStream.loop = true;
 
         function goBack() {
             if (window.parent && typeof window.parent.closeRadioPlayerApp === 'function') {
@@ -242,9 +251,7 @@
         tag.src = 'https://www.youtube.com/iframe_api';
         document.head.appendChild(tag);
 
-        // YouTube calls this automatically when API is ready
         window.onYouTubeIframeAPIReady = function () {
-            console.log('[YT] API ready');
             player = new YT.Player('yt-container', {
                 width: '320',
                 height: '180',
@@ -258,46 +265,83 @@
                     rel: 0
                 },
                 events: {
-                    onReady: function (e) {
-                        console.log('[YT] player ready');
-                    },
+                    onReady: function (e) {},
                     onStateChange: function (e) {
-                        console.log('[YT] state changed to:', e.data);
                         var icon = document.getElementById('play-icon');
                         if (e.data === YT.PlayerState.PLAYING) {
                             isPlaying = true;
+                            useFallbackAudio = false;
                             icon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
                         } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.CUED) {
-                            isPlaying = false;
-                            icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+                            if (!useFallbackAudio) {
+                                isPlaying = false;
+                                icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+                            }
                         } else if (e.data === YT.PlayerState.ENDED) {
-                            player.nextVideo();
+                            nextTrack();
                         }
                     },
                     onError: function (e) {
-                        console.log('[YT] error:', e.data);
-                        if (player) player.nextVideo();
+                        console.warn('[YT] Embedding restricted/error (150/101). Switching to embeddable lofi stream...', e.data);
+                        switchToEmbeddableTrack();
                     }
                 }
             });
         };
 
         function togglePlay() {
-            console.log('[YT] togglePlay | player:', !!player, '| isPlaying:', isPlaying);
-            if (!player) return;
+            var icon = document.getElementById('play-icon');
             if (isPlaying) {
-                player.pauseVideo();
+                isPlaying = false;
+                icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+                if (useFallbackAudio) {
+                    audioStream.pause();
+                } else if (player && typeof player.pauseVideo === 'function') {
+                    player.pauseVideo();
+                }
             } else {
-                player.playVideo();
+                isPlaying = true;
+                icon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+                if (useFallbackAudio) {
+                    audioStream.play().catch(function() {});
+                } else if (player && typeof player.playVideo === 'function') {
+                    try {
+                        player.playVideo();
+                    } catch(err) {
+                        switchToEmbeddableTrack();
+                    }
+                } else {
+                    switchToEmbeddableTrack();
+                }
+            }
+        }
+
+        function switchToEmbeddableTrack() {
+            if (player && typeof player.loadVideoById === 'function') {
+                player.loadVideoById(embeddableVideos[embedIdx]);
+                if (typeof player.playVideo === 'function') player.playVideo();
+            } else {
+                useFallbackAudio = true;
+                audioStream.play().catch(function() {});
             }
         }
 
         function nextTrack() {
-            if (player) player.nextVideo();
+            if (!useFallbackAudio && player && typeof player.nextVideo === 'function') {
+                player.nextVideo();
+            } else {
+                embedIdx = (embedIdx + 1) % embeddableVideos.length;
+                switchToEmbeddableTrack();
+            }
         }
 
         function prevTrack() {
-            if (player) player.previousVideo();
+            if (!useFallbackAudio && player && typeof player.previousVideo === 'function') {
+                player.previousVideo();
+            } else {
+                embedIdx = (embedIdx - 1 + embeddableVideos.length) % embeddableVideos.length;
+                switchToEmbeddableTrack();
+            }
         }
     </script>
 </body>
