@@ -245,15 +245,17 @@
 
     <!-- HIDDEN YOUTUBE IFRAME PLAYER -->
     <iframe id="youtube-iframe"
-        src="https://www.youtube-nocookie.com/embed/videoseries?list=PLIViRZmtnEnE&enablejsapi=1&autoplay=0&controls=0&loop=1&playsinline=1"
+        src="https://www.youtube.com/embed/videoseries?list=PLIViRZmtnEnE&enablejsapi=1&autoplay=0&controls=0&loop=1&playsinline=1&rel=0"
         allow="autoplay; encrypted-media" allowfullscreen
-        style="position:fixed;bottom:-9999px;right:-9999px;width:1px;height:1px;opacity:0.01;pointer-events:none;border:none;"></iframe>
+        style="position:fixed;bottom:-9999px;right:-9999px;width:200px;height:200px;opacity:0.01;pointer-events:none;border:none;"></iframe>
 
     <script>
         let isPlaying = false;
         let iframeReady = false;
+        let pendingPlay = false;
 
         const iframe = document.getElementById('youtube-iframe');
+        const ORIGIN = 'https://becreator.online';
 
         function sendCommand(func, args) {
             if (!iframe || !iframe.contentWindow) return;
@@ -261,25 +263,29 @@
                 event: 'command',
                 func: func,
                 args: args || []
-            }), '*');
+            }), ORIGIN);
         }
 
         // Listen for state changes from the iframe
         window.addEventListener('message', function (e) {
             let data;
-            try { data = JSON.parse(e.data); } catch { return; }
+            try { data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch { return; }
 
             if (data.event === 'onReady') {
                 iframeReady = true;
+                if (pendingPlay) {
+                    pendingPlay = false;
+                    sendCommand('playVideo');
+                }
             }
 
-            if (data.event === 'infoDelivery' && data.info) {
+            if (data.event === 'onStateChange') {
                 const playIcon = document.getElementById('play-icon');
-                const state = data.info.playerState;
+                const state = data.info;
                 if (state === 1) { // PLAYING
                     isPlaying = true;
                     playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
-                } else if (state === 2) { // PAUSED
+                } else if (state === 2 || state === 5) { // PAUSED or CUED
                     isPlaying = false;
                     playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
                 } else if (state === 0) { // ENDED
@@ -289,6 +295,11 @@
         });
 
         function togglePlay() {
+            if (!iframeReady) {
+                // iframe not ready yet — queue the play for when onReady fires
+                pendingPlay = true;
+                return;
+            }
             if (isPlaying) {
                 sendCommand('pauseVideo');
             } else {
