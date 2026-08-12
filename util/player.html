@@ -222,12 +222,28 @@
         </div>
     </div>
 
-    <!-- YouTube IFrame API approach — loaded via script tag so onYouTubeIframeAPIReady fires correctly -->
-    <div id="yt-container" style="position:fixed;top:-9999px;left:-9999px;width:320px;height:180px;"></div>
+    <!-- Hidden YouTube iframe — sized properly so browser won't throttle it -->
+    <iframe id="yt-iframe" frameborder="0" allowfullscreen
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        referrerpolicy="strict-origin-when-cross-origin" width="640" height="360"
+        style="position:fixed;top:-9999px;left:-9999px;pointer-events:none;"></iframe>
 
     <script>
-        var player = null;
+        var TRACKS = [
+            '5y_TCKNzAMI',
+            'CTNgz5gb3D8',
+            'CTuvMubzXpU',
+            '3NWMK2MRqIk',
+            'bga_0ziOOfQ',
+            'i1IsLVz6T9Q',
+            'otQmzlm-s7Q',
+            'tPNwGuu_rQ4'
+        ];
+
+        var currentIndex = 0;
         var isPlaying = false;
+        var player = null;
+        var ORIGIN = 'https://becreator.online';
 
         function goBack() {
             if (window.parent && typeof window.parent.closeRadioPlayerApp === 'function') {
@@ -237,64 +253,91 @@
             }
         }
 
-        // Inject YouTube IFrame API script
-        var tag = document.createElement('script');
-        tag.src = 'https://www.youtube.com/iframe_api';
-        document.head.appendChild(tag);
+        // Build iframe src exactly like saloon.wtf
+        function buildSrc(videoId) {
+            return 'https://www.youtube.com/embed/' + videoId
+                + '?controls=0'
+                + '&disablekb=1'
+                + '&playsinline=1'
+                + '&rel=0'
+                + '&modestbranding=1'
+                + '&enablejsapi=1'
+                + '&origin=' + encodeURIComponent(ORIGIN)
+                + '&forigin=' + encodeURIComponent(ORIGIN + '/')
+                + '&aoriginsup=1'
+                + '&vf=1'
+                + '&autoplay=1';
+        }
 
-        // YouTube calls this automatically when API is ready
-        window.onYouTubeIframeAPIReady = function () {
-            console.log('[YT] API ready');
-            player = new YT.Player('yt-container', {
-                width: '320',
-                height: '180',
-                playerVars: {
-                    listType: 'playlist',
-                    list: 'PLIViRZmtnEnE',
-                    autoplay: 0,
-                    controls: 0,
-                    loop: 1,
-                    playsinline: 1,
-                    rel: 0
-                },
-                events: {
-                    onReady: function (e) {
-                        console.log('[YT] player ready');
-                    },
-                    onStateChange: function (e) {
-                        console.log('[YT] state changed to:', e.data);
-                        var icon = document.getElementById('play-icon');
-                        if (e.data === YT.PlayerState.PLAYING) {
-                            isPlaying = true;
-                            icon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
-                        } else {
-                            isPlaying = false;
-                            icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
-                        }
-                    },
-                    onError: function (e) {
-                        console.log('[YT] error:', e.data);
-                    }
+        function loadTrack(index, autoplay) {
+            currentIndex = index;
+            var iframe = document.getElementById('yt-iframe');
+            var src = buildSrc(TRACKS[currentIndex]);
+            if (!autoplay) src = src.replace('&autoplay=1', '&autoplay=0');
+            iframe.src = src;
+            player = iframe;
+        }
+
+        // Listen for player state via postMessage
+        window.addEventListener('message', function (e) {
+            var data;
+            try { data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch { return; }
+
+            // YouTube sends info as onStateChange
+            if (data.event === 'onStateChange') {
+                var state = data.info;
+                var icon = document.getElementById('play-icon');
+                if (state === 1) { // PLAYING
+                    isPlaying = true;
+                    icon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+                } else if (state === 2) { // PAUSED
+                    isPlaying = false;
+                    icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+                } else if (state === 0) { // ENDED — auto advance
+                    nextTrack();
                 }
-            });
-        };
+            }
+
+            if (data.event === 'onError') {
+                nextTrack();
+            }
+        });
+
+        function sendCmd(func) {
+            var iframe = document.getElementById('yt-iframe');
+            if (!iframe || !iframe.contentWindow) return;
+            iframe.contentWindow.postMessage(JSON.stringify({
+                event: 'command',
+                func: func,
+                args: []
+            }), '*');
+        }
 
         function togglePlay() {
-            console.log('[YT] togglePlay | player:', !!player, '| isPlaying:', isPlaying);
-            if (!player) return;
-            if (isPlaying) {
-                player.pauseVideo();
+            if (!isPlaying) {
+                // First play — load the track with autoplay
+                if (player === null) {
+                    loadTrack(0, true);
+                } else {
+                    sendCmd('playVideo');
+                }
             } else {
-                player.playVideo();
+                sendCmd('pauseVideo');
             }
         }
 
         function nextTrack() {
-            if (player) player.nextVideo();
+            var next = (currentIndex + 1) % TRACKS.length;
+            loadTrack(next, true);
+            isPlaying = true;
+            document.getElementById('play-icon').innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
         }
 
         function prevTrack() {
-            if (player) player.previousVideo();
+            var prev = (currentIndex - 1 + TRACKS.length) % TRACKS.length;
+            loadTrack(prev, true);
+            isPlaying = true;
+            document.getElementById('play-icon').innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
         }
     </script>
 </body>
