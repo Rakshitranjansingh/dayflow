@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Retro Radio Player — BeCreator</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0F1117;
+      --surface: #1A1D27;
+      --surface2: #232638;
+      --border: #2E3247;
+      --accent: #6C63FF;
+      --accent-glow: rgba(108, 99, 255, 0.25);
+      --green: #00D4AA;
+      --green-glow: rgba(0, 212, 170, 0.2);
+      --cyan: #00E5FF;
+      --red: #FF6B6B;
+      --text: #E8EAF0;
+      --muted: #7A7F9A;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    /* HEADER NAV */
+    .nav-header {
+      background: rgba(26, 29, 39, 0.85);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .nav-back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: var(--sans);
+    }
+    .nav-back-btn:hover {
+      background: var(--accent-glow);
+      border-color: var(--accent);
+      color: var(--accent);
+      transform: translateX(-2px);
+    }
+
+    .nav-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .nav-title {
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .nav-badge {
+      font-size: 11px;
+      color: var(--cyan);
+      background: rgba(0, 229, 255, 0.12);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-family: var(--mono);
+      font-weight: 600;
+    }
+
+    /* MAIN CONTENT WRAPPER */
+    main {
+      max-width: 760px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 32px 20px 80px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* RADIO CONSOLE CARD */
+    .radio-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.35);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .radio-card::before {
+      content: '';
+      position: absolute;
+      top: -120px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* DIGITAL FREQUENCY SCREEN */
+    .screen-box {
+      background: #0B0D14;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.6);
+      position: relative;
+    }
+
+    .screen-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .freq-tag {
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.15em;
+      color: var(--cyan);
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.05);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .status-pill.playing {
+      background: var(--green-glow);
+      color: var(--green);
+      border-color: var(--green);
+    }
+    .status-pill.playing .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+
+    .station-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .station-sub {
+      font-size: 13px;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    /* AUDIO EQUALIZER VISUALIZER */
+    .eq-wrap {
+      display: flex;
+      align-items: flex-end;
+      gap: 5px;
+      height: 36px;
+      margin-top: 20px;
+      padding-top: 10px;
+      border-top: 1px dashed rgba(255,255,255,0.08);
+    }
+
+    .eq-bar {
+      flex: 1;
+      background: linear-gradient(180deg, var(--cyan) 0%, var(--accent) 100%);
+      height: 4px;
+      border-radius: 2px;
+      transition: height 0.15s ease;
+    }
+
+    .playing .eq-bar {
+      animation: bounce 1.2s ease-in-out infinite alternate;
+    }
+
+    .playing .eq-bar:nth-child(1) { animation-delay: 0.1s; }
+    .playing .eq-bar:nth-child(2) { animation-delay: 0.3s; }
+    .playing .eq-bar:nth-child(3) { animation-delay: 0.2s; }
+    .playing .eq-bar:nth-child(4) { animation-delay: 0.5s; }
+    .playing .eq-bar:nth-child(5) { animation-delay: 0.15s; }
+    .playing .eq-bar:nth-child(6) { animation-delay: 0.4s; }
+    .playing .eq-bar:nth-child(7) { animation-delay: 0.25s; }
+    .playing .eq-bar:nth-child(8) { animation-delay: 0.35s; }
+
+    @keyframes bounce {
+      0% { height: 4px; }
+      100% { height: 32px; }
+    }
+
+    /* CONTROLS ROW */
+    .controls-main {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .ctrl-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .ctrl-btn:hover {
+      background: var(--border);
+      color: var(--accent);
+      transform: scale(1.06);
+    }
+    .ctrl-btn:active { transform: scale(0.96); }
+
+    .ctrl-btn-play {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, var(--accent) 0%, #4E44E6 100%);
+      color: #FFF;
+      border: none;
+      font-size: 24px;
+      box-shadow: 0 6px 20px var(--accent-glow);
+    }
+    .ctrl-btn-play:hover {
+      background: linear-gradient(135deg, #7C73FF 0%, var(--accent) 100%);
+      color: #FFF;
+      transform: scale(1.08);
+      box-shadow: 0 8px 24px rgba(108,99,255,0.4);
+    }
+
+    /* VOLUME CONTROLLER */
+    .volume-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--surface2);
+      padding: 12px 18px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+
+    .volume-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 16px;
+      transition: color 0.2s;
+    }
+    .volume-btn:hover { color: var(--text); }
+
+    .volume-slider {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 5px;
+      border-radius: 3px;
+      background: var(--border);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 0 6px var(--accent-glow);
+      transition: transform 0.15s;
+    }
+    .volume-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .vol-val {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+      width: 36px;
+      text-align: right;
+    }
+
+    /* STATIONS SELECTION GRID */
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .stations-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    .station-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .station-card:hover {
+      border-color: var(--accent);
+      background: var(--surface2);
+      transform: translateY(-2px);
+    }
+    .station-card.active {
+      border-color: var(--green);
+      background: rgba(0, 212, 170, 0.08);
+    }
+
+    .station-icon {
+      font-size: 24px;
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .station-card.active .station-icon {
+      background: var(--green-glow);
+    }
+
+    .station-info {
+      flex: 1;
+      overflow: hidden;
+    }
+    .st-name {
+      font-weight: 600;
+      font-size: 13.5px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .st-freq {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* CUSTOM STATION FORM */
+    .custom-station-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .custom-form {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .custom-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .custom-input:focus { border-color: var(--accent); }
+
+    .btn-add {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 0 18px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-add:hover { opacity: 0.9; }
+
+    /* TOAST NOTIFICATION */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--surface2);
+      border: 1px solid var(--accent);
+      color: var(--text);
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 1000;
+      pointer-events: none;
+    }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    #youtube-player {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV HEADER -->
+  <div class="nav-header">
+    <button class="nav-back-btn" onclick="goBack()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      <span>BeCreator</span>
+    </button>
+    <div class="nav-title-wrap">
+      <div class="nav-title">📻 Retro Radio</div>
+      <div class="nav-badge">LOFI & CHILL</div>
+    </div>
+    <div style="width: 80px;"></div>
+  </div>
+
+  <main>
+    <!-- RADIO CONSOLE -->
+    <div class="radio-card">
+      <div class="screen-box" id="screen-box">
+        <div class="screen-header">
+          <span class="freq-tag" id="disp-freq">88.5 FM · CHILL BEATS</span>
+          <div class="status-pill" id="status-pill">
+            <span class="dot"></span>
+            <span id="status-text">Ready</span>
+          </div>
+        </div>
+
+        <div class="station-title" id="disp-name">Lofi Hip Hop Radio</div>
+        <div class="station-sub" id="disp-genre">Beats to relax & study to</div>
+
+        <!-- EQUALIZER VISUALIZER -->
+        <div class="eq-wrap">
+          <div class="eq-bar"></div>
+          <div class="eq-bar"></div>
+          <div class="eq-bar"></div>
+          <div class="eq-bar"></div>
+          <div class="eq-bar"></div>
+          <div class="eq-bar"></div>
+          <div class="eq-bar"></div>
+          <div class="eq-bar"></div>
+        </div>
+      </div>
+
+      <!-- MAIN PLAYBACK CONTROLS -->
+      <div class="controls-main">
+        <button class="ctrl-btn" onclick="prevTrack()" title="Previous Station">⏮️</button>
+        <button class="ctrl-btn ctrl-btn-play" id="play-btn" onclick="togglePlay()" title="Play / Pause">▶️</button>
+        <button class="ctrl-btn" onclick="nextTrack()" title="Next Station">⏭️</button>
+      </div>
+
+      <!-- VOLUME SLIDER -->
+      <div class="volume-row">
+        <button class="volume-btn" id="mute-btn" onclick="toggleMute()" title="Mute/Unmute">🔊</button>
+        <input type="range" class="volume-slider" id="vol-slider" min="0" max="100" value="80" oninput="setVolume(this.value)">
+        <span class="vol-val" id="vol-val">80%</span>
+      </div>
+    </div>
+
+    <!-- PRESET STATIONS -->
+    <div>
+      <div class="section-title">
+        <span>📻 Preset Radio Stations</span>
+        <span style="font-size:11px; font-family:var(--mono); color:var(--muted);" id="st-count">6 Channels</span>
+      </div>
+      <div class="stations-grid" id="stations-grid"></div>
+    </div>
+
+    <!-- CUSTOM YOUTUBE STATION -->
+    <div class="custom-station-card">
+      <div class="section-title" style="margin-bottom:4px">➕ Add Custom Radio Station</div>
+      <div style="font-size:12px; color:var(--muted); margin-bottom:10px">Paste a YouTube Video URL or Video ID to add your custom channel.</div>
+      <form class="custom-form" onsubmit="addCustomStation(event)">
+        <input type="text" class="custom-input" id="custom-id-input" placeholder="e.g. jfKfPfyJRdk or https://youtu.be/..." required>
+        <button type="submit" class="btn-add">Add Station</button>
+      </form>
+    </div>
+  </main>
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast" id="toast-msg"></div>
+
+  <!-- HIDDEN YOUTUBE IFRAME -->
+  <div id="youtube-player"></div>
+
+  <script>
+    // PRESET STATIONS LIST
+    let stations = [
+      { id: 'jfKfPfyJRdk', name: 'Lofi Beats', freq: '88.5 FM', genre: 'Relax & Study Lofi', icon: '☕' },
+      { id: '5qap5aO4i9A', name: 'Lofi Hip Hop', freq: '92.4 FM', genre: 'Night Study Vibes', icon: '🌙' },
+      { id: 'DWcJFNfaw9c', name: 'Chillhop Radio', freq: '96.8 FM', genre: 'Groovy Chillhop', icon: '🎧' },
+      { id: '4xDzrJKXOOY', name: 'Synthwave Radio', freq: '101.2 FM', genre: 'Cyberpunk & Retro Wave', icon: '🌌' },
+      { id: 'Dx5qFacd8Fw', name: 'Jazz Lounge', freq: '104.9 FM', genre: 'Vintage Coffee Jazz', icon: '🎷' },
+      { id: '7NOSDKbA6lU', name: 'Piano Rest', freq: '107.7 FM', genre: 'Peaceful Solo Piano', icon: '🎹' }
+    ];
+
+    let currentIndex = 0;
+    let player = null;
+    let isPlaying = false;
+    let isMuted = false;
+
+    // Load saved custom stations from localStorage
+    try {
+      const saved = localStorage.getItem('becreator_custom_radio');
+      if (saved) {
+        const customArr = JSON.parse(saved);
+        if (Array.isArray(customArr)) {
+          stations = [...stations, ...customArr];
+        }
+      }
+    } catch(e) {}
+
+    // GO BACK NAVIGATION
+    function goBack() {
+      if (window.parent && typeof window.parent.closeRadioPlayerApp === 'function') {
+        window.parent.closeRadioPlayerApp();
+      } else {
+        window.location.href = '../index.html?tab=utils';
+      }
+    }
+
+    // LOAD YOUTUBE IFRAME API
+    const tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    const firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player('youtube-player', {
+        height: '0',
+        width: '0',
+        videoId: stations[currentIndex].id,
+        playerVars: {
+          'playsinline': 1,
+          'controls': 0,
+          'autoplay': 0
+        },
+        events: {
+          'onReady': onPlayerReady,
+          'onStateChange': onPlayerStateChange,
+          'onError': onPlayerError
+        }
+      });
+    }
+
+    // Check if API was ready before script loaded
+    if (window.YT && window.YT.Player) {
+      onYouTubeIframeAPIReady();
+    }
+
+    function onPlayerReady() {
+      updateUI();
+    }
+
+    function togglePlay() {
+      if (!player) return;
+      if (isPlaying) {
+        player.pauseVideo();
+      } else {
+        player.playVideo();
+      }
+    }
+
+    function nextTrack() {
+      currentIndex = (currentIndex + 1) % stations.length;
+      switchStation();
+    }
+
+    function prevTrack() {
+      currentIndex = (currentIndex - 1 + stations.length) % stations.length;
+      switchStation();
+    }
+
+    function selectStation(idx) {
+      if (currentIndex === idx && isPlaying) return;
+      currentIndex = idx;
+      switchStation();
+    }
+
+    function switchStation() {
+      updateUI();
+      if (player && typeof player.loadVideoById === 'function') {
+        player.loadVideoById(stations[currentIndex].id);
+        isPlaying = true;
+      }
+    }
+
+    function setVolume(val) {
+      document.getElementById('vol-val').textContent = val + '%';
+      if (player && typeof player.setVolume === 'function') {
+        player.setVolume(val);
+      }
+    }
+
+    function toggleMute() {
+      if (!player) return;
+      const muteBtn = document.getElementById('mute-btn');
+      if (isMuted) {
+        player.unMute();
+        isMuted = false;
+        muteBtn.textContent = '🔊';
+      } else {
+        player.mute();
+        isMuted = true;
+        muteBtn.textContent = '🔇';
+      }
+    }
+
+    function onPlayerStateChange(event) {
+      const playBtn = document.getElementById('play-btn');
+      const statusPill = document.getElementById('status-pill');
+      const statusText = document.getElementById('status-text');
+      const screenBox = document.getElementById('screen-box');
+
+      if (event.data === YT.PlayerState.PLAYING) {
+        isPlaying = true;
+        playBtn.textContent = '⏸️';
+        statusPill.className = 'status-pill playing';
+        statusText.textContent = 'Playing';
+        screenBox.classList.add('playing');
+      } else if (event.data === YT.PlayerState.PAUSED) {
+        isPlaying = false;
+        playBtn.textContent = '▶️';
+        statusPill.className = 'status-pill';
+        statusText.textContent = 'Paused';
+        screenBox.classList.remove('playing');
+      } else if (event.data === YT.PlayerState.BUFFERING) {
+        statusPill.className = 'status-pill';
+        statusText.textContent = 'Tuning in...';
+      } else if (event.data === YT.PlayerState.ENDED) {
+        nextTrack();
+      }
+    }
+
+    function onPlayerError(e) {
+      showToast('⚠️ Channel offline. Switching station...');
+      setTimeout(nextTrack, 1500);
+    }
+
+    function addCustomStation(e) {
+      e.preventDefault();
+      const input = document.getElementById('custom-id-input');
+      let val = input.value.trim();
+      if (!val) return;
+
+      // Extract YouTube Video ID from URL if full link was passed
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = val.match(regExp);
+      const vidId = (match && match[2].length === 11) ? match[2] : val;
+
+      if (vidId.length < 5) {
+        showToast('⚠️ Please enter a valid YouTube Video ID or link.');
+        return;
+      }
+
+      const newSt = {
+        id: vidId,
+        name: `Custom Radio ${stations.length + 1}`,
+        freq: `${(90 + stations.length * 1.7).toFixed(1)} FM`,
+        genre: 'User Custom Station',
+        icon: '🎵',
+        custom: true
+      };
+
+      stations.push(newSt);
+      
+      // Save custom stations
+      try {
+        const customArr = stations.filter(s => s.custom);
+        localStorage.setItem('becreator_custom_radio', JSON.stringify(customArr));
+      } catch(e) {}
+
+      input.value = '';
+      showToast('✅ Custom station added!');
+      currentIndex = stations.length - 1;
+      renderStationGrid();
+      switchStation();
+    }
+
+    function renderStationGrid() {
+      const grid = document.getElementById('stations-grid');
+      document.getElementById('st-count').textContent = `${stations.length} Channels`;
+
+      grid.innerHTML = stations.map((st, idx) => `
+        <div class="station-card ${idx === currentIndex ? 'active' : ''}" onclick="selectStation(${idx})">
+          <div class="station-icon">${st.icon}</div>
+          <div class="station-info">
+            <div class="st-name">${st.name}</div>
+            <div class="st-freq">${st.freq} · ${st.genre}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateUI() {
+      const curr = stations[currentIndex];
+      document.getElementById('disp-freq').textContent = `${curr.freq} · ${curr.genre.toUpperCase()}`;
+      document.getElementById('disp-name').textContent = curr.name;
+      document.getElementById('disp-genre').textContent = curr.genre;
+      renderStationGrid();
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast-msg');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    // Initial render
+    renderStationGrid();
+  </script>
+</body>
+</html>

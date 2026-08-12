@@ -492,8 +492,12 @@ function updateLearnBadge() {
     return;
   }
 
-  const maxProgress = Math.max(...activeEnrolled.map(e => e.progress || 0));
+  const totalProgress = activeCourseIds.reduce((sum, id) => {
+    const e = enrollments[id];
+    return sum + (e && e.enrolled ? (e.progress || 0) : 0);
+  }, 0);
+  const avgProgress = Math.round(totalProgress / activeCourseIds.length);
   badge.style.display = 'block';
-  badge.textContent = `${maxProgress}%`;
+  badge.textContent = `${avgProgress}%`;
 }
 
