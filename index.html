@@ -1404,8 +1404,10 @@ async function backupToDrive(silent = false) {
     return;
   }
   if (!driveAccessToken) {
-    if (!silent) showToast('Connecting to Google Drive...');
-    requestDriveToken(false); 
+    if (!silent) {
+      showToast('Connecting to Google Drive...');
+      requestDriveToken(false); 
+    }
     return;
   }
   if (!state.driveFolderId) await ensureDriveFolder();
@@ -1481,6 +1483,23 @@ function startApp() {
 // ============================================================
 // INIT APP & CALENDAR
 // ============================================================
+function checkDailyDriveSyncOnStartup() {
+  if (!state.driveConnected) return;
+  const today = (typeof getTodayStr === 'function') ? getTodayStr() : new Date().toISOString().split('T')[0];
+  
+  if (state.lastDailyDriveSyncDate !== today) {
+    state.lastDailyDriveSyncDate = today;
+    try { localStorage.setItem(DB_KEY, JSON.stringify(state)); } catch(e) {}
+    if (!driveAccessToken) {
+      requestDriveToken(false);
+    } else {
+      backupToDrive(true);
+    }
+  } else if (driveAccessToken) {
+    backupToDrive(true);
+  }
+}
+
 function initApp() {
   updateGreeting();
   renderDateStrip();
@@ -1492,10 +1511,10 @@ function initApp() {
   if (typeof updateHomepageChallengeCard === 'function') {
     updateHomepageChallengeCard();
   }
-  // Auto-trigger silent background Google Drive backup on app launch if connected
+  // Trigger single daily Google Drive sync check on first launch of the day
   if (state.driveConnected) {
     setTimeout(() => {
-      backupToDrive(true);
+      checkDailyDriveSyncOnStartup();
     }, 2000);
   }
 }
