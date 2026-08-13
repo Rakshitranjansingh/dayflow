@@ -236,6 +236,14 @@
       'CTuvMubzXpU', '3NWMK2MRqIk', 'bga_0ziOOfQ', 'otQmzlm-s7Q', 'tPNwGuu_rQ4'
     ];
 
+    // Shuffle playlist on every session load for a fresh mix
+    for (var i = TRACKS.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var temp = TRACKS[i];
+      TRACKS[i] = TRACKS[j];
+      TRACKS[j] = temp;
+    }
+
     var currentIndex = 0;
     var isPlaying = false;
     var player = null;
@@ -282,6 +290,7 @@
             if (e.data === YT.PlayerState.PLAYING) {
               isPlaying = true;
               icon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+              updateMediaSession();
             } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.CUED) {
               isPlaying = false;
               icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
@@ -322,6 +331,26 @@
       currentIndex = (currentIndex - 1 + TRACKS.length) % TRACKS.length;
       if (player && typeof player.loadVideoById === 'function') {
         player.loadVideoById(TRACKS[currentIndex]);
+      }
+    }
+
+    function updateMediaSession() {
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: 'BeCreator Music Session',
+          artist: 'Lofi Chill Vibes',
+          album: 'BeCreator Utils',
+          artwork: [
+            { src: './TeaShop.png', sizes: '512x512', type: 'image/png' }
+          ]
+        });
+
+        try {
+          navigator.mediaSession.setActionHandler('play', function() { togglePlay(); });
+          navigator.mediaSession.setActionHandler('pause', function() { togglePlay(); });
+          navigator.mediaSession.setActionHandler('previoustrack', function() { prevTrack(); });
+          navigator.mediaSession.setActionHandler('nexttrack', function() { nextTrack(); });
+        } catch(e) {}
       }
     }
   </script>
