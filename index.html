@@ -5,10 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="BeCreator">
 <title>BeCreator</title>
-<link rel="icon" href="favicon.png" type="image/x-icon">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="favicon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="favicon.png">
+<link rel="apple-touch-icon" sizes="152x152" href="favicon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="favicon.png">
+<meta name="theme-color" content="#0F1117">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Inter:wght@300;400;500;700;900&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
@@ -526,9 +532,20 @@
 
   <!-- Step 5: Done -->
   <div class="ob-step" id="ob-step-5">
-    <div class="ob-icon-big">🎉</div>
+    <div class="ob-icon-big" style="display:flex; justify-content:center; align-items:center; margin-bottom:12px;">
+      <img src="favicon.png" alt="BeCreator App Icon" style="width:72px; height:72px; border-radius:18px; box-shadow:0 8px 24px rgba(0,0,0,0.3); object-fit:contain;">
+    </div>
     <div class="ob-title" id="ob-done-title">You're all set!</div>
-    <div class="ob-sub">Add BeCreator to your home screen for the best experience.<br><br>Safari → Share → Add to Home Screen</div>
+    <div class="ob-sub" id="pwa-install-instructions">
+      Add BeCreator to your home screen for the best app experience.<br><br>
+      <div style="background:var(--surface2); padding:12px 16px; border-radius:12px; font-size:12.5px; border:1px solid var(--border); text-align:left; line-height:1.6;">
+        <b>📱 iOS (Safari):</b> Tap <span style="font-size:14px">⎋</span> (Share) → <b>Add to Home Screen</b> ➕<br>
+        <b>🤖 Android (Chrome):</b> Tap <span style="font-size:14px">⋮</span> (Menu) → <b>Install App</b> or <b>Add to Home screen</b>
+      </div>
+    </div>
+    <button class="ob-btn" id="pwa-install-btn" onclick="triggerPWAInstall()" style="display:none; background:var(--green); color:#0F1117; margin-bottom:10px; font-weight:700;">
+      📲 Install App to Home Screen
+    </button>
     <button class="ob-btn" onclick="startApp()">Start Using BeCreator →</button>
   </div>
 </div>
@@ -1154,8 +1171,18 @@ function loadState() {
   } catch(e) {}
 }
 
+let autoBackupTimer = null;
 function saveState() {
   try { localStorage.setItem(DB_KEY, JSON.stringify(state)); } catch(e) {}
+  triggerAutoDriveBackup();
+}
+
+function triggerAutoDriveBackup() {
+  if (!state.driveConnected) return;
+  if (autoBackupTimer) clearTimeout(autoBackupTimer);
+  autoBackupTimer = setTimeout(() => {
+    backupToDrive(true);
+  }, 4000);
 }
 
 window.logPersonalExpenseFromSplitEasy = function(title, amount, category) {
@@ -1371,15 +1398,21 @@ async function ensureDriveFolder() {
   } catch(e) { console.error('Drive folder error:', e); }
 }
 
-async function backupToDrive() {
-  if (!state.driveConnected) { showToast('Connect Google Drive first in Settings'); return; }
+async function backupToDrive(silent = false) {
+  if (!state.driveConnected) {
+    if (!silent) showToast('Connect Google Drive first in Settings');
+    return;
+  }
   if (!driveAccessToken) {
-    showToast('Connecting to Google Drive...');
+    if (!silent) showToast('Connecting to Google Drive...');
     requestDriveToken(false); 
     return;
   }
   if (!state.driveFolderId) await ensureDriveFolder();
-  if (!state.driveFolderId) { showToast('Could not access BeCreator folder in Drive'); return; }
+  if (!state.driveFolderId) {
+    if (!silent) showToast('Could not access BeCreator folder in Drive');
+    return;
+  }
   try {
     const exportState = { ...state };
     delete exportState.apiKey;
@@ -1403,9 +1436,14 @@ async function backupToDrive() {
         method: 'POST', headers: { Authorization: `Bearer ${driveAccessToken}` }, body: form
       });
     }
-    state.lastDriveBackup = new Date().toLocaleString('en-IN'); saveState();
-    showToast('✅ Backed up to Google Drive!');
-  } catch(e) { console.error('Backup error:', e); showToast('Backup failed. Please try reconnecting Drive.'); }
+    state.lastDriveBackup = new Date().toLocaleString('en-IN');
+    try { localStorage.setItem(DB_KEY, JSON.stringify(state)); } catch(e) {}
+    if (!silent) showToast('✅ Backed up to Google Drive!');
+    console.log('☁️ Background Google Drive backup completed.');
+  } catch(e) {
+    console.error('Backup error:', e);
+    if (!silent) showToast('Backup failed. Please try reconnecting Drive.');
+  }
 }
 
 async function restoreFromDrive() {
@@ -1453,6 +1491,12 @@ function initApp() {
   checkCreatorAccess();
   if (typeof updateHomepageChallengeCard === 'function') {
     updateHomepageChallengeCard();
+  }
+  // Auto-trigger silent background Google Drive backup on app launch if connected
+  if (state.driveConnected) {
+    setTimeout(() => {
+      backupToDrive(true);
+    }, 2000);
   }
 }
 
@@ -3953,5 +3997,36 @@ function closePublisherRequestModal() {
 <script src="splitease/debtSolver.js?v=1.0.29"></script>
 <script src="splitease/dbAdapter.js?v=1.0.29"></script>
 <script src="splitease/splitease.js?v=1.0.29"></script>
+
+<!-- PWA Service Worker & Install Handler -->
+<script>
+  let deferredInstallPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    const btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.style.display = 'inline-flex';
+  });
+
+  function triggerPWAInstall() {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      deferredInstallPrompt.userChoice.then((choice) => {
+        if (choice.outcome === 'accepted') {
+          showToast('🎉 BeCreator installed to Home Screen!');
+        }
+        deferredInstallPrompt = null;
+      });
+    } else {
+      showToast('To install: tap menu (⋮ / ⎋) → Add to Home Screen');
+    }
+  }
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+</script>
 </body>
 </html>
