@@ -1336,9 +1336,12 @@ function initDriveClient() {
         showToast('✅ Google Drive connected!');
         
         await ensureDriveFolder();
-        if (window._pendingDriveAction === 'restore') {
+        const hasExistingBackup = await checkDriveBackupExists();
+        
+        if (window._pendingDriveAction === 'restore' || hasExistingBackup) {
           window._pendingDriveAction = null;
-          await restoreFromDrive();
+          await restoreFromDrive(true);
+          showToast('☁️ Welcome back! Your data was restored from Google Drive.');
         } else {
           await backupToDrive();
         }
@@ -1347,6 +1350,19 @@ function initDriveClient() {
     });
   } catch (e) {
     console.warn("Google Client registration disabled:", e);
+  }
+}
+
+async function checkDriveBackupExists() {
+  if (!driveAccessToken || !state.driveFolderId) return false;
+  try {
+    const q = encodeURIComponent(`name='backup.json' and '${state.driveFolderId}' in parents and trashed=false`);
+    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`,
+      { headers: { Authorization: `Bearer ${driveAccessToken}` } });
+    const searchData = await searchRes.json();
+    return !!(searchData.files && searchData.files.length > 0);
+  } catch(e) {
+    return false;
   }
 }
 
@@ -1448,10 +1464,10 @@ async function backupToDrive(silent = false) {
   }
 }
 
-async function restoreFromDrive() {
+async function restoreFromDrive(silent = false) {
   if (!state.driveConnected) { connectDrive(); return; }
   if (!driveAccessToken) {
-    showToast('Connecting to Google Drive...');
+    if (!silent) showToast('Connecting to Google Drive...');
     window._pendingDriveAction = 'restore';
     requestDriveToken(false);
     return;
@@ -1463,15 +1479,21 @@ async function restoreFromDrive() {
       { headers: { Authorization: `Bearer ${driveAccessToken}` } });
     const searchData = await searchRes.json();
     const fileId = searchData.files?.[0]?.id;
-    if (!fileId) { showToast('No backup found in Drive'); return; }
+    if (!fileId) {
+      if (!silent) showToast('No backup found in Drive');
+      return;
+    }
     const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
       { headers: { Authorization: `Bearer ${driveAccessToken}` } });
     const restored = await fileRes.json();
     const activeKey = state.apiKey;
-    state = { ...state, ...restored, apiKey: activeKey, driveConnected: true };
-    saveState(); initApp();
-    showToast('✅ Data restored from Google Drive!');
-  } catch(e) { showToast('Restore failed. Please try again.'); }
+    state = { ...state, ...restored, apiKey: activeKey || restored.apiKey, driveConnected: true };
+    saveState();
+    initApp();
+    if (!silent) showToast('✅ Data restored from Google Drive!');
+  } catch(e) {
+    if (!silent) showToast('Restore failed. Please try again.');
+  }
 }
 
 function startApp() {
