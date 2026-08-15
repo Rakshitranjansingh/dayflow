@@ -1284,15 +1284,12 @@ async function testGeminiKey(key) {
 }
 
 // ============================================================
-// GOOGLE DRIVE OAUTH & API (Decoupled and local-run safe)
+// GOOGLE DRIVE OAUTH & API
 // ============================================================
 function obConnectDrive() { connectDrive(); }
 
 function connectDrive() {
-  if (!window.google) {
-    showToast('Google Sign-In is loading, please try again.');
-    return;
-  }
+  if (!window.google) { showToast('Google Sign-In is loading, please try again.'); return; }
   requestDriveToken(true);
 }
 
@@ -1303,15 +1300,11 @@ function initDriveClient() {
       client_id: GOOGLE_CLIENT_ID,
       scope: DRIVE_SCOPE,
       callback: async (resp) => {
-        if (resp.error) {
-          showToast('Drive connection failed. Try again.');
-          return;
-        }
+        if (resp.error) { showToast('Drive connection failed. Try again.'); return; }
         driveAccessToken = resp.access_token;
         state.driveConnected = true;
         saveState();
         
-        // Fetch user email for publisher verification
         try {
           const ures = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
             headers: { Authorization: `Bearer ${driveAccessToken}` }
@@ -1319,15 +1312,12 @@ function initDriveClient() {
           if (ures.ok) {
             const uinfo = await ures.json();
             state.userEmail = uinfo.email;
-            state.driveConnected = true;
             saveState();
             checkCreatorAccess();
             checkMandatoryAuth();
-            if (typeof initSplitEasyData === 'function') {
-              initSplitEasyData();
-            }
+            if (typeof initSplitEasyData === 'function') initSplitEasyData();
           }
-        } catch(e) { console.error('Failed to fetch user email:', e); }
+        } catch(e) {}
         
         const obStatus = document.getElementById('ob-drive-status');
         const obBtn = document.getElementById('ob-drive-btn');
@@ -1336,34 +1326,16 @@ function initDriveClient() {
         showToast('✅ Google Drive connected!');
         
         await ensureDriveFolder();
-        const hasExistingBackup = await checkDriveBackupExists();
-        
-        if (window._pendingDriveAction === 'restore' || hasExistingBackup) {
+        if (window._pendingDriveAction === 'restore') {
           window._pendingDriveAction = null;
           await restoreFromDrive(true);
-          showToast('☁️ Welcome back! Your data was restored from Google Drive.');
         } else {
-          await backupToDrive();
+          await backupToDrive(true);
         }
         if (currentPanel === 'settings') openPanel('settings');
       }
     });
-  } catch (e) {
-    console.warn("Google Client registration disabled:", e);
-  }
-}
-
-async function checkDriveBackupExists() {
-  if (!driveAccessToken || !state.driveFolderId) return false;
-  try {
-    const q = encodeURIComponent(`name='backup.json' and '${state.driveFolderId}' in parents and trashed=false`);
-    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`,
-      { headers: { Authorization: `Bearer ${driveAccessToken}` } });
-    const searchData = await searchRes.json();
-    return !!(searchData.files && searchData.files.length > 0);
-  } catch(e) {
-    return false;
-  }
+  } catch (e) {}
 }
 
 function requestDriveToken(promptConsent = true) {
@@ -1372,10 +1344,8 @@ function requestDriveToken(promptConsent = true) {
     try {
       driveTokenClient.requestAccessToken({ prompt: promptConsent ? 'consent' : '' });
     } catch (e) {
-      showToast("🔐 Drive login failed. Run via standard HTTP/S protocols to access Cloud Sync.");
+      showToast("🔐 Drive login failed.");
     }
-  } else {
-    showToast("⚙️ Cloud client initialization blocked inside standalone files.");
   }
 }
 
@@ -1410,27 +1380,13 @@ async function ensureDriveFolder() {
     });
     const folder = await createRes.json();
     state.driveFolderId = folder.id; saveState();
-    showToast('📁 BeCreator folder created in your Drive!');
-  } catch(e) { console.error('Drive folder error:', e); }
+  } catch(e) {}
 }
 
 async function backupToDrive(silent = false) {
-  if (!state.driveConnected) {
-    if (!silent) showToast('Connect Google Drive first in Settings');
-    return;
-  }
-  if (!driveAccessToken) {
-    if (!silent) {
-      showToast('Connecting to Google Drive...');
-      requestDriveToken(false); 
-    }
-    return;
-  }
+  if (!state.driveConnected || !driveAccessToken) return;
   if (!state.driveFolderId) await ensureDriveFolder();
-  if (!state.driveFolderId) {
-    if (!silent) showToast('Could not access BeCreator folder in Drive');
-    return;
-  }
+  if (!state.driveFolderId) return;
   try {
     const exportState = { ...state };
     delete exportState.apiKey;
@@ -1457,11 +1413,7 @@ async function backupToDrive(silent = false) {
     state.lastDriveBackup = new Date().toLocaleString('en-IN');
     try { localStorage.setItem(DB_KEY, JSON.stringify(state)); } catch(e) {}
     if (!silent) showToast('✅ Backed up to Google Drive!');
-    console.log('☁️ Background Google Drive backup completed.');
-  } catch(e) {
-    console.error('Backup error:', e);
-    if (!silent) showToast('Backup failed. Please try reconnecting Drive.');
-  }
+  } catch(e) {}
 }
 
 async function restoreFromDrive(silent = false) {
@@ -1491,9 +1443,7 @@ async function restoreFromDrive(silent = false) {
     saveState();
     initApp();
     if (!silent) showToast('✅ Data restored from Google Drive!');
-  } catch(e) {
-    if (!silent) showToast('Restore failed. Please try again.');
-  }
+  } catch(e) {}
 }
 
 function startApp() {
@@ -1505,23 +1455,6 @@ function startApp() {
 // ============================================================
 // INIT APP & CALENDAR
 // ============================================================
-function checkDailyDriveSyncOnStartup() {
-  if (!state.driveConnected) return;
-  const today = (typeof getTodayStr === 'function') ? getTodayStr() : new Date().toISOString().split('T')[0];
-  
-  if (state.lastDailyDriveSyncDate !== today) {
-    state.lastDailyDriveSyncDate = today;
-    try { localStorage.setItem(DB_KEY, JSON.stringify(state)); } catch(e) {}
-    if (!driveAccessToken) {
-      requestDriveToken(false);
-    } else {
-      backupToDrive(true);
-    }
-  } else if (driveAccessToken) {
-    backupToDrive(true);
-  }
-}
-
 function initApp() {
   updateGreeting();
   renderDateStrip();
@@ -1533,11 +1466,8 @@ function initApp() {
   if (typeof updateHomepageChallengeCard === 'function') {
     updateHomepageChallengeCard();
   }
-  // Trigger single daily Google Drive sync check on first launch of the day
-  if (state.driveConnected) {
-    setTimeout(() => {
-      checkDailyDriveSyncOnStartup();
-    }, 2000);
+  if (state.driveConnected && driveAccessToken) {
+    setTimeout(() => { backupToDrive(true); }, 2000);
   }
 }
 
