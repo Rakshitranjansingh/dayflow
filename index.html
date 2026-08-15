@@ -1030,6 +1030,143 @@
 // STATE & STORAGE & DRIVE SYNC DECLARATIONS
 // ============================================================
 const DB_KEY = 'becreator_v1';
+
+// ============================================================
+// DAYFLOW SUPABASE CLOUD INTEGRATION (AUTH LOGS & TO-DOS)
+// ============================================================
+const DAYFLOW_SUPABASE_URL = "https://bfrmezyvfyzetzxdepdk.supabase.co";
+const DAYFLOW_SUPABASE_ANON_KEY = "sb_publishable_68W9NaVNNUrM4U5Hwl9owQ_6PGlChG6";
+
+let dayflowSupabaseClient = null;
+function getDayFlowSupabase() {
+  if (!dayflowSupabaseClient && window.supabase && typeof window.supabase.createClient === 'function') {
+    try {
+      dayflowSupabaseClient = window.supabase.createClient(DAYFLOW_SUPABASE_URL, DAYFLOW_SUPABASE_ANON_KEY);
+    } catch(e) {
+      console.warn('[DayFlow Supabase] Init error:', e);
+    }
+  }
+  return dayflowSupabaseClient;
+}
+
+// 1. Save User Login & Retrieve Saved Profile Name
+async function saveUserLoginToSupabase(email, name) {
+  if (!email) return;
+  const sb = getDayFlowSupabase();
+  if (!sb) return;
+  try {
+    const payload = {
+      email: email.trim().toLowerCase(),
+      name: (name || '').trim(),
+      last_login_at: new Date().toISOString(),
+      user_agent: navigator.userAgent || ''
+    };
+    await sb.from('dayflow_user_logins').insert([payload]);
+    console.log('[DayFlow Supabase] User login saved:', email);
+  } catch(e) {
+    console.warn('[DayFlow Supabase] Failed to save user login:', e);
+  }
+}
+
+async function getUserProfileFromSupabase(email) {
+  if (!email) return null;
+  const sb = getDayFlowSupabase();
+  if (!sb) return null;
+  try {
+    const { data, error } = await sb
+      .from('dayflow_user_logins')
+      .select('name')
+      .eq('email', email.trim().toLowerCase())
+      .order('last_login_at', { ascending: false })
+      .limit(1);
+
+    if (!error && data && data.length > 0 && data[0].name) {
+      return data[0].name.trim();
+    }
+  } catch(e) {
+    console.warn('[DayFlow Supabase] Failed to fetch user profile:', e);
+  }
+  return null;
+}
+
+// 2. To-Dos Supabase Sync
+let todoSyncTimer = null;
+function triggerAutoSupabaseTodoSync() {
+  if (!state.userEmail) return;
+  if (todoSyncTimer) clearTimeout(todoSyncTimer);
+  todoSyncTimer = setTimeout(() => {
+    syncTodosToSupabase();
+  }, 1000);
+}
+
+async function syncTodosToSupabase() {
+  if (!state.userEmail) return;
+  const sb = getDayFlowSupabase();
+  if (!sb) return;
+  try {
+    const email = state.userEmail.trim().toLowerCase();
+    const rows = (state.todos || []).map(t => ({
+      id: String(t.id),
+      user_email: email,
+      text: t.text || '',
+      done: Boolean(t.done),
+      created_date: t.createdDate || todayStr(),
+      source: t.source || 'manual',
+      note: t.note || '',
+      updated_at: new Date().toISOString()
+    }));
+    if (rows.length > 0) {
+      await sb.from('dayflow_todos').upsert(rows, { onConflict: 'id' });
+    }
+  } catch(e) {
+    console.warn('[DayFlow Supabase] Failed to sync to-dos:', e);
+  }
+}
+
+async function fetchTodosFromSupabase() {
+  if (!state.userEmail) return;
+  const sb = getDayFlowSupabase();
+  if (!sb) return;
+  try {
+    const email = state.userEmail.trim().toLowerCase();
+    const { data, error } = await sb
+      .from('dayflow_todos')
+      .select('*')
+      .eq('user_email', email);
+
+    if (!error && data && Array.isArray(data) && data.length > 0) {
+      const dbTodos = data.map(row => ({
+        id: row.id,
+        text: row.text,
+        done: Boolean(row.done),
+        createdDate: row.created_date || todayStr(),
+        source: row.source || 'manual',
+        note: row.note || ''
+      }));
+
+      const existingMap = new Map((state.todos || []).map(t => [String(t.id), t]));
+      dbTodos.forEach(t => { existingMap.set(String(t.id), t); });
+      state.todos = Array.from(existingMap.values());
+      try { localStorage.setItem(DB_KEY, JSON.stringify(state)); } catch(e) {}
+      if (typeof updateTodoBadge === 'function') updateTodoBadge();
+      if (typeof updateAlertBar === 'function') updateAlertBar();
+    }
+  } catch(e) {
+    console.warn('[DayFlow Supabase] Failed to fetch to-dos:', e);
+  }
+}
+
+async function deleteTodoFromSupabase(todoId) {
+  if (!state.userEmail || !todoId) return;
+  const sb = getDayFlowSupabase();
+  if (!sb) return;
+  try {
+    await sb.from('dayflow_todos').delete().eq('id', String(todoId));
+  } catch(e) {
+    console.warn('[DayFlow Supabase] Failed to delete to-do:', e);
+  }
+}
+
 const GOOGLE_CLIENT_ID = '852975752976-hoeb7acq7caan225i4kjp4t4an58dno5.apps.googleusercontent.com';// Drive Client ID placeholder 
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email';
 let driveTokenClient = null;
@@ -1175,6 +1312,7 @@ let autoBackupTimer = null;
 function saveState() {
   try { localStorage.setItem(DB_KEY, JSON.stringify(state)); } catch(e) {}
   triggerAutoDriveBackup();
+  triggerAutoSupabaseTodoSync();
 }
 
 function triggerAutoDriveBackup() {
@@ -1312,10 +1450,39 @@ function initDriveClient() {
           if (ures.ok) {
             const uinfo = await ures.json();
             state.userEmail = uinfo.email;
+            
+            // Auto retrieve user profile name from Supabase / Google profile if missing locally
+            if (!state.name || !state.name.trim()) {
+              const sbName = await getUserProfileFromSupabase(uinfo.email);
+              if (sbName) {
+                state.name = sbName;
+              } else if (uinfo.name) {
+                state.name = uinfo.name;
+              }
+            }
+
+            // Save login record to Supabase
+            saveUserLoginToSupabase(uinfo.email, state.name);
+
+            // Sync and fetch To-Dos from Supabase
+            fetchTodosFromSupabase();
+
+            // Mark setup as complete to bypass onboarding/name prompt on new devices
+            state.setupDone = true;
             saveState();
+
+            const obEl = document.getElementById('onboarding');
+            if (obEl) obEl.style.display = 'none';
+            const appEl = document.getElementById('app');
+            if (appEl) appEl.style.display = 'block';
+
             checkCreatorAccess();
             checkMandatoryAuth();
             if (typeof initSplitEasyData === 'function') initSplitEasyData();
+            if (typeof initApp === 'function' && !window._appInitialized) {
+              window._appInitialized = true;
+              initApp();
+            }
           }
         } catch(e) {}
         
@@ -2601,6 +2768,7 @@ function deleteTodo(id) {
     splitEasyDB.deleteChecklistItem(itemId);
   }
   state.todos = state.todos.filter(t => t.id !== id);
+  deleteTodoFromSupabase(id);
   saveState(); updateTodoBadge(); updateAlertBar(); openPanel('todo');
 }
 
@@ -3485,6 +3653,14 @@ if (state.setupDone) {
 window.addEventListener('load', () => {
   checkMandatoryAuth();
   if (typeof updateLearnBadge === 'function') updateLearnBadge();
+
+  if (state.userEmail) {
+    if (!sessionStorage.getItem('df_login_logged')) {
+      sessionStorage.setItem('df_login_logged', 'true');
+      saveUserLoginToSupabase(state.userEmail, state.name);
+    }
+    fetchTodosFromSupabase();
+  }
 
   // Handle URL query parameters to auto-open page after scripts load
   const urlParams = new URLSearchParams(window.location.search);
