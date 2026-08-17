@@ -2,13 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Music — BeCreator</title>
   <style>
     :root {
       --bg: #0F1117;
-      --accent: #6C63FF;
-      --green: #00D4AA;
+      --accent: #FF9800;
       --text: #FFFFFF;
       --sans: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
     }
@@ -16,10 +15,6 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background-image: url('./TeaShop.png');
-      background-size: cover;
-      background-position: center center;
-      background-repeat: no-repeat;
       min-height: 100vh;
       color: var(--text);
       font-family: var(--sans);
@@ -28,6 +23,27 @@
       justify-content: space-between;
       position: relative;
       overflow: hidden;
+      background-color: var(--bg);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* BACKGROUND LAYERS FOR SMOOTH CROSS-FADE TRANSITIONS */
+    .bg-layer {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center center;
+      background-repeat: no-repeat;
+      opacity: 0;
+      transition: opacity 0.5s ease-in-out, transform 0.8s ease-out;
+      transform: scale(1.03);
+      z-index: 0;
+    }
+
+    .bg-layer.active {
+      opacity: 1;
+      transform: scale(1);
     }
 
     /* LIGHT OVERLAY FOR CRYSTAL CLEAR BACKGROUND IMAGE */
@@ -35,59 +51,76 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: radial-gradient(circle at center, rgba(15, 17, 23, 0.05) 0%, rgba(15, 17, 23, 0.35) 100%);
+      background: radial-gradient(circle at center, rgba(15, 17, 23, 0.1) 0%, rgba(15, 17, 23, 0.45) 100%);
       pointer-events: none;
       z-index: 1;
     }
 
-    /* HEADER */
-    .nav-header {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 28px;
-      position: relative;
-      z-index: 10;
-      background: rgba(15, 17, 23, 0.25);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-    }
-
+    /* FIXED TOP NAV HEADER */
     .nav-back-btn {
+      position: fixed;
+      top: 20px;
+      left: 24px;
+      z-index: 100;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      justify-content: center;
       color: var(--text);
-      font-size: 13.5px;
-      font-weight: 600;
-      text-decoration: none;
-      background: rgba(255, 255, 255, 0.15);
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      padding: 8px 18px;
-      border-radius: 20px;
+      width: 44px;
+      height: 44px;
+      background: rgba(18, 20, 29, 0.35);
+      border: 1.5px solid rgba(255, 255, 255, 0.25);
+      border-radius: 50%;
       cursor: pointer;
       transition: all 0.25s ease;
-      font-family: var(--sans);
-      backdrop-filter: blur(8px);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
     }
 
     .nav-back-btn:hover {
-      background: rgba(108, 99, 255, 0.45);
-      border-color: var(--accent);
-      transform: translateX(-2px);
+      background: rgba(18, 20, 29, 0.6);
+      border-color: rgba(255, 255, 255, 0.5);
+      transform: scale(1.1);
     }
 
-    .nav-title {
-      font-weight: 700;
-      font-size: 18px;
+    /* MIDDLE CAROUSEL / SWIPE NAVIGATION BUTTONS */
+    .swipe-hint-container {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      transform: translateY(-50%);
+      display: flex;
+      justify-content: space-between;
+      padding: 0 16px;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .nav-arrow-btn {
+      pointer-events: auto;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(18, 20, 29, 0.35);
+      border: 1.5px solid rgba(255, 255, 255, 0.25);
       color: #FFF;
-      letter-spacing: 0.02em;
-      text-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      transition: all 0.25s ease;
+      opacity: 0.85;
     }
 
-    .header-spacer { width: 100px; }
+    .nav-arrow-btn:hover {
+      opacity: 1;
+      transform: scale(1.1);
+      background: rgba(18, 20, 29, 0.6);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
 
     /* FLOATING BOTTOM AUDIO CONTROLLER CARD */
     .bottom-wrapper {
@@ -99,24 +132,39 @@
     }
 
     .transparent-controller {
-      background: rgba(18, 20, 29, 0.25);
+      background: rgba(18, 20, 29, 0.35);
       border: 1.5px solid rgba(255, 255, 255, 0.28);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-      border-radius: 40px;
-      padding: 12px 28px;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      border-radius: 36px;
+      padding: 14px 28px;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 20px;
+      gap: 10px;
       transition: all 0.3s ease;
       animation: floatUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 
     .transparent-controller:hover {
-      background: rgba(18, 20, 29, 0.35);
-      border-color: rgba(255, 255, 255, 0.45);
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), 0 0 30px rgba(108, 99, 255, 0.25);
+      background: rgba(18, 20, 29, 0.5);
+      border-color: rgba(255, 255, 255, 0.5);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(255, 255, 255, 0.15);
+    }
+
+    .controller-title {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: #FFF;
+      letter-spacing: 0.03em;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+
+    .controller-btns {
+      display: flex;
+      align-items: center;
+      gap: 20px;
     }
 
     @keyframes floatUp {
@@ -153,10 +201,10 @@
       border: 1.5px solid rgba(255, 255, 255, 0.6);
       box-shadow: 0 8px 28px rgba(255, 112, 67, 0.5), inset 0 1.5px 1px rgba(255, 255, 255, 0.8);
       color: #3E1E08;
+      transition: all 0.3s ease;
     }
 
     .ctrl-btn-play:hover {
-      background: linear-gradient(135deg, #FF5722 0%, #FF9800 55%, #FFFFFF 100%);
       transform: scale(1.12);
       box-shadow: 0 12px 34px rgba(255, 112, 67, 0.65), 0 0 20px rgba(255, 243, 224, 0.4);
     }
@@ -186,67 +234,199 @@
 </head>
 <body>
 
-  <!-- NAV HEADER -->
-  <div class="nav-header">
-    <button class="nav-back-btn" onclick="goBack()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-      <span>BeCreator</span>
+  <!-- DYNAMIC BACKGROUND LAYERS -->
+  <div id="bg-container"></div>
+
+  <!-- FLOATING BECREATOR LOGO BUTTON -->
+  <button class="nav-back-btn" onclick="goBack()" title="Back to BeCreator Home">
+    <img src="../favicon.png" alt="BeCreator Logo" style="width:26px; height:26px; border-radius:50%; object-fit:cover; display:block;">
+  </button>
+
+  <!-- SIDE ARROW NAVIGATION BUTTONS -->
+  <div class="swipe-hint-container">
+    <button class="nav-arrow-btn" onclick="switchProfileRelative(-1)" title="Previous Playlist Profile">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
     </button>
-    <div class="nav-title">Music</div>
-    <div class="header-spacer"></div>
+    <button class="nav-arrow-btn" onclick="switchProfileRelative(1)" title="Next Playlist Profile">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
   </div>
 
-  <!-- FLOATING BOTTOM AUDIO CONTROLLER CARD -->
+  <!-- FLOATING BOTTOM AUDIO CONTROLLER CARD WITH PLAYLIST TITLE -->
   <div class="bottom-wrapper">
     <div class="transparent-controller">
-      <!-- LAST / PREVIOUS BUTTON -->
-      <button class="ctrl-btn" onclick="prevTrack()" title="Previous Song">
-        <svg class="ctrl-icon" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
-      </button>
+      <!-- PLAYLIST TITLE DISPLAY -->
+      <div class="controller-title" id="playlist-title">Tea Shop Lofi</div>
 
-      <!-- PLAY / PAUSE BUTTON -->
-      <button class="ctrl-btn ctrl-btn-play" id="play-btn" onclick="togglePlay()" title="Play / Pause">
-        <svg class="ctrl-icon-large" id="play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-      </button>
+      <!-- PLAYBACK BUTTONS -->
+      <div class="controller-btns">
+        <!-- LAST / PREVIOUS BUTTON -->
+        <button class="ctrl-btn" onclick="prevTrack()" title="Previous Song">
+          <svg class="ctrl-icon" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+        </button>
 
-      <!-- NEXT BUTTON -->
-      <button class="ctrl-btn" onclick="nextTrack()" title="Next Song">
-        <svg class="ctrl-icon" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
-      </button>
+        <!-- PLAY / PAUSE BUTTON -->
+        <button class="ctrl-btn ctrl-btn-play" id="play-btn" onclick="togglePlay()" title="Play / Pause">
+          <svg class="ctrl-icon-large" id="play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+
+        <!-- NEXT BUTTON -->
+        <button class="ctrl-btn" onclick="nextTrack()" title="Next Song">
+          <svg class="ctrl-icon" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+        </button>
+      </div>
     </div>
   </div>
 
   <!-- HIDDEN YOUTUBE CONTAINER -->
   <div id="yt-container"></div>
 
-  <script>
-    var TRACKS = [
-      '5MIGQBpVeqs', 'fXzm9F4S3d0', 'qEzlKXHy-8g', 'DvJFq1FUb4Q', '9aAsKB5cu9s',
-      'XEggdtDp_4c', 'YCEyTTg16Os', 'i1IsLVz6T9Q', 'Q97LLDLxE98', 'eY34Z5OHUFI',
-      'CTNgz5gb3D8', 'eC5riDNidOg', 'hyFDEoFEPWY', 'jLOlqkKxhnI', 'SR-5gXqfihc',
-      '8uUhxTs3UUQ', 'pjdm51BWahI', 'rXHY4Cv9cA8', '8hy7pg8wB-c', 'ggxJLf_alRk',
-      '4BFUDVL2FVE', 'voxzKOoudpc', '414Y6ISZHmU', 'pY12jrcJisA', '_Aj1CVyMWn0',
-      'wuLJtA0uJro', 'ooGFsfsSiYo', 'xl3udO2Zo4Y', '4ImdbyqnH8w', 'Gm6djUDVqf8',
-      '5dWbn_qER3s', 'kMQsJyd11YM', 'oEg_iXEWlt4', 'O5qahfzGtc8', 'G7AdjVDBLO8',
-      'TgHYW8ubFko', '7Ny77gTsWGk', 'HoMSu1iw0Zw', 'WAgJ8KM5AVQ', 'oU7kpTgrUlE',
-      'Zi9UBJQMz3I', 'lRBIcaSV-Ns', '9v2bq2JHt4I', 'e0b8UD-DBQ8', 'HOAF8vcxXe4',
-      'fg9G1dacXjk', 'cVT3BKkPCc4', 'ar_m3IbjS4c', 'MgkfGGNbkAU', 'BaAoZA0fup0',
-      'LMrgv7bRLQM', 'PuGs5Ve1gjo', 'Enn1j99vEWo', '8l0f5Pdo17A', 'GxaTSDnI71w',
-      'XWKazQwFFdY', 'wJTFYAsaLr8', 'juOcTzePoa4', 'Mfeg92XPXik', '5y_TCKNzAMI',
-      'CTuvMubzXpU', '3NWMK2MRqIk', 'bga_0ziOOfQ', 'otQmzlm-s7Q', 'tPNwGuu_rQ4'
-    ];
+  <!-- PLAYLIST DATA MODULES -->
+  <script src="playlists/teashop.js"></script>
+  <script src="playlists/shiva.js"></script>
+  <script src="playlists/config.js"></script>
 
-    // Shuffle playlist on every session load for a fresh mix
-    for (var i = TRACKS.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var temp = TRACKS[i];
-      TRACKS[i] = TRACKS[j];
-      TRACKS[j] = temp;
+  <script>
+    var PLAYLISTS = window.BE_CREATOR_PLAYLISTS || [];
+    if (!PLAYLISTS.length) {
+      PLAYLISTS = [{
+        id: 'default',
+        name: 'Music',
+        bgImage: './TeaShop.png',
+        gradient: 'linear-gradient(135deg, #FF7043 0%, #FFA726 55%, #FFF3E0 100%)',
+        icon: '🎵',
+        tracks: ['5MIGQBpVeqs', 'fXzm9F4S3d0']
+      }];
     }
 
+    var activeProfileIndex = 0;
+    var currentTracks = [];
     var currentIndex = 0;
     var isPlaying = false;
     var player = null;
+
+    // Shuffle tracks helper for fresh playlist ordering
+    function shuffleArray(arr) {
+      var shuffled = arr.slice();
+      for (var i = shuffled.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = shuffled[i];
+        shuffled[i] = shuffled[j];
+        shuffled[j] = temp;
+      }
+      return shuffled;
+    }
+
+    function initUI() {
+      var bgContainer = document.getElementById('bg-container');
+      bgContainer.innerHTML = '';
+
+      PLAYLISTS.forEach(function(p, idx) {
+        // Create Background Layers for Crossfading
+        var bgDiv = document.createElement('div');
+        bgDiv.className = 'bg-layer' + (idx === activeProfileIndex ? ' active' : '');
+        bgDiv.id = 'bg-layer-' + idx;
+        bgDiv.style.backgroundImage = "url('" + p.bgImage + "')";
+        bgContainer.appendChild(bgDiv);
+      });
+
+      applyProfileState(activeProfileIndex, true);
+    }
+
+    function applyProfileState(idx, isInitial) {
+      activeProfileIndex = idx;
+      var profile = PLAYLISTS[idx];
+
+      // Update Active Background Layer
+      PLAYLISTS.forEach(function(_, i) {
+        var bgLayer = document.getElementById('bg-layer-' + i);
+        if (bgLayer) bgLayer.classList.toggle('active', i === idx);
+      });
+
+      // Update Playlist Title inside Controller Card
+      var titleEl = document.getElementById('playlist-title');
+      if (titleEl) titleEl.textContent = profile.name;
+
+      // Update Play Button Style & Accent Glow
+      var playBtn = document.getElementById('play-btn');
+      if (playBtn && profile.gradient) {
+        playBtn.style.background = profile.gradient;
+        if (profile.btnShadow) {
+          playBtn.style.boxShadow = '0 8px 28px ' + profile.btnShadow + ', inset 0 1.5px 1px rgba(255, 255, 255, 0.8)';
+        }
+      }
+
+      // Prepare Tracks
+      currentTracks = shuffleArray(profile.tracks || []);
+      currentIndex = 0;
+
+      // Switch YouTube Video if Player is Ready
+      if (!isInitial && player && typeof player.loadVideoById === 'function') {
+        player.loadVideoById(currentTracks[currentIndex]);
+        if (isPlaying) player.playVideo();
+      }
+
+      updateMediaSession();
+    }
+
+    function switchProfile(newIdx) {
+      if (newIdx < 0 || newIdx >= PLAYLISTS.length || newIdx === activeProfileIndex) return;
+      applyProfileState(newIdx, false);
+    }
+
+    function switchProfileRelative(delta) {
+      var target = (activeProfileIndex + delta + PLAYLISTS.length) % PLAYLISTS.length;
+      switchProfile(target);
+    }
+
+    // Scroll & Touch Swipe Gesture Navigation
+    var touchStartY = 0;
+    var touchStartX = 0;
+    var isScrollingCoolDown = false;
+
+    window.addEventListener('wheel', function(e) {
+      if (isScrollingCoolDown) return;
+      if (Math.abs(e.deltaY) > 30 || Math.abs(e.deltaX) > 30) {
+        isScrollingCoolDown = true;
+        if (e.deltaY > 0 || e.deltaX > 0) {
+          switchProfileRelative(1);
+        } else {
+          switchProfileRelative(-1);
+        }
+        setTimeout(function() { isScrollingCoolDown = false; }, 600);
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchstart', function(e) {
+      if (e.touches && e.touches.length > 0) {
+        touchStartY = e.touches[0].clientY;
+        touchStartX = e.touches[0].clientX;
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchend', function(e) {
+      if (!e.changedTouches || e.changedTouches.length === 0) return;
+      var diffY = touchStartY - e.changedTouches[0].clientY;
+      var diffX = touchStartX - e.changedTouches[0].clientX;
+
+      if (Math.abs(diffY) > 50 || Math.abs(diffX) > 50) {
+        if (Math.abs(diffY) > Math.abs(diffX)) {
+          switchProfileRelative(diffY > 0 ? 1 : -1);
+        } else {
+          switchProfileRelative(diffX > 0 ? 1 : -1);
+        }
+      }
+    }, { passive: true });
+
+    window.addEventListener('keydown', function(e) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        switchProfileRelative(1);
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        switchProfileRelative(-1);
+      } else if (e.key === ' ') {
+        togglePlay();
+      }
+    });
 
     function goBack() {
       if (window.parent && typeof window.parent.closeRadioPlayerApp === 'function') {
@@ -269,7 +449,7 @@
       player = new YT.Player('yt-container', {
         width: '320',
         height: '180',
-        videoId: TRACKS[currentIndex],
+        videoId: currentTracks[currentIndex],
         host: 'https://www.youtube.com',
         playerVars: {
           'enablejsapi': 1,
@@ -283,7 +463,7 @@
         },
         events: {
           'onReady': function (e) {
-            console.log('[YT] player ready');
+            console.log('[YT] player ready for profile:', PLAYLISTS[activeProfileIndex].name);
           },
           'onStateChange': function (e) {
             var icon = document.getElementById('play-icon');
@@ -321,27 +501,30 @@
     }
 
     function nextTrack() {
-      currentIndex = (currentIndex + 1) % TRACKS.length;
+      if (!currentTracks.length) return;
+      currentIndex = (currentIndex + 1) % currentTracks.length;
       if (player && typeof player.loadVideoById === 'function') {
-        player.loadVideoById(TRACKS[currentIndex]);
+        player.loadVideoById(currentTracks[currentIndex]);
       }
     }
 
     function prevTrack() {
-      currentIndex = (currentIndex - 1 + TRACKS.length) % TRACKS.length;
+      if (!currentTracks.length) return;
+      currentIndex = (currentIndex - 1 + currentTracks.length) % currentTracks.length;
       if (player && typeof player.loadVideoById === 'function') {
-        player.loadVideoById(TRACKS[currentIndex]);
+        player.loadVideoById(currentTracks[currentIndex]);
       }
     }
 
     function updateMediaSession() {
       if ('mediaSession' in navigator) {
+        var profile = PLAYLISTS[activeProfileIndex] || {};
         navigator.mediaSession.metadata = new MediaMetadata({
-          title: 'BeCreator Music Session',
-          artist: 'Lofi Chill Vibes',
-          album: 'BeCreator Utils',
+          title: profile.name || 'BeCreator Music',
+          artist: profile.artist || 'BeCreator Ambient',
+          album: profile.album || 'BeCreator Utils',
           artwork: [
-            { src: './TeaShop.png', sizes: '512x512', type: 'image/png' }
+            { src: profile.bgImage, sizes: '512x512', type: 'image/png' }
           ]
         });
 
@@ -353,6 +536,9 @@
         } catch(e) {}
       }
     }
+
+    // Initialize UI and Playlists
+    initUI();
   </script>
 </body>
 </html>
