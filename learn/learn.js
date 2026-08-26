@@ -94,6 +94,30 @@ function syncLearnState() {
       }
     }
   } catch(e) {}
+
+  // Backup state sync directly from Interview_prep_full_stack_done_v1
+  try {
+    const ifsDoneStr = localStorage.getItem('Interview_prep_full_stack_done_v1') || localStorage.getItem('java_full_stack_done_v1');
+    if (ifsDoneStr) {
+      const doneArr = JSON.parse(ifsDoneStr);
+      if (Array.isArray(doneArr)) {
+        if (typeof state !== 'undefined') {
+          if (!state.learning) state.learning = { enrollments: {} };
+          if (!state.learning.enrollments) state.learning.enrollments = {};
+          
+          const existing = state.learning.enrollments.Interview_prep_full_stack || {};
+          const pct = Math.round((doneArr.length / 241) * 100);
+          state.learning.enrollments.Interview_prep_full_stack = {
+            enrolled: true,
+            enrolledDate: existing.enrolledDate || new Date().toISOString().split('T')[0],
+            completed: doneArr,
+            progress: pct,
+            lastStudied: existing.lastStudied || new Date().toISOString()
+          };
+        }
+      }
+    }
+  } catch(e) {}
 }
 
 // ============================================================
@@ -152,7 +176,7 @@ function renderLearnContent() {
 
   // Retrieve state or fallback (filtered by active courses)
   const enrollments = state.learning?.enrollments || {};
-  const activeCourseIds = ['blind75', 'java_at_a_glance', 'High_level_design'];
+  const activeCourseIds = ['blind75', 'java_at_a_glance', 'High_level_design', 'Interview_prep_full_stack'];
   const activeEnrollments = activeCourseIds.map(id => enrollments[id]).filter(e => e && e.enrolled);
 
   const enrolled = activeEnrollments.length;
@@ -345,6 +369,55 @@ function renderLearnContent() {
         </div>
       </div>
 
+      <!-- Interview_prep_full_stack Course State -->
+      ${(() => {
+        const ifsEnrollment = enrollments.Interview_prep_full_stack;
+        let ifsBadgeHtml = '<span class="learn-course-badge learn-badge-new" id="learn-badge-Interview_prep_full_stack">New</span>';
+        let ifsBtnHtml = '<button class="learn-enroll-btn learn-btn-enroll" id="learn-btn-Interview_prep_full_stack" onclick="handleCourseAction(\'Interview_prep_full_stack\')">Enroll Free</button>';
+        let ifsProgressHtml = `
+          <div class="learn-course-progress" id="learn-progress-Interview_prep_full_stack" style="display:none">
+            <div class="learn-course-progress-fill" id="learn-progress-fill-Interview_prep_full_stack" style="width:0%"></div>
+          </div>
+        `;
+        let ifsProgressTextHtml = '<span class="learn-course-progress-text" id="learn-progress-text-Interview_prep_full_stack"></span>';
+
+        if (ifsEnrollment?.enrolled) {
+          const done = ifsEnrollment.completed?.length || 0;
+          const progressVal = ifsEnrollment.progress || 0;
+          ifsBadgeHtml = '<span class="learn-course-badge learn-badge-enrolled" id="learn-badge-Interview_prep_full_stack">✅ Enrolled</span>';
+          ifsBtnHtml = '<button class="learn-enroll-btn learn-btn-continue" id="learn-btn-Interview_prep_full_stack" onclick="handleCourseAction(\'Interview_prep_full_stack\')">Continue →</button>';
+          ifsProgressHtml = `
+            <div class="learn-course-progress" id="learn-progress-Interview_prep_full_stack" style="display:block">
+              <div class="learn-course-progress-fill" id="learn-progress-fill-Interview_prep_full_stack" style="width:${progressVal}%"></div>
+            </div>
+          `;
+          ifsProgressTextHtml = `<span class="learn-course-progress-text" id="learn-progress-text-Interview_prep_full_stack">${done}/241 questions · ${progressVal}%</span>`;
+        }
+
+        return `
+          <div class="learn-course-card" id="learn-card-Interview_prep_full_stack">
+            <div class="learn-course-banner" style="background: linear-gradient(135deg, #00D4AA 0%, #2D6BE4 100%); color: #fff;">💼</div>
+            <div class="learn-course-body">
+              <div class="learn-course-header">
+                <div class="learn-course-title" style="color: var(--accent);">Java Full Stack Interview Prep</div>
+                ${ifsBadgeHtml}
+              </div>
+              <div class="learn-course-desc">Master 241 module-wise interview questions across 5 core modules: Spring Boot, Core Java, Database, Backend Microservices & Angular.</div>
+              <div class="learn-course-meta">
+                <span>💼 241 Q&As</span>
+                <span>☕ Full Stack Java</span>
+                <span>🎯 5 Modules</span>
+              </div>
+              ${ifsProgressHtml}
+              <div class="learn-course-footer">
+                ${ifsProgressTextHtml}
+                ${ifsBtnHtml}
+              </div>
+            </div>
+          </div>
+        `;
+      })()}
+
       <!-- Java (Disabled for now) -->
       </div>
     </div>
@@ -363,8 +436,10 @@ function handleCourseAction(courseId) {
       window.location.href = `learn/java-at-a-glance/index.html`;
     } else if (courseId === 'High_level_design') {
       window.location.href = `learn/High_level_design/index.html`;
+    } else if (courseId === 'Interview_prep_full_stack') {
+      window.location.href = `learn/Interview_prep_full_stack/index.html`;
     } else {
-      window.location.href = `learn/High_level_design/index.html`;
+      window.location.href = `learn/Interview_prep_full_stack/index.html`;
     }
   } else {
     // Launch enrollment overlay modal
@@ -404,6 +479,17 @@ function handleCourseAction(courseId) {
         modalStats.innerHTML = `
           <div class="learn-modal-stat"><div class="learn-modal-stat-val">75</div><div class="learn-modal-stat-lbl">Problems</div></div>
           <div class="learn-modal-stat"><div class="learn-modal-stat-val">10</div><div class="learn-modal-stat-lbl">Topics</div></div>
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">Free</div><div class="learn-modal-stat-lbl">Cost</div></div>
+        `;
+      }
+    } else if (courseId === 'Interview_prep_full_stack') {
+      if (modalIcon) modalIcon.textContent = '💼';
+      if (modalTitle) modalTitle.textContent = 'Java Full Stack Interview Prep';
+      if (modalSub) modalSub.textContent = 'Master 241 module-wise interview questions covering Spring Boot, Core Java, Database, Backend Microservices & Angular.';
+      if (modalStats) {
+        modalStats.innerHTML = `
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">241</div><div class="learn-modal-stat-lbl">Questions</div></div>
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">5</div><div class="learn-modal-stat-lbl">Modules</div></div>
           <div class="learn-modal-stat"><div class="learn-modal-stat-val">Free</div><div class="learn-modal-stat-lbl">Cost</div></div>
         `;
       }
