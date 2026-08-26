@@ -1496,6 +1496,9 @@ function initDriveClient() {
         if (window._pendingDriveAction === 'restore') {
           window._pendingDriveAction = null;
           await restoreFromDrive(true);
+        } else if (window._pendingDriveAction === 'backup') {
+          window._pendingDriveAction = null;
+          await backupToDrive(false);
         } else {
           await backupToDrive(true);
         }
@@ -1551,10 +1554,24 @@ async function ensureDriveFolder() {
 }
 
 async function backupToDrive(silent = false) {
-  if (!state.driveConnected || !driveAccessToken) return;
+  if (!state.driveConnected) {
+    if (!silent) showToast('Please connect to Google Drive first.');
+    connectDrive();
+    return;
+  }
+  if (!driveAccessToken) {
+    if (!silent) showToast('Re-authenticating with Google Drive...');
+    window._pendingDriveAction = 'backup';
+    requestDriveToken(false);
+    return;
+  }
   if (!state.driveFolderId) await ensureDriveFolder();
-  if (!state.driveFolderId) return;
+  if (!state.driveFolderId) {
+    if (!silent) showToast('⚠️ Could not access or create BeCreator folder in Drive.');
+    return;
+  }
   try {
+    if (!silent) showToast('⏳ Backing up to Google Drive...');
     const exportState = { ...state };
     delete exportState.apiKey;
     const content = JSON.stringify(exportState, null, 2);
@@ -1578,9 +1595,13 @@ async function backupToDrive(silent = false) {
       });
     }
     state.lastDriveBackup = new Date().toLocaleString('en-IN');
-    try { localStorage.setItem(DB_KEY, JSON.stringify(state)); } catch(e) {}
+    saveState();
     if (!silent) showToast('✅ Backed up to Google Drive!');
-  } catch(e) {}
+    if (currentPanel === 'settings') openPanel('settings');
+  } catch(e) {
+    console.error('Backup error:', e);
+    if (!silent) showToast('❌ Drive backup failed. Try re-connecting Drive.');
+  }
 }
 
 async function restoreFromDrive(silent = false) {
