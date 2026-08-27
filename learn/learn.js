@@ -611,3 +611,9 @@ function updateLearnBadge() {
   badge.textContent = `${avgProgress}%`;
 }
 
+// Explicitly attach to window scope
+if (typeof window !== 'undefined') {
+  window.openLearnApp = openLearnApp;
+  window.closeLearnApp = closeLearnApp;
+}
+
