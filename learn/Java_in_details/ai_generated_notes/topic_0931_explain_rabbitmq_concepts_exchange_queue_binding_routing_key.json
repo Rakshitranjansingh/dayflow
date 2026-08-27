@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In a distributed system, RabbitMQ acts as the message broker that decouples producers from consumers using an asynchronous messaging paradigm. The Exchange is the entry point; it is a message-routing agent that receives messages from producers and pushes them into queues based on specific rules. It does not store messages itself, which makes it a stateless router. The Queue is a buffer that stores messages until a consumer is ready to process them; it is the physical location where data resides in memory or on disk. The Binding is the 'link' or the logical relationship between an Exchange and a Queue, essentially telling the broker which queues are interested in messages from a specific exchange. Finally, the Routing Key is a virtual address attached to the message header by the producer. The Exchange inspects this key to determine how to route the message, acting as the logic gate for the distribution pattern."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component",
+        "Primary Responsibility",
+        "Persistence State"
+      ],
+      "rows": [
+        [
+          "Exchange",
+          "Message Routing",
+          "Stateless"
+        ],
+        [
+          "Queue",
+          "Message Storage",
+          "Stateful"
+        ],
+        [
+          "Binding",
+          "Relationship Mapping",
+          "Metadata"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Exchange Types: Direct (exact match), Fanout (broadcast to all bound queues), Topic (pattern matching with wildcards like * and #), and Headers (attribute-based routing).",
+        "Queue Mechanics: Queues are FIFO structures, but their performance degrades with high message volume if not configured with lazy mode or appropriate prefetch counts to prevent memory exhaustion.",
+        "Binding Logic: A single queue can be bound to multiple exchanges, and a single exchange can route to multiple queues, allowing for complex fan-out or filtering architectures.",
+        "Routing Key Lifecycle: The key is evaluated at the exchange level; if no binding matches the routing key, the message is typically dropped or returned to the producer depending on the 'mandatory' flag."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "channel.exchangeDeclare(\"orders_exchange\", \"topic\");\nchannel.queueDeclare(\"shipping_queue\", true, false, false, null);\n// Bind queue to exchange with a routing key pattern\nchannel.queueBind(\"shipping_queue\", \"orders_exchange\", \"order.created.#\");\n// Publish message with routing key\nchannel.basicPublish(\"orders_exchange\", \"order.created.physical\", null, messageBody);"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is the 'unbound queue' scenario. If you declare a queue but fail to bind it to an exchange, messages sent to that exchange will be silently discarded without error. Always use publisher confirms if message durability is critical to ensure the broker has successfully routed the message to at least one queue."
+    }
+  ],
+  "num": 932,
+  "title": "Explain RabbitMQ concepts: Exchange, Queue, Binding, Routing Key.",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

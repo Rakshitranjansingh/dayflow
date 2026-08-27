@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Auditing in Spring Data JPA is an automated infrastructure mechanism designed to capture and persist temporal and authorship metadata on domain entities without polluting business logic with repetitive boilerplate code. In enterprise applications, tracking who created a record, when it was created, who last modified it, and when it was last updated is an absolute compliance requirement. Spring Data JPA achieves this seamlessly by bridging the gap between database lifecycle events and application-level context using annotations like @CreatedBy, @CreatedDate, and @LastModifiedDate.\n\nThe mechanics of this system rely heavily on JPA EntityListeners and Hibernate Interceptors. When an entity annotated with @EntityListeners(AuditingEntityListener.class) transitions through entity manager states—specifically prior to an SQL INSERT or UPDATE execution—the persistence engine intercepts the lifecycle callbacks (@PrePersist and @PreUpdate). Spring Data JPA then evaluates the current security context or time provider to inject values into fields annotated with @CreatedBy, @CreatedDate, and @LastModifiedDate. To make this operational, developers must explicitly enable the auditing capability via the @EnableJpaAuditing configuration annotation and provide an implementation of the AuditorAware interface, which tells the framework how to resolve the principal identifier (e.g., retrieving the current authenticated user from Spring Security's SecurityContextHolder)."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Annotation",
+        "Lifecycle Phase",
+        "Typical Java Type",
+        "Description"
+      ],
+      "rows": [
+        [
+          "@CreatedBy",
+          "INSERT (@PrePersist)",
+          "String, Long, or UUID",
+          "Captures the principal identity of the user who initially persisted the entity."
+        ],
+        [
+          "@CreatedDate",
+          "INSERT (@PrePersist)",
+          "Instant, LocalDateTime, or Date",
+          "Records the exact timestamp when the row was first written to the database."
+        ],
+        [
+          "@LastModifiedDate",
+          "INSERT & UPDATE (@PrePersist / @PreUpdate)",
+          "Instant, LocalDateTime, or Date",
+          "Tracks the timestamp of every single modification made to the entity lifecycle."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The @CreatedBy and @LastModifiedBy annotations delegate their data resolution to the AuditorAware<T> SPI (Service Provider Interface). If no bean of type AuditorAware is found in the Spring ApplicationContext, auditing fields will silently fail to populate or store null values.",
+        "For date-based annotations (@CreatedDate and @LastModifiedDate), Spring Data natively supports java.time API types (Instant, LocalDateTime, OffsetDateTime) out of the box, mapping them seamlessly to appropriate SQL dialects via Hibernate type contributors.",
+        "Auditing metadata can be mapped directly onto a base class annotated with @MappedSuperclass, allowing multiple domain entities to inherit standardized tracking attributes without repeating field declarations."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableJpaAuditing(auditorAwareRef = \"springSecurityAuditorAware\")\npublic class JpaAuditingConfiguration {\n\n    @Bean\n    public AuditorAware<String> springSecurityAuditorAware() {\n        return () -> {\n            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();\n            if (authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken) {\n                return Optional.of(\"SYSTEM\");\n            }\n            return Optional.of(authentication.getName());\n        };\n    }\n}\n\n@MappedSuperclass\n@EntityListeners(AuditingEntityListener.class)\npublic abstract class AuditableEntity {\n\n    @CreatedBy\n    @Column(name = \"created_by\", updatable = false)\n    private String createdBy;\n\n    @CreatedDate\n    @Column(name = \"created_date\", updatable = false)\n    private Instant createdDate;\n\n    @LastModifiedDate\n    @Column(name = \"last_modified_date\")\n    private Instant lastModifiedDate;\n\n    // Getters and Setters omitted for brevity\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha occurs when bulk update queries (e.g., repository.updateStatusBulk()) are executed via JPQL or native SQL. Because bulk updates execute straight against the database engine, bypassing the Hibernate Session cache entirely, JPA lifecycle listeners are never triggered. Consequently, @LastModifiedDate will not update for bulk operations. If you require auditing for batch updates, you must either iterate over managed entities within the persistence context or manually handle the timestamp updates in your query strings."
+    }
+  ],
+  "num": 845,
+  "title": "What is Auditing in Spring Data JPA? (@CreatedBy, @CreatedDate, @LastModifiedDate)",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

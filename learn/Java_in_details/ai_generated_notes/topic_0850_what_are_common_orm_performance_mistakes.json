@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Object-Relational Mapping (ORM) frameworks like Hibernate bridge the paradigm mismatch between object-oriented domain models and relational database schemas. However, abstractions come at a cost. Common ORM performance mistakes stem from treating database tables like in-memory object graphs, leading to catastrophic database load, memory bloat, and transactional bottlenecks. When engineers write object-centric queries without understanding the underlying SQL generation, execution plans, and entity lifecycle states, they frequently run afoul of inherent ORM mechanics. Overlooking these pitfalls results in severely degraded application throughput, connection pool exhaustion, and unpredictable latency spikes in production systems."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Mistake Pattern",
+        "Root Cause",
+        "Performance Impact"
+      ],
+      "rows": [
+        [
+          "N+1 Select Problem",
+          "Iterating over a collection of parent entities and lazily fetching children individually.",
+          "Executes 1 + N SQL queries, saturating network round-trips and DB CPU."
+        ],
+        [
+          "Fetching Entire Graphs",
+          "Unconstrained eager fetching or missing projections for read-heavy screens.",
+          "Loads gigabytes of unnecessary data into the JVM heap and GC pressure."
+        ],
+        [
+          "Detached Entity Updates",
+          "Modifying detached entities without optimistic locking or proper session merging.",
+          "Leads to unnecessary dirty-checking updates or lost updates in concurrent transactions."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The N+1 Query Antipattern: Triggered when an association is mapped with FetchType.LAZY and accessed inside a loop. The persistence context executes an initial query for the root entities, followed by N separate queries to fetch the associated collection for each root.",
+        "Cartesian Product Explosion: Occurs when multiple collection associations are fetched eagerly using JOIN FETCH in a single JPQL query. The database multiplies the row counts, transferring redundant data over the network and bloating memory.",
+        "Uncontrolled Dirty Checking: The persistence context maintains a snapshot of entity states upon loading. During flush time, Hibernate iterates over all managed entities to compare current state with snapshots, destroying CPU cycles if thousands of entities are loaded for read-only operations.",
+        "Ignoring Second-Level Cache Invalidation: Misconfigured or improperly scoped caching leads to stale reads, requiring explicit region invalidation strategies or distributed cache synchronization across cluster nodes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Repository\npublic interface UserRepository extends JpaRepository<User, Long> {\n    \n    // ANTI-PATTERN: Results in N+1 if addresses are accessed lazily in loops,\n    // or Cartesian product if joined naively.\n    @Query(\"SELECT u FROM User u JOIN FETCH u.orders\")\n    List<User> findAllWithOrders();\n\n    // PRODUCTION-GRADE: Use pagination, DTO projections, or explicit batch fetching.\n    @Query(\"SELECT new com.example.dto.UserSummaryDto(u.id, u.username) FROM User u\")\n    Page<UserSummaryDto> findAllSummaries(Pageable pageable);\n}"
+    },
+    {
+      "type": "note",
+      "content": "Never rely solely on default fetch strategies. Always mark read-only queries with @Transactional(readOnly = true) to disable Hibernate's dirty-checking snapshot mechanism, which can yield a 30% to 50% throughput improvement on large analytical reads."
+    }
+  ],
+  "num": 851,
+  "title": "What are common ORM performance mistakes?",
+  "category": "Core Java & Fundamentals"
+}

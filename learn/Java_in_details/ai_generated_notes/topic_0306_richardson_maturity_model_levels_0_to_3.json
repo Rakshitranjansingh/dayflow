@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Richardson Maturity Model (RMM) is a foundational architectural framework created by Leonard Richardson that breaks down the path toward building a truly RESTful web service. While many developers toss around the term 'REST' to describe any HTTP-based JSON API, true REST encompasses architectural constraints like hypermedia controls that go far beyond basic RPC over HTTP. RMM establishes four distinct levels—ranging from Level 0, which merely uses HTTP as a transport tunnel for remote procedure calls, up to Level 3, which fully implements Hypermedia as the Engine of Application State (HATEOAS).\n\nUnderstanding and traversing these levels from 0 to 3 allows backend engineers to decouple client and server dependencies. At Level 0, clients are tightly coupled to a single endpoint and method. As you climb through Level 1 (resources), Level 2 (HTTP verbs and status codes), and finally Level 3 (hypermedia links), the API transforms from a brittle, documentation-heavy contract into a self-descriptive, evolvable distributed system where clients discover available actions dynamically through server-provided links."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "RMM Level",
+        "Core Mechanism",
+        "Primary Benefit",
+        "Common Antipattern"
+      ],
+      "rows": [
+        [
+          "Level 0",
+          "RPC over HTTP (Single URL, POST method)",
+          "Simple to wrap legacy systems",
+          "Ignoring HTTP semantics entirely; everything is a POST."
+        ],
+        [
+          "Level 1",
+          "Resource-based URIs (Multiple endpoints)",
+          "Separation of concerns by entity domain",
+          "Using verbs in URIs like `/getUsers` or `/deleteUser`."
+        ],
+        [
+          "Level 2",
+          "HTTP Verbs & Status Codes (GET, POST, PUT, DELETE)",
+          "Standardized caching, idempotency, and error handling",
+          "Returning HTTP 200 OK for business-logic validation failures."
+        ],
+        [
+          "Level 3",
+          "HATEOAS (Hypermedia Links in payload)",
+          "Client-server decoupling and API discoverability",
+          "Hardcoding URI templates on the client side."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Level 0 (The Swamp of POX): The system uses HTTP merely as a transport protocol. All requests are typically POST requests sent to a single URI endpoint (e.g., `/api/xmlrpc` or `/ws`), encapsulating XML or JSON payloads that dictate the remote procedure execution.",
+        "Level 1 (Resources): The API introduces individual resources. Instead of one endpoint, you have distinct URIs for distinct business entities (e.g., `/api/orders` or `/api/customers`), though HTTP verbs might still be misused or restricted to GET and POST.",
+        "Level 2 (HTTP Verbs): This level marries resources with standard HTTP methods. GET is used for safe retrieval, POST for creation, PUT/PATCH for updates, and DELETE for removal. Standardized HTTP status codes (200, 201, 400, 404, 500) communicate execution outcomes to the client.",
+        "Level 3 (HATEOAS): Hypermedia as the Engine of Application State introduces discoverability. Responses contain not just data, but links (`_links` or `rel` attributes) that inform the client what subsequent actions are legally available based on current state transitions."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.textbook.rest.rmm;\n\nimport org.springframework.hateoas.EntityModel;\nimport org.springframework.hateoas.Link;\nimport org.springframework.web.bind.annotation.GetMapping;\nimport org.springframework.web.bind.annotation.PathVariable;\nimport org.springframework.web.bind.annotation.RequestMapping;\nimport org.springframework.web.bind.annotation.RestController;\n\nimport static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;\n\n@RestController\n@RequestMapping(\"/api/orders\")\npublic class OrderController {\n\n    @GetMapping(\"/{id}\")\n    public EntityModel<Order> getOrder(@PathVariable Long id) {\n        Order order = orderService.findById(id);\n        \n        // Level 3 RMM: HATEOAS implementation providing self-referencing and state-driven transition links\n        EntityModel<Order> orderModel = EntityModel.of(order);\n        \n        orderModel.add(linkTo(methodOn(OrderController.class).getOrder(id)).withSelfRel());\n        \n        if (order.isCancelable()) {\n            orderModel.add(linkTo(methodOn(OrderController.class).cancelOrder(id)).withRel(\"cancel-order\"));\n        }\n        \n        return orderModel;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common pitfall in enterprise architecture is assuming that achieving Level 3 HATEOAS is mandatory for all microservices. While theoretically pure, Level 3 introduces significant client-side complexity and payload overhead. Many high-scale systems intentionally stop at Level 2, relying on OpenAPI/Swagger specifications for documentation rather than dynamic hypermedia links, because human-written frontend clients rarely consume HATEOAS links natively without specialized hypermedia client libraries."
+    }
+  ],
+  "num": 307,
+  "title": "Richardson Maturity Model — levels 0 to 3",
+  "category": "Core Java & Fundamentals"
+}

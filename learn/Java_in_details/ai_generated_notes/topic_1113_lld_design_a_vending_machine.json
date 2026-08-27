@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a Vending Machine in a Low-Level Design (LLD) context is a classic exercise in state management and encapsulation. The core challenge lies in modeling the machine's lifecycle: accepting currency, validating product selection, managing inventory, and dispensing items while handling edge cases like insufficient funds or out-of-stock scenarios. From an architectural standpoint, we treat the Vending Machine as a Finite State Machine (FSM). Each state—Idle, HasMoney, Dispensing, and ReturnChange—defines the valid transitions and actions permitted. By applying the State Design Pattern, we decouple the machine's behavior from its internal state, preventing a 'spaghetti' of nested if-else statements that would otherwise plague the business logic."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component",
+        "Responsibility",
+        "Design Pattern"
+      ],
+      "rows": [
+        [
+          "InventoryHandler",
+          "Manages product counts and pricing",
+          "Strategy/Singleton"
+        ],
+        [
+          "CashHandler",
+          "Tracks inserted money and calculates change",
+          "Observer"
+        ],
+        [
+          "StateController",
+          "Manages current machine lifecycle phase",
+          "State Pattern"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Encapsulation: The machine should expose a narrow interface (selectProduct, insertCoin) while keeping internal state transitions private to prevent illegal operation sequences.",
+        "Thread Safety: In a real-world multi-threaded environment, inventory updates must be atomic. Use ConcurrentHashMap for inventory storage or synchronized methods/ReentrantLocks to prevent race conditions during simultaneous product selection.",
+        "Error Handling: The system must handle 'Partial Failure' scenarios, such as a mechanical failure during dispensing, by ensuring the transaction is rolled back or the user is refunded before the state resets to Idle.",
+        "Dependency Injection: Decouple the payment processing logic from the core machine logic to allow for future extensibility, such as adding support for NFC or mobile wallets without modifying the core state machine."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public interface State {\n    void insertCoin(VendingMachine machine, Coin coin);\n    void selectProduct(VendingMachine machine, String productId);\n    void dispense(VendingMachine machine);\n}\n\npublic class HasMoneyState implements State {\n    public void selectProduct(VendingMachine machine, String productId) {\n        if (machine.getInventory().isAvailable(productId)) {\n            machine.setState(new DispensingState());\n        } else {\n            throw new OutOfStockException();\n        }\n    }\n    // Other methods...\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Avoid the 'God Object' anti-pattern. A common mistake is putting all logic inside a single VendingMachine class. Instead, delegate the responsibility of change calculation to a dedicated ChangeCalculator service and inventory management to an InventoryManager. This separation ensures that your code is unit-testable—you should be able to test the state transitions without needing to simulate the actual hardware dispensing mechanism."
+    }
+  ],
+  "num": 1114,
+  "title": "LLD: Design a Vending Machine",
+  "category": "Core Java & Fundamentals"
+}

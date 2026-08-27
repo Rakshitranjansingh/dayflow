@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "OAuth 2.0 is an industry-standard delegation protocol that allows a third-party application to obtain limited access to an HTTP service, either on behalf of a resource owner or by allowing the third-party application to obtain access on its own behalf. Unlike legacy authentication protocols that required sharing credentials, OAuth 2.0 uses 'Access Tokens'—short-lived, opaque or JWT-formatted strings—to decouple the authentication process from the authorization process. This solves the 'password anti-pattern' where users had to share their master credentials with untrusted third-party services, effectively centralizing security management and enabling granular scope control.\n\nThe architecture relies on four distinct roles. The Resource Owner is the end-user who owns the data and grants access. The Client is the application requesting access to the protected data; it can be a web app, mobile app, or a server-side daemon. The Authorization Server is the 'source of truth' that validates the user's identity and issues tokens after successful consent. Finally, the Resource Server is the API that hosts the protected data and enforces access control by validating the tokens presented by the Client."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component",
+        "Primary Responsibility",
+        "Key Artifact"
+      ],
+      "rows": [
+        [
+          "Resource Owner",
+          "Granting access to data",
+          "User Credentials"
+        ],
+        [
+          "Client",
+          "Requesting protected resources",
+          "Access Token"
+        ],
+        [
+          "Authorization Server",
+          "Issuing tokens",
+          "Authorization Code / Token"
+        ],
+        [
+          "Resource Server",
+          "Validating access",
+          "Protected API Response"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Authorization Server acts as the gatekeeper, often implementing the OAuth 2.0 'Grant Types' (e.g., Authorization Code Flow with PKCE for mobile/web, Client Credentials for machine-to-machine).",
+        "Access Tokens are typically stateless (JWTs) or stateful (opaque strings stored in a database). Resource Servers validate these by checking cryptographic signatures (RS256) or performing an introspection call back to the Authorization Server.",
+        "The 'Scope' parameter is critical; it defines the specific permissions (e.g., 'read:profile', 'write:email') requested by the Client, adhering to the Principle of Least Privilege.",
+        "The Resource Server does not care how the user logged in; it only cares that the incoming request contains a valid, non-expired token with the necessary scopes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Example of validating a Bearer token in a Spring Security context\n@Bean\npublic SecurityFilterChain filterChain(HttpSecurity http) throws Exception {\n    http.oauth2ResourceServer(oauth2 -> oauth2\n        .jwt(jwt -> jwt.decoder(jwtDecoder()))\n    );\n    return http.build();\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never store Access Tokens in local storage if you are building a Single Page Application (SPA), as this makes them vulnerable to XSS attacks. Always prefer the 'BFF' (Backend For Frontend) pattern where the token is stored in an HttpOnly, Secure, SameSite cookie, effectively hiding it from the client-side JavaScript execution context."
+    }
+  ],
+  "num": 1016,
+  "title": "What is OAuth 2.0? Explain its components (Resource Owner, Client, Authorization Server, Resource Server).",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,49 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the JVM, Garbage Collection (GC) Roots are the fundamental entry points for the reachability analysis algorithm. They act as the starting nodes in the object graph, representing objects that are inherently 'alive' and must not be collected. These include local variables on thread stacks, active static variables, JNI references, and objects currently locked by synchronized blocks. If an object is not reachable from a GC Root through a chain of references, the JVM identifies it as eligible for reclamation. Mark-and-Sweep is the foundational algorithm used to manage this lifecycle. It operates in two distinct phases: the 'Mark' phase, where the collector traverses the object graph starting from these roots to identify live objects, and the 'Sweep' phase, where it iterates through the heap to reclaim memory occupied by objects not marked during the traversal. This process ensures that memory is recycled without manual intervention, though it often necessitates a 'Stop-the-World' (STW) pause to ensure the object graph remains consistent during the marking phase."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Phase",
+        "Primary Responsibility",
+        "Performance Impact"
+      ],
+      "rows": [
+        [
+          "Mark",
+          "Traverse graph from GC Roots",
+          "High CPU usage, potential STW"
+        ],
+        [
+          "Sweep",
+          "Reclaim unreachable memory",
+          "Low CPU, memory fragmentation risk"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "GC Roots are not just objects; they are references located in specific memory areas: Thread Stacks (local variables), Method Area (static fields), and JNI handles.",
+        "The Mark phase uses a tri-color marking abstraction (white, grey, black) to track traversal progress without re-scanning the entire heap.",
+        "Mark-and-Sweep is inherently prone to memory fragmentation because it does not relocate live objects, leading to potential allocation failures even when total free memory seems sufficient.",
+        "Modern collectors like G1 or ZGC augment basic Mark-and-Sweep with compaction or concurrent marking to mitigate the STW pauses that plague traditional implementations."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Conceptual representation of GC Root reachability\npublic class MemoryLeakExample {\n    // This static reference is a GC Root; it keeps the List alive for the app's lifetime\n    private static List<Object> cache = new ArrayList<>(); \n\n    public void process() {\n        Object localObj = new Object(); // Stack-based reference (GC Root while in scope)\n        cache.add(localObj);\n    } // localObj reference is popped, but cache holds a reference, preventing collection\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is the 'unintentional reference' via static collections or ThreadLocals. Even if an object is logically dead, if a static field holds a reference to it, the GC Root traversal will mark it as reachable, causing a memory leak that persists until the ClassLoader is garbage collected. Always use WeakReferences for caches to allow the GC to reclaim memory under pressure."
+    }
+  ],
+  "num": 716,
+  "title": "What are GC Roots? How does Mark-and-Sweep work?",
+  "category": "JVM Architecture & Memory Tuning"
+}

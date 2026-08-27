@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Sealed classes and sealed interfaces, introduced as a permanent feature in Java 17 under JEP 409, provide a definitive mechanism for controlling class inheritance. Prior to this feature, developers relied either on the final modifier—which completely halts extension—or package-private visibility tricks that lacked precision and flexibility across packages. Sealing bridges this gap by letting you explicitly declare which types are permitted to extend or implement a sealed type. This enforces strict algebraic data modeling directly within the type system, transforming object-oriented hierarchies into algebraic data types (ADTs) similar to algebraic types found in functional languages.\n\nWhen you declare a class or interface as sealed, the compiler enforces two primary constraints: every permitted subclass must be explicitly named in the permits clause, and every permitted subclass must opt into the hierarchy by declaring itself as either final, non-sealed, or explicitly sealed itself. This closes the type hierarchy, allowing modern Java constructs like pattern matching in switch expressions to perform exhaustive checks without requiring a hazardous default clause. The compiler guarantees that no unknown subclasses can exist at runtime, allowing for clean, compile-time verified domain models that drastically reduce defensive programming boilerplate."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Permitted subclasses must reside in the same module as the sealed class, or in the same package if the code is unmodularized, ensuring strong encapsulation and preventing arbitrary external code from subverting the hierarchy.",
+        "The modifier choices for a permitted subtype carry precise semantic meaning: final locks down the branch completely; non-sealed opens the subclass back up to public extension; sealing it further restricts its own local subtree.",
+        "The JVM's class loader and verifier enforce these restrictions at runtime via the PermittedSubclasses attribute in the class file, throwing a ClassFormatError if an unpermitted class attempts to extend a sealed parent."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public sealed interface PaymentResult permits Success, Failure, Pending {\n}\n\npublic final class Success implements PaymentResult {\n    private final String transactionId;\n    public Success(String transactionId) { this.transactionId = transactionId; }\n    public String getTransactionId() { return transactionId; }\n}\n\npublic final class Failure implements PaymentResult {\n    private final String errorCode;\n    public Failure(String errorCode) { this.errorCode = errorCode; }\n    public String getErrorCode() { return errorCode; }\n}\n\npublic non-sealed class Pending implements PaymentResult {\n    private final long retryAfterSeconds;\n    public Pending(long retryAfterSeconds) { this.retryAfterSeconds = retryAfterSeconds; }\n    public long getRetryAfterSeconds() { return retryAfterSeconds; }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha when working with frameworks like Jackson, Hibernate, or Spring is that reflection-based tools often expect default constructors or open extension models. When deserializing JSON into a sealed interface hierarchy using Jackson, you must configure polymorphic type handling correctly (e.g., @JsonTypeInfo), or the object mapper will fail because it cannot instantiate the interface directly or map untrusted subtypes safely without explicit annotations."
+    }
+  ],
+  "num": 96,
+  "title": "Sealed classes & interfaces (Java 17)",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

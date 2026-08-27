@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a clean, predictable, and maintainable REST API starts with robust Uniform Resource Identifier (URI) naming conventions. When building distributed microservices using frameworks like Spring WebFlux or traditional servlet-based stacks, the URI is the primary contract between your server-side domain models and external clients. The core design philosophy relies on treating URIs as locators for resources, not as RPC-style remote procedure calls. To enforce consistency across enterprise platforms, three foundational rules govern URI path construction: sticking exclusively to nouns, using plural forms for resource collections, and enforcing strict lowercasing with hyphens for readability.\n\nAdhering to the rule of using Nouns means that URIs should represent entities or conceptual objects within your domain (such as orders, users, or transactions) rather than actions performed upon them. Verbs are strictly prohibited in the path because HTTP methods (GET, POST, PUT, DELETE, PATCH) already dictate the action being executed. By keeping paths noun-centric, a GET /users/42 retrieves a user, while a DELETE /users/42 removes that same user, avoiding clunky paths like /getUser or /deleteUser. Furthermore, the Plural rule dictates that collections of resources must always be represented by their pluralized noun form—such as /products instead of /product. This establishes a uniform mental model where a collection endpoint handles querying and creation, while appending a unique identifier like /products/{id} navigates to a singular resource instance within that collection. Finally, Lowercase enforcement with hyphen-separated kebab-case ensures that URIs remain resilient to platform sensitivity issues. Because web servers, DNS routing, and reverse proxies can sometimes treat uppercase characters inconsistently, standardizing on lowercase alongside hyphens for multi-word resource names (e.g., /shipping-addresses instead of /shippingAddresses) guarantees seamless integration across diverse web clients and microservice mesh configurations."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Anti-Pattern (Bad URI)",
+        "Best Practice (RESTful URI)",
+        "Design Rationale"
+      ],
+      "rows": [
+        [
+          "POST /createUser",
+          "POST /users",
+          "HTTP POST implies creation; the noun 'users' defines the resource collection."
+        ],
+        [
+          "GET /getProducts/5",
+          "GET /products/5",
+          "HTTP GET implies reading; the verb is redundant when targeting a unique identifier."
+        ],
+        [
+          "GET /user-accounts/{id}/activate",
+          "POST /user-accounts/{id}/activations",
+          "State transitions should be modeled as sub-resources or resource creations rather than action verbs."
+        ],
+        [
+          "GET /UserProfile",
+          "GET /user-profiles",
+          "URIs must be lowercase and use kebab-case to prevent casing mismatch bugs across microservices."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Resource Hierarchy and Nesting: Express containment relationships by nesting child resource nouns beneath parent identifiers, such as GET /users/{userId}/orders to fetch all orders belonging to a specific user.",
+        "Avoiding Deep Nesting: Never exceed two levels of nesting (e.g., /users/{userId}/orders/{orderId}/items) to prevent tightly coupled queries and brittle URI contracts; instead, promote top-level resource resolution when relationships become too complex.",
+        "Query Parameters for Filtering and Pagination: Do not encode sorting, filtering, or pagination parameters into the URI path structure; reserve the path strictly for resource identification and delegate modifiers to query strings (e.g., GET /products?category=electronics&limit=20)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/v1/shipping-addresses\")\npublic class ShippingAddressController {\n\n    @GetMapping\n    public Flux<ShippingAddress> getAllAddresses(@RequestParam(required = false) UUID userId) {\n        // Returns a collection of pluralized resources using reactive WebFlux\n        return shippingAddressService.findAllByUserId(userId);\n    }\n\n    @GetMapping(\"/{addressId}\")\n    public Mono<ShippingAddress> getAddressById(@PathVariable UUID addressId) {\n        // Targets a singular instance within the resource collection\n        return shippingAddressService.findById(addressId);\n    }\n\n    @PostMapping\n    @ResponseStatus(HttpStatus.CREATED)\n    public Mono<ShippingAddress> createAddress(@RequestBody Mono<ShippingAddressDto> dto) {\n        // Uses noun-based plural endpoint with POST method for resource creation\n        return shippingAddressService.create(dto);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is yielding to frontend developer requests to add verb actions into paths, such as /orders/{id}/cancel. When business workflows require state transitions, avoid verbs by either updating the resource state via a PUT/PATCH with an updated status field (e.g., PATCH /orders/{id} with body {\"status\": \"CANCELLED\"}) or treating the state change as a sub-resource creation (e.g., POST /orders/{id}/cancellations). This preserves pure REST semantics and keeps your API contract extensible."
+    }
+  ],
+  "num": 967,
+  "title": "What are the rules for proper REST API URI naming? (Nouns, plurals, lowercase)",
+  "category": "REST APIs, WebFlux & Microservices"
+}

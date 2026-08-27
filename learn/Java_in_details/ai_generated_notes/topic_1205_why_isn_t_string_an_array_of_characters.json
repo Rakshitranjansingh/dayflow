@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In early versions of Java, the String class was indeed implemented as a wrapper around a char array. However, this design was fundamentally flawed for modern memory management and internationalization. The primary reason String is not a simple char array today is the transition to compact strings and the need for immutability. By abstracting the internal representation away from a public char array, the JVM engineers gained the ability to optimize memory layout dynamically. Since Java 9, the 'Compact Strings' feature allows Strings to use byte arrays instead of char arrays if the content is Latin-1, effectively halving the memory footprint for a vast majority of web applications. If String were a raw char array, this optimization would be impossible because the API would be locked into a 2-byte-per-character fixed width."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Char Array (Historical)",
+        "Byte Array (Modern)"
+      ],
+      "rows": [
+        [
+          "Memory Usage",
+          "Fixed 2 bytes per char",
+          "1 byte (Latin-1) or 2 bytes (UTF-16)"
+        ],
+        [
+          "Immutability",
+          "Mutable via reference",
+          "Encapsulated, effectively immutable"
+        ],
+        [
+          "Performance",
+          "High overhead for ASCII",
+          "Optimized for common character sets"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Immutability Invariants: String is backed by a private byte array (coder field indicates encoding). Because the array is private and final, the JVM can safely cache String literals in the String Pool without fear of external modification.",
+        "Security: If String were a public char array, any reference passed to a method could be modified by the caller, leading to catastrophic security vulnerabilities in sensitive areas like password handling or file paths.",
+        "Memory Layout: The JVM uses the 'coder' field to determine if the backing byte array uses LATIN1 or UTF16. This allows the heap to store ASCII-heavy strings with significantly less pressure on the Garbage Collector."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public final class String implements java.io.Serializable, Comparable<String>, CharSequence {\n    // The value is used for character storage.\n    @Stable\n    private final byte[] value;\n\n    // The identifier of the encoding used to encode the bytes in value.\n    private final byte coder;\n    \n    // ... internal implementation details ...\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common trap for junior developers is using 'new String(charArray)' or 'toCharArray()' in high-throughput loops. These methods force a copy of the underlying data, which creates significant garbage pressure. If you are doing heavy string manipulation, always prefer StringBuilder or, better yet, work with ByteBuffers or specialized libraries like Netty's ByteBuf to avoid the overhead of constant array allocations."
+    }
+  ],
+  "num": 1206,
+  "title": "Why isn't String an array of characters?",
+  "category": "Core Java & Fundamentals"
+}

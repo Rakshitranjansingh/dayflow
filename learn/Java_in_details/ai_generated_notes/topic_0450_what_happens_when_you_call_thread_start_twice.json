@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When dealing with multithreading and Java concurrency, invoking the start() method on a Thread instance twice is a classic operational error that immediately results in an IllegalThreadStateException. To understand why this happens, we must look past the superficial API call and examine the underlying lifecycle mechanics managed by the Java Virtual Machine (JVM) and the underlying operating system's native thread scheduler. When you instantiate a Java Thread object, you are merely holding a POJO in the JVM heap. The actual OS-level thread has not yet been allocated. It is only when you invoke start() for the first time that the JVM transitions the thread from its initial NEW state to the RUNNABLE state, registers it with the JVM thread scheduler, and executes a native call (usually via JNI) to create a native OS thread.\n\nOnce a thread has been started, its internal state machine transitions forward through RUNNABLE, and eventually terminates, landing permanently in the TERMINATED state. The JVM maintains an internal thread status flag—often represented as an integer or bitfield in the native peer structures. When you attempt to call start() a second time on that same thread instance, the JVM inspects this lifecycle state. Because the thread is no longer in the NEW state, the JVM throws an IllegalThreadStateException to protect the integrity of the execution context. You cannot restart a dead thread, nor can you fork an already running thread into two separate native execution paths using a single Thread object. If you need to execute a similar unit of work again, you must instantiate a fresh Thread object or, better yet, submit a Runnable or Callable task to a modern ExecutorService thread pool."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Execution Phase",
+        "First Thread.start() Call",
+        "Second Thread.start() Call"
+      ],
+      "rows": [
+        [
+          "Thread State",
+          "Transitions from Thread.State.NEW to RUNNABLE",
+          "Remains in RUNNABLE or TERMINATED"
+        ],
+        [
+          "Native OS Interaction",
+          "Allocates native thread resources via clone() or equivalent OS call",
+          "No native allocation occurs; short-circuits in Java code"
+        ],
+        [
+          "Exception Behavior",
+          "Executes normally without throwing exceptions",
+          "Throws java.lang.IllegalThreadStateException immediately"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The thread lifecycle in Java is strictly linear and unidirectional: NEW -> RUNNABLE -> (WAITING/TIMED_WAITING/BLOCKED) -> TERMINATED. There is no reset mechanism back to NEW.",
+        "The IllegalThreadStateException is a RuntimeException (specifically an IllegalArgumentException subclass), meaning the compiler will not force you to catch it, making runtime validation critical.",
+        "Reusing a Thread instance breaks thread safety and violates the single-execution contract of the Runnable interface, as fields modified during the first run would corrupt the execution state of the second run if it were allowed."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ThreadRestartDemo {\n    public static void main(String[] args) {\n        Thread worker = new Thread(() -> {\n            System.out.println(\"Worker executing: \" + Thread.currentThread().getName());\n        });\n\n        // First call: Success\n        worker.start();\n\n        try {\n            // Wait for the thread to finish\n            worker.join();\n            \n            // Second call: Throws IllegalThreadStateException\n            worker.start();\n        } catch (InterruptedException e) {\n            Thread.currentThread().interrupt();\n        } catch (IllegalThreadStateException e) {\n            System.err.println(\"Caught expected exception: \" + e.getMessage());\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common interview trap is asking how to restart a worker thread efficiently. Junior developers often suggest resetting flags or calling start() again. As a senior engineer, your answer should pivot away from raw Thread objects entirely. Instead, emphasize wrapping tasks in Executors, ScheduledExecutorService, or ForkJoinPool, which abstract away thread lifecycle management and prevent IllegalThreadStateException by pooling and reusing worker threads behind the scenes while accepting fresh task submissions."
+    }
+  ],
+  "num": 451,
+  "title": "What happens when you call Thread.start() twice?",
+  "category": "Multithreading & Java Concurrency"
+}

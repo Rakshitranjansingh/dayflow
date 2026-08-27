@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Under-designing in Java often manifests as 'primitive obsession' or 'anemic domain models,' where developers rely on raw types like Strings or Integers to represent complex business concepts, leading to a loss of type safety and domain clarity. When code is under-designed, it lacks the necessary abstractions to enforce invariants, forcing the calling code to handle validation logic repeatedly. This creates a brittle architecture where changing a single business rule requires a 'shotgun surgery' approach—hunting down every instance of a validation check across the codebase. True design maturity involves moving beyond simple procedural flow to encapsulate state and behavior within cohesive objects that guard their own integrity, effectively turning runtime errors into compile-time guarantees."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Symptom",
+        "Under-designed State",
+        "Well-designed State"
+      ],
+      "rows": [
+        [
+          "Data Modeling",
+          "Anemic POJOs with public getters/setters",
+          "Rich Domain Objects with protected state"
+        ],
+        [
+          "Validation",
+          "Scattered null checks and if-statements",
+          "Constructor-based invariant enforcement"
+        ],
+        [
+          "Type Safety",
+          "Passing raw Strings for IDs/Emails",
+          "Value Objects (e.g., EmailAddress, UserId)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Primitive Obsession: Using String for currency or IDs prevents the compiler from catching logic errors and forces you to pass around validation logic that should be intrinsic to the type.",
+        "Lack of Encapsulation: Exposing internal collections via getters allows external callers to mutate your object's state, breaking invariants and leading to unpredictable side effects in multi-threaded environments.",
+        "Violation of Tell-Don't-Ask: If you find yourself querying an object's state to make a decision outside of that object, you have leaked its internal logic, making it impossible to change the implementation without breaking clients.",
+        "Over-reliance on Service Layers: When all business logic resides in 'Service' classes, your domain objects become mere data buckets, leading to a bloated, procedural codebase that ignores the power of object-oriented polymorphism."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public record EmailAddress(String value) {\n    public EmailAddress {\n        Objects.requireNonNull(value);\n        if (!value.contains(\"@\")) throw new IllegalArgumentException(\"Invalid email\");\n    }\n}\n\n// Instead of passing String email, pass the type-safe Value Object\npublic void sendNotification(EmailAddress email) {\n    // Logic is guaranteed to be valid here\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common trap for senior developers is 'over-engineering' in the name of 'design.' If you find yourself creating interfaces for classes that will only ever have one implementation, or using abstract factories for simple object creation, you are likely compensating for a lack of domain understanding. Design should emerge from the necessity of enforcing business invariants, not from a desire to satisfy design patterns for their own sake."
+    }
+  ],
+  "num": 1270,
+  "title": "Where is your code under-designed?",
+  "category": "Core Java & Fundamentals"
+}

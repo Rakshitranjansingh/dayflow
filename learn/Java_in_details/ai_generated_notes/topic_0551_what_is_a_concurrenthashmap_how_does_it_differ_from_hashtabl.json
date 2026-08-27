@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "ConcurrentHashMap is a high-performance, thread-safe implementation of the Map interface designed for highly concurrent environments. Unlike legacy collections that rely on coarse-grained synchronization, ConcurrentHashMap utilizes a sophisticated lock-striping mechanism (in Java 7) or CAS (Compare-And-Swap) operations combined with synchronized blocks on individual bucket heads (in Java 8+). It solves the contention bottleneck inherent in synchronized collections by allowing multiple threads to read and write to different segments of the map simultaneously without blocking each other. Hashtable, by contrast, is a legacy class that uses a single object-level monitor lock for every operation, effectively serializing all access and causing massive performance degradation under load. Collections.synchronizedMap() provides a similar wrapping mechanism to Hashtable, where every method call is guarded by a single mutex on the wrapper object, failing to provide the fine-grained concurrency required for modern, high-throughput JVM applications."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "ConcurrentHashMap",
+        "Hashtable / synchronizedMap"
+      ],
+      "rows": [
+        [
+          "Locking Granularity",
+          "Bucket-level / Node-level",
+          "Entire Map (Object-level)"
+        ],
+        [
+          "Read Performance",
+          "Non-blocking (volatile reads)",
+          "Blocked by writes"
+        ],
+        [
+          "Iterator Behavior",
+          "Weakly consistent (no ConcurrentModificationException)",
+          "Fail-fast (throws ConcurrentModificationException)"
+        ],
+        [
+          "Null Keys/Values",
+          "Not permitted",
+          "Not permitted"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In Java 8+, ConcurrentHashMap uses a combination of CAS for node insertion and synchronized blocks on the first node (head) of a bin to ensure atomicity without locking the entire table.",
+        "The map uses a 'volatile' read strategy for get operations, ensuring that the most recent write is visible to all threads without requiring explicit synchronization overhead.",
+        "When a bin exceeds the TREEIFY_THRESHOLD (default 8), the linked list is converted into a balanced tree (Red-Black tree) to improve worst-case search performance from O(n) to O(log n).",
+        "The size() and mappingCount() methods do not lock the entire map; instead, they maintain a counter base and a set of counter cells that are updated via CAS, providing an approximate but highly performant count."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "ConcurrentMap<String, Integer> cache = new ConcurrentHashMap<>();\n\n// Atomic compute-if-absent prevents race conditions during initialization\ncache.computeIfAbsent(\"key\", k -> heavyDatabaseCall(k));\n\n// Atomic update without explicit synchronized blocks\ncache.merge(\"key\", 1, Integer::sum);"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is assuming that because ConcurrentHashMap is thread-safe, a sequence of operations is atomic. While individual methods like putIfAbsent() or compute() are atomic, a sequence like 'if (!map.containsKey(k)) { map.put(k, v); }' is NOT atomic and will lead to race conditions. Always prefer the atomic compute methods provided in the Map interface to maintain thread safety across complex state transitions."
+    }
+  ],
+  "num": 552,
+  "title": "What is a ConcurrentHashMap? How does it differ from Hashtable and Collections.synchronizedMap()?",
+  "category": "Multithreading & Java Concurrency"
+}

@@ -1,0 +1,69 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Java bytecode portability has historically carried a performance tradeoff compared to ahead-of-time compiled languages like C++. To bridge this gap, modern Java Virtual Machines incorporate a sophisticated Just-In-Time (JIT) compilation subsystem. Instead of interpreting bytecode instruction-by-instruction indefinitely via the template interpreter, the JVM dynamically monitors execution profiles, identifying code blocks that consume disproportionate CPU cycles, known as hot methods. Once a method crosses specific invocation and backedge (loop) thresholds, the runtime transitions it into natively optimized machine code.\n\nTiered compilation bridges the gap between startup latency and peak throughput by employing multiple compilation tiers. Typically, the JVM starts in interpreter mode (Tier 0), quickly collecting profiling data. As methods warm up, they transition to C1 (Client Compiler or SimpleJIT, Tier 3), which inserts profiling instrumentation while generating fast native code. Finally, heavily executed hot methods graduate to C2 (Server Compiler, Tier 4) or Graal, where aggressive, profile-guided optimizations—such as escape analysis, method inlining, and loop unrolling—are applied. Deoptimization occurs when these speculative optimizations are invalidated by runtime behavior, forcing the execution frame to safely drop back down to the interpreter or a lower tier."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Compilation Tier",
+        "Name",
+        "Profiling Level",
+        "Primary Optimization Goal"
+      ],
+      "rows": [
+        [
+          "Tier 0",
+          "Interpreter",
+          "None",
+          "Instant startup, no compilation delay"
+        ],
+        [
+          "Tier 1",
+          "Simple C1",
+          "None",
+          "Fast native code without instrumentation overhead"
+        ],
+        [
+          "Tier 2",
+          "Limited C1",
+          "Basic invocation/backedge counts",
+          "Intermediate speed with light profiling"
+        ],
+        [
+          "Tier 3",
+          "Full C1",
+          "Full MDO (Method Data Object) collection",
+          "Maximum instrumentation for C2 migration"
+        ],
+        [
+          "Tier 4",
+          "C2 / Graal",
+          "None (Consumes MDO)",
+          "Peak execution throughput via aggressive optimization"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Hot methods are identified using invocation counters (tracking how many times a method is called) and backedge counters (tracking loop branch executions), which trigger OSR (On-Stack Replacement) if a long-running loop needs to be compiled mid-execution.",
+        "Tier 3 utilizes Method Data Objects (MDOs) to record precise type feedback, branch Taken/Not-Taken probabilities, and virtual call site receiver frequencies, feeding critical data directly into C2 optimization phases.",
+        "Deoptimization invalidates compiled code dependencies when class hierarchies change or speculative type assumptions fail, reconstructing exact interpreter frames from optimized machine state using OSR buffer maps."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class JITBenchmark {\n    public static int accumulate(int[] data) {\n        int sum = 0;\n        // The backedge counter tracks this loop. Once it exceeds CompileThreshold,\n        // the JIT compiler optimizes the loop body, potentially vectorizing instructions.\n        for (int i = 0; i < data.length; i++) {\n            sum += data[i];\n        }\n        return sum;\n    }\n\n    public static void main(String[] args) {\n        int[] array = new int[1000];\n        for (int i = 0; i < 20000; i++) {\n            accumulate(array); // Warmed up, transitions through Tiers 0 -> 3 -> 4\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Frequent deoptimization (often visible via -XX:+PrintCompilation logs showing 'trap' or 'unusual trap') is a massive performance killer. It typically happens when polymorphism ruins monomorphic call sites, or when null checks are unexpectedly violated. Ensure your design avoids unnecessary type mutations in hot execution paths to keep code stably compiled at Tier 4."
+    }
+  ],
+  "num": 160,
+  "title": "JIT compilation — tiered compilation, hot methods, deoptimization",
+  "category": "JVM Architecture & Memory Tuning"
+}

@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed messaging systems like Apache Kafka and RabbitMQ, a 'poison pill' message is a malformed or logically invalid payload that consistently causes a consumer to crash, enter an infinite retry loop, or block the processing pipeline. Because these systems are designed for high throughput and reliability, a single unprocessable message can effectively halt a consumer group or queue, leading to head-of-line blocking. Handling these requires a strategy that balances system availability with data integrity. In Kafka, where offsets are committed manually or automatically, a poison pill can cause a consumer to repeatedly attempt to process the same invalid offset. In RabbitMQ, the issue often manifests as a message that fails repeatedly, triggering requeueing and consuming CPU cycles until the consumer exhausts its retry limit or crashes."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Kafka Approach",
+        "RabbitMQ Approach"
+      ],
+      "rows": [
+        [
+          "Dead Letter Queue (DLQ)",
+          "Produce to a separate topic after N retries",
+          "Route to a dedicated exchange/queue via headers"
+        ],
+        [
+          "Retry Policy",
+          "Exponential backoff with non-blocking retries",
+          "TTL-based retry queues with dead-letter exchanges"
+        ],
+        [
+          "Validation",
+          "Schema Registry (Avro/Protobuf) at producer",
+          "Message TTL and Max-Length policies"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "For Kafka, implement a 'Retry Topic' pattern where messages failing processing are published to a secondary topic with a delay, eventually landing in a DLQ after a threshold is met. This prevents blocking the main partition.",
+        "In RabbitMQ, utilize 'Dead Letter Exchanges' (DLX). By setting the 'x-dead-letter-exchange' argument on a queue, messages that are rejected (nack) without requeueing are automatically routed to the DLX.",
+        "Implement robust schema validation at the producer level using a Schema Registry. Preventing the poison pill from ever entering the broker is the most effective architectural defense.",
+        "Ensure your consumer logic is idempotent. If a consumer crashes midway through processing, the retry mechanism will re-process the message; idempotency prevents side effects like duplicate database inserts."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void processMessage(ConsumerRecord<String, byte[]> record) {\n    try {\n        process(record);\n    } catch (Exception e) {\n        if (isRetryable(e)) {\n            retryTemplate.execute(...);\n        } else {\n            log.error(\"Poison pill detected, sending to DLQ: {}\", record.key());\n            kafkaTemplate.send(\"my-topic-dlq\", record.value());\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never use 'requeue=true' in RabbitMQ for poison pills. It creates a 'hot loop' that spikes CPU usage to 100% across your consumer cluster. Always route to a DLQ and alert your SRE team. Also, be wary of 'infinite retries' in Kafka; if you don't implement a max-retry limit, a single poison pill will eventually cause a consumer lag spike that triggers an auto-scaling event, potentially costing you thousands in unnecessary cloud infrastructure spend."
+    }
+  ],
+  "num": 948,
+  "title": "How to handle poison pill messages in Kafka/RabbitMQ?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

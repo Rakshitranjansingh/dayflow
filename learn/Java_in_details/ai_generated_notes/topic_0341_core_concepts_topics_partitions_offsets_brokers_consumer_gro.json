@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed event streaming architectures like Apache Kafka, understanding the foundational primitives—Topics, Partitions, Offsets, Brokers, and Consumer Groups—is critical for architecting resilient, high-throughput systems. A Topic serves as the logical category or feed name to which records are published, abstracting away the physical storage details. Because a single topic must scale horizontally across a cluster, it is physically decomposed into multiple Partitions. Each partition is an ordered, immutable sequence of records that is continually appended to—a commit log structure. Every message written to a partition is assigned a monotonically increasing sequential ID known as an Offset, which uniquely identifies that record within that specific partition scope. These partitions and their corresponding logs do not live in a vacuum; they are hosted and managed by individual cluster nodes called Brokers. A Broker is a distinct server instance responsible for receiving messages, writing them to disk efficiently via zero-copy I/O operations, and serving fetch requests from clients.\n\nTo consume data at scale without duplicating effort or dropping messages, systems leverage Consumer Groups. A Consumer Group is a collection of independent consumer instances that work together to consume a single topic. The Kafka coordinator assigns partitions from a subscribed topic exclusively to specific members within the consumer group, guaranteeing that each partition is processed by exactly one consumer at a time within that group. This design pattern allows for seamless horizontal scaling of read throughput. If a consumer fails or a new one joins, a rebalance is triggered, dynamically redistributing the partition assignments across the remaining active consumers. Exception handling in this domain often revolves around managing offset commits during transient downstream failures, ensuring that either at-least-once or exactly-once delivery semantic invariants are maintained without stalling the entire partition log."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Primitive",
+        "Primary Responsibility",
+        "Scope / Granularity"
+      ],
+      "rows": [
+        [
+          "Topic",
+          "Logical channel for categorizing published event streams",
+          "Global across cluster"
+        ],
+        [
+          "Partition",
+          "Physical append-only log enabling horizontal scale and ordering",
+          "Subset of a Topic"
+        ],
+        [
+          "Offset",
+          "Unique sequential integer identifying a record's position",
+          "Scoped per Partition"
+        ],
+        [
+          "Broker",
+          "Storage node managing partitions, disk I/O, and client requests",
+          "Individual cluster node"
+        ],
+        [
+          "Consumer Group",
+          "Cooperative pool of consumers sharing consumption workload",
+          "Scoped to Topic subscriptions"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Partitions provide the fundamental unit of parallelism; because message ordering is only guaranteed within a single partition, partition key design dictates both data distribution skew and stream processing sequence.",
+        "Offsets are managed explicitly via consumer offset commits (either auto-commit or manual commit strategies). Storing these offsets in a specialized internal topic (__consumer_offsets) allows consumers to resume from their exact crash site.",
+        "Brokers rely heavily on page cache and the sendfile system call (zero-copy NIO) to stream data from disk directly to network sockets, bypassing user-space memory overhead and enabling hundreds of megabytes per second throughput per node.",
+        "Consumer Group rebalancing protocols coordinate via a designated Group Coordinator broker, using Heartbeat and Poll loops to detect dead consumer instances and trigger partition reassignment."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "Properties props = new Properties();\nprops.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, \"localhost:9092\");\nprops.put(ConsumerConfig.GROUP_ID_CONFIG, \"order-processing-group\");\nprops.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, \"false\");\nprops.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());\nprops.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());\n\nKafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);\nconsumer.subscribe(Collections.singletonList(\"orders-topic\"));\n\ntry {\n    while (true) {\n        ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));\n        for (ConsumerRecord<String, String> record : records) {\n            processOrder(record.value());\n            // Manually commit offset per partition to guarantee at-least-once processing\n            consumer.commitSync(Collections.singletonMap(\n                new TopicPartition(record.topic(), record.partition()),\n                new OffsetAndMetadata(record.offset() + 1)\n            ));\n        }\n    }\n} catch (Exception e) {\n    logger.error(\"Error during record processing, pausing commit loop\", e);\n} finally {\n    consumer.close();\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production failure mode involves the 'rebalance storm' caused by long-running message processing inside the poll loop exceeding max.poll.interval.ms. If your business logic blocks too long trying to recover from a downstream database outage, the broker assumes the consumer is dead, kicks it out of the Consumer Group, triggers a partition rebalance, and subsequently fails when trying to commit offsets for partitions it no longer owns. Always offload heavy computations to a thread pool or decrease max.poll.records."
+    }
+  ],
+  "num": 342,
+  "title": "Core concepts — Topics, Partitions, Offsets, Brokers, Consumer Groups",
+  "category": "Exception Handling & I/O / NIO"
+}

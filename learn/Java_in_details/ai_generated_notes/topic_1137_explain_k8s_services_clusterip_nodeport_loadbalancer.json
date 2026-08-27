@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Kubernetes ecosystem, a Service is an abstraction layer that defines a logical set of Pods and a policy by which to access them. Because Pods are ephemeral—they are created and destroyed based on node health or scaling events—their IP addresses are unreliable. Services solve this by providing a stable virtual IP (VIP) and a DNS name that persists even as the underlying Pods churn. The three primary types, ClusterIP, NodePort, and LoadBalancer, represent a hierarchy of exposure and complexity.\n\nClusterIP is the default, providing internal-only connectivity. It allocates a stable IP address from the cluster's internal CIDR, accessible only from within the cluster network. NodePort extends this by opening a specific port on every node in the cluster, forwarding traffic to the Service. This is useful for development or edge scenarios but introduces security risks and port management overhead. Finally, LoadBalancer integrates with cloud provider APIs (like AWS ELB or GCP Cloud Load Balancer) to provision an external, public-facing IP that routes traffic directly to your service, abstracting away the underlying node-level networking."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Service Type",
+        "Accessibility",
+        "External Dependency"
+      ],
+      "rows": [
+        [
+          "ClusterIP",
+          "Internal Cluster Only",
+          "None"
+        ],
+        [
+          "NodePort",
+          "Cluster + Node IP:Port",
+          "None (Internal Port Allocation)"
+        ],
+        [
+          "LoadBalancer",
+          "Public Internet",
+          "Cloud Provider API"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "ClusterIP uses kube-proxy to manage iptables or IPVS rules on each node, ensuring that traffic sent to the virtual IP is DNAT-ed to one of the healthy backend Pods.",
+        "NodePort reserves a port in the range 30000-32767 across all nodes; traffic hitting any node on this port is routed to the Service, which then performs load balancing to the target Pods.",
+        "LoadBalancer creates an external entry point that acts as a gateway, typically forwarding traffic to the NodePort of the underlying service, effectively acting as a managed proxy layer."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "apiVersion: v1\nkind: Service\nmetadata:\n  name: java-app-service\nspec:\n  type: LoadBalancer\n  selector:\n    app: backend-api\n  ports:\n    - protocol: TCP\n      port: 80\n      targetPort: 8080"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never rely on NodePort for production-grade public traffic; it is difficult to manage firewall rules for a range of nodes. Furthermore, be aware that LoadBalancer services incur costs per cloud resource. If you have dozens of microservices, consider using an Ingress Controller (like Nginx or Istio) behind a single LoadBalancer to avoid 'Cloud Bill Shock' from provisioning one LoadBalancer per service."
+    }
+  ],
+  "num": 1138,
+  "title": "Explain K8s Services (ClusterIP, NodePort, LoadBalancer).",
+  "category": "Core Java & Fundamentals"
+}

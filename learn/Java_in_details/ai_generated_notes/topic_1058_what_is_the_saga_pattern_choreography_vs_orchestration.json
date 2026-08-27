@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern microservices architectures, data is partitioned across distinct service boundaries, making traditional ACID transactions using two-phase commit (2PC) impractical due to performance bottlenecks and tight coupling. The Saga Pattern is a design pattern that manages distributed transactions by breaking them down into a sequence of localized, independent transactions executed across multiple services. Each local transaction updates its respective database and publishes an event or message to trigger the next step in the saga. If a step fails, the saga executes a series of compensating transactions that logically undo the changes made by preceding steps, thereby achieving eventual consistency without locking database rows globally.\n\nTo coordinate these distributed workflows, system architects typically choose between two main structural implementations: Choreography and Orchestration. Choreography-based sagas rely on decentralized event-driven signaling; services listen to domain events and react independently without a centralized controller, fostering loose coupling but risking hidden dependencies and complex debugging trails. Conversely, Orchestration-based sagas introduce a dedicated coordinator service that centralizes the workflow logic, explicitly issuing commands to participant services and tracking the state machine of the entire transaction. Choosing between them dictates system resilience, maintainability, and operational overhead in production environments."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Choreography Saga",
+        "Orchestration Saga"
+      ],
+      "rows": [
+        [
+          "Control Flow",
+          "Decentralized (Event-driven listeners)",
+          "Centralized (Dedicated orchestrator service)"
+        ],
+        [
+          "Coupling",
+          "Loose coupling, services only know about events",
+          "Moderate coupling, orchestrator knows all participant APIs"
+        ],
+        [
+          "Complexity Visibility",
+          "Harder to trace execution flow across services",
+          "Easier to monitor workflow state in a single place"
+        ],
+        [
+          "Risk of Cyclic Dependencies",
+          "High risk if event chains are poorly designed",
+          "Low risk due to centralized dependency management"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Event-driven decoupling ensures that participants in a choreography-based saga remain agnostic of downstream consumers, scaling independently via message brokers like Apache Kafka or RabbitMQ.",
+        "Compensating transactions must be idempotent and commutative where possible, because network partitions or consumer retries can deliver duplicate cancellation events.",
+        "Centralized orchestrators maintain state machines (often backed by workflow engines like Temporal or Zeebe) to survive process crashes and gracefully resume interrupted distributed transactions."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderOrchestrator {\n    private final OrderClient orderClient;\n    private final PaymentClient paymentClient;\n    private final InventoryClient inventoryClient;\n\n    public void executeOrder(OrderRequest request) {\n        String orderId = orderClient.createPendingOrder(request);\n        try {\n            paymentClient.processPayment(orderId, request.getPaymentDetails());\n            inventoryClient.reserveStock(orderId, request.getItems());\n            orderClient.completeOrder(orderId);\n        } catch (PaymentFailedException | InventoryOutOfStockException e) {\n            compensate(orderId);\n            throw new SagaExecutionException(\"Saga failed, compensation triggered\", e);\n        }\n    }\n\n    private void compensate(String orderId) {\n        inventoryClient.releaseStock(orderId);\n        paymentClient.refundPayment(orderId);\n        orderClient.cancelOrder(orderId);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall in saga implementations is assuming that compensating transactions will always succeed. If a compensating transaction fails due to a downstream network timeout or database outage, the system enters an inconsistent state that requires human intervention or an automated dead-letter queue recovery daemon. Always design your compensations with built-in retry mechanisms and alerting for unrecoverable saga failures."
+    }
+  ],
+  "num": 1059,
+  "title": "What is the Saga Pattern? (Choreography vs Orchestration)",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

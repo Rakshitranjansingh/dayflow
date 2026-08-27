@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of Spring Data JPA and Hibernate ORM, lazy evaluation in streams refers to the deferred execution model where database records are not loaded entirely into the JVM heap all at once. Instead, they are streamed lazily cursor-by-cursor over the network from the database via a JDBC ResultSet, driven by a forward-only iterator. When combined with Java Streams (java.util.stream.Stream), this mechanism allows enterprise applications to process massive datasets that would otherwise trigger an OutOfMemoryError if executed using traditional findAll() collection-loading strategies. This paradigm bridges the gap between set-oriented SQL execution and element-oriented Java stream processing pipelines."
+    },
+    {
+      "type": "prose",
+      "content": "To execute a streaming query safely, Spring Data JPA repositories must wrap the return type in a Java Stream, and the entire processing block must be enclosed within an active database transaction. Because Hibernate maintains the persistence context and the underlying JDBC statement and connection open only during the life of the transaction, attempting to consume a lazy stream outside of a transaction will immediately result in a LazyInitializationException or a closed-connection SQL exception. Furthermore, once processing completes, developers must ensure the stream is explicitly closed—typically via a try-with-resources block—to prevent critical database cursor and connection leaks."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Execution Aspect",
+        "Eager Collection (List)",
+        "Lazy Stream Evaluation"
+      ],
+      "rows": [
+        [
+          "Memory Footprint",
+          "High (loads all matching rows into JVM heap)",
+          "Low (processes records iteratively one-by-one)"
+        ],
+        [
+          "Transaction Scope",
+          "Can be closed immediately after query execution",
+          "Must remain active throughout entire stream consumption"
+        ],
+        [
+          "Resource Management",
+          "Automatic GC cleanup of collection references",
+          "Explicit close() required to release JDBC cursors"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Under the hood, Hibernate sets the JDBC Fetch Size (e.g., Integer.MIN_VALUE for MySQL streaming) on the PreparedStatement to instruct the driver to stream results rather than pre-fetching the entire result set into client memory.",
+        "Intermediate stream operations like filter() and map() are themselves lazily evaluated, meaning execution is deferred until a terminal operation such as forEach() or collect() is invoked on the pipeline.",
+        "Stateful operations within streams, such as distinct() or sorted(), break lazy streaming mechanics because they require buffering elements into internal collections, risking memory exhaustion."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Transactional(readOnly = true)\npublic void processLargeDataset() {\n    try (Stream<Customer> customerStream = customerRepository.streamAllByStatus(CustomerStatus.ACTIVE)) {\n        customerStream\n            .filter(c -> c.isEligibleForDiscount())\n            .forEach(c -> emailService.sendPromotionalEmail(c));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap when using lazy streams with Spring Data JPA is forgetting that the underlying database connection remains locked open for the duration of the stream consumption. If your terminal operation performs a slow network call (like calling an external REST API inside a forEach loop), you will tie up a connection pool thread and potentially starve your entire application of database connections."
+    }
+  ],
+  "num": 615,
+  "title": "What is lazy evaluation in streams?",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

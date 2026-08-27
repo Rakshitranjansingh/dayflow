@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of secure software engineering, the concept of 'secure defaults' versus 'insecure defaults' refers to the initial state of a system, library, or API configuration before a developer or administrator applies custom modifications. A secure default configuration ensures that the system is protected out-of-the-box, requiring an explicit, conscious action to lower security posture for specific use cases. Conversely, insecure defaults prioritize convenience, backward compatibility, or ease of integration, often leaving sensitive features enabled or access controls wide open by default. This is a critical distinction in Java development: for instance, early versions of Java Serialization were notoriously insecure by default, allowing arbitrary object deserialization that led to widespread Remote Code Execution (RCE) vulnerabilities. Modern Java frameworks, such as Spring Security, have pivoted toward 'secure by default' postures, where endpoints are protected unless explicitly marked as public, effectively forcing the developer to 'opt-out' of security rather than 'opt-in'."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Secure Defaults",
+        "Insecure Defaults"
+      ],
+      "rows": [
+        [
+          "Security Posture",
+          "Deny-all / Least Privilege",
+          "Allow-all / Over-permissive"
+        ],
+        [
+          "Developer Workflow",
+          "Explicitly enable features",
+          "Implicitly enabled features"
+        ],
+        [
+          "Risk Profile",
+          "Lower surface area for zero-days",
+          "High risk of accidental exposure"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Secure defaults leverage the Principle of Least Privilege (PoLP), ensuring that components like JMX (Java Management Extensions) or HTTP headers are configured to block unauthorized access until the developer explicitly defines an ACL or CORS policy.",
+        "Insecure defaults often stem from 'convenience-first' design, where internal debugging tools or administrative endpoints are exposed on public network interfaces without authentication, assuming the developer will secure them later—a promise rarely kept in high-pressure production environments.",
+        "In Java, secure defaults often involve immutable objects, final classes, and strict type checking to prevent state manipulation, whereas insecure defaults might rely on mutable static fields or global state that can be hijacked via reflection.",
+        "The 'Fail-Secure' invariant dictates that if a system encounters an error or an unhandled state, it must transition into a locked-down state rather than failing open, which is a hallmark of secure default design."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\npublic class SecurityConfig extends WebSecurityConfigurerAdapter {\n    @Override\n    protected void configure(HttpSecurity http) throws Exception {\n        // Secure default: Deny all requests unless explicitly permitted\n        http.authorizeRequests()\n            .antMatchers(\"/public/**\").permitAll()\n            .anyRequest().authenticated();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Never trust a dependency's default configuration. When integrating third-party libraries, always assume the 'insecure default' stance. Audit the library's documentation for hidden features like 'auto-discovery' or 'auto-configuration' that might expose internal endpoints. A common production trap is the 'Spring Boot Actuator' endpoint; if left with insecure defaults, it can expose heap dumps, environment variables, and thread stacks to the public internet."
+    }
+  ],
+  "num": 1024,
+  "title": "What is the difference between secure and insecure defaults?",
+  "category": "Core Java & Fundamentals"
+}

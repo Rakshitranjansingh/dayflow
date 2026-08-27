@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Backward compatibility in APIs is the architectural discipline of ensuring that new deployments of a service do not break existing clients. In a distributed system, you rarely control the release cadence of your consumers, making breaking changes a catastrophic event. API Versioning is the primary mechanism to manage this evolution. It allows you to expose multiple iterations of a contract simultaneously, providing a migration path for clients. Without a robust versioning strategy, you are forced into a 'big bang' migration, which is operationally risky and often impossible in microservices architectures. We approach this by distinguishing between additive changes (which are inherently backward compatible) and destructive changes (which require a new version identifier). Whether using URI versioning, custom headers, or media type negotiation, the goal is to decouple the server's internal evolution from the client's stability requirements."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Pros",
+        "Cons"
+      ],
+      "rows": [
+        [
+          "URI Versioning",
+          "Visible, easy to cache, simple routing",
+          "Violates REST URI resource identity"
+        ],
+        [
+          "Header Versioning",
+          "Keeps URIs clean, follows REST principles",
+          "Harder to test in browsers, complex caching"
+        ],
+        [
+          "Media Type (Accept Header)",
+          "True content negotiation, highly flexible",
+          "High implementation complexity, obscure for consumers"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Semantic Versioning (SemVer) compliance is mandatory: Major versions represent breaking changes, Minor versions represent additive changes, and Patches represent bug fixes.",
+        "Deprecation headers (e.g., 'Warning: 299 - Deprecated') should be injected into responses to signal to clients that a specific endpoint version is approaching end-of-life.",
+        "Consumer-Driven Contracts (CDC) using tools like Pact allow you to verify that your changes do not break specific client expectations before they hit production.",
+        "Avoid 'optional' fields becoming 'required' in request schemas, as this is a silent breaking change that often evades static analysis."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RequestMapping(\"/api/v1/users\")\npublic class UserV1Controller {\n    @GetMapping(\"/{id}\")\n    public UserDTO getUser(@PathVariable String id) { ... }\n}\n\n// Use @Deprecated to signal sunsetting, but maintain the path for existing clients\n@Deprecated\n@RequestMapping(\"/api/v2/users\")\npublic class UserV2Controller {\n    @GetMapping(\"/{id}\")\n    public UserV2DTO getUser(@PathVariable String id) { ... }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is 'Version Bloat'. If you support too many versions, your codebase becomes a graveyard of legacy logic and your test suite grows exponentially. Always implement a formal 'Sunset Policy' where old versions are decommissioned after a defined period, and ensure your metrics track the traffic volume per version so you know exactly when a version is safe to delete."
+    }
+  ],
+  "num": 1054,
+  "title": "How do you handle backward compatibility in APIs? (API Versioning)",
+  "category": "Exception Handling & I/O / NIO"
+}

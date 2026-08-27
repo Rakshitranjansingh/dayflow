@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing an Automated Teller Machine (ATM) system in Java is a classic low-level design (LLD) exercise that tests an engineer's ability to decompose a real-world physical and digital state machine into decoupled, maintainable object-oriented components. At its core, an ATM system requires careful orchestration of hardware abstraction, transactional integrity, concurrent user sessions, and state management. We must model distinct subsystems such as the CashDispenser, CardReader, Keypad, Screen, ReceiptPrinter, and BankDatabase. The system's execution must strictly adhere to physical constraints (e.g., physical currency cassettes running low) while ensuring that state transitions prevent double-spending or unauthorized account access."
+    },
+    {
+      "type": "prose",
+      "content": "To implement robust behavior, the design heavily relies on the State Design Pattern to manage the ATM's lifecycle states: Idle, InsertedCard, Authenticated, SelectingTransaction, DispensingCash, and Maintenance. Each state encapsulates specific behaviors and restricts illegal operations, preventing a user from withdrawing cash before authentication or ejecting a card mid-transaction. Furthermore, the Mediator or Controller pattern orchestrates interactions between the hardware peripherals and external banking APIs, ensuring loose coupling where the hardware components do not need to know about the central banking infrastructure."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Design Pattern",
+        "Target Component in ATM",
+        "Primary Architectural Benefit"
+      ],
+      "rows": [
+        [
+          "State Pattern",
+          "ATM State Machine (Idle, Authenticated, etc.)",
+          "Encapsulates state-specific behavior and eliminates complex conditional logic."
+        ],
+        [
+          "Strategy Pattern",
+          "Transaction Types (Withdrawal, Deposit, Balance)",
+          "Enables open-closed principle; new transaction types can be added without modifying the core ATM loop."
+        ],
+        [
+          "Singleton Pattern",
+          "BankDatabase / CashDispenser Controller",
+          "Ensures centralized, thread-safe synchronization of account balances and physical cash inventories."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "State Transitions: The ATM maintains a pointer to the current State interface implementation. Every hardware event (e.g., card insertion, PIN entry) delegates to the active state, which handles the input or throws an IllegalStateException if the action is invalid.",
+        "Concurrency and Race Conditions: Because multiple physical ATMs can access the same centralized BankDatabase concurrently, account balances must be protected using optimistic or pessimistic locking at the database layer to prevent balance corruption.",
+        "Cash Inventory Management: The CashDispenser utilizes a Chain of Responsibility or a greedy algorithmic approach to calculate optimal bill distribution (e.g., dispensing 100s, 50s, and 20s based on available physical cassettes)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public interface AtmState {\n    void insertCard(ATM atm, Card card);\n    void enterPin(ATM atm, int pin);\n    void requestTransaction(ATM atm, TransactionType type);\n    void dispenseCash(ATM atm, double amount);\n    void ejectCard(ATM atm);\n}\n\npublic class AuthenticatedState implements AtmState {\n    @Override\n    public void requestTransaction(ATM atm, TransactionType type) {\n        System.out.println(\"Transaction selected: \" + type);\n        atm.setCurrentState(atm.getTransactionState());\n    }\n    // Other state methods throw IllegalStateException or handle accordingly\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common interview pitfall is tightly coupling hardware peripherals directly to the bank server communication layer. In production-grade LLD, always isolate physical hardware failures (e.g., printer jammed, cash dispenser empty) from core banking communication exceptions (e.g., network timeout, insufficient funds) using custom domain exceptions and explicit transaction rollback boundaries."
+    }
+  ],
+  "num": 1115,
+  "title": "LLD: Design an ATM System",
+  "category": "Core Java & Fundamentals"
+}

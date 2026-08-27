@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Searching collections efficiently is a cornerstone of systems engineering, and when dealing with sorted sequences, binary search is the go-to algorithmic paradigm. However, standard binary search—which returns any arbitrary index matching a target or a negative value if absent—falls short in real-world domain problems requiring boundary detection. This is where binary search variants, specifically lower bound and upper bound, become indispensable. The lower bound algorithm finds the first index where the element is greater than or equal to the target, effectively answering 'where can I insert this value to maintain sorted order?'. Conversely, the upper bound algorithm finds the first index where the element is strictly greater than the target, establishing the exclusive right-hand boundary of a range of duplicate keys.\n\nIn modern Java ecosystems (Java 8 through 21+), these operations are heavily utilized in performance-critical data processing pipelines, interval indexing, and memory-mapped file offset lookups. While the standard java.util.Collections.binarySearch or java.util.Arrays.binarySearch methods provide the classic index or(-(insertion point) - 1) contract, they often require manual bit-twiddling or post-processing to isolate precise lower and upper boundaries. Implementing these variants manually using modern Java features like generic comparators, primitive streams, or Unsafe memory offsets allows developers to bypass boxing overhead and achieve predictable O(log n) performance with zero GC pressure."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Algorithm Variant",
+        "Core Predicate Condition",
+        "Return Value on Missing Target"
+      ],
+      "rows": [
+        [
+          "Standard Binary Search",
+          "arr[mid] == target",
+          "-(insertion point) - 1"
+        ],
+        [
+          "Lower Bound",
+          "arr[mid] >= target",
+          "Index of first element > target (or array length)"
+        ],
+        [
+          "Upper Bound",
+          "arr[mid] > target",
+          "Index of first element > target (or array length)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Lower bound maintains an invariant where low is inclusive and high is exclusive, shrinking the window by evaluating arr[mid] >= target to shift the high pointer to mid.",
+        "Upper bound adjusts the discriminator to arr[mid] > target, ensuring the search collapses onto the exact upper partition boundary without skipping adjacent duplicate elements.",
+        "Both variants guarantee logarithmic time complexity O(log n) while performing strictly bounded comparisons, making them exceptionally cache-friendly when executed over primitive arrays stored in contiguous heap or off-heap memory."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public final class BinarySearchVariants {\n    private BinarySearchVariants() {}\n\n    public static int lowerBound(int[] arr, int target) {\n        int low = 0;\n        int high = arr.length;\n        while (low < high) {\n            int mid = low + (high - low) / 2;\n            if (arr[mid] >= target) {\n                high = mid;\n            } else {\n                low = mid + 1;\n            }\n        }\n        return low;\n    }\n\n    public static int upperBound(int[] arr, int target) {\n        int low = 0;\n        int high = arr.length;\n        while (low < high) {\n            int mid = low + (high - low) / 2;\n            if (arr[mid] > target) {\n                high = mid;\n            } else {\n                low = mid + 1;\n            }\n        }\n        return low;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Beware of integer overflow when calculating the mid point in legacy codebases (low + high) / 2; always use low + (high - low) / 2 or the unsigned bit-shift operator (low + high) >>> 1. Furthermore, when adapting these variants for custom Java objects using Comparators, ensure your comparison logic is strictly consistent with equals to avoid infinite loops or unpredictable index boundary failures."
+    }
+  ],
+  "num": 203,
+  "title": "Searching — binary search variants (lower/upper bound)",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

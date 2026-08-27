@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java programming language and Virtual Machine (JVM) architecture, Throwable is the absolute root class of the entire error and exception hierarchy. Directly extending Object, Throwable splits into two primary sub-hierarchies: Exception and Error. When developers ask whether they should catch Throwable, they are questioning the wisdom of intercepting every single condition that can be thrown by the JVM, ranging from recoverable application logic flaws to catastrophic system failures. Catching Throwable acts as a universal safety net, but it is fundamentally a dangerous anti-pattern when applied blindly across a production codebase. Understanding why requires evaluating the distinct nature of Exceptions versus Errors within the JVM.\n\nExceptions represent conditions that a well-written application might want to catch and recover from, such as IOException, SQLException, or custom business validation failures. Conversely, Errors represent serious problems that a reasonable application should not attempt to catch under normal circumstances. These include catastrophic JVM-level failures like OutOfMemoryError, StackOverflowError, or NoClassDefFoundError. When an OutOfMemoryError occurs, the heap is completely exhausted; attempting to catch Throwable, execute a catch block, log the failure, or allocate a single string can trigger another OutOfMemoryError or compound the thread's unstable state. Therefore, catching Throwable indiscriminately risks masking fatal JVM events, corrupting application state, and subverting the robust design principles intended by the Java type system."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Hierarchy Node",
+        "Primary Subclasses",
+        "Intended Recovery Strategy"
+      ],
+      "rows": [
+        [
+          "java.lang.Exception",
+          "IOException, RuntimeException, SQLException",
+          "Catch and recover (or propagate up the stack)."
+        ],
+        [
+          "java.lang.Error",
+          "OutOfMemoryError, StackOverflowError, AssertionError",
+          "Do not catch; let the thread or JVM terminate."
+        ],
+        [
+          "java.lang.Throwable",
+          "Exception, Error, ThreadDeath",
+          "Avoid catching globally; restrict to framework boundaries."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Catching Throwable intercepts java.lang.Error instances, which are thrown to indicate serious problems that normal applications should not try to catch because most such errors are abnormal conditions.",
+        "Framework boundaries, such as top-level servlet filters, thread pool executors, or main execution loops, sometimes intentionally catch Throwable to prevent application crashes, log unexpected anomalies, and safely terminate worker threads.",
+        "Interception of Throwable can accidentally trap java.lang.ThreadDeath in older Java versions, interfering with thread deprecation mechanisms and asynchronous thread stopping.",
+        "Catching the root type bypasses compile-time safety and forces runtime type-checking if you attempt to inspect what went wrong via instanceof checks inside the catch block."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class RequestDispatcher {\n    public void dispatch(Runnable task) {\n        try {\n            task.run();\n        } catch (VirtualMachineError vme) {\n            // Re-throw critical JVM errors immediately; never swallow these!\n            throw vme;\n        } catch (Throwable t) {\n            // Acceptable ONLY at the absolute top-level thread boundary\n            // to prevent thread death and log unhandled system anomalies.\n            System.err.println(\"Uncaught system anomaly intercepted: \" + t.getMessage());\n            // Perform graceful degradation or resource cleanup here\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Gotcha: If you write a generic catch (Throwable t) block inside a tight loop or business service layer, you risk catching OutOfMemoryError. If your catch block attempts to allocate memory—such as instantiating a Logger or building a string concatenation—the JVM will immediately throw another OutOfMemoryError, masking the original root cause and making post-mortem debugging immensely difficult. Always segregate VirtualMachineError or handle Throwable exclusively at absolute infrastructure boundaries."
+    }
+  ],
+  "num": 581,
+  "title": "Should you catch Throwable?",
+  "category": "Core Java & Fundamentals"
+}

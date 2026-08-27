@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern software architecture, the choice between API-first and Code-first design strategies fundamentally defines how teams collaborate, contract, and deliver services across distributed systems. API-first design mandates that the Application Programming Interface is treated as the primary product artifact, requiring developers, product owners, and consumers to write and agree upon a machine-readable specification—typically using OpenAPI, Swagger, or AsyncAPI—before a single line of backend logic is written. This decoupling enables parallel development workflows where frontend teams mock the service and backend developers write domain logic against a strict contract.\n\nConversely, Code-first design allows developers to write the implementation logic in their native language—such as Java using frameworks like Spring Boot—and subsequently generate the API documentation or specification as an afterthought via reflective annotations like Springdoc or Swagger UI. While Code-first yields faster initial velocity and allows engineers to stay within their IDE environment without managing raw YAML or JSON specifications, it frequently leads to tightly coupled contracts, undocumented breaking changes, and difficulties integrating cross-functional teams who cannot consume the service until the code is actively running in an environment."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Vector",
+        "API-first Design",
+        "Code-first Design"
+      ],
+      "rows": [
+        [
+          "Primary Artifact",
+          "Machine-readable contract (OpenAPI/YAML)",
+          "Source code implementation (Java/Spring annotations)"
+        ],
+        [
+          "Collaboration Workflow",
+          "Parallel (Consumers and producers design upfront)",
+          "Sequential (Consumers wait for code deployment)"
+        ],
+        [
+          "Tooling Ecosystem",
+          "Redoc, Swagger Editor, Spectral, OpenAPI Generator",
+          "Springdoc-openapi, Swagger-annotations"
+        ],
+        [
+          "Risk Profile",
+          "Higher initial planning overhead",
+          "Accidental breaking changes, tightly coupled schemas"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In an API-first Java ecosystem, build-time plugins like openapi-generator-maven-plugin parse the contract YAML to strictly generate DTOs, controllers, and interface stubs, guaranteeing that the runtime code never deviates from the shared contract.",
+        "Code-first approaches rely heavily on runtime reflection and bytecode manipulation or startup classpath scanning (e.g., Springdoc introspecting request mappings) to synthesize the OpenAPI specification, which can introduce hidden performance overhead at JVM boot time.",
+        "Contract testing (such as Spring Cloud Contract or Pact) bridges the gap by enforcing consumer-driven expectations, though API-first naturally mitigates these mismatches by establishing the schema upstream."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.api;\n\nimport io.swagger.v3.oas.annotations.Operation;\nimport io.swagger.v3.oas.annotations.media.Content;\nimport io.swagger.v3.oas.annotations.media.Schema;\nimport io.swagger.v3.oas.annotations.responses.ApiResponse;\nimport org.springframework.http.ResponseEntity;\nimport org.springframework.web.bind.annotation.GetMapping;\nimport org.springframework.web.bind.annotation.PathVariable;\nimport org.springframework.web.bind.annotation.RequestMapping;\nimport org.springframework.web.bind.annotation.RestController;\n\n@RestController\n@RequestMapping(\"/api/v1/users\")\npublic class UserController {\n\n    @GetMapping(\"/{id}\")\n    @Operation(summary = \"Get user by unique identifier\", description = \"Returns user metadata based on internal ID\")\n    @ApiResponse(responseCode = \"200\", description = \"Successful retrieval\", content = @Content(schema = @Schema(implementation = UserDto.class)))\n    @ApiResponse(responseCode = \"404\", description = \"User not found\")\n    public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {\n        // Code-first implementation coupling annotations directly to method signatures\n        return ResponseEntity.ok(new UserDto(id, \"Enterprise Engineer\"));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap in Code-first Java architectures is the silent introduction of breaking API contracts when a developer modifies a domain object or DTO field name without realizing it automatically alters the generated JSON schema. In high-scale distributed systems, this breaks downstream microservices and external clients seamlessly. Conversely, API-first enforces strict CI/CD linting (using tools like Spectral) against the OpenAPI specification before the pull request can even be merged into the main branch."
+    }
+  ],
+  "num": 316,
+  "title": "API-first vs Code-first design",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Modern microservices architectures demand living, interactive API documentation that stays strictly synchronized with production codebases. Springdoc OpenAPI fulfills this requirement by inspecting runtime application contexts, method signatures, bean definitions, and Jackson serialization metadata to achieve true auto-generation of OpenAPI 3 specifications. Gone are the days of manually maintaining static YAML or JSON files that drift away from actual controller implementations. By leveraging class-path scanning and parsing annotations at startup, Springdoc seamlessly bridges the gap between Jakarta REST / Spring Web MVC / Spring WebFlux controllers and the OpenAPI specification.\n\nHowever, auto-generation is rarely sufficient for enterprise-grade API contracts. Production applications require extensive customization to accurately document custom validation constraints, security schemes like OAuth2/JWT, complex DTO inheritance hierarchies, and conditional response codes. Springdoc OpenAPI provides a comprehensive programming model via annotations like @Operation, @ApiResponse, and @Schema, alongside programmatic customization mechanisms using OpenAPICustomizer and OpenApiCustomiser beans. This dual approach ensures developers can automate the tedious boilerplate of specification generation while retaining fine-grained control over the final contract exposed via Swagger UI."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Aspect",
+        "Springfox (Legacy)",
+        "Springdoc OpenAPI (Modern)"
+      ],
+      "rows": [
+        [
+          "Specification Standard",
+          "Swagger 2.0 (Mostly)",
+          "OpenAPI 3.0 / 3.1"
+        ],
+        [
+          "Reactive Support",
+          "None / Limited (Spring WebFlux)",
+          "Native & First-class (Spring WebFlux & MVC)"
+        ],
+        [
+          "Maintenance Status",
+          "Deprecated / Abandoned",
+          "Actively Maintained"
+        ],
+        [
+          "Configuration Model",
+          "Docket Bean Configuration",
+          "springdoc.properties / OpenAPI beans"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "During application startup, Springdoc scans for RequestMappingHandlerMapping beans to discover all HTTP endpoint handlers across both Servlet and Reactive stacks.",
+        "It introspects method parameters, return types, and annotations, converting Jackson property naming strategies and validation annotations (like @NotNull, @Size) directly into OpenAPI schema constraints.",
+        "Global modifications can be applied by declaring an OpenApiCustomiser bean, allowing programmatic manipulation of the entire OpenAPI object tree prior to endpoint exposure."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class OpenApiConfiguration {\n\n    @Bean\n    public OpenAPI customOpenAPI() {\n        return new OpenAPI()\n                .info(new Info()\n                        .title(\"Microservice Order API\")\n                        .version(\"v1.0.0\")\n                        .description(\"High-throughput reactive order processing service\"))\n                .components(new Components()\n                        .addSecuritySchemes(\"bearer-jwt\", new SecurityScheme()\n                                .type(SecurityScheme.Type.HTTP)\n                                .scheme(\"bearer\")\n                                .bearerFormat(\"JWT\")));\n    }\n\n    @Bean\n    public OpenApiCustomiser sortTagsCustomiser() {\n        return openApi -> openApi.setTags(openApi.getTags()\n                .stream()\n                .sorted(Comparator.comparing(Tag::getName))\n                .toList());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha when using Springdoc OpenAPI with Spring WebFlux is blocking the event loop or running into classpath conflicts if spring-boot-starter-web and spring-boot-starter-webflux are accidentally mixed. Always ensure you are using the correct artifact (springdoc-openapi-starter-webflux-ui) and be cautious when customizing schemas using generic types like Mono<T> or Flux<T>, as Springdoc requires explicit type hints via @Parameter or @ArraySchema to resolve nested generics correctly."
+    }
+  ],
+  "num": 315,
+  "title": "Springdoc OpenAPI — auto-generation, customization",
+  "category": "REST APIs, WebFlux & Microservices"
+}

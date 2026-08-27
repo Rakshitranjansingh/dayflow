@@ -1,0 +1,62 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Object-Oriented Programming with Java, polymorphism and method signature resolution manifest in two distinct compile-time and runtime mechanisms: Method Overloading and Method Overriding. Understanding these concepts requires diving deep into how the Java compiler and the Java Virtual Machine (JVM) handle symbol resolution, method tables (vtables), and dispatching.\n\nMethod Overloading is a compile-time (static) polymorphism mechanism. It occurs when a class contains multiple methods with the exact same name but distinct parameter lists (differing in arity, data type order, or type). The Java compiler resolves overloaded methods during compilation based purely on the static, declared type of the reference variable and the arguments passed. It has nothing to do with runtime object instances.\n\nMethod Overriding, conversely, is a runtime (dynamic) polymorphism mechanism. It occurs when a subclass provides a specific implementation of a method that is already defined in its parent class. To successfully override a method, the signature (name and parameter types) must match exactly, and the return type must be the same or a covariant subtype. The resolution of an overridden method is deferred until runtime, where the JVM uses the actual type of the heap-allocated object rather than the reference type to execute the correct method body via dynamic method dispatch."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Method Overloading",
+        "Method Overriding"
+      ],
+      "rows": [
+        [
+          "Binding Time",
+          "Compile-time (Static binding)",
+          "Runtime (Dynamic binding)"
+        ],
+        [
+          "Location",
+          "Can occur within the same class or between parent/child classes",
+          "Must occur between a parent class and a child class"
+        ],
+        [
+          "Signature",
+          "Must have different parameter lists",
+          "Must have the exact same parameter list"
+        ],
+        [
+          "Return Type",
+          "Can be completely different",
+          "Must be identical or a covariant return type"
+        ],
+        [
+          "Access Modifier",
+          "Can be changed freely",
+          "Cannot reduce visibility (can be more accessible)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Can we override static methods? No. Static methods belong to the class, not to any individual instance. They are bound at compile-time using static method resolution (invokestatic bytecode instruction) rather than dynamic dispatch (invokevirtual). If a subclass defines a static method with the exact same signature as a static method in its parent class, this is known as Method Hiding, not overriding. Calling the method via a parent reference will execute the parent's version, regardless of the underlying runtime object.",
+        "Can we override private methods? No. Private methods have package-private visibility restricted strictly to their enclosing class. A subclass cannot see private methods declared in a superclass, meaning it cannot provide a polymorphic replacement for them. If a subclass declares a method with the same signature as a private method in the parent, it is simply defining a brand-new, unrelated method local to the subclass."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class PolymorphismDemo {\n    public static void main(String[] args) {\n        Parent obj = new Child();\n        \n        // Overridden instance method uses dynamic dispatch (Child's version)\n        obj.printMessage();\n        \n        // Static method uses static binding (Parent's version due to reference type)\n        Parent.printStatic();\n        Child.printStatic();\n    }\n}\n\nclass Parent {\n    public static void printStatic() {\n        System.out.println(\"Parent static method (Hidden, not overridden)\");\n    }\n    \n    public void printMessage() {\n        System.out.println(\"Parent instance method\");\n    }\n}\n\nclass Child extends Parent {\n    public static void printStatic() {\n        System.out.println(\"Child static method\");\n    }\n    \n    @Override\n    public void printMessage() {\n        System.out.println(\"Child instance method\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic trap in technical interviews and production codebases involves attempting to add the @Override annotation to a static method. If you try to annotate a hidden static method with @Override, the Java compiler will throw a compilation error: 'Method does not override or implement a method from a superclass.' Always remember that static polymorphism is an illusion; the method executed is strictly determined by the compile-time type of the reference variable, completely bypassing the heap object's runtime class."
+    }
+  ],
+  "num": 497,
+  "title": "Explain Method Overloading vs Method Overriding. Can we override static methods? Can we override private methods?",
+  "category": "Core Java & Fundamentals"
+}

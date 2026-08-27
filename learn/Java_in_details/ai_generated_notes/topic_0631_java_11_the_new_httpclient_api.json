@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Java 11 HttpClient API (java.net.http) was introduced to replace the aging HttpURLConnection, which suffered from a clunky, blocking-only API that lacked modern features like HTTP/2 and WebSocket support. The new HttpClient is designed for high-performance, non-blocking asynchronous operations, leveraging the CompletableFuture API to handle responses without pinning threads. It solves the 'callback hell' and thread-starvation issues inherent in older implementations by providing a fluent builder pattern that supports both synchronous and asynchronous request/response cycles. By natively supporting HTTP/2, it allows for multiplexing multiple requests over a single TCP connection, significantly reducing latency in microservices architectures where many small requests are common."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "HttpURLConnection",
+        "HttpClient"
+      ],
+      "rows": [
+        [
+          "Protocol Support",
+          "HTTP/1.1 only",
+          "HTTP/1.1 and HTTP/2"
+        ],
+        [
+          "Threading Model",
+          "Blocking (Thread-per-request)",
+          "Non-blocking (CompletableFuture)"
+        ],
+        [
+          "API Style",
+          "Imperative/Mutable",
+          "Fluent Builder/Immutable"
+        ],
+        [
+          "WebSocket",
+          "No native support",
+          "Native support included"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The HttpClient is designed to be immutable and thread-safe; you should instantiate it once and reuse it across your application to benefit from connection pooling.",
+        "Response handlers (BodyHandlers) decouple the network transmission from the data processing, allowing you to stream responses directly to a file or parse them as strings/bytes efficiently.",
+        "The API utilizes a dedicated executor service for asynchronous tasks, preventing the application's main thread pool from being exhausted by I/O-bound network operations.",
+        "HTTP/2 multiplexing is handled transparently by the engine, meaning multiple concurrent requests are sent over a single persistent connection, reducing the overhead of TCP/TLS handshakes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "HttpClient client = HttpClient.newBuilder()\n    .version(HttpClient.Version.HTTP_2)\n    .connectTimeout(Duration.ofSeconds(10))\n    .build();\n\nHttpRequest request = HttpRequest.newBuilder()\n    .uri(URI.create(\"https://api.example.com/data\"))\n    .header(\"Content-Type\", \"application/json\")\n    .GET()\n    .build();\n\nclient.sendAsync(request, HttpResponse.BodyHandlers.ofString())\n    .thenApply(HttpResponse::body)\n    .thenAccept(System.out::println)\n    .join();"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: A common mistake is creating a new HttpClient instance for every single request. This defeats the purpose of connection pooling and will lead to socket exhaustion under high load, as each client instance manages its own connection pool and executor. Always treat the HttpClient as a singleton or a long-lived bean in your Spring context."
+    }
+  ],
+  "num": 632,
+  "title": "(Java 11) The new HttpClient API?",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

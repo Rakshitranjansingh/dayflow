@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Distributed logging is the architectural practice of centralizing disparate event streams from horizontally scaled microservices into a unified observability pipeline. In a distributed system, logs are no longer local files; they are ephemeral data points that must be shipped, indexed, and queried across nodes. The ELK Stack (Elasticsearch, Logstash, Kibana) and the EFK Stack (Elasticsearch, Fluentd/Fluent Bit, Kibana) serve as the industry standard for this. ELK relies on Logstash as a heavy-duty ETL pipeline, whereas EFK favors Fluentd or Fluent Bit for their lightweight, plugin-driven architecture, which is significantly more memory-efficient in containerized environments like Kubernetes. Splunk, by contrast, is a proprietary, enterprise-grade platform that excels in complex indexing and automated anomaly detection, often preferred by organizations requiring rigorous compliance and out-of-the-box operational intelligence.\n\nLog correlation is the critical mechanism that stitches these fragmented logs together. Without it, debugging a single request that traverses five services is impossible. By injecting a unique 'Trace ID' or 'Correlation ID' into the Mapped Diagnostic Context (MDC) at the entry point (e.g., an API Gateway), this context is propagated via HTTP headers (like X-B3-TraceId) through every downstream service call. When these logs reach the centralized store, engineers can query by that specific ID to visualize the entire lifecycle of a request, effectively turning a haystack of logs into a coherent, chronological narrative."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "ELK/EFK Stack",
+        "Splunk"
+      ],
+      "rows": [
+        [
+          "Licensing",
+          "Open Source (Elastic License)",
+          "Proprietary/Commercial"
+        ],
+        [
+          "Data Collection",
+          "Logstash/Fluentd (Push/Pull)",
+          "Universal Forwarder (Agent-based)"
+        ],
+        [
+          "Complexity",
+          "High (Requires cluster management)",
+          "Low (Managed/SaaS options)"
+        ],
+        [
+          "Query Language",
+          "Lucene/KQL",
+          "SPL (Splunk Processing Language)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "MDC (Mapped Diagnostic Context) uses ThreadLocal storage to hold context data. In reactive programming (Project Reactor/WebFlux), standard ThreadLocal fails because execution hops across threads; you must use the ContextView or Reactor-specific hooks to propagate trace IDs.",
+        "Log shippers like Fluent Bit utilize backpressure mechanisms. If Elasticsearch is overloaded, the shipper buffers logs to disk to prevent data loss, which is a vital safeguard against 'log flooding' during a system outage.",
+        "Structured logging (JSON format) is non-negotiable. Parsing raw text with Regex in Logstash is CPU-intensive and brittle; logging as JSON allows Elasticsearch to map fields automatically, enabling high-performance indexing and filtering.",
+        "Sampling strategies are necessary at scale. In high-traffic systems, logging every single debug statement will saturate your network and storage; implement dynamic log levels or probabilistic sampling to balance observability with cost."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.slf4j.MDC;\nimport java.util.UUID;\n\npublic class CorrelationFilter implements Filter {\n    public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) {\n        String traceId = UUID.randomUUID().toString();\n        try {\n            MDC.put(\"traceId\", traceId);\n            chain.doFilter(req, res);\n        } finally {\n            MDC.remove(\"traceId\"); // Crucial: Prevent memory leaks in thread pools\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common production failure in distributed logging is the 'MDC Leak'. If you fail to call MDC.remove() in a finally block, the ThreadLocal variable persists when the thread is returned to the pool. The next request assigned to that thread will inherit the previous request's Trace ID, leading to 'ghost correlations' where logs from two completely unrelated users appear to belong to the same transaction."
+    }
+  ],
+  "num": 1046,
+  "title": "How do you handle Distributed Logging? (ELK/EFK Stack, Splunk). Log correlation?",
+  "category": "Exception Handling & I/O / NIO"
+}

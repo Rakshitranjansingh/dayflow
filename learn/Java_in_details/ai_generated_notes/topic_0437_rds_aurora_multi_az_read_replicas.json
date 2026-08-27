@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of AWS RDS and Aurora, Multi-AZ and Read Replicas represent two distinct strategies for high availability and horizontal read scaling. Multi-AZ is a failover mechanism designed for data durability and uptime; when enabled, RDS automatically provisions a synchronous standby instance in a different Availability Zone. If the primary instance fails, the DNS endpoint is automatically repointed to the standby, minimizing downtime. In contrast, Read Replicas are asynchronous copies of the primary database, designed to offload read-heavy traffic. While Multi-AZ is about fault tolerance, Read Replicas are about throughput scaling. Aurora takes this further by decoupling compute from storage; its storage layer is self-healing and spans three AZs by default, meaning 'Multi-AZ' is inherent to the architecture, while its Read Replicas share the same underlying storage volume, reducing replication lag to milliseconds compared to the traditional binlog-based replication seen in standard RDS MySQL or PostgreSQL."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Multi-AZ",
+        "Read Replicas"
+      ],
+      "rows": [
+        [
+          "Primary Goal",
+          "High Availability / Failover",
+          "Read Scaling / Throughput"
+        ],
+        [
+          "Replication Type",
+          "Synchronous",
+          "Asynchronous"
+        ],
+        [
+          "Endpoint Behavior",
+          "DNS Failover (Single Endpoint)",
+          "Separate Endpoints per Replica"
+        ],
+        [
+          "Data Consistency",
+          "Strong (ACID)",
+          "Eventual (Replication Lag)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Multi-AZ failover involves a DNS propagation delay; your Java application must implement a robust connection pooling strategy (like HikariCP) with appropriate 'maxLifetime' and 'connectionTimeout' settings to handle the transient connectivity loss during the switch.",
+        "Aurora Read Replicas utilize a shared storage volume, which eliminates the overhead of copying data blocks across the network, resulting in significantly lower replication lag than standard RDS instances.",
+        "When using Read Replicas, your application must be 'read-aware.' You should use a routing data source or a load balancer to direct read-only transactions to the replica endpoints, while ensuring that write-heavy operations remain pinned to the primary writer instance.",
+        "Replication lag in standard RDS can lead to stale reads if your application code performs a write followed immediately by a read. Always consider using 'read-your-writes' consistency patterns or pinning the session to the primary if strict consistency is required."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class DataSourceConfig {\n    @Bean\n    public DataSource routingDataSource() {\n        AbstractRoutingDataSource routingDataSource = new AbstractRoutingDataSource();\n        Map<Object, Object> targetDataSources = new HashMap<>();\n        targetDataSources.put(\"WRITER\", primaryDataSource());\n        targetDataSources.put(\"READER\", replicaDataSource());\n        routingDataSource.setTargetDataSources(targetDataSources);\n        routingDataSource.setDefaultTargetDataSource(primaryDataSource());\n        return routingDataSource;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is assuming Read Replicas are a 'silver bullet' for performance. If your application has long-running transactions on the primary, the replica's relay log can fall behind, causing 'stale read' bugs that are notoriously difficult to debug. Always monitor the 'AuroraReplicaLag' or 'ReplicaLag' CloudWatch metrics. If you see lag spiking, it is often due to a single heavy write query blocking the replication thread on the replica."
+    }
+  ],
+  "num": 438,
+  "title": "RDS / Aurora — multi-AZ, read replicas",
+  "category": "Multithreading & Java Concurrency"
+}

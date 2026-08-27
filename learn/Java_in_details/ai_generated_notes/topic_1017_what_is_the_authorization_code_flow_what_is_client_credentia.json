@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Authorization Code Flow and the Client Credentials Flow are two distinct grant types within the OAuth 2.0 framework, designed to handle different trust models and security contexts. The Authorization Code Flow is the gold standard for user-centric applications, such as web or mobile apps, where a resource owner (the user) must explicitly grant permission to a third-party application to access their protected resources. It involves a multi-step handshake where the client receives a short-lived authorization code via the user's browser, which is then exchanged server-to-server for an access token. This prevents the token from ever being exposed to the user agent. Conversely, the Client Credentials Flow is strictly for machine-to-machine (M2M) communication. In this scenario, there is no 'user' involved; the application acts on its own behalf. The client authenticates directly with the authorization server using its own client ID and client secret, receiving an access token in return. This is ideal for background services, daemons, or microservices that need to access APIs without user intervention."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Authorization Code Flow",
+        "Client Credentials Flow"
+      ],
+      "rows": [
+        [
+          "Primary Actor",
+          "End User",
+          "Application/Service"
+        ],
+        [
+          "Token Exchange",
+          "Auth Code -> Access Token",
+          "Client Credentials -> Access Token"
+        ],
+        [
+          "User Interaction",
+          "Required (Login/Consent)",
+          "None (Automated)"
+        ],
+        [
+          "Primary Use Case",
+          "Web/Mobile Apps",
+          "Microservices/Daemons"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In the Authorization Code Flow, the redirection URI is a critical security invariant; the authorization server must validate it strictly to prevent token injection attacks via open redirects.",
+        "The Client Credentials Flow lacks a 'refresh token' in many implementations because the client can simply re-authenticate with its static credentials, reducing the attack surface for long-lived credentials.",
+        "Both flows rely on TLS (Transport Layer Security) to protect the exchange of tokens, as these tokens are bearer tokens—anyone who intercepts them can impersonate the client or user.",
+        "For Authorization Code Flow, implementing PKCE (Proof Key for Code Exchange) is now mandatory for public clients to mitigate the risk of authorization code interception."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Client Credentials Flow example using Spring Security OAuth2 Client\nWebClient webClient = WebClient.builder()\n    .filter(new ServletOAuth2AuthorizedClientExchangeFilterFunction(clientRegistrationRepository, authorizedClientRepository))\n    .build();\n\n// The filter automatically handles the token request and injection into the Authorization header\nString response = webClient.get()\n    .uri(\"https://api.example.com/data\")\n    .attributes(clientRegistrationId(\"my-service-client\"))\n    .retrieve()\n    .bodyToMono(String.class)\n    .block();"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap with Client Credentials Flow is hardcoding secrets in source control. Always use a secret management service (Vault, AWS Secrets Manager). Furthermore, be wary of 'token bloat'—if your microservice requests a new token for every single downstream call, you will quickly exhaust the authorization server's rate limits. Always implement a caching layer for your access tokens and respect the 'expires_in' field to trigger proactive refreshes."
+    }
+  ],
+  "num": 1018,
+  "title": "What is the authorization code flow? What is client credentials flow?",
+  "category": "Exception Handling & I/O / NIO"
+}

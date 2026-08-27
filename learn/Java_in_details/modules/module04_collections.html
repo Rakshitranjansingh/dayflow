@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 04: Collections Framework & Internals — Java Deep Dive</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F8F8F6;
+    --surface: #FFFFFF;
+    --surface2: #F2F2F0;
+    --border: #E8E8E4;
+    --accent: #E25C1A;
+    --accent-glow: rgba(226, 92, 26, 0.12);
+    --green: #22C55E;
+    --green-glow: rgba(34, 197, 94, 0.12);
+    --red: #EF4444;
+    --yellow: #F59E0B;
+    --purple: #8B5CF6;
+    --text: #1A1A18;
+    --muted: #6B6B65;
+    --mono: 'JetBrains Mono', SFMono-Regular, Consolas, monospace;
+    --sans: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+
+  body.dark-mode {
+    --bg: #0F1117;
+    --surface: #1A1D27;
+    --surface2: #232638;
+    --border: #2E3247;
+    --accent: #FF6B35;
+    --accent-glow: rgba(255, 107, 53, 0.18);
+    --green: #00D4AA;
+    --green-glow: rgba(0,212,170,0.15);
+    --red: #FF6B6B;
+    --yellow: #FFD166;
+    --text: #E8EAF0;
+    --muted: #7A7F9A;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* HEADER NAV */
+  .dayflow-nav-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .nav-back-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 7px 14px;
+    border-radius: 20px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .nav-back-btn:hover {
+    background: var(--accent-glow);
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateX(-2px);
+  }
+  .nav-title {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text);
+  }
+  .theme-toggle-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 16px;
+  }
+  .theme-toggle-btn:hover {
+    background: var(--accent-glow);
+    border-color: var(--accent);
+  }
+
+  /* HERO HEADER */
+  header {
+    padding: 48px 24px 32px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    top: -80px; left: 50%;
+    transform: translateX(-50%);
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  h1 {
+    font-size: clamp(24px, 4vw, 36px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 14.5px;
+    font-weight: 400;
+    max-width: 600px;
+    margin: 0 auto 32px;
+  }
+
+  /* PROGRESS RING */
+  .progress-hub {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .ring-wrap {
+    position: relative;
+    width: 100px; height: 100px;
+  }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-bg { fill: none; stroke: var(--surface2); stroke-width: 8; }
+  .ring-fill {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1);
+  }
+  .ring-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+  }
+  .ring-num { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1; }
+  .ring-total { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* CONTROLS */
+  .controls {
+    max-width: 900px;
+    margin: 28px auto 0;
+    padding: 0 24px;
+  }
+  .search-box {
+    position: relative;
+    margin-bottom: 24px;
+  }
+  .search-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    padding: 12px 18px 12px 42px;
+    border-radius: var(--radius-sm);
+    outline: none;
+    transition: all 0.2s;
+  }
+  .search-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  .search-icon {
+    position: absolute;
+    left: 14px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 16px;
+  }
+
+  /* CARD LIST */
+  .cards-list {
+    max-width: 900px;
+    margin: 0 auto 80px;
+    padding: 0 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .q-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: all 0.2s ease;
+  }
+  .q-card:hover {
+    border-color: var(--accent);
+  }
+  .q-card.done {
+    border-color: var(--green);
+  }
+
+  .q-header {
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .q-header-left {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    flex: 1;
+  }
+  .q-checkbox {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    min-height: 18px;
+    accent-color: var(--green);
+    cursor: pointer;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+  .q-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-glow);
+    padding: 2px 7px;
+    border-radius: 5px;
+    flex-shrink: 0;
+    line-height: 1.3;
+    margin-top: 1px;
+  }
+  .q-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.45;
+  }
+  .q-chevron {
+    color: var(--muted);
+    font-size: 12px;
+    transition: transform 0.2s ease;
+  }
+  .q-card.open .q-chevron {
+    transform: rotate(180deg);
+  }
+
+  .q-body {
+    display: none;
+    padding: 0 24px 24px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .q-card.open .q-body {
+    display: block;
+  }
+
+  /* ANSWER STYLING */
+  .ans-prose {
+    margin-top: 20px;
+    font-size: 14.5px;
+    color: var(--text);
+    line-height: 1.7;
+  }
+
+  .ans-note {
+    margin-top: 16px;
+    padding: 14px 18px;
+    background: var(--accent-glow);
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius-sm);
+    font-size: 13.5px;
+    color: var(--text);
+  }
+
+  .ans-bullets {
+    margin-top: 16px;
+    padding-left: 20px;
+  }
+  .ans-bullets li {
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+
+  .table-container {
+    margin-top: 18px;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .ans-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+    text-align: left;
+  }
+  .ans-table th {
+    background: var(--surface2);
+    padding: 10px 14px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  .ans-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  .ans-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .code-container {
+    position: relative;
+    margin-top: 18px;
+    background: #1E1E1E;
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    overflow-x: auto;
+  }
+  .code-container pre {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: #D4D4D4;
+    line-height: 1.5;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: #AAA;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .copy-btn:hover {
+    background: rgba(255,255,255,0.2);
+    color: #FFF;
+  }
+
+  .card-footer {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .toggle-done-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 8px 18px; border-radius: var(--radius-sm); cursor: pointer;
+  }
+  .q-card.done .toggle-done-btn {
+    background: var(--green-glow); border-color: var(--green); color: var(--green);
+  }
+</style>
+</head>
+<body>
+
+<div class="dayflow-nav-header">
+  <a href="../index.html" class="nav-back-btn">←</a>
+  <div class="nav-title">📦 Module 04</div>
+  <button class="theme-toggle-btn" onclick="toggleTheme()">🌙</button>
+</div>
+
+<header>
+  <div class="eyebrow">📦 Java Deep Dive Module</div>
+  <h1>Module 04: Collections Framework & Internals</h1>
+  <div class="subtitle">HashMap internals, Red-Black Trees, ConcurrentHashMap, ArrayList capacity growth, PriorityQueue heap & Fail-fast vs Fail-safe.</div>
+
+  <div class="progress-hub">
+    <div class="ring-wrap">
+      <svg width="100" height="100" viewBox="0 0 100 100">
+        <circle class="ring-bg" cx="50" cy="50" r="42" />
+        <circle class="ring-fill" id="ringCircle" cx="50" cy="50" r="42" stroke-dasharray="263.89" stroke-dashoffset="263.89" />
+      </svg>
+      <div class="ring-label">
+        <span class="ring-num" id="ringNum">0%</span>
+        <span class="ring-total" id="ringTotal">0/38</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="controls">
+  <input type="text" class="search-box" id="searchInput" placeholder="🔍 Search topics in this module..." oninput="renderContent()">
+</div>
+
+<main id="mainContainer"></main>
+
+<script src="../course_data.js"></script>
+<script>
+  const MODULE_CAT = "Collections Framework & Internals";
+  let MODULE_TOPICS = (window.JAVA_IN_DETAILS_DATA || []).filter(q => q.category === MODULE_CAT);
+  let doneSet = new Set();
+
+  function loadProgress() {
+    try {
+      const raw = localStorage.getItem('java_in_details_done_v1');
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) doneSet = new Set(arr);
+      }
+    } catch(e) {}
+  }
+
+  function saveProgress() {
+    try {
+      const arr = Array.from(doneSet);
+      localStorage.setItem('java_in_details_done_v1', JSON.stringify(arr));
+      if (window.parent && typeof window.parent.syncLearnState === 'function') {
+        window.parent.syncLearnState();
+      }
+    } catch(e) {}
+  }
+
+  function toggleDone(id, event) {
+    if (event) event.stopPropagation();
+    if (doneSet.has(id)) {
+      doneSet.delete(id);
+    } else {
+      doneSet.add(id);
+    }
+    saveProgress();
+    updateStats();
+    
+    const card = document.getElementById(`card-${id}`);
+    if (card) {
+      card.classList.toggle('done', doneSet.has(id));
+      const chk = card.querySelector('.q-checkbox');
+      if (chk) chk.checked = doneSet.has(id);
+      const btn = card.querySelector('.toggle-done-btn');
+      if (btn) btn.textContent = doneSet.has(id) ? '✓ Completed' : 'Mark as Completed';
+    }
+  }
+
+  function toggleCard(id) {
+    const card = document.getElementById(`card-${id}`);
+    if (card) card.classList.toggle('open');
+  }
+
+  function copyCode(btn) {
+    const codeEl = btn.closest('.code-container').querySelector('code');
+    if (codeEl) {
+      navigator.clipboard.writeText(codeEl.textContent);
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      btn.style.background = 'var(--green)';
+      btn.style.color = '#FFF';
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.style.background = '';
+        btn.style.color = '';
+      }, 2000);
+    }
+  }
+
+  function updateStats() {
+    const total = MODULE_TOPICS.length;
+    const doneCount = MODULE_TOPICS.filter(q => doneSet.has(q.id)).length;
+    const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+
+    const circle = document.getElementById('ringCircle');
+    if (circle) {
+      const circumference = 263.89;
+      const offset = circumference - (pct / 100) * circumference;
+      circle.style.strokeDashoffset = offset;
+    }
+
+    const ringNum = document.getElementById('ringNum');
+    if (ringNum) ringNum.textContent = `${pct}%`;
+
+    const ringTotal = document.getElementById('ringTotal');
+    if (ringTotal) ringTotal.textContent = `${doneCount}/${total}`;
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function formatMarkdown(str) {
+    if (!str) return '';
+    let esc = escapeHtml(str);
+    esc = esc.replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--accent); font-weight:700;">$1</strong>');
+    esc = esc.replace(/`([^`]+)`/g, '<code style="background:var(--surface2); padding:2px 6px; border-radius:4px; font-family:var(--mono); font-size:12px;">$1</code>');
+    return esc;
+  }
+
+  function formatParsedAnswer(parsedAnswer) {
+    if (!parsedAnswer || !parsedAnswer.length) return '<p class="ans-prose">No detailed explanation provided.</p>';
+    let html = '';
+    parsedAnswer.forEach(part => {
+      if (part.type === 'code') {
+        html += `
+          <div class="code-container">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre><code>${escapeHtml(part.content)}</code></pre>
+          </div>
+        `;
+      } else if (part.type === 'table') {
+        html += `
+          <div class="table-container">
+            <table class="ans-table">
+              <thead><tr>${part.headers.map(h => `<th>${formatMarkdown(h)}</th>`).join('')}</tr></thead>
+              <tbody>${part.rows.map(row => `<tr>${row.map(cell => `<td>${formatMarkdown(cell)}</td>`).join('')}</tr>`).join('')}</tbody>
+            </table>
+          </div>
+        `;
+      } else if (part.type === 'bullet_list') {
+        html += `<ul class="ans-bullets">${part.items.map(item => `<li>${formatMarkdown(item)}</li>`).join('')}</ul>`;
+      } else if (part.type === 'note') {
+        html += `<div class="ans-note">💡 <strong>Note:</strong> ${formatMarkdown(part.content)}</div>`;
+      } else {
+        html += `<p class="ans-prose">${formatMarkdown(part.content)}</p>`;
+      }
+    });
+    return html;
+  }
+
+  function renderContent() {
+    const container = document.getElementById('mainContainer');
+    const searchVal = document.getElementById('searchInput').value.toLowerCase().trim();
+
+    const filtered = MODULE_TOPICS.filter(q => {
+      if (searchVal) {
+        const inTitle = q.title.toLowerCase().includes(searchVal);
+        const inAnswer = q.parsed_answer && JSON.stringify(q.parsed_answer).toLowerCase().includes(searchVal);
+        if (!inTitle && !inAnswer) return false;
+      }
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      container.innerHTML = `<div class="empty-state">No microtopics found in this module matching your search.</div>`;
+      return;
+    }
+
+    container.innerHTML = filtered.map(q => {
+      const isDone = doneSet.has(q.id);
+      const answerHtml = formatParsedAnswer(q.parsed_answer);
+
+      return `
+        <div class="q-card ${isDone ? 'done' : ''}" id="card-${q.id}">
+          <div class="q-header" onclick="toggleCard('${q.id}')">
+            <div class="q-header-left">
+              <input type="checkbox" class="q-checkbox" ${isDone ? 'checked' : ''} onclick="toggleDone('${q.id}', event)">
+              <span class="q-num">#${q.num}</span>
+              <div class="q-title">${q.title}</div>
+            </div>
+            <div class="q-meta">
+              <span class="diff-badge ${q.difficulty}">${q.difficulty}</span>
+            </div>
+          </div>
+          <div class="q-body">
+            ${answerHtml}
+            <div class="q-actions">
+              <button class="toggle-done-btn" onclick="toggleDone('${q.id}', event)">
+                ${isDone ? '✓ Completed' : 'Mark as Completed'}
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function toggleTheme() {
+    document.body.classList.toggle('dark-mode');
+    localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+  }
+
+  function init() {
+    loadProgress();
+    updateStats();
+    renderContent();
+    if (localStorage.getItem('theme') === 'dark') {
+      document.body.classList.add('dark-mode');
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

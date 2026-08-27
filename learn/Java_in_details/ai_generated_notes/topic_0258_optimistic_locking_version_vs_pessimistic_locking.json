@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java applications built on Spring Data JPA and Hibernate ORM, concurrent access to relational database rows is a primary source of data integrity bugs, such as lost updates and dirty reads. To manage concurrency, developers must choose between two fundamentally distinct strategies: Optimistic Locking and Pessimistic Locking. Optimistic locking operates on the assumption that concurrent conflicts are rare. It avoids locking database rows upfront, instead leveraging a dedicated version column annotated with @Version. When a transaction attempts to flush an update, Hibernate issues a conditional SQL update checking that the version matches the state loaded in memory; if another transaction has modified the row in the interim, the version mismatch triggers an OptimisticLockException. This mechanism scales exceptionally well in low-contention scenarios because database connections are not held hostage by long-lived locks.\n\nConversely, pessimistic locking assumes that conflicts are frequent and severe, requiring preemptive action at the database engine layer. By utilizing explicit locking modes—such as PESSIMISTIC_READ or PESSIMISTIC_WRITE—JPA instructs the underlying SQL dialect to issue locking clauses like SELECT ... FOR UPDATE or SELECT ... FOR SHARE. This blocks concurrent transactions from modifying or even reading the locked rows until the active transaction commits or rolls back. While pessimistic locking completely eliminates the risk of lost updates and avoids runtime rollback exceptions caused by stale state, it severely degrades throughput and can easily introduce deadlock cascades under high-concurrency workloads. Understanding when and how to apply these strategies via Spring Data JPA repository annotations or EntityManager integration is critical for building resilient distributed data architectures."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Optimistic Locking (@Version)",
+        "Pessimistic Locking (FOR UPDATE)"
+      ],
+      "rows": [
+        [
+          "Underlying Assumption",
+          "Conflicts are rare; transactional collisions happen infrequently.",
+          "Conflicts are common; concurrent updates will happen."
+        ],
+        [
+          "Database Impact",
+          "No locks held; normal non-blocking reads and conditional updates.",
+          "Exclusive or shared locks held on rows/pages, blocking other transactions."
+        ],
+        [
+          "Failure Mode",
+          "Throws ObjectOptimisticLockingFailureException at commit/flush time.",
+          "Blocks caller thread waiting for lock release or throws lock timeout/deadlock."
+        ],
+        [
+          "Ideal Workload Profile",
+          "Read-heavy web applications, user profiles, content management systems.",
+          "High-contention counters, inventory reservations, financial ledger updates."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The @Version annotation in Hibernate can manage numeric types (Integer, Long) or timestamps (Timestamp, LocalDateTime). Every time an entity is successfully updated, Hibernate increments the version value automatically during the flush phase.",
+        "Optimistic locking fails safely by executing an update statement shaped like `UPDATE table SET col=?, version=version+1 WHERE id=? AND version=?`. If the row count affected is zero, Hibernate immediately detects the concurrent modification.",
+        "Pessimistic locking bypasses the Java-level version check entirely, delegating concurrency control directly to the database engine's ACID transaction manager using row-level locks.",
+        "Spring Data JPA allows seamless application of pessimistic locks via query method annotations like @Lock(LockModeType.PESSIMISTIC_WRITE), translating directly into database-specific lock hints."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Entity\n@Table(name = \"inventory_item\")\npublic class InventoryItem {\n\n    @Id\n    @GeneratedValue(strategy = GenerationType.IDENTITY)\n    private Long id;\n\n    private String sku;\n\n    private int stockQuantity;\n\n    @Version\n    private Long version;\n\n    // Getters, setters, constructors\n}\n\npublic interface InventoryRepository extends JpaRepository<InventoryItem, Long> {\n\n    @Lock(LockModeType.PESSIMISTIC_WRITE)\n    @Query(\"SELECT i FROM InventoryItem i WHERE i.id = :id\")\n    Optional<InventoryItem> findByIdWithPessimisticLock(@Param(\"id\") Long id);\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap with optimistic locking is relying on detached entity updates in stateless REST APIs. If a client fetches an entity, drops the @Version field from the JSON payload, and sends it back in a PUT request, the incoming entity is detached and lacks the version value. When merged via EntityManager.merge(), Hibernate may treat it as a transient entity or fail to perform the version check correctly, silently bypassing conflict detection. Always ensure your DTO-to-Entity mapping preserves the version identifier."
+    }
+  ],
+  "num": 259,
+  "title": "Optimistic locking (@Version) vs Pessimistic locking",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

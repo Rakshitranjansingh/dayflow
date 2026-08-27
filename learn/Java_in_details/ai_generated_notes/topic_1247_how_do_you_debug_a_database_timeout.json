@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Debugging a database timeout in a Java application requires a systematic traversal of the request lifecycle, moving from the application's connection pool to the database engine's execution plan. A timeout typically manifests as a java.sql.SQLTransientConnectionException or a generic SocketTimeoutException, signaling that the application could not acquire a connection or the database failed to return a result within the configured threshold. The primary culprit is often connection pool exhaustion, where all available connections are held by long-running transactions or blocked threads. Alternatively, the issue may lie in query latency, where an unoptimized execution plan—often caused by missing indexes or table scans—exceeds the JDBC driver's statement timeout. To diagnose this, you must correlate application-side thread dumps with database-side active session views (like pg_stat_activity or v$session) to identify if the database is waiting on locks, I/O, or CPU saturation."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Timeout Type",
+        "Root Cause",
+        "Diagnostic Tool"
+      ],
+      "rows": [
+        [
+          "Connection Timeout",
+          "Pool exhaustion or network partition",
+          "HikariCP Metrics / netstat"
+        ],
+        [
+          "Statement Timeout",
+          "Long-running query or lock contention",
+          "EXPLAIN ANALYZE / DB Activity Monitor"
+        ],
+        [
+          "Transaction Timeout",
+          "Business logic blocking or deadlocks",
+          "Thread Dump / JVisualVM"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Connection Pool Saturation: Check if your HikariCP 'maxLifetime' or 'connectionTimeout' settings are too aggressive. If threads are waiting for a connection, look for 'leakDetectionThreshold' logs to identify unclosed ResultSets or Statements.",
+        "Query Execution Plan: Use EXPLAIN ANALYZE to verify if the database is performing a sequential scan on a large table. Ensure that foreign keys are indexed, as unindexed joins are a common source of sudden performance degradation.",
+        "Lock Contention: In high-concurrency environments, row-level locks can cascade into a timeout. Use database-specific views to identify 'blocked' vs 'blocking' sessions to see if a transaction is holding a lock longer than the application's timeout threshold.",
+        "Network Latency: If the DB is in a different availability zone, packet loss or TCP retransmissions can manifest as intermittent timeouts. Monitor the OS-level TCP retransmission counters."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class DataSourceConfig {\n    @Bean\n    public HikariDataSource dataSource() {\n        HikariConfig config = new HikariConfig();\n        config.setJdbcUrl(\"jdbc:postgresql://db:5432/mydb\");\n        // Fail fast if connection not acquired in 5s\n        config.setConnectionTimeout(5000);\n        // Detect potential leaks if connection held > 2s\n        config.setLeakDetectionThreshold(2000);\n        return new HikariDataSource(config);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never blindly increase your connection pool size to 'fix' a timeout. If your database is struggling with lock contention or inefficient queries, adding more connections will only increase the pressure on the DB engine, leading to 'connection storm' scenarios that can crash the database instance entirely. Always optimize the query execution plan first."
+    }
+  ],
+  "num": 1248,
+  "title": "How do you debug a database timeout?",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java Memory Model (JMM), the 'volatile' keyword is a field modifier that serves as a lightweight synchronization mechanism, primarily addressing the visibility problem. In modern multi-core architectures, threads often cache variables in CPU registers or local caches (L1/L2) for performance, which can lead to a situation where one thread updates a shared variable, but other threads continue to read stale data from their local cache. Marking a variable as volatile forces the JVM to treat the variable as 'main memory' resident, ensuring that every read operation fetches the most recent write from any thread.\n\nBeyond simple visibility, volatile establishes a 'happens-before' relationship. This is a formal guarantee provided by the JMM that defines the order in which memory operations are visible to threads. Specifically, a write to a volatile field happens-before every subsequent read of that same field. This prevents the compiler and the CPU from reordering instructions across the volatile access point, effectively creating a memory barrier (or fence) that flushes local caches and invalidates stale entries, ensuring that all prior writes performed by the writing thread are visible to the reading thread once the volatile variable is accessed."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "volatile",
+        "synchronized"
+      ],
+      "rows": [
+        [
+          "Memory Barrier",
+          "Lightweight (Read/Write barriers)",
+          "Heavyweight (Mutex/Monitor)"
+        ],
+        [
+          "Atomicity",
+          "Only for single read/write",
+          "Full block atomicity"
+        ],
+        [
+          "Thread Blocking",
+          "Non-blocking",
+          "Threads may block/wait"
+        ],
+        [
+          "Visibility",
+          "Guaranteed",
+          "Guaranteed"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The JMM mandates that volatile reads and writes are atomic for 32-bit types, and for 64-bit types (long/double) if marked volatile, preventing word tearing.",
+        "Volatile prevents instruction reordering by inserting StoreLoad barriers on x86 architectures, ensuring that code preceding the volatile write is fully committed before the write itself.",
+        "The happens-before guarantee is transitive: if thread A writes to a volatile variable and thread B reads it, thread B is guaranteed to see all memory writes that were visible to thread A prior to that volatile write."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class SignalHandler {\n    // volatile ensures the flag change is immediately visible across threads\n    private volatile boolean running = true;\n\n    public void stop() {\n        this.running = false;\n    }\n\n    public void run() {\n        while (running) {\n            // Business logic here\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common trap for junior developers is assuming volatile makes operations like 'count++' thread-safe. It does not. 'count++' is a read-modify-write operation; while volatile ensures the read is fresh and the write is visible, it does not prevent two threads from reading the same value simultaneously and incrementing it independently. Always use AtomicInteger or explicit locking for compound operations."
+    }
+  ],
+  "num": 658,
+  "title": "What is the volatile keyword? Explain the visibility problem and happens-before relationship.",
+  "category": "Multithreading & Java Concurrency"
+}

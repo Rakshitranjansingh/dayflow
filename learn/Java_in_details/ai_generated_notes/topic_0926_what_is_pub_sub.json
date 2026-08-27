@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Publish-Subscribe, commonly known as pub-sub, is an asynchronous messaging pattern characterized by the decoupling of publishers (who generate messages) and subscribers (who consume them). Unlike point-to-point queues where a message is processed by a single worker, the pub-sub pattern broadcasts messages to multiple interested parties via an intermediary broker or message bus. Publishers do not direct their messages to specific subscribers; instead, they categorize published messages into topics or channels without knowledge of what subscribers, if any, exist. Similarly, subscribers express interest in one or more topics and consume messages of interest without any coupling to or awareness of the publishers. This architectural pattern forms the backbone of event-driven architectures, enabling highly scalable, loosely coupled distributed systems that can handle real-time data streaming, reactive microservices, and asynchronous event notifications efficiently."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Topic Filtering and Routing: Messages are categorized by topics. Brokers route messages from publishers to subscribers based on these topic designations, supporting mechanisms like exact-match, wildcard, or content-based routing.",
+        "Temporal Decoupling: Publishers and subscribers do not need to be active at the same time. The message broker buffers messages, ensuring reliable delivery even if a subscriber is temporarily offline.",
+        "Scalability and Fan-out: A single published message can be fanned out to thousands of independent subscribers simultaneously, making pub-sub ideal for high-throughput broadcast systems.",
+        "Push vs. Pull Delivery Models: Depending on the implementation, brokers can push messages to subscribers as they arrive, or subscribers can poll the broker at their own processing capacity."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.Flow.*;\nimport java.util.concurrent.SubmissionPublisher;\n\npublic class PubSubExample {\n    public static void main(String[] args) throws InterruptedException {\n        try (SubmissionPublisher<String> publisher = new SubmissionPublisher<>()) {\n            Subscriber<String> subscriber = new Subscriber<>() {\n                private Subscription subscription;\n\n                @Override\n                public void onSubscribe(Subscription subscription) {\n                    this.subscription = subscription;\n                    subscription.request(1);\n                }\n\n                @Override\n                public void onNext(String item) {\n                    System.out.println(\"Received event: \" + item);\n                    subscription.request(1);\n                }\n\n                @Override\n                public void onError(Throwable throwable) {\n                    throwable.printStackTrace();\n                }\n\n                @Override\n                public void onComplete() {\n                    System.out.println(\"Publisher closed stream.\");\n                }\n            };\n\n            publisher.subscribe(subscriber);\n            publisher.submit(\"UserSignedUpEvent\");\n            publisher.submit(\"OrderPlacedEvent\");\n            Thread.sleep(100);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in custom pub-sub implementations using Java's java.util.concurrent.Flow is backpressure mismanagement. If a subscriber's onNext method blocks or processes slower than the publisher's submission rate, bounded internal buffers can overflow, leading to InterruptedExceptions or dropped events. Always ensure your subscribers process payloads asynchronously or enforce strict rate-limiting via reactive streams operators."
+    }
+  ],
+  "num": 927,
+  "title": "What is pub-sub?",
+  "category": "Core Java & Fundamentals"
+}

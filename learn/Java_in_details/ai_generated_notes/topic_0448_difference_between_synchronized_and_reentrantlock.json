@@ -1,0 +1,68 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When designing high-throughput multithreaded applications in Java, choosing the right synchronization mechanism is paramount. The synchronized keyword and ReentrantLock are both foundational tools used to enforce mutual exclusion and ensure thread safety by allowing only one thread to access a critical section at a time. However, they differ fundamentally in their implementation complexity, flexibility, and internal memory semantics. Understanding the exact trade-offs between synchronized blocks and explicit Lock implementations is critical for avoiding deadlocks, optimizing thread contention, and scaling concurrent workloads on modern multi-core hardware."
+    },
+    {
+      "type": "prose",
+      "content": "The synchronized keyword is an intrinsic locking mechanism baked directly into the Java language specification and executed by the JVM. Every object in Java has an associated monitor (or mutex) that is automatically acquired upon entering a synchronized block or method and released upon exiting, even if an exception is thrown. On the other hand, ReentrantLock is an explicit locking implementation residing in the java.util.concurrent.locks package, introduced in Java 5. It implements the Lock interface and requires manual acquisition and release via lock() and unlock() calls—typically managed within a try-finally block to prevent resource leaks."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "synchronized",
+        "ReentrantLock"
+      ],
+      "rows": [
+        [
+          "Acquisition & Release",
+          "Automatic, managed entirely by the JVM bytecode runtime.",
+          "Manual, requiring explicit lock() and unlock() calls in code."
+        ],
+        [
+          "Fairness Policy",
+          "Non-fair only; thread scheduling depends entirely on the OS/JVM scheduler.",
+          "Supports both fair (FIFO) and non-fair queuing policies via constructor."
+        ],
+        [
+          "Interruptible Locking",
+          "Cannot interrupt a thread waiting to acquire an intrinsic lock.",
+          "Supports lockInterruptibly() to handle thread interruption gracefully."
+        ],
+        [
+          "Timed Acquisition",
+          "Not supported; threads block indefinitely until the lock is available.",
+          "Supports tryLock(long timeout, TimeUnit unit) to avoid indefinite hangs."
+        ],
+        [
+          "Condition Variables",
+          "Limited to a single implicit monitor queue using Object.wait/notify.",
+          "Supports multiple distinct Condition instances via newCondition()."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Intrinsic locks utilize JVM-level object headers and advanced optimizations like biased locking, lightweight locking, and heavyweight monitor inflating, meaning uncontended synchronized blocks compile down to extremely fast machine instructions.",
+        "ReentrantLock relies heavily on AbstractQueuedSynchronizer (AQS), a framework that uses an internal FIFO double-linked queue (CLH variant) and an atomic volatile state variable to manage blocking and unparking threads safely.",
+        "Reentrant reentrancy is a shared trait of both mechanisms; a thread that currently holds the lock can re-enter the critical section multiple times without deadlocking itself, incrementing and decrementing an internal hold count accordingly.",
+        "Fairness in ReentrantLock reduces thread starvation by granting the lock to the longest-waiting thread, but this guarantee comes with a severe throughput penalty due to increased context-switching overhead."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.locks.Lock;\nimport java.util.concurrent.locks.ReentrantLock;\n\npublic class CounterService {\n    private final Lock lock = new ReentrantLock(true); // Fair lock\n    private int count = 0;\n\n    public void increment() {\n        lock.lock();\n        try {\n            count++;\n        } finally {\n            lock.unlock();\n        }\n    }\n\n    public boolean tryIncrement(long timeoutMillis) throws InterruptedException {\n        if (lock.tryLock(timeoutMillis, java.util.concurrent.TimeUnit.MILLISECONDS)) {\n            try {\n                count++;\n                return true;\n            } finally {\n                lock.unlock();\n            }\n        }\n        return false;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Never forget to place the unlock() method inside a finally block when using ReentrantLock. Failing to do so means that if an exception is thrown inside the critical section, the lock will remain permanently locked, creating an unrecoverable deadlock or starvation state for all other waiting threads. Furthermore, prefer synchronized for standard use cases since modern JVMs continuously optimize intrinsic locks, only opting for ReentrantLock when advanced features like timed waits, fair scheduling, or multiple conditions are explicitly required."
+    }
+  ],
+  "num": 449,
+  "title": "Difference between synchronized and ReentrantLock",
+  "category": "Multithreading & Java Concurrency"
+}

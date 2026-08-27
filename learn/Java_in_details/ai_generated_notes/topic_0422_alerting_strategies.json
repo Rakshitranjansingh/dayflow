@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In production-grade Core Java applications, alerting strategies form the critical feedback loop between runtime health and operational response. When an enterprise JVM degrades under high load or runs out of heap space, waiting for manual log inspection guarantees severe SLA breaches. An effective alerting strategy combines proactive telemetry collection with actionable, fatigue-resistant notification policies. This requires a deep understanding of internal JVM mechanics, such as monitoring Garbage Collection pauses, thread pool saturation, off-heap memory consumption, and unhandled runtime exceptions. By leveraging metrics libraries like Micrometer alongside APM tools, engineers can transition from reactive debugging to predictive incident management.\n\nCrafting robust alerts in a Java environment means moving past simple process-down checks. A healthy operating system process does not equate to a healthy application; a JVM might be alive while completely unresponsive due to a 'Stop-the-World' GC pause that exceeds HTTP gateway timeouts, or a thread deadlock in custom business logic. Effective alerting strategies prioritize Symptom-Based Alerting (e.g., elevated error rates, P99 latency spikes) over Cause-Based Alerting (e.g., high CPU usage), thereby reducing false positives and preventing operator fatigue. Implementing these strategies requires careful tuning of metric resolution, threshold durations, and routing matrices to ensure on-call engineers receive context-rich payloads immediately when service levels drop."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Garbage Collection Metrics: Alert on concurrent mark sweep or G1GC evacuation failure pauses exceeding critical thresholds rather than general heap usage percentages, which can be misleading due to aggressive caching.",
+        "Thread Pool Saturation: Monitor active thread counts against max pool sizes in ThreadPoolExecutor instances, specifically targeting rejected execution exceptions and queue latency growth.",
+        "JVM Safepoint Operation: Track safepoint time-to-sync and total safepoint time to catch hidden bottlenecks caused by JIT compilation, biased lock revocations, or JVMTI agents.",
+        "Circuit Breaker and Bulkhead State: Expose metrics on tripped circuit breakers (e.g., Resilience4j) to alert on downstream dependency failures before cascading service degradation occurs."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import io.micrometer.core.instrument.MeterRegistry;\nimport io.micrometer.core.instrument.Timer;\nimport java.util.concurrent.ThreadPoolExecutor;\nimport java.util.concurrent.TimeUnit;\n\npublic class MonitoredThreadPoolService {\n    private final ThreadPoolExecutor executor;\n    private final Timer executionTimer;\n\n    public MonitoredThreadPoolService(ThreadPoolExecutor executor, MeterRegistry registry) {\n        this.executor = executor;\n        this.executionTimer = Timer.builder(\"service.task.execution\")\n            .description(\"Execution time of core business tasks\")\n            .register(registry);\n\n        registry.gauge(\"service.threadpool.active\", executor, ThreadPoolExecutor::getActiveCount);\n        registry.gauge(\"service.threadpool.queue.size\", executor, e -> e.getQueue().size());\n    }\n\n    public void submitTask(Runnable task) {\n        long startTime = System.nanoTime();\n        executor.submit(() -> {\n            try {\n                task.run();\n            } finally {\n                executionTimer.record(System.nanoTime() - startTime, TimeUnit.NANOS);\n            }\n        });\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap in Java alerting is alerting on high heap usage (e.g., heap > 90%). In a modern generational GC like G1 or ZGC, high heap utilization is often completely normal and desired; the JVM caches objects to minimize collection frequency. Alerting on this metric directly causes severe alert fatigue. Instead, alert on sustained high allocation rates coupled with frequent Full GCs or prolonged concurrent phase durations."
+    }
+  ],
+  "num": 423,
+  "title": "Alerting strategies",
+  "category": "Core Java & Fundamentals"
+}

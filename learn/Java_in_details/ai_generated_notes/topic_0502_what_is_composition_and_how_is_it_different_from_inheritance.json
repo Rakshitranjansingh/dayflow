@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In object-oriented software engineering, choosing how to structure object relationships is one of the most consequential architectural decisions you will make. Composition and inheritance represent two fundamentally opposing paradigms for code reuse and structural design. Inheritance, often realized via the `extends` keyword in Java, establishes an 'is-a' relationship where a subclass inherits state and behavior from a superclass. While powerful for polymorphic dispatch, inheritance heavily violates encapsulation by exposing parent implementation details to children, creating a brittle base class problem where modifications to superclass internals inadvertently break dependent subclasses. Conversely, composition relies on a 'has-a' or 'uses-a' relationship. Instead of inheriting behavior, a class contains references to other objects that encapsulate specific functional modules. This decouples the host object from the internal implementation of its dependencies, promoting loose coupling, runtime dynamic behavior modification, and robust unit testability through constructor-based dependency injection and interface polymorphism."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Design Dimension",
+        "Inheritance (is-a)",
+        "Composition (has-a)"
+      ],
+      "rows": [
+        [
+          "Coupling",
+          "Tight coupling; child is deeply bound to parent's internal implementation.",
+          "Loose coupling; components interact strictly through public interfaces."
+        ],
+        [
+          "Flexibility",
+          "Static; relationships are fixed at compile time via class declarations.",
+          "Dynamic; component instances and behaviors can be swapped at runtime."
+        ],
+        [
+          "Encapsulation",
+          "Violates encapsulation; subclasses often rely on protected parent state.",
+          "Preserves encapsulation; components hide their internal states entirely."
+        ],
+        [
+          "Reuse mechanism",
+          "Class-based reuse via subclassing and method overriding.",
+          "Object-based reuse via delegation and aggregated instance references."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The fragile base class problem occurs in inheritance hierarchies when a superclass author modifies a protected method or internal state variable, unknowingly corrupting invariants in unknown subclasses scattered across downstream codebases.",
+        "Composition achieves polymorphism without rigid hierarchies by implementing target interfaces, allowing the containing class to delegate method calls dynamically to different strategy implementations at runtime.",
+        "Favoring composition over inheritance (as famously advocated in Effective Java Item 18) prevents explosion of subclass permutations that would otherwise require combinatorial subclassing (e.g., FileLogger vs. ConsoleLogger vs. EncryptedFileLogger)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public interface DataCompressor {\n    byte[] compress(byte[] data);\n}\n\npublic class GzipCompressor implements DataCompressor {\n    @Override\n    public byte[] compress(byte[] data) {\n        // Gzip compression logic\n        return data;\n    }\n}\n\n// Composition in action: Service has-a DataCompressor\npublic class StorageService {\n    private final DataCompressor compressor;\n\n    public StorageService(DataCompressor compressor) {\n        this.compressor = compressor;\n    }\n\n    public void store(String path, byte[] payload) {\n        byte[] secured = compressor.compress(payload);\n        // Write to storage\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineering Gotcha: A classic anti-pattern is using inheritance merely for code reuse (e.g., inheriting a utility class to get access to helper methods). This creates bloated APIs and exposes unnecessary public methods on your class. Always ask yourself if the subclass can be substituted anywhere the superclass is used (Liskov Substitution Principle). If the answer is no, throw away the `extends` relationship and use composition with a delegated helper."
+    }
+  ],
+  "num": 503,
+  "title": "What is composition, and how is it different from inheritance?",
+  "category": "Exception Handling & I/O / NIO"
+}

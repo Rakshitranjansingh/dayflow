@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java backend development—especially when designing RESTful APIs using frameworks like Spring MVC or Jakarta REST (JAX-RS)—understanding the precise semantics of HTTP verbs is non-negotiable. Developers frequently stumble when differentiating between POST vs PUT and PUT vs PATCH. POST is fundamentally designed for non-idempotent resource creation. When you send multiple identical POST requests to a collection URI, the server generates multiple distinct child resources, returning a 201 Created status each time along with a new resource location. Conversely, PUT and PATCH operate on state modification and resource lifecycle management, but with vastly different philosophies regarding payload completeness.\n\nPUT is strictly defined as a complete replacement operation. It acts as an upsert mechanism: if the resource exists at the target URI, its entire state is overwritten by the payload; if it does not exist, the server may create it (provided the URI is client-determined). This means a PUT request requires a complete representation of the resource. Leaving out a field in a PUT request typically results in that field being wiped out or nulled out in the database. On the other hand, PATCH—standardized in RFC 5789—is explicitly designed for partial updates. A PATCH request contains a set of instructions or a partial entity describing the delta to apply, leaving unmentioned fields untouched. Mastering these HTTP semantics ensures our API contracts remain predictable, safe, and cacheable."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / HTTP Method",
+        "POST",
+        "PUT",
+        "PATCH"
+      ],
+      "rows": [
+        [
+          "Idempotency",
+          "Not Idempotent (repeating creates duplicates)",
+          "Idempotent (repeating sets identical final state)",
+          "Not Idempotent by default (unless designed as an absolute patch)"
+        ],
+        [
+          "Payload Semantics",
+          "Process as a subordinate to the target collection",
+          "Complete resource replacement (Upsert)",
+          "Partial modification (Delta or JSON Patch format)"
+        ],
+        [
+          "Typical Status Codes",
+          "201 Created, 200 OK",
+          "200 OK, 201 Created, 204 No Content",
+          "200 OK, 204 No Content"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Idempotency in PUT guarantees that if a network partition causes a client retry, executing the exact same payload multiple times yields the exact same database state without side effects like duplicated records.",
+        "PUT requires the client to know the exact URI of the target resource, whereas POST requests are traditionally sent to a collection URI while the server determines the newly minted identifier.",
+        "PATCH implementation styles vary wildly in the wild: standard JSON Merge Patch (RFC 7386) applies a simple partial JSON object, while JSON Patch (RFC 6902) transmits an explicit array of operations (add, remove, replace, move, copy, test)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/users\")\npublic class UserController {\n\n    @PostMapping\n    public ResponseEntity<User> createUser(@RequestBody UserDto dto) {\n        User saved = userService.create(dto);\n        return ResponseEntity.status(HttpStatus.CREATED).body(saved);\n    }\n\n    @PutMapping(\"/{id}\")\n    public ResponseEntity<User> fullUpdateUser(@PathVariable Long id, @RequestBody UserDto dto) {\n        User updated = userService.upsert(id, dto);\n        return ResponseEntity.ok(updated);\n    }\n\n    @PatchMapping(\"/{id}\")\n    public ResponseEntity<User> partialUpdateUser(@PathVariable Long id, @RequestBody Map<String, Object> updates) {\n        User updated = userService.patch(id, updates);\n        return ResponseEntity.ok(updated);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when implementing PUT in Spring Data JPA is assuming it handles partial updates automatically. If your DTO misses optional fields because the client omitted them, mapping that DTO directly to an existing JPA entity and calling save() will overwrite those database columns with NULL. Always enforce explicit field population checks or strictly reserve PUT for full-state replacements."
+    }
+  ],
+  "num": 957,
+  "title": "PUT vs PATCH? POST vs PUT?",
+  "category": "Core Java & Fundamentals"
+}

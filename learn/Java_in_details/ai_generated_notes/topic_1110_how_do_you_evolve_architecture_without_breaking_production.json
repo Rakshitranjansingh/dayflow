@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Evolving architecture without breaking production in an enterprise Java ecosystem—especially when dealing with low-level Exception Handling & I/O / NIO—demands an uncompromising focus on backward compatibility, non-blocking flow semantics, and graceful degradation. When modernizing an asynchronous, selector-driven network engine or re-architecting how I/O channels bubble up exceptions, a single unhandled closed-channel exception or unmanaged buffer underflow can cascade through a multi-threaded event loop, triggering systemic cascading failures. To safely evolve these boundaries, software architects must leverage rigorous contract testing, polymorphic exception hierarchies that mirror original caller expectations, and rigorous defensive handling in custom selectors and byte buffers. This ensures that legacy clients interacting with newly refactored NIO pipelines experience zero unexpected disconnects or corrupted byte streams.\n\nAt the heart of robust I/O evolution lies the decoupling of network transport mechanics from business logic exception policies. In traditional blocking I/O, exceptions like IOException are tightly bound to synchronous thread termination. However, in NIO (New I/O) architectures powered by channels, selectors, and direct byte buffers, errors often manifest asynchronously across selector thread pools. Evolving this architecture requires intercepting these low-level errors before they corrupt state machines. By wrapping low-level closed-channel and interrupted-I/O exceptions into structured, domain-specific runtime exceptions, systems can execute fallback routines, drain buffers safely, and emit precise telemetry without tearing down the underlying Reactor or Proactor loop."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Legacy Blocking I/O / Basic Exception Handling",
+        "Modern NIO & Evolved Asynchronous Architecture"
+      ],
+      "rows": [
+        [
+          "Thread Model",
+          "One thread per connection; thread blocks on read/write, limiting horizontal scale.",
+          "Single-threaded or pooled Reactor handling numerous channels concurrently via Selectors."
+        ],
+        [
+          "Exception Propagation",
+          "Synchronous stack traces; immediate thread death on unhandled I/O failures.",
+          "Asynchronous error signaling via attachment objects, future callbacks, or dedicated error channels."
+        ],
+        [
+          "Buffer & Memory Management",
+          "Heap-based byte arrays; frequent GC pressure during high-throughput network bursts.",
+          "Direct Byte Buffers operating off-heap, minimizing memory copying via zero-copy system calls."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Selector Key Cancellation Hygiene: When a channel encounters an IOException during a read or write operation, the associated SelectionKey must be explicitly canceled, and the channel closed cleanly to prevent the Selector from continuously spinning on a faulty file descriptor, which causes 100% CPU spikes.",
+        "Direct Buffer Lifecycle and Off-Heap Leaks: Evolving I/O code often introduces DirectByteBuffers. Because these bypass the JVM garbage collector's heap management, relying solely on finalizers leads to native memory leaks. Architects must implement explicit reference counting or JVM-internal cleaner invocations when safely retiring channels.",
+        "Polymorphic Exception Mapping: To prevent breaking downstream services, newly introduced asynchronous exception types should extend or implement legacy runtime exception wrappers, ensuring existing global exception mappers catch and translate errors consistently."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ResilientNioProcessor {\n    public void handleChannelRead(SelectionKey key) {\n        SocketChannel channel = (SocketChannel) key.channel();\n        ByteBuffer buffer = ByteBuffer.allocateDirect(1024);\n        try {\n            int bytesRead = channel.read(buffer);\n            if (bytesRead == -1) {\n                closeChannelSafely(key, channel);\n                return;\n            }\n            buffer.flip();\n            processPayload(buffer);\n        } catch (IOException e) {\n            // Evolved exception handling: map to domain event instead of crashing loop\n            emitIoErrorMetric(e);\n            closeChannelSafely(key, channel);\n        } finally {\n            buffer.clear();\n        }\n    }\n\n    private void closeChannelSafely(SelectionKey key, SocketChannel channel) {\n        key.cancel();\n        try {\n            channel.close();\n        } catch (IOException ex) {\n            // Log suppressed or muted during teardown to avoid noise\n        }\n    }\n\n    private void processPayload(ByteBuffer buffer) {\n        // Business logic execution boundary\n    }\n\n    private void emitIoErrorMetric(IOException e) {\n        // Telemetry hook for zero-downtime monitoring\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: The most common production outage when refactoring NIO pipelines stems from failing to handle ClosedChannelException properly within selection loops. If an asynchronous task closes a channel concurrently while a Selector is blocked in select(), failing to catch the resulting closed-channel state or handle canceled keys properly will result in an infinite CPU-spinning loop that completely locks up the node before health-check probes can isolate it."
+    }
+  ],
+  "num": 1111,
+  "title": "How do you evolve architecture without breaking production?",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When designing reactive web applications in Spring WebFlux, developers are consistently met with an architectural crossroads: choosing between Annotation-based controllers (Spring MVC style ported to Project Reactor) and Functional Endpoints driven by RouterFunction. Understanding this dichotomy is essential for building high-throughput, non-blocking I/O pipelines that do not leak threads or stall the underlying Netty event loop.\n\nAnnotation-based routing relies on reflection, component scanning, and familiar annotations like @RestController, @GetMapping, and @ExceptionHandler. It abstracts away the routing plumbing, making it intuitive for developers migrating from traditional servlet-based Spring MVC stacks. Under the hood, however, HandlerMapping implementations inspect these annotations at startup via heavy reflection, building a metadata registry that maps incoming ServerWebExchange instances to specific method invocations.\n\nConversely, Functional Endpoints (RouterFunction and HandlerFunction) represent a programmatic, code-first paradigm. Instead of annotating classes and methods, you compose routing logic using functional builders (RouterFunctions.route()) and lambda expressions. A RouterFunction evaluates an incoming ServerRequest against a set of RequestPredicates (such as path matching, HTTP methods, or media types), returning a Mono<HandlerFunction>. This approach entirely eliminates reflection overhead at runtime, embraces explicit functional composition, and grants developers absolute, surgical control over the request-response lifecycle running on Netty's reactive event loop."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Functional Endpoints (RouterFunction)",
+        "Annotated Controllers"
+      ],
+      "rows": [
+        [
+          "Routing Paradigm",
+          "Code-first, functional composition using lambdas and predicates",
+          "Metadata-driven using annotations (@Controller, @GetMapping)"
+        ],
+        [
+          "Startup & Reflection",
+          "Zero reflection at runtime; lightning-fast startup times",
+          "Heavy reflection scanning at startup to build request mappings"
+        ],
+        [
+          "Exception Handling",
+          "Handled via custom ErrorAttributes or nested filter chains",
+          "Managed via @ExceptionHandler and @ControllerAdvice beans"
+        ],
+        [
+          "Testing Approach",
+          "Tested via RouterFunctionTester or direct functional invocation",
+          "Tested via WebTestClient targeting annotated controller beans"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "RouterFunction executes via fluent builder patterns, cleanly separating routing concerns from business logic handlers (HandlerFunction), which strictly adhere to the functional signature (ServerRequest) -> Mono<ServerResponse>.",
+        "RequestPredicates allow for complex routing conditions beyond simple URI paths, such as checking custom headers, query parameter existence, or content negotiation parameters entirely in code without annotation clutter.",
+        "Filters can be seamlessly applied inline using RouterFunction.filter(), enabling cross-cutting concerns like logging, security token extraction, and latency tracing directly within the routing flow.",
+        "Annotated controllers rely on DispatcherHandler to delegate execution, whereas Functional Endpoints talk directly to HandlerMapping beans that resolve straight to functional handlers, shaving off microseconds of execution overhead per request."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class UserRouterConfig {\n\n    @Bean\n    public RouterFunction<ServerResponse> userRoutes(UserHandler userHandler) {\n        return route()\n            .GET(\"/api/v1/users/{id}\", accept(MediaType.APPLICATION_JSON), userHandler::getUserById)\n            .POST(\"/api/v1/users\", accept(MediaType.APPLICATION_JSON), userHandler::createUser)\n            .filter((request, next) -> {\n                long startTime = System.currentTimeMillis();\n                return next.handle(request)\n                    .doOnSuccess(response -> log.info(\"Path: {}, Status: {}, Duration: {}ms\", \n                        request.path(), response.statusCode(), System.currentTimeMillis() - startTime));\n            })\n            .build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha when using Functional Endpoints is improperly handling Mono/Flux downstream errors inside custom filters. Because Reactor pipelines are lazy, throwing a synchronous exception inside a RouterFunction filter lambda rather than returning Mono.error() will crash the Netty worker thread or bypass global error attributes, resulting in unhandled 500 Internal Server Errors without proper JSON formatting. Always return reactive error signals instead of throwing unchecked exceptions."
+    }
+  ],
+  "num": 301,
+  "title": "Functional endpoints (RouterFunction) vs Annotated",
+  "category": "Exception Handling & I/O / NIO"
+}

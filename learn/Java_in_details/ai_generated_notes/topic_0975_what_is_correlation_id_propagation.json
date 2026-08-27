@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Correlation ID propagation is the architectural practice of injecting a unique, immutable identifier into the header of a request at the entry point of a distributed system—typically an API Gateway or Load Balancer—and ensuring that this ID persists across every downstream service call, asynchronous message queue, and database transaction. In a microservices environment, a single user request often triggers a cascade of internal calls. Without a correlation ID, debugging a failed request across a dozen services becomes an exercise in log-grepping futility, as you cannot distinguish between concurrent requests in the interleaved log streams. Propagation is the 'glue' that binds these disparate events into a single causal chain, allowing observability tools to reconstruct the entire request lifecycle."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "MDC (Mapped Diagnostic Context) Integration: In Java, propagation is typically handled by storing the ID in an MDC context, which uses a ThreadLocal map. This allows logging frameworks like Logback or Log4j2 to automatically append the ID to every log line without manual parameter passing.",
+        "Asynchronous Context Loss: When moving to NIO or reactive stacks (Project Reactor/WebFlux), ThreadLocal storage fails because execution jumps across threads. You must use 'Context' propagation or 'Hooks' to ensure the ID is carried over the reactive pipeline, otherwise, the ID is lost when the thread context switches.",
+        "Header Injection: Propagation requires a standardized contract, such as the 'X-Correlation-ID' or 'traceparent' (W3C Trace Context) header. Downstream services must be configured to extract these headers from incoming HTTP requests and inject them into their own outgoing client requests (e.g., via Feign interceptors or RestTemplate request factories).",
+        "Distributed Tracing Compatibility: While Correlation IDs are simple strings, they serve as the foundation for distributed tracing systems like Zipkin or Jaeger. Modern implementations often use OpenTelemetry, which standardizes this propagation to ensure interoperability between heterogeneous services."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class CorrelationInterceptor implements ClientHttpRequestInterceptor {\n    @Override\n    public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {\n        String correlationId = MDC.get(\"correlationId\");\n        if (correlationId != null) {\n            request.getHeaders().add(\"X-Correlation-ID\", correlationId);\n        }\n        return execution.execute(request, body);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The classic production pitfall is 'MDC leakage' in thread pools. If you use a custom ExecutorService, the ThreadLocal map is not automatically copied to the worker threads. Always wrap your tasks in a decorator that copies the MDC context from the parent thread to the worker thread, or you will find your logs suddenly missing IDs, making your distributed tracing completely blind."
+    }
+  ],
+  "num": 976,
+  "title": "What is correlation ID propagation?",
+  "category": "Exception Handling & I/O / NIO"
+}

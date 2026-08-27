@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Error contract design refers to the deliberate, explicit specification of how software components communicate failures, exceptional states, and invalid preconditions across architectural boundaries. In enterprise Java systems, an error contract dictates the exact shape of runtime disruptions—ranging from checked and unchecked exceptions thrown across method boundaries to serialized REST payloads returned by microservices. Without a robust error contract, systems suffer from tight coupling, fragile exception handling where callers must parse stack traces or ambiguous error messages, and inconsistent failure responses that complicate downstream consumption and observability.\n\nDesigning a reliable error contract requires balancing several architectural concerns: domain expressiveness, type safety, API clarity, and operational security. In a pure Java API design context, this means leveraging the type system to make illegal states unrepresentable, carefully choosing between checked exceptions for recoverable business rule violations and unchecked RuntimeExceptions for programming bugs or unrecoverable infrastructure failures. At the API boundary, error contract design extends to API gateways and web controllers, defining uniform error models (such as Problem Details for HTTP APIs, RFC 7807) that include stable error codes, human-readable descriptions, correlation IDs for distributed tracing, and context-specific validation failures. By formalizing these contracts, backend engineers decouple client consumers from internal service implementations, ensuring that refactoring codebases does not inadvertently break upstream clients."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Domain-Driven Exception Hierarchy: Grouping exceptions by business bounded contexts rather than generic technical failures, ensuring that calling code can catch specific domain states (e.g., InsufficientFundsException vs. AccountLockedException).",
+        "API Response Uniformity: Implementing global exception handlers using Spring's @ControllerAdvice to map internal exceptions to standardized JSON error envelopes, preventing raw stack traces from leaking to clients.",
+        "Fail-Fast Invariant Enforcement: Utilizing defensive programming practices at method entry points via Objects.requireNonNull and custom assertions to reject invalid arguments immediately, preserving the object graph integrity.",
+        "Observability Integration: Ensuring that every error contract payload propagates a correlation identifier (traceId) to link client-facing error responses with centralized log aggregators and APM tools."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public record ApiErrorResponse(\n    String errorCode,\n    String message,\n    String path,\n    Instant timestamp,\n    Map<String, String> validationErrors\n) {\n    public static ApiErrorResponse of(String code, String message, String path) {\n        return new ApiErrorResponse(code, message, path, Instant.now(), Collections.emptyMap());\n    }\n}\n\n@RestControllerAdvice\npublic class GlobalExceptionHandler {\n    @ExceptionHandler(DomainValidationException.class)\n    public ResponseEntity<ApiErrorResponse> handleDomainValidation(DomainValidationException ex, WebRequest request) {\n        ApiErrorResponse response = new ApiErrorResponse(\n            \"ERR_DOMAIN_VALIDATION\",\n            ex.getMessage(),\n            request.getDescription(false).replace(\"uri=\", \"\"),\n            Instant.now(),\n            ex.getValidationErrors()\n        );\n        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(response);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap in error contract design is leaking internal database constraints or framework exceptions (like Hibernate's DataIntegrityViolationException) directly to external clients. Always map low-level infrastructure exceptions to abstracted, domain-specific error codes in your exception translator layer. Exposing raw SQL error messages or stack traces is not only an unmaintainable error contract but also introduces severe security vulnerabilities by revealing database schemas and implementation details."
+    }
+  ],
+  "num": 975,
+  "title": "What is error contract design?",
+  "category": "Core Java & Fundamentals"
+}

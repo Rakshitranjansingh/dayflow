@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "JSON Web Tokens (JWT) are stateless by design, allowing microservices to verify claims cryptographically without hitting a central database on every request. However, this architectural benefit introduces a severe operational challenge: how do you invalidate or revoke a JWT before its encoded expiration time (`exp`) has elapsed? If a user logs out, or if an administrator forces a session termination due to a compromised credential, a standard JWT remains completely valid to any resource server possessing the signing key until its clock runs out. Token blacklisting and token revocation are the architectural patterns designed to solve this exact vulnerability. Token blacklisting typically involves maintaining a persistent, fast-lookup store of revoked token identifiers (such as the JWT ID or `jti` claim) coupled with a Time-To-Live (TTL) matching the token's remaining lifespan. Token revocation, more broadly, encompasses both blacklisting individual tokens and invalidating entire cohorts of tokens by rotating signing secrets, updating user version stamps, or tracking stateful revocation lists in distributed memory grids like Redis.\n\nImplementing token blacklisting effectively requires balancing security requirements with system latency. Because checking a blacklist on every stateless HTTP request threatens to reintroduce the database bottleneck that JWTs were adopted to avoid, engineering teams must leverage high-throughput, in-memory data stores. In a Spring Security architecture, this is typically integrated via a custom OncePerRequestFilter that intercepts incoming requests, extracts the JWT, validates its cryptographic signature, and then queries a distributed cache to ensure the token's unique `jti` has not been registered as revoked. If a match is found, the security context is denied, and an HTTP 401 Unauthorized is returned immediately. This hybrid approach preserves the decentralized validation of JWTs for legitimate traffic while granting administrators absolute authority to sever access the millisecond a security event occurs."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Mechanism",
+        "Performance Impact",
+        "Revocation Granularity",
+        "Statefulness"
+      ],
+      "rows": [
+        [
+          "Standard Stateless JWT",
+          "Zero (No I/O required)",
+          "None (All-or-nothing until expiration)",
+          "Stateless"
+        ],
+        [
+          "Distributed Blacklist (Redis)",
+          "Low (O(1) in-memory lookup per request)",
+          "Precise (Per-token via `jti`)",
+          "Stateful (Stores revoked identifiers)"
+        ],
+        [
+          "User Version Stamp",
+          "Low-Medium (Cached in user session/token)",
+          "Coarse (All tokens for a specific user)",
+          "Stateful (Tracks version in DB/Cache)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The JWT `jti` (JWT ID) claim acts as a unique identifier for a specific token instance and must be cryptographically random (e.g., a UUIDv4) to prevent collision attacks when storing entries in a blacklisting database.",
+        "Blacklist entries should always be provisioned with an automatic Time-To-Live (TTL) set to expire precisely when the original token's `exp` claim would have naturally expired, preventing infinite memory growth in the Redis cache.",
+        "Token revocation via user versioning embeds an incrementing integer (`ver`) in the JWT claims; when a user logs out everywhere, the database version increments, rendering all previously issued tokens instantly invalid during validation filters."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Component\npublic class TokenBlacklistFilter extends OncePerRequestFilter {\n\n    private final JwtTokenProvider tokenProvider;\n    private final RedisTemplate<String, String> redisTemplate;\n\n    public TokenBlacklistFilter(JwtTokenProvider tokenProvider, RedisTemplate<String, String> redisTemplate) {\n        this.tokenProvider = tokenProvider;\n        this.redisTemplate = redisTemplate;\n    }\n\n    @Override\n    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)\n            throws ServletException, IOException {\n        String header = request.getHeader(\"Authorization\");\n        if (header != null && header.startsWith(\"Bearer \")) {\n            String token = header.substring(7);\n            if (tokenProvider.validateToken(token)) {\n                String jti = tokenProvider.getJtiFromToken(token);\n                if (redisTemplate.hasKey(\"blacklist:\" + jti)) {\n                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, \"Token has been revoked\");\n                    return;\n                }\n            }\n        }\n        filterChain.doFilter(request, response);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production anti-pattern in token blacklisting is forgetting to handle Redis cluster failures gracefully. If your Redis cache goes down, should you fail-open (allow requests, risking access with revoked tokens) or fail-closed (block all traffic, causing a total outage)? For high-security systems, implement a circuit breaker around the blacklist lookup; if Redis times out, fallback to verifying the cryptographic signature alone while emitting an emergency metric to your monitoring platform."
+    }
+  ],
+  "num": 1021,
+  "title": "How do you invalidate/revoke a JWT before it expires? (Token blacklisting). What is token revocation?",
+  "category": "Spring Security & Web Security"
+}

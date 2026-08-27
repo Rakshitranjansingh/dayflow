@@ -1,0 +1,69 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing low-latency, highly concurrent data access layers in enterprise Java applications requires a disciplined approach to cache synchronization. When the JVM's local heap (using Caffeine or Ehcache) or a distributed cache like Redis sits in front of a persistent relational database, developers must choose a precise caching pattern. Cache-aside places the burden of loading and invalidating the cache directly on the application code, giving developers explicit control over query logic and cache population. Read-through abstracts this away by treating the cache as the primary data access gatekeeper; when a cache miss occurs, the caching provider transparently fetches the data from the persistent store and populates itself. Write-through simplifies consistency by forcing every write operation to pass synchronously through the cache to the database, ensuring zero data loss window at the cost of higher write latency. Write-behind (also known as write-back) decouples the application from the underlying datastore by asynchronously batching and flushing writes to the database after updating the cache, maximizing write throughput while introducing potential data loss risks during sudden JVM or node crashes. Finally, refresh-ahead proactively computes and updates hot data in the cache before its Time-To-Live (TTL) expires, effectively eliminating the tail latency spikes typically experienced when concurrent threads hit an expired cache key."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Caching Pattern",
+        "Write Latency",
+        "Consistency",
+        "Failure Resilience"
+      ],
+      "rows": [
+        [
+          "Cache-aside",
+          "Low (app handles sync)",
+          "Eventual (depends on TTL/eviction)",
+          "High (database remains source of truth)"
+        ],
+        [
+          "Read-through",
+          "Low (miss handled by provider)",
+          "Eventual",
+          "High"
+        ],
+        [
+          "Write-through",
+          "High (synchronous DB write)",
+          "Strong",
+          "Moderate (requires reliable cache backing)"
+        ],
+        [
+          "Write-behind",
+          "Very Low (asynchronous DB write)",
+          "Eventual",
+          "Low (risk of data loss on crash)"
+        ],
+        [
+          "Refresh-ahead",
+          "Lowest (async pre-fetch)",
+          "Eventual",
+          "High"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In Cache-aside implementations, race conditions occur if two threads read stale data and write conflicting values back to the database, necessitating optimistic locking or distributed locks (like Redlock) during updates.",
+        "Write-behind patterns require robust internal queues inside the caching engine (e.g., ring buffers or blocking queues) coupled with batching strategies and retry mechanisms to handle transient database unavailability without dropping mutations.",
+        "Refresh-ahead relies on statistical access frequency tracking, automatically scheduling asynchronous reload tasks when a cache entry's access velocity crosses a specific threshold relative to its expiration window."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class CacheAsideRepository {\n    private final Cache<String, User> cache;\n    private final UserRepository database;\n\n    public CacheAsideRepository(Cache<String, User> cache, UserRepository database) {\n        this.cache = cache;\n        this.database = database;\n    }\n\n    public User findById(String userId) {\n        User user = cache.getIfPresent(userId);\n        if (user != null) {\n            return user;\n        }\n        user = database.findById(userId);\n        if (user != null) {\n            cache.put(userId, user);\n        }\n        return user;\n    }\n\n    public void update(User user) {\n        database.save(user);\n        cache.invalidate(user.getId());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap with Cache-aside is the 'cache stampede' or 'thundering herd' problem, where thousands of concurrent threads experience a cache miss for a heavily requested key simultaneously, bypassing the cache and overwhelming the database. Always protect your read paths with distributed locks, request coalescing, or implement a robust Refresh-ahead strategy to avoid catastrophic database CPU spikes."
+    }
+  ],
+  "num": 373,
+  "title": "Cache-aside, Read-through, Write-through, Write-behind, Refresh-ahead",
+  "category": "Core Java & Fundamentals"
+}

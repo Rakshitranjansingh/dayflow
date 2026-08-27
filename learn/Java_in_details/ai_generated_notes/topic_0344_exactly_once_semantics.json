@@ -1,0 +1,61 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed systems and event-driven data streaming architecture, Exactly-once semantics (EOS) represents the ultimate gold standard of data processing guarantees: every incoming record must be processed precisely one time, yielding side effects or downstream state updates as if no failures, retries, or network partitions ever occurred. Achieving true end-to-end EOS is notoriously complex because it requires atomicity across three distinct boundaries: ingestion from a source (like Kafka or a message broker), stateful transformation within a processing engine (like a JVM-based stream processor), and persistence to an external sink (like a database or another topic)."
+    },
+    {
+      "type": "prose",
+      "content": "From a practical standpoint, distributed systems operate under the fallacies of network computing. Messages can be lost, duplicated, or delivered out of order due to timeouts, broker crashes, or consumer rebalances. If a system relies purely on 'at-least-once' delivery—retrying unacknowledged messages—it inevitably produces duplicates. Conversely, 'at-most-once' semantics drops data during failures. Exactly-once semantics bridges this gap by combining idempotent writes, atomic multi-partition commits, and transactional offset management. In Java environments, implementing EOS requires careful coordination of the Java Transaction API (JTA), write-ahead logging (WAL), distributed consensus protocols (like Paxos or Raft), and state store snapshotting to disk."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Processing Guarantee",
+        "Duplicate Risk",
+        "Data Loss Risk",
+        "Performance Overhead"
+      ],
+      "rows": [
+        [
+          "At-Most-Once",
+          "None",
+          "High (drops on failure)",
+          "Lowest"
+        ],
+        [
+          "At-Least-Once",
+          "High (retries cause duplicates)",
+          "None (messages are replayed)",
+          "Moderate"
+        ],
+        [
+          "Exactly-Once",
+          "None (prevented via IDs/transactions)",
+          "None (durable WAL & offsets)",
+          "Highest (coordination & sync barriers)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Read-Process-Write Cycles: True EOS requires that reading an offset, mutating internal state, and writing the output record plus the updated offset happen inside a single atomic transaction.",
+        "Idempotency and Deduplication: When external systems lack native transaction support, EOS is approximated using deterministic unique identifiers (UUIDs) or monotonic sequence numbers combined with a deduplication cache in the sink.",
+        "Two-Phase Commit (2PC): Distributed streaming platforms utilize a coordinator to manage a two-phase commit protocol across input topics, state changelogs, and output sinks, ensuring all-or-nothing visibility."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.apache.kafka.clients.producer.KafkaProducer;\nimport org.apache.kafka.clients.producer.ProducerConfig;\nimport org.apache.kafka.clients.producer.ProducerRecord;\nimport java.util.Properties;\n\npublic class TransactionalProducerExample {\n    public static void main(String[] args) {\n        Properties props = new Properties();\n        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, \"localhost:9092\");\n        props.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, \"my-app-transactional-id-1\");\n        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, \"true\");\n\n        KafkaProducer<String, String> producer = new KafkaProducer<>(props);\n        producer.initTransactions();\n\n        try {\n            producer.beginTransaction();\n            producer.send(new ProducerRecord<>(\"output-topic\", \"key\", \"exact-once-value\"));\n            producer.commitTransaction();\n        } catch (Exception e) {\n            producer.abortTransaction();\n            throw new RuntimeException(\"Transaction failed, aborted safely\", e);\n        } finally {\n            producer.close();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production misconception is that enabling transactions on a message producer guarantees end-to-end exactly-once semantics. In reality, EOS only applies within the boundary of the messaging system and its state stores. If your processing logic writes to an external non-transactional relational database or calls a third-party REST API, you instantly fall back to at-least-once semantics, forcing you to implement idempotent database upserts or deduplication tables to prevent double-processing."
+    }
+  ],
+  "num": 345,
+  "title": "Exactly-once semantics",
+  "category": "Core Java & Fundamentals"
+}

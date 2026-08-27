@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Kafka architecture is built on a distributed commit log paradigm, designed to handle massive throughput by decoupling producers from consumers. At the core of this system is the Broker, which acts as the fundamental storage unit—a single Kafka server that manages the persistence and retrieval of event streams. Brokers do not exist in isolation; they form a cluster coordinated by Zookeeper or KRaft, ensuring high availability and load balancing across the distributed network.\n\nData within Kafka is organized into Topics, which are logical categories or feeds to which records are published. However, a topic is merely a conceptual abstraction. Physically, a topic is split into Partitions, which are the primary unit of parallelism and scalability. By partitioning a topic, Kafka allows data to be distributed across multiple brokers, enabling horizontal scaling and allowing consumers to process messages in parallel. To ensure fault tolerance, Kafka employs Replicas. Each partition has one Leader and multiple Followers. The leader handles all read/write requests, while followers synchronize data from the leader. If a broker fails, a follower is promoted to leader, ensuring zero data loss and continuous availability."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component",
+        "Responsibility",
+        "Scalability Impact"
+      ],
+      "rows": [
+        [
+          "Broker",
+          "Storage node/Server",
+          "Horizontal scaling of cluster"
+        ],
+        [
+          "Topic",
+          "Logical event stream",
+          "Organizational granularity"
+        ],
+        [
+          "Partition",
+          "Parallelism unit",
+          "Throughput scaling"
+        ],
+        [
+          "Replica",
+          "Fault tolerance",
+          "Redundancy/Availability"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Partitions are strictly ordered within a single log; Kafka guarantees ordering only at the partition level, not the topic level.",
+        "The Leader-Follower model uses an In-Sync Replica (ISR) list; only replicas that are caught up with the leader are eligible for election, preventing data loss during failover.",
+        "Consumer Groups leverage partitions to distribute load; each partition is assigned to exactly one consumer within a group, preventing race conditions during message processing.",
+        "Log segments are the physical files on disk; Kafka uses a sequential write-ahead log (WAL) structure, which allows for O(1) disk read/write performance regardless of the data size."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Example of creating a topic with partitions and replication factor\nNewTopic topic = new NewTopic(\"user-events\", 3, (short) 2);\nadminClient.createTopics(Collections.singletonList(topic));\n\n// Producer record targeting a specific partition\nProducerRecord<String, String> record = new ProducerRecord<>(\"user-events\", partitionId, key, value);"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is over-partitioning. While more partitions increase throughput, they also increase the number of open file handles on brokers and can significantly increase the time taken for controller failover. Always benchmark your partition count against your end-to-end latency requirements, as excessive partitions can lead to increased metadata overhead and slower consumer rebalancing."
+    }
+  ],
+  "num": 934,
+  "title": "Explain Kafka Architecture: Brokers, Topics, Partitions, Replicas.",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

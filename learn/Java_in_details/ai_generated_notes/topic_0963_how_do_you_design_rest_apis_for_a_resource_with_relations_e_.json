@@ -1,0 +1,49 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing REST APIs for hierarchical resources requires balancing intuitive URI structures with the realities of microservice data ownership. When you model a relationship like /users/{id}/orders, you are defining a sub-resource path that implies a parent-child dependency. In a well-architected system, this endpoint serves as a gateway to the Order domain, often requiring the API Gateway or an Aggregator service to resolve the user context before fetching orders. The primary challenge here is avoiding 'leaky abstractions' where the User service becomes responsible for Order logic. Instead, treat the path as a logical grouping; the request should ideally be routed to the Order service, which validates the user's existence or ownership via a lightweight check or a shared identity token (JWT). This approach preserves domain boundaries while adhering to RESTful principles of resource identification."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Design Pattern",
+        "Pros",
+        "Cons"
+      ],
+      "rows": [
+        [
+          "Nested Resources",
+          "Intuitive, clear hierarchy",
+          "Deep nesting (e.g., /a/b/c/d) creates URI bloat"
+        ],
+        [
+          "Flat Resources",
+          "Easier to query/filter globally",
+          "Loses the implicit relationship context"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Use sub-resource paths for strictly owned relationships (e.g., an Order cannot exist without a User).",
+        "Implement pagination and filtering via query parameters (?status=SHIPPED&page=1) rather than path segments to keep the URI clean.",
+        "In WebFlux environments, leverage non-blocking Flux/Mono chains to aggregate data from multiple services without blocking the event loop.",
+        "Ensure HATEOAS links are included in the response payload to allow clients to discover related resources dynamically without hardcoding URI templates."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@GetMapping(\"/users/{userId}/orders\")\npublic Flux<OrderDTO> getUserOrders(\n    @PathVariable String userId, \n    @RequestParam(required = false) String status) {\n    return orderService.findByUserId(userId, status)\n        .switchIfEmpty(Mono.error(new ResourceNotFoundException(\"User not found\")));\n}"
+    },
+    {
+      "type": "note",
+      "content": "Watch out for the N+1 problem in microservices. If your API fetches a list of orders and then makes a separate network call for every single user detail, you will saturate your thread pool and latency will spike. Always prefer batching requests or using a GraphQL-style data loader pattern to resolve relations in bulk."
+    }
+  ],
+  "num": 964,
+  "title": "How do you design REST APIs for a resource with relations? (e.g., GET /users/{id}/orders)",
+  "category": "REST APIs, WebFlux & Microservices"
+}

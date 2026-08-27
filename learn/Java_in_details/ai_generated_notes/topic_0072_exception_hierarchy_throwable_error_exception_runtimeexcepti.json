@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Understanding the Java exception hierarchy is fundamental to writing resilient, production-grade applications. At the root of this error-handling model sits the Throwable class, which serves as the base type for any object that can be thrown via the throw statement or caught via a catch block in the JVM. Underneath Throwable, the hierarchy bifurcates into two distinct branches: Error and Exception. Errors represent catastrophic, irrecoverable failures occurring within the Java Virtual Machine itself—such as OutOfMemoryError or StackOverflowError. These conditions are typically outside the control of the application code, and attempting to catch them is almost always an anti-pattern that masks deeper system instabilities.\n\nConversely, the Exception branch encapsulates conditions that a well-written application might want to catch and recover from. Within Exception, we find a crucial architectural distinction: checked exceptions (direct subclasses of Exception excluding RuntimeException) and unchecked exceptions (subclasses of RuntimeException, also known as run-time exceptions). Checked exceptions enforce compile-time safety, forcing developers to explicitly handle or declare anticipated failure modes like IOException or SQLException. RuntimeException, on the other hand, represents programming bugs, logic flaws, or misuse of APIs—such as NullPointerException, IndexOutOfBoundsException, or IllegalArgumentException. These unchecked exceptions do not require mandatory try-catch blocks or throws declarations, keeping business logic clean while allowing fail-fast behavior during development and execution."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Type",
+        "Root Base",
+        "Checked / Unchecked",
+        "Typical Use Case & Recovery Strategy"
+      ],
+      "rows": [
+        [
+          "Throwable",
+          "java.lang.Object",
+          "N/A (Root)",
+          "Ultimate base for all throwables; rarely caught directly except in uncaught exception handlers."
+        ],
+        [
+          "Error",
+          "java.lang.Throwable",
+          "Unchecked",
+          "JVM failures (OutOfMemoryError); do not catch, let the process terminate safely."
+        ],
+        [
+          "Exception",
+          "java.lang.Throwable",
+          "Checked",
+          "External recoverable conditions (FileNotFoundException); must catch or declare."
+        ],
+        [
+          "RuntimeException",
+          "java.lang.Exception",
+          "Unchecked",
+          "Programming logic errors (NullPointerException); fix the code rather than catch."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The JVM allocates a stack trace for every Throwable instantiation by capturing the execution context via native methods, which can incur non-trivial performance overhead if thrown frequently in hot loops.",
+        "Checked exceptions encourage robust API design by forcing callers to explicitly consider failure paths, though over-use often leads to boilerplate try-catch blocks or anti-patterns like catching and swallowing exceptions.",
+        "Unchecked exceptions (RuntimeException) bypass compile-time checking entirely, propagating up the call stack automatically until caught by a global exception handler or terminating the current thread."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class OrderService {\n    public void processOrder(Order order) {\n        // Unchecked exception check for programming invariants\n        if (order == null) {\n            throw new IllegalArgumentException(\"Order cannot be null\");\n        }\n        \n        try {\n            // Simulated network or IO operation throwing a checked exception\n            externalPaymentGateway(order);\n        } catch (IOException e) {\n            // Handling the checked exception by translating to a domain-specific runtime exception\n            throw new PaymentProcessingException(\"Failed to process payment for order: \" + order.getId(), e);\n        }\n    }\n\n    private void externalPaymentGateway(Order order) throws IOException {\n        // Throws checked IOException\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic trap for senior and junior engineers alike is catching java.lang.Exception or java.lang.Throwable in a broad catch block to prevent application crashes. Catching Throwable will inadvertently trap fatal JVM Errors like OutOfMemoryError or ThreadDeath, leaving the JVM in an unpredictable, corrupted state. Always scope your catch blocks as tightly as possible, and never catch Error."
+    }
+  ],
+  "num": 73,
+  "title": "Exception hierarchy — Throwable, Error, Exception, RuntimeException",
+  "category": "Exception Handling & I/O / NIO"
+}

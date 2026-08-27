@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a Movie Ticket Booking System like BookMyShow under heavy concurrent load presents one of the classic distributed systems and multithreading challenges: preventing double-booking while maximizing throughput. When hundreds of users simultaneously attempt to reserve the same seat for a blockbuster release, standard read-modify-write patterns fail catastrophically due to race conditions. In a Java-centric Low-Level Design (LLD), this requires orchestrating thread safety across both the JVM's concurrent primitives and database-level isolation mechanisms. Without robust concurrency handling, threads read a seat's status as 'Available' concurrently, pass validation checks in parallel, and execute conflicting write operations, resulting in catastrophic overselling.\n\nTo solve this, we must enforce strict synchronization boundaries. At the JVM layer, multithreading control is managed using concurrent collections, explicit locks (ReentrantLock), and striped locking mechanisms to reduce contention per row or per seat. However, in a multi-instance production environment, JVM-level synchronization is insufficient because concurrent requests are distributed across multiple application nodes. Therefore, concurrency handling for seats demands a hybrid approach: fast-failing thread-safe in-memory reservation states coupled with pessimistic locking (SELECT ... FOR UPDATE) or optimistic locking via version numbers at the relational database tier, or atomic distributed locks using Redis (Redlock/SETNX) combined with TTLs for unconfirmed temporary holds."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Concurrency Strategy",
+        "Pros",
+        "Cons",
+        "Best Use Case"
+      ],
+      "rows": [
+        [
+          "Pessimistic Locking (SELECT ... FOR UPDATE)",
+          "Guarantees absolute safety; zero double-booking risk.",
+          "Reduces throughput, holds database connections, potential deadlocks.",
+          "High-demand flash sales for specific premium seats."
+        ],
+        [
+          "Optimistic Locking (Version column)",
+          "No lock contention on reads; highly scalable for low conflict rates.",
+          "High retry overhead and user friction during high-contention flash sales.",
+          "General seat selection where collisions are statistically rare."
+        ],
+        [
+          "Redis Distributed Lock + TTL",
+          "Extremely fast, offloads contention from the primary database, auto-expires stale locks.",
+          "Complex failure modes, potential split-brain issues with cluster replication.",
+          "Temporary seat holding phase before final payment confirmation."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Seat State Machine Invariants: A seat transitions strictly through states: AVAILABLE -> LOCKED_TEMP (held during checkout with a 5-minute TTL) -> BOOKED. Any concurrent modification must evaluate the current state atomically using compare-and-swap (CAS) semantics or database constraints.",
+        "Granular Locking via Striping: Avoid locking the entire theater or show schedule. Implement fine-grained synchronization at the individual Seat level or row level to maximize thread concurrency across different parts of the auditorium.",
+        "TTL-Based Expiration Worker: When a user locks a seat, a background cleanup thread or a Redis expiration listener must automatically release the hold back to AVAILABLE if the payment gateway transaction times out.",
+        "Double-Checked Locking in Booking Service: Verify seat availability twice—first in the memory cache/lock layer for fast-failing, and finally inside the ACID database transaction boundary right before committing."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class SeatBookingManager {\n    private final ConcurrentHashMap<String, ReentrantLock> seatLocks = new ConcurrentHashMap<>();\n    private final SeatRepository seatRepository;\n\n    public boolean bookSeat(String showId, String seatId, String userId) {\n        String lockKey = showId + \"-\" + seatId;\n        ReentrantLock lock = seatLocks.computeIfAbsent(lockKey, k -> new ReentrantLock());\n        \n        if (lock.tryLock()) {\n            try {\n                // Critical Section: Database transaction boundary\n                Seat seat = seatRepository.findByShowAndSeatId(showId, seatId);\n                if (seat != null && seat.getStatus() == SeatStatus.AVAILABLE) {\n                    seat.setStatus(SeatStatus.LOCKED);\n                    seat.setLockedBy(userId);\n                    seat.setLockExpiry(Instant.now().plusSeconds(300));\n                    seatRepository.save(seat);\n                    return true;\n                }\n                return false;\n            } finally {\n                lock.unlock();\n            }\n        }\n        return false; // Could not acquire lock, another thread is processing this seat\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Production Gotcha: Never rely solely on JVM ReentrantLocks in a production cluster unless you are running a single-instance monolithic app. In distributed Kubernetes deployments, multiple JVMs will bypass each other's locks entirely. Always back your Java concurrency primitives with a distributed synchronization layer like Redis Redlock or database row-level locking (SELECT ... FOR UPDATE), and ensure your transaction isolation level is set to at least READ COMMITTED to prevent non-repeatable reads during the availability check."
+    }
+  ],
+  "num": 1117,
+  "title": "LLD: Design a Movie Ticket Booking System (BookMyShow) — Concurrency handling for seats",
+  "category": "Multithreading & Java Concurrency"
+}

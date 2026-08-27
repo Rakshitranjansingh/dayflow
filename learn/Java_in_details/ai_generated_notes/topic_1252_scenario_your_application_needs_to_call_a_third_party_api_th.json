@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Building resilient integrations with third-party APIs that fail randomly requires shifting away from fragile, synchronous blocking paradigms toward robust fault-tolerance strategies deeply integrated with Java's Exception Handling mechanisms and modern I/O / NIO patterns. When an external service throws intermittent HTTP 5xx errors, timeouts, or connection resets, naive retry loops can overwhelm the downstream service and exhaust local socket thread pools. To solve this, enterprise Java applications utilize a combination of resilient design patterns: Circuit Breakers to fail fast when a service is degraded, exponential backoff with jittered retries to smooth traffic spikes, and asynchronous Non-blocking I/O (NIO) pipelines via libraries like Resilience4j and Project Reactor.\n\nException handling in this context goes beyond simply catching a generic `Exception` or `IOException`. It requires granular categorization of throwables: transient network anomalies, such as `SocketTimeoutException` or `ConnectException`, must be intercepted and funneled into automated retry logic, whereas permanent client-side faults (e.g., HTTP 400 Bad Request or 401 Unauthorized) must immediately bypass retry and circuit breaker logic to prevent pollution of metrics and wasted CPU cycles. By coupling these patterns with Java NIO's event-driven selectors, applications can maintain high throughput even when external dependencies degrade."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Primary Mechanism",
+        "Failure Mode Addressed"
+      ],
+      "rows": [
+        [
+          "Circuit Breaker",
+          "State machine (Closed, Open, Half-Open)",
+          "Cascading failures and thread starvation during prolonged outages"
+        ],
+        [
+          "Retry with Backoff",
+          "Delayed re-execution with randomized jitter",
+          "Transient network blips and momentary rate limiting"
+        ],
+        [
+          "Bulkhead",
+          "Isolation of thread pools or semaphores",
+          "Resource exhaustion of the primary application via slow third-party calls"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Circuit Breaker state transitions are governed by sliding time-based or count-based metrics windows that track failure rates and slow call rates asynchronously.",
+        "Exponential backoff calculates the next retry delay using a mathematical multiplier, while jitter adds a random offset to prevent the 'thundering herd' problem when thousands of threads retry simultaneously.",
+        "Java NIO Selectors and asynchronous HTTP clients (like Java 11's HttpClient or WebClient) ensure that waiting for retry delays does not block precious platform threads, preserving memory and CPU for healthy operations."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import io.github.resilience4j.circuitbreaker.CircuitBreaker;\nimport io.github.resilience4j.retry.Retry;\nimport io.github.resilience4j.retry.RetryConfig;\nimport java.io.IOException;\nimport java.time.Duration;\nimport java.util.function.Supplier;\n\npublic class ResilientApiClient {\n\n    private final CircuitBreaker circuitBreaker;\n    private final Retry retry;\n\n    public ResilientApiClient(CircuitBreaker circuitBreaker) {\n        this.circuitBreaker = circuitBreaker;\n        \n        RetryConfig retryConfig = RetryConfig.<String>custom()\n            .maxAttempts(3)\n            .waitDuration(Duration.ofMillis(500))\n            .retryOnException(ex -> ex instanceof IOException || ex instanceof java.net.http.HttpTimeoutException)\n            .ignoreExceptions(IllegalArgumentException.class)\n            .build();\n            \n        this.retry = Retry.of(\"thirdPartyApi\", retryConfig);\n    }\n\n    public String callExternalService(Supplier<String> apiCall) {\n        Supplier<String> decoratedCall = Retry.decorateSupplier(retry, apiCall);\n        decoratedCall = CircuitBreaker.decorateSupplier(circuitBreaker, decoratedCall);\n        \n        try {\n            return decoratedCall.get();\n        } catch (Exception e) {\n            // Fallback or graceful degradation path\n            return \"Fallback Response: Service temporarily unavailable\";\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is wrapping the Circuit Breaker *around* the Retry mechanism instead of the other way around. If the Retry is placed on the outside, a single failed call will trigger all 3 retry attempts before the Circuit Breaker even registers a single failure, skewing your failure metrics and artificially tripping the breaker prematurely. Always decorate your target function with the Retry first, and then wrap that composite function with the Circuit Breaker so that the breaker evaluates each distinct operational attempt as a unified unit of work."
+    }
+  ],
+  "num": 1253,
+  "title": "Scenario: Your application needs to call a third-party API that fails randomly. How to ensure resilience?",
+  "category": "Exception Handling & I/O / NIO"
+}

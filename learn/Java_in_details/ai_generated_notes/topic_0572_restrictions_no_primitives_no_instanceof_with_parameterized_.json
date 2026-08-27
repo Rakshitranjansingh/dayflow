@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When designing modern reactive microservices and REST APIs using frameworks like Spring WebFlux, developers frequently leverage Java generics to enforce strong typing across payload wrappers, reactive publishers, and asynchronous boundaries. However, encountering type erasure restrictions—specifically that there are no primitives, no instanceof checks with parameterized types, and no arrays of generics—can severely trip up engineers who attempt runtime type introspection or low-level array manipulations. These limitations stem directly from how the Java Virtual Machine implements generics via type erasure, stripping generic type parameters at compile-time to maintain backward compatibility with pre-1.5 bytecode.\n\nIn the context of reactive REST APIs and WebFlux, these restrictions manifest in subtle ways. For instance, because generics do not support primitives, you cannot write a reactive stream like Flux<int>; you are forced to box them into Flux<Integer>, introducing unnecessary object allocations, heap pressure, and garbage collection overhead in high-throughput network pipelines. Similarly, attempting to validate a deserialized JSON payload using instanceof with a generic type (e.g., body instanceof Mono<User>) is completely illegal because the parameterized type information is erased at runtime. Finally, trying to instantiate arrays of generic types (e.g., List<String>[] or Mono<Data>[]) leads to immediate compiler errors, forcing developers to rely on type-safe collections like List<List<String>> to avoid heap pollution and ClassCastException traps."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Primitive Restriction: Generics require reifiable types, but primitives (int, long, boolean) do not inherit from java.lang.Object, forcing boxing into Integer, Long, and Boolean wrappers which harms reactive throughput due to memory footprint expansion.",
+        "Instanceof Limitation: Because of type erasure, parameterized types like Flux<String> and Flux<Integer> share the exact same runtime class (Flux.class). Evaluating instanceof with generic type arguments would result in deceptive or impossible type safety checks.",
+        "Generic Arrays Prohibition: Arrays in Java are reified (they know and enforce their element type at runtime). Allowing arrays of parameterized types would break type safety, leading to unchecked heap pollution where a ClassCastException occurs far away from the actual corruption source."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import reactor.core.publisher.Flux;\nimport reactor.core.publisher.Mono;\nimport java.util.List;\n\npublic class ReactiveTypeGuard {\n    \n    // WRONG: Cannot create arrays of generic types\n    // Mono<String>[] invalidArray = new Mono[10]; \n\n    public <T> void processPayload(Object payload, Class<T> targetType) {\n        // WRONG: Cannot use instanceof with parameterized types (payload instanceof Mono<T>)\n        \n        if (payload instanceof Mono) {\n            // CORRECT: Use Class tokens or Spring's ResolvableType for runtime introspection\n            ((Mono<?>) payload).subscribe(item -> {\n                if (targetType.isInstance(item)) {\n                    System.out.println(\"Successfully processed: \" + item);\n                }\n            });\n        }\n    }\n}\n"
+    },
+    {
+      "type": "note",
+      "content": "Senior Production Gotcha: When building custom WebFlux HttpMessageReaders or reactive deserializers, never rely on raw casting or assume generic arrays can be constructed to handle batch payloads. Instead, utilize Spring's ResolvableType class to capture and retain generic signatures through runtime execution boundaries without falling victim to type erasure traps."
+    }
+  ],
+  "num": 573,
+  "title": "Restrictions — no primitives, no instanceof with parameterized types, no arrays of generics",
+  "category": "REST APIs, WebFlux & Microservices"
+}

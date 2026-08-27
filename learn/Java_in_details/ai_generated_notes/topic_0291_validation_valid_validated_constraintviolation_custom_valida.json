@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java applications, input validation is the first line of defense against corrupted state and security vulnerabilities. Jakarta Bean Validation (formerly JSR-380) standardizes validation through annotations, while Spring Framework integrates and extends these capabilities via @Valid and @Validated. The @Valid annotation is part of the Jakarta standard and triggers standard bean validation, heavily used for cascading validations on object graphs in web controllers. However, @Valid falls short when you need method-level validation or validation groups. This is where Spring's proprietary @Validated comes in. It is a meta-annotation that enables Spring's MethodValidationPostProcessor, allowing validation constraints on arbitrary Spring bean methods, class-level constraint groups, and service-layer arguments. When validation fails on a controller using @Valid, Spring throws a MethodArgumentNotValidException, which translates to a 400 Bad Request. When validation fails due to method-level @Validated triggers elsewhere in the application context, a ConstraintViolationException is raised, carrying a set of ConstraintViolation objects detailing exactly which parameters violated which rules.\n\nBeyond standard out-of-the-box constraints like @NotNull, @Size, or @Email, real-world business domains demand custom validators. Implementing a custom validator requires creating a custom constraint annotation coupled with a ConstraintValidator implementation. This separation of concerns decouples the declarative metadata from the imperative validation logic. The runtime engine inspects the annotation parameters, initializes the validator instance—allowing even Spring-managed dependency injection into the validator—and evaluates the target object graph. Mastering these mechanics ensures that your data integrity constraints are enforced uniformly across web boundaries and core service layers without polluting business logic with repetitive defensive `if-else` guard clauses."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "@Valid",
+        "@Validated",
+        "ConstraintViolation"
+      ],
+      "rows": [
+        [
+          "Origin",
+          "Jakarta EE (Standard JSR-380)",
+          "Spring Framework Specific",
+          "Jakarta Bean Validation API"
+        ],
+        [
+          "Primary Use Case",
+          "Controller method arguments, cascading validation",
+          "Service-layer method validation, validation groups",
+          "Represents a single constraint failure in the violation set"
+        ],
+        [
+          "Exception Thrown on Failure",
+          "MethodArgumentNotValidException",
+          "ConstraintViolationException",
+          "N/A (contained inside ConstraintViolationException)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The validation engine builds metadata descriptors by reflecting on class hierarchies, caching constraint definitions to avoid performance degradation during high-throughput request processing.",
+        "When cascading validation is triggered via @Valid on nested fields, the engine traverses the object graph recursively, accumulating all violations across the entire tree into a unified validation result container.",
+        "Custom validators can be lifecycle-managed by the underlying IoC container if registered correctly, meaning you can inject repositories or external services directly into your validation logic to check database uniqueness.",
+        "Validation groups allow you to apply subset constraints conditionally (e.g., validating certain fields only during a Create operation vs an Update operation) by passing group marker interfaces to the validation annotations."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Target({ElementType.FIELD})\n@Retention(RetentionPolicy.RUNTIME)\n@Constraint(validatedBy = UniqueUsernameValidator.class)\n@Documented\npublic @intrinsic @interface UniqueUsername {\n    String message() default \"Username is already taken\";\n    Class<?>[] groups() default {};\n    Class<? extends Payload>[] payload() default {};\n}\n\npublic class UniqueUsernameValidator implements ConstraintValidator<UniqueUsername, String> {\n    @Autowired\n    private UserRepository userRepository;\n\n    @Override\n    public boolean isValid(String username, ConstraintValidatorContext context) {\n        if (username == null) return true; // Let @NotNull handle nulls\n        return !userRepository.existsByUsername(username);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap occurs when mixing @Valid and @Validated on service classes. If you apply @Valid directly to a service method parameter instead of class-level @Validated, Spring will silently ignore the validation check because standard @Valid does not trigger method-level interceptors. Always ensure your service components are annotated with @Validated at the class level when validating method parameters or return values outside of web controllers."
+    }
+  ],
+  "num": 292,
+  "title": "Validation — @Valid, @Validated, ConstraintViolation, custom validators",
+  "category": "Exception Handling & I/O / NIO"
+}

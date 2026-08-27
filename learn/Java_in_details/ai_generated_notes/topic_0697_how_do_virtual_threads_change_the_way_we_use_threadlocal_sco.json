@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Virtual Threads, introduced in Project Loom, represent a paradigm shift in Java concurrency by decoupling the Java thread from the OS thread. Because Virtual Threads are lightweight, an application can spawn millions of them. However, this creates a massive scalability issue for ThreadLocal. In traditional thread-per-request models, ThreadLocal is used to store context like security tokens or transaction IDs. If you have 10,000 platform threads, you have 10,000 ThreadLocal maps. If you scale to 1,000,000 virtual threads, the memory footprint of these maps becomes catastrophic, leading to significant heap pressure and GC overhead. Furthermore, ThreadLocal is mutable and lacks a clear lifecycle, making it prone to memory leaks if threads are pooled, though virtual threads are not pooled, they still persist state longer than the logical scope of a task.\n\nScoped Values, introduced as a preview feature, serve as the modern, immutable replacement for ThreadLocal in the era of virtual threads. Unlike ThreadLocal, which is bound to the thread's lifetime, Scoped Values are bound to a specific execution scope defined by a lambda. They provide a 'write-once, read-many' model that is inherently thread-safe and significantly more memory-efficient. When a virtual thread spawns a child, the Scoped Value can be explicitly inherited, providing a clean, predictable way to propagate context without the hidden, global-mutable state that plagues ThreadLocal implementations."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "ThreadLocal",
+        "Scoped Values"
+      ],
+      "rows": [
+        [
+          "Mutability",
+          "Mutable (get/set)",
+          "Immutable (bound to scope)"
+        ],
+        [
+          "Lifetime",
+          "Thread lifetime",
+          "Scope (lambda) lifetime"
+        ],
+        [
+          "Memory Usage",
+          "High (per-thread map)",
+          "Low (stack-based binding)"
+        ],
+        [
+          "Inheritance",
+          "InheritableThreadLocal (complex)",
+          "Explicit binding/binding propagation"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Scoped Values use a 'binding' mechanism where the value is pushed onto the carrier thread's stack during the execution of a lambda, ensuring it is automatically popped when the scope exits.",
+        "Because Scoped Values are immutable, they eliminate the need for complex synchronization or defensive copying when sharing context across asynchronous boundaries.",
+        "Virtual threads benefit from Scoped Values because the runtime can share the underlying binding structure across multiple virtual threads, drastically reducing the memory footprint compared to the per-thread map approach of ThreadLocal.",
+        "Scoped Values are designed to work seamlessly with Structured Concurrency, allowing child threads to inherit the binding from the parent scope without explicit passing of parameters."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public final static ScopedValue<String> CONTEXT = ScopedValue.newInstance();\n\npublic void execute() {\n    ScopedValue.where(CONTEXT, \"User-123\").run(() -> {\n        // Context is accessible here and in any child threads\n        processRequest();\n    });\n}\n\nprivate void processRequest() {\n    System.out.println(CONTEXT.get());\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is attempting to use ThreadLocal for 'performance' in virtual threads. Avoid this: because virtual threads are not pooled, every ThreadLocal you create is effectively a memory leak until the thread object is garbage collected. If you are migrating to Virtual Threads, audit your codebase for ThreadLocal usage and replace it with Scoped Values immediately to avoid OOM errors under high load."
+    }
+  ],
+  "num": 698,
+  "title": "How do Virtual Threads change the way we use ThreadLocal? (Scoped Values)",
+  "category": "Virtual Threads & Concurrency"
+}

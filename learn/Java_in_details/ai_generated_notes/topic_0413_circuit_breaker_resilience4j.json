@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern distributed systems and microservice architectures, cascading failures are an existential threat. When a downstream dependency—such as a remote payment gateway, user service, or database cluster—becomes overwhelmed, slow, or unresponsive, client threads block waiting for network responses. This ties up connection pools, exhausts thread limits, and quickly brings down the upstream calling services. The Circuit Breaker pattern, implemented robustly via Resilience4j in the Java ecosystem, solves this by acting as a fail-fast safety mechanism. Inspired by electrical engineering, a software circuit breaker wraps protected remote calls and monitors failure rates, slow calls, and rejection metrics. When failures exceed a defined threshold, the circuit trips from Closed to Open, immediately failing fast without hitting the degraded dependency, thereby granting the target system crucial breathing room to recover."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Circuit State",
+        "Behavior",
+        "Transition Trigger"
+      ],
+      "rows": [
+        [
+          "Closed",
+          "Requests pass through normally to the backend dependency. Failures are recorded and evaluated against thresholds.",
+          "Failure rate or slow call rate exceeds the configured sliding window percentage."
+        ],
+        [
+          "Open",
+          "Requests are short-circuited instantly without execution. A CallNotPermittedException or fallback is triggered.",
+          "A predefined wait duration elapses, transitioning the circuit to half-open."
+        ],
+        [
+          "Half-Open",
+          "A limited number of test requests are permitted through to probe the health of the downstream system.",
+          "If test requests succeed, it resets to Closed. If they fail, it snaps back to Open."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Resilience4j implements circuit breaking using two distinct sliding window types: a count-based sliding window (evaluating the last N calls) and a time-based sliding window (evaluating calls over the last N seconds).",
+        "Thread safety and lock-free state transitions are handled via AtomicReference and AtomicInteger structures, keeping runtime overhead minimal compared to heavy synchronization blocks.",
+        "Integration with Vavr tuples and functional interfaces allows seamless composition with other Resilience4j modules like Retry, RateLimiter, and Bulkhead."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class PaymentServiceClient {\n\n    private final CircuitBreakerRegistry circuitBreakerRegistry;\n    private final WebClient webClient;\n    private CircuitBreaker circuitBreaker;\n\n    public PaymentServiceClient(CircuitBreakerRegistry registry, WebClient webClient) {\n        this.circuitBreakerRegistry = registry;\n        this.webClient = webClient;\n        \n        CircuitBreakerConfig config = CircuitBreakerConfig.custom()\n            .failureRateThreshold(50.0f)\n            .slowCallRateThreshold(75.0f)\n            .slowCallDurationThreshold(Duration.ofMillis(500))\n            .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.TIME_BASED)\n            .slidingWindowSize(10)\n            .minimumNumberOfCalls(5)\n            .waitDurationInOpenState(Duration.ofSeconds(10))\n            .build();\n            \n        this.circuitBreaker = circuitBreakerRegistry.circuitBreaker(\"paymentService\", config);\n    }\n\n    public Mono<PaymentResponse> processPayment(PaymentRequest request) {\n        Supplier<Mono<PaymentResponse>> supplier = () -> webClient.post()\n            .uri(\"/pay\")\n            .bodyValue(request)\n            .retrieve()\n            .bodyToMono(PaymentResponse.class);\n\n        return Mono.defer(() -> supplier.get())\n            .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))\n            .onErrorResume(CallNotPermittedException.class, ex -> fallbackPayment(request, ex));\n    }\n\n    private Mono<PaymentResponse> fallbackPayment(PaymentRequest request, Throwable t) {\n        return Mono.just(new PaymentResponse(\"FAILED\", \"Circuit is open: \" + t.getMessage()));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production pitfall when using Resilience4j is catching exceptions too broadly or incorrectly configuring the recordExceptions predicate. If your downstream dependency throws a business exception (like InsufficientFundsException), you typically do not want the circuit breaker to count this as a system failure, because the remote service is healthy and functioning correctly. Always explicitly define what constitutes a failure using recordExceptions or ignoreExceptions to avoid false-positive circuit trips."
+    }
+  ],
+  "num": 414,
+  "title": "Circuit Breaker (Resilience4j)",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

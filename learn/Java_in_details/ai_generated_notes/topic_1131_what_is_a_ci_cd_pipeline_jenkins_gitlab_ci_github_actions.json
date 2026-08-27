@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A CI/CD pipeline is the automated backbone of modern software delivery, transforming source code into deployable artifacts through a series of stages: Continuous Integration (CI) and Continuous Deployment/Delivery (CD). CI focuses on the frequent merging of code into a shared repository, where automated builds and unit tests validate the integrity of the JVM bytecode. CD extends this by automating the release process, ensuring that tested artifacts are ready for production environments. Jenkins, GitLab CI, and GitHub Actions are the primary orchestrators of these workflows. Jenkins operates as a self-hosted, plugin-heavy automation server that excels in complex, legacy, or highly customized environments. GitLab CI is an integrated DevOps platform where the pipeline configuration lives alongside the source code in the same repository, offering a seamless 'single-pane-of-glass' experience. GitHub Actions leverages the event-driven architecture of GitHub, allowing developers to trigger workflows based on repository events like pull requests or pushes, utilizing a vast marketplace of pre-built actions to reduce boilerplate."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Orchestrator",
+        "Configuration Method",
+        "Infrastructure Model"
+      ],
+      "rows": [
+        [
+          "Jenkins",
+          "Groovy DSL / UI",
+          "Self-hosted / Agent-based"
+        ],
+        [
+          "GitLab CI",
+          "YAML (.gitlab-ci.yml)",
+          "Integrated / Container-native"
+        ],
+        [
+          "GitHub Actions",
+          "YAML (.github/workflows)",
+          "Cloud-hosted / Runner-based"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Pipeline execution often involves spinning up ephemeral Docker containers. In JVM projects, this requires careful management of the Maven/Gradle local repository cache to prevent redundant downloads and excessive disk I/O.",
+        "Memory tuning for build agents is critical; a standard CI runner might default to low heap settings, causing OutOfMemoryErrors during large multi-module builds. Always configure MAVEN_OPTS or GRADLE_OPTS to align with the runner's allocated memory.",
+        "The 'Build' phase compiles Java source into bytecode. Pipeline efficiency is gained by leveraging incremental compilation and build caching, ensuring that only modified modules are re-compiled, which significantly reduces the feedback loop time.",
+        "Security scanning (SAST/DAST) should be integrated into the pipeline to detect vulnerabilities in dependencies before they reach the artifact repository, preventing 'dependency hell' or supply chain attacks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "name: Java CI with Maven\non: [push]\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v3\n      - name: Set up JDK 17\n        uses: actions/setup-java@v3\n        with:\n          java-version: '17'\n          distribution: 'temurin'\n      - name: Build with Maven\n        run: mvn -B package --file pom.xml -Dmaven.test.skip=false"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is failing to configure build-time memory limits correctly. If your pipeline runs on a shared agent, a memory-hungry Gradle daemon can trigger the OOM Killer, causing the build to fail silently or hang. Always set your JVM heap size (e.g., -Xmx) to roughly 75% of the container's memory limit to leave headroom for the OS and the build tool's overhead."
+    }
+  ],
+  "num": 1132,
+  "title": "What is a CI/CD Pipeline? (Jenkins, GitLab CI, GitHub Actions)",
+  "category": "JVM Architecture & Memory Tuning"
+}

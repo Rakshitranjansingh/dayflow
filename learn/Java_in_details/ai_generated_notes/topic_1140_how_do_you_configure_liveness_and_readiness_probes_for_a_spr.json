@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Deploying a Spring Boot application into Kubernetes requires managing its lifecycle through distinct diagnostic mechanisms, namely Liveness probes and Readiness probes. In a cloud-native architecture, K8s orchestrates pods across ephemeral infrastructure, and without explicit health check instrumentation, it remains entirely blind to whether a JVM is genuinely processing traffic, deadlocked in a thread pool exhaustion loop, or stuck in a prolonged Spring ApplicationContext initialization phase. Configuring these probes effectively bridges the operational gap between container orchestration and application runtime state."
+    },
+    {
+      "type": "prose",
+      "content": "A Liveness probe dictates when a container must be completely destroyed and restarted. If your Spring Boot application suffers from an unrecoverable internal failure—such as an OutOfMemoryError, a catastrophic thread deadlock, or a corrupted state within the Spring IoC container—the Liveness probe fails. Kubernetes detects this failure, terminates the underlying container, and spins up a fresh instance. Conversely, a Readiness probe dictates whether a container is ready to accept incoming network traffic from a Kubernetes Service. During application startup, a Spring Boot fat jar takes precious seconds to initialize auto-configurations, run Flyway or Liquibase database migrations, and instantiate lazy or eager singleton beans. During this warm-up window, the Readiness probe must return a failure status so that the Kubernetes ingress or kube-proxy routing layer does not forward HTTP requests to an unready pod, preventing 503 errors and cascading failures."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Liveness Probe",
+        "Readiness Probe"
+      ],
+      "rows": [
+        [
+          "Primary Objective",
+          "Determine if the JVM is healthy; restart the container if unrecoverable.",
+          "Determine if the application can accept incoming traffic; stop routing if not."
+        ],
+        [
+          "Action on Failure",
+          "Kubernetes kills and restarts the container pod.",
+          "Kubernetes removes the pod IP from all matching Service endpoints."
+        ],
+        [
+          "Spring Boot Actuator Mapping",
+          "Maps typically to /actuator/health/liveness",
+          "Maps typically to /actuator/health/readiness"
+        ],
+        [
+          "Startup Sensitivity",
+          "Should have a long initial delay (initialDelaySeconds) to allow bean initialization.",
+          "Should handle database checks and dependency availability before passing traffic."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring Boot leverages the Spring Boot Actuator module combined with Kubernetes HTTP probes or Exec probes to expose fine-grained health groups.",
+        "The Liveness state relies on the AvailabilityState API inside Spring Framework, monitoring if the application is fundamentally running (LivenessState.CORRECT).",
+        "The Readiness state checks if the application is accepting traffic (ReadinessState.ACCEPTING_TRAFFIC), which changes dynamically when database pools or message brokers drop connectivity.",
+        "K8s handles these via native YAML configurations using httpGet blocks pointing to management ports (e.g., port 8081) to isolate actuator monitoring traffic from core business traffic."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: spring-boot-app\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: spring-boot\n  template:\n    metadata:\n      labels:\n        app: spring-boot\n    spec:\n      containers:\n      - name: app\n        image: my-company/spring-boot-app:1.0.0\n        ports:\n        - containerPort: 8080\n          name: http\n        - containerPort: 8081\n          name: management\n        livenessProbe:\n          httpGet:\n            path: /actuator/health/liveness\n            port: management\n          initialDelaySeconds: 30\n          periodSeconds: 10\n          failureThreshold: 3\n        readinessProbe:\n          httpGet:\n            path: /actuator/health/readiness\n            port: management\n          initialDelaySeconds: 20\n          periodSeconds: 5\n          failureThreshold: 2"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in Spring Boot is wiring database connection validation directly into the Liveness probe. If your primary database goes down for 30 seconds due to failover, a naive Liveness probe checking the database will trigger mass restarts across all your Kubernetes pods simultaneously. This creates a devastating thundering herd problem, hammering an already recovering database with heavy Spring Context initializations and connection pool creations. Always keep Liveness checks local to the JVM's internal memory and threading health, while reserving database-dependent checks exclusively for Readiness probes."
+    }
+  ],
+  "num": 1141,
+  "title": "How do you configure Liveness and Readiness probes for a Spring Boot app in K8s?",
+  "category": "Spring Boot & Spring Framework"
+}

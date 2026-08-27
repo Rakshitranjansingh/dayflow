@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java, the equals() and hashCode() methods form a critical contract defined in the Object class. The equals() method determines logical equality between two objects, while hashCode() provides an integer representation used primarily by hash-based collections like HashMap, HashSet, and Hashtable. The contract mandates three core invariants: first, if two objects are equal according to equals(), they must return the same integer result from hashCode(). Second, if an object's state used in equals() remains unchanged, hashCode() must consistently return the same value throughout the execution of the application. Third, while not required, it is highly recommended that unequal objects return distinct hash codes to minimize collisions and maintain O(1) performance in hash tables.\n\nIf you override equals() without overriding hashCode(), you break the contract. The default implementation of hashCode() in the Object class is typically derived from the object's memory address. Consequently, two distinct object instances that are logically equal (because you defined them as such in equals()) will produce different hash codes. When you insert these objects into a HashMap, the map will place them in different buckets. When you later attempt to retrieve the value using a key that is logically equal to the original, the map will look in the wrong bucket, fail to find the entry, and return null. This leads to subtle, non-deterministic bugs that are notoriously difficult to debug in production environments."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Scenario",
+        "equals() returns true",
+        "hashCode() behavior"
+      ],
+      "rows": [
+        [
+          "Contract Compliant",
+          "Required",
+          "Must return identical values"
+        ],
+        [
+          "Broken Contract",
+          "Required",
+          "Returns different values (default)"
+        ],
+        [
+          "Collection Impact",
+          "N/A",
+          "Lookup fails in Hash-based structures"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "HashMap buckets: The internal array index is calculated as (n - 1) & hash, where hash is the result of hashCode(). If hashCode() varies for equal objects, they map to different array slots.",
+        "Collision resolution: Even if hashCode() is correct, equals() is invoked during collision handling (when two objects map to the same bucket). If equals() is not implemented, the collection falls back to reference equality, which is rarely the intended behavior for domain objects.",
+        "Immutability requirement: If you use mutable fields in your hashCode() calculation, the object's hash will change if the field is updated. If the object is currently stored in a HashSet, it becomes 'lost' because it is now in the wrong bucket, leading to memory leaks and logic errors."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class User {\n    private final String id;\n    private final String email;\n\n    @Override\n    public boolean equals(Object o) {\n        if (this == o) return true;\n        if (!(o instanceof User user)) return false;\n        return Objects.equals(id, user.id);\n    }\n\n    @Override\n    public int hashCode() {\n        return Objects.hash(id);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Always use IDE-generated or Lombok-generated implementations for equals and hashCode. Manually writing these is a common source of 'fragile code' where adding a new field to a class results in a silent contract violation. If you are using JPA/Hibernate, be extremely careful: using a database-generated ID in hashCode() is dangerous because the ID is null before the entity is persisted, causing the hash to change once the entity is saved, which breaks the contract for objects already inside a Set."
+    }
+  ],
+  "num": 512,
+  "title": "Explain the contract between equals() and hashCode(). What happens if you override equals() but not hashCode()?",
+  "category": "Core Java & Fundamentals"
+}

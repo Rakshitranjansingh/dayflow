@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Double-checked locking is a concurrent design pattern engineered to reduce the performance overhead of acquiring an explicit lock (such as a synchronized block) by testing the target synchronization criterion *before* acquiring the lock. In the context of Core Java, it is most notoriously associated with implementing lazy initialization for singleton instances. The pattern dictates that a thread checks if the initialization condition is met (e.g., checking if an instance reference is null). If it is not, the thread acquires a monitor lock. Once inside the synchronized block, the thread checks the condition *again*—hence 'double-checked'—to ensure that another concurrent thread did not initialize the object in the time window between the initial check and the lock acquisition.\n\nHistorically, double-checked locking was notoriously tricky—and completely broken in versions of Java prior to 1.5—due to the complexities of the Java Memory Model (JMM) and out-of-order execution optimizations performed by both the Just-In-Time (JIT) compiler and CPU architectures. Specifically, the write of the object reference and the initialization of the object's internal fields could be reordered. A thread could read a non-null reference to a singleton instance before the constructor had finished executing, leading to partial object initialization bugs where another thread would access fields that were still in their default uninitialized states (such as null or zero)."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "JMM Instruction Reordering: Without explicit synchronization barriers, the CPU or JIT compiler is free to reorder write operations. In the legacy broken implementation, memory for the singleton was allocated and the reference pointer was assigned before the constructor body ran.",
+        "The Volatile Fix: Java 5 revamped the JMM and enhanced the volatile keyword semantics. Declaring the singleton instance reference as volatile establishes a happens-before relationship, preventing instruction reordering around the read and write of the variable.",
+        "Acquire-Release Semantics: A volatile write acts as a memory fence preventing writes prior to it from being floated past it, while a volatile read prevents subsequent reads from being sunk before it."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class Singleton {\n    // The volatile keyword is mandatory post-Java 5 to prevent instruction reordering\n    private static volatile Singleton instance;\n\n    private Singleton() {\n        // Private constructor initialization logic\n    }\n\n    public static Singleton getInstance() {\n        // First check (no locking overhead for already-initialized instances)\n        if (instance == null) {\n            synchronized (Singleton.class) {\n                // Second check under lock\n                if (instance == null) {\n                    instance = new Singleton();\n                }\n            }\n        }\n        return instance;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "In modern Java (Java 5+), double-checked locking works correctly *only* if the target field is marked volatile. However, if you are writing modern concurrent Java, strongly consider avoiding manual double-checked locking entirely in favor of the Initialization-on-demand holder idiom (Bill Pugh Singleton), which leverages class loader semantics to guarantee thread-safe lazy initialization with zero synchronization overhead."
+    }
+  ],
+  "num": 685,
+  "title": "What is double-checked locking? Why was it historically tricky?",
+  "category": "Core Java & Fundamentals"
+}

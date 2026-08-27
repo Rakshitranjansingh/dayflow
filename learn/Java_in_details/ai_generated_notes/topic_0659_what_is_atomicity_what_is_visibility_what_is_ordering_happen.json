@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of the Java Memory Model (JMM), atomicity, visibility, and ordering represent the three pillars of thread safety. Atomicity refers to the indivisibility of an operation; an atomic action either completes entirely or not at all, leaving no intermediate state visible to other threads. Without atomicity, compound operations like 'read-modify-write' (e.g., i++) lead to race conditions where updates are lost. Visibility addresses the challenge of cache coherency; because modern CPUs use local L1/L2 caches, a write by one thread to a shared variable might remain invisible to others indefinitely unless a memory barrier is triggered to flush the cache to main memory. Finally, ordering—specifically the 'happens-before' relationship—governs the rules by which the compiler, JIT, and CPU are allowed to reorder instructions. To optimize performance, hardware often executes instructions out of program order. The 'happens-before' contract provides a formal guarantee that memory writes by one thread are guaranteed to be visible to another thread if specific synchronization actions (like volatile writes or monitor exits) are performed, effectively creating a 'memory fence' that prevents reordering across that boundary."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Concept",
+        "Primary Mechanism",
+        "Failure Symptom"
+      ],
+      "rows": [
+        [
+          "Atomicity",
+          "synchronized / AtomicLong",
+          "Lost updates / Corrupted state"
+        ],
+        [
+          "Visibility",
+          "volatile / final / locks",
+          "Stale data / Infinite loops"
+        ],
+        [
+          "Ordering",
+          "happens-before / memory barriers",
+          "Instruction reordering bugs"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Atomicity is enforced at the hardware level via Compare-And-Swap (CAS) instructions for atomic variables, or via monitor locks (mutexes) that ensure mutual exclusion.",
+        "Visibility is guaranteed by the volatile keyword, which instructs the JVM to prevent caching of the variable in registers and forces a read/write directly to main memory.",
+        "The 'happens-before' relationship is transitive: if A happens-before B, and B happens-before C, then A happens-before C. This is the foundation of safely publishing objects without explicit locking.",
+        "Reordering is a performance optimization; the JMM allows reordering as long as the 'as-if-serial' semantics are preserved within a single thread, but this breaks down in multi-threaded environments without proper synchronization."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ThreadSafetyExample {\n    // 'volatile' guarantees visibility and prevents reordering\n    private volatile boolean ready = false;\n    private int value = 0;\n\n    public void writer() {\n        value = 42; // Happens-before write to 'ready'\n        ready = true;\n    }\n\n    public void reader() {\n        if (ready) { // Happens-after read of 'ready'\n            // Guaranteed to see value == 42 due to happens-before\n            System.out.println(value);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common trap for junior developers is assuming that 'volatile' provides atomicity. It does not. Using 'volatile' for a counter (i++) is a classic production bug because the increment is a read-modify-write operation. Even with volatile, two threads can read the same value, increment it locally, and write back the same result, losing one update. Always use AtomicInteger or LongAdder for thread-safe counters."
+    }
+  ],
+  "num": 660,
+  "title": "What is atomicity? What is visibility? What is ordering / happens-before?",
+  "category": "Multithreading & Java Concurrency"
+}

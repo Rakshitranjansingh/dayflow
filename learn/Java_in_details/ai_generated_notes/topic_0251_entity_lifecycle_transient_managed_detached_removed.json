@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java persistence with Hibernate ORM and Spring Data JPA, managing database state requires tracking the lifecycle of domain entities. An Entity lifecycle defines the discrete states an object passes through while interacting with the persistence context (EntityManager/Session). Understanding how an entity transitions between Transient, Managed, Detached, and Removed states is vital for avoiding common pitfalls like LazyInitializationException, unintended database flushes, and lost updates.\n\nThe Transient state describes a brand-new object instantiated via the `new` operator that has no associated persistence context and no representation in the relational database. It sits purely in JVM heap memory. Once passed to `EntityManager.persist()` or retrieved via a query, the entity transitions to the Managed state. In this state, it is actively associated with a persistence context, and Hibernate tracks all property changes via dirty checking mechanisms, synchronizing modifications with the database upon flush. When the persistence context is closed, cleared, or serialized, the entity becomes Detached; it still holds data reflecting the database state at the moment of detachment, but changes made to it are no longer tracked or automatically synchronized. Finally, the Removed state applies to an entity that has been marked for deletion via `EntityManager.remove()`. Upon the next flush or commit operation, the ORM provider issues a SQL DELETE statement against the corresponding database table, completing the destruction of the row."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Entity State",
+        "Persistence Context Association",
+        "Database Row Exists",
+        "Dirty Checking Active"
+      ],
+      "rows": [
+        [
+          "Transient",
+          "No",
+          "No",
+          "No"
+        ],
+        [
+          "Managed",
+          "Yes",
+          "Yes",
+          "Yes"
+        ],
+        [
+          "Detached",
+          "No",
+          "Yes",
+          "No"
+        ],
+        [
+          "Removed",
+          "Yes",
+          "Scheduled for Deletion",
+          "No"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Transient entities are ignored by Hibernate dirty checking; modifying their fields does not trigger any SQL statements because no dirty tracking snapshot exists in the Session.",
+        "Managed entities rely on bytecode enhancement or proxy-based snapshots taken during loading to compute diffs during the flush phase, automatically executing UPDATE statements without explicit save calls.",
+        "Detached entities frequently trigger LazyInitializationException if an attempt is made to access uninitialized lazy collections (like @OneToMany relationships) outside an active transaction and open session.",
+        "Removed entities exist in the persistence context in a terminal state; calling getters on them is safe, but re-associating them requires explicit merging or re-persisting depending on cascading configuration."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderService {\n\n    @Autowired\n    private EntityManager entityManager;\n\n    @Transactional\n    public void processOrderLifecycle(Long orderId) {\n        // 1. Transient\n        Order newOrder = new Order();\n        newOrder.setStatus(\"PENDING\");\n\n        // Transition to Managed\n        entityManager.persist(newOrder);\n        // newOrder is now managed; changes will be flushed automatically\n        newOrder.setTotalAmount(BigDecimal.valueOf(150.00));\n\n        // 2. Detached (Simulated by clearing context)\n        Order existingOrder = entityManager.find(Order.class, orderId);\n        entityManager.clear(); // existingOrder is now detached\n        existingOrder.setStatus(\"PROCESSING\"); // Untracked change\n\n        // Re-attach via merge (returns a NEW managed instance)\n        Order managedOrder = entityManager.merge(existingOrder);\n\n        // 3. Removed\n        entityManager.remove(managedOrder); // Scheduled for SQL DELETE\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent senior-level production trap involves passing a Detached entity straight into a Spring Data repository save() method. Because the entity has an assigned primary key (non-null ID), Spring Data JPA assumes it is a detached entity and issues a SELECT query to check for existence, followed blindly by an UPDATE. If you pass a transient entity with a manually assigned ID (e.g., UUID or custom sequence), Hibernate might mistakenly issue a SELECT, assume it's detached, fail to find it, and throw an unexpected EntityNotFoundException. Always understand whether your service layer is crossing transaction boundaries with detached objects."
+    }
+  ],
+  "num": 252,
+  "title": "Entity lifecycle — Transient, Managed, Detached, Removed",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

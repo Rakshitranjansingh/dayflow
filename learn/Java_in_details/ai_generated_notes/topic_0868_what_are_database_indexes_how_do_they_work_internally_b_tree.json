@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Database indexes are specialized data structures maintained alongside a database table to drastically accelerate data retrieval operations at the cost of write performance and storage space. Without an index, executing a query forces the database engine to perform a full table scan, checking every single disk block or page linearly from start to finish, resulting in an O(N) time complexity. By maintaining an ordered auxiliary structure pointing to the physical row locations, indexes reduce lookup time to logarithmic O(log N) complexity.\n\nAt the core of modern relational database indexing are B-Trees and B+ Trees. A B-Tree (Balanced Tree) is a self-balancing tree data structure that keeps data sorted and allows searches, sequential access, insertions, and deletions in logarithmic time. Every node in a B-Tree can store keys and data pointers (or the row data itself). In contrast, a B+ Tree is an evolution specifically optimized for storage systems block-oriented architecture. In a B+ Tree, all actual data records or record identifiers are stored exclusively in the leaf nodes, while the internal nodes contain only routing keys and child pointers. Furthermore, the leaf nodes of a B+ Tree are linked together in a doubly-linked list, enabling exceptionally efficient range scans and sequential reads without requiring traversal back up through the root."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Structural Feature",
+        "B-Tree",
+        "B+ Tree"
+      ],
+      "rows": [
+        [
+          "Data Storage",
+          "Internal and leaf nodes can store data payloads or pointers.",
+          "Only leaf nodes store data payloads; internal nodes store routing keys."
+        ],
+        [
+          "Traversal for Scans",
+          "Requires traversing parent nodes to find sequential records.",
+          "Leaf nodes are sequentially linked for direct linear range scans."
+        ],
+        [
+          "Fan-out / Node Capacity",
+          "Lower fan-out because internal nodes carry data payloads.",
+          "Higher fan-out because internal nodes only carry keys and pointers, reducing tree height."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Disk I/O Alignment: Database pages (typically 4KB to 16KB) dictate disk read units. B+ Trees are meticulously designed with high branching factors (fan-out) to match page sizes, minimizing disk seeks during tree traversal.",
+        "Clustered vs Non-Clustered Indexes: A clustered index determines the physical order of data rows in the table (usually the primary key). A non-clustered index stores keys and secondary pointers (or primary key values) that require a secondary lookup step (bookmark lookup) to fetch the actual row.",
+        "Write Amplification: Every INSERT, UPDATE, or DELETE operation requires modifying not just the base table data files, but also re-balancing and updating every single index pointing to that table, causing write overhead and potential page splits."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "sql",
+      "content": "CREATE TABLE orders (\n    order_id BIGINT PRIMARY KEY,\n    customer_id INT NOT NULL,\n    order_date TIMESTAMP,\n    total_amount DECIMAL(10, 2)\n);\n\n-- Creating a B+ Tree non-clustered index for high-performance range queries\nCREATE INDEX idx_orders_customer_date ON orders (customer_id, order_date);"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap is over-indexing tables. While indexes speed up SELECT statements, every write operation must acquire locks and modify the underlying B+ Tree structure. If a table experiences high concurrent write throughput, excessive indexes will cause severe lock contention, CPU saturation due to page splits, and cache thrashing in the database buffer pool."
+    }
+  ],
+  "num": 869,
+  "title": "What are Database Indexes? How do they work internally? (B-Trees, B+ Trees)",
+  "category": "Core Java & Fundamentals"
+}

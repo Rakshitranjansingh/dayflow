@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Securing a REST API in a modern microservices architecture—especially when utilizing non-blocking frameworks like Spring WebFlux—requires a multi-layered defense strategy that transcends simple password authentication. At the core, we must address Identity Propagation, Transport Layer Security (TLS), and fine-grained Authorization. In a WebFlux ecosystem, security is reactive; this means security filters must not block the event loop, necessitating the use of Reactive SecurityContextHolders rather than standard ThreadLocals. We rely on OAuth2 and OpenID Connect (OIDC) as the industry standard, where an Identity Provider (IdP) issues JWTs (JSON Web Tokens). These tokens are stateless, allowing microservices to verify identity without constant database lookups, though this introduces the challenge of token revocation and clock skew management."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Security Layer",
+        "Mechanism",
+        "WebFlux Implementation"
+      ],
+      "rows": [
+        [
+          "Transport",
+          "TLS 1.3",
+          "Netty SslContext"
+        ],
+        [
+          "Authentication",
+          "OAuth2/OIDC",
+          "ServerHttpSecurity"
+        ],
+        [
+          "Authorization",
+          "RBAC/ABAC",
+          "ReactiveMethodSecurity"
+        ],
+        [
+          "Integrity",
+          "CORS/CSRF",
+          "CorsWebFilter"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "JWT Validation: Always verify the 'iss' (issuer) and 'aud' (audience) claims to prevent token substitution attacks, and ensure the signature is validated against the IdP's JWK Set (JSON Web Key Set) endpoint.",
+        "Reactive Security Context: Unlike traditional Spring MVC, WebFlux uses the Reactor context. You must use ReactiveSecurityContextHolder.getContext() to retrieve the Authentication object, as ThreadLocal is not propagated across asynchronous boundaries.",
+        "Rate Limiting: Implement leaky bucket or token bucket algorithms at the API Gateway level (e.g., Spring Cloud Gateway) to prevent resource exhaustion and mitigate DoS attacks on downstream microservices.",
+        "Secure Headers: Enforce HTTP Strict Transport Security (HSTS), X-Content-Type-Options, and Content-Security-Policy via the SecurityWebFilterChain to protect against browser-based injection."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Bean\npublic SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {\n    return http\n        .csrf(csrf -> csrf.disable())\n        .authorizeExchange(exchanges -> exchanges\n            .pathMatchers(\"/api/public/**\").permitAll()\n            .anyExchange().authenticated()\n        )\n        .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))\n        .build();\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production-grade trap is failing to handle JWT expiration gracefully. If your microservice validates tokens by checking the 'exp' claim, ensure your server clocks are synchronized via NTP. Furthermore, never store sensitive PII in a JWT payload; even if signed, JWTs are base64-encoded and easily readable by anyone who intercepts the traffic."
+    }
+  ],
+  "num": 980,
+  "title": "How to secure a REST API?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

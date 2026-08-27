@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "An LRU (Least Recently Used) Cache is a fixed-size data structure that discards the least recently accessed items when the capacity is reached. In a Low-Level Design (LLD) context, the implementation requires O(1) time complexity for both 'get' and 'put' operations. To achieve this, we combine a Doubly Linked List, which maintains the temporal order of access, with a HashMap, which provides O(1) lookup to the list nodes. When an item is accessed or updated, it is moved to the head of the list; when the cache is full, the tail node is evicted. In a concurrent environment, this structure is inherently thread-unsafe. To make it production-ready, we must address the race conditions inherent in the pointer updates of the linked list and the structural modifications of the map. Using a simple 'synchronized' block on the entire method is the most straightforward approach, but it creates a massive bottleneck under high contention. A more sophisticated approach involves using 'ReentrantLock' or 'ReadWriteLock' to allow concurrent reads, though the 'get' operation in an LRU cache technically performs a write (moving the node to the head), which complicates the use of ReadWriteLocks."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Concurrency Mechanism",
+        "Performance Impact"
+      ],
+      "rows": [
+        [
+          "Synchronized Wrapper",
+          "Intrinsic Locks",
+          "High contention, simple implementation"
+        ],
+        [
+          "ReentrantLock",
+          "Explicit Locking",
+          "Better granularity, allows fair queuing"
+        ],
+        [
+          "ConcurrentHashMap + ConcurrentLinkedDeque",
+          "Lock-free/CAS",
+          "Complex to coordinate atomic updates"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Doubly Linked List nodes must store both Key and Value to allow for O(1) removal from the HashMap during eviction.",
+        "The 'get' operation is not strictly a read-only operation because it modifies the list structure; therefore, it must acquire a write lock or be synchronized.",
+        "Memory management: Ensure that evicted nodes are eligible for GC by nullifying their references within the node object.",
+        "Using LinkedHashMap with accessOrder=true provides a built-in LRU mechanism, but it is not thread-safe and requires external synchronization."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class LRUCache<K, V> {\n    private final int capacity;\n    private final Map<K, Node<K, V>> map = new HashMap<>();\n    private final DoublyLinkedList<K, V> list = new DoublyLinkedList<>();\n    private final ReentrantLock lock = new ReentrantLock();\n\n    public V get(K key) {\n        lock.lock();\n        try {\n            Node<K, V> node = map.get(key);\n            if (node == null) return null;\n            list.moveToHead(node);\n            return node.value;\n        } finally {\n            lock.unlock();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Beware of the 'thundering herd' problem when using a single global lock for your cache. If your cache is a hot spot for read-heavy workloads, consider using a striped locking mechanism or a ConcurrentLinkedHashMap implementation (like Caffeine), which uses a ring buffer to record access events asynchronously, significantly reducing lock contention compared to a standard synchronized LRU."
+    }
+  ],
+  "num": 1118,
+  "title": "LLD: Design an LRU Cache (code + concurrency)",
+  "category": "Multithreading & Java Concurrency"
+}

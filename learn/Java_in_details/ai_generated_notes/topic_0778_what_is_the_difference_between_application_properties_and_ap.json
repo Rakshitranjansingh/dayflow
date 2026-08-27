@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Spring Boot applications, configuring runtime behavior, externalizing environment properties, and injecting configuration values are core architectural tasks handled via configuration files. Developers typically choose between application.properties and application.yml (YAML). While both files serve the exact same foundational purpose of populating Spring's Environment and mapping data into @ConfigurationProperties beans, their syntax, structural capabilities, and internal parsing mechanisms differ significantly.\n\napplication.properties utilizes a flat, key-value pair format adhering to the standard Java properties specification. Every setting requires a fully qualified path separated by periods, which can lead to immense vertical bloat and repetitive prefixes when dealing with complex object hierarchies. Conversely, application.yml leverages YAML (YAML Ain't Markup Language), a superset of JSON, which introduces hierarchical indentation, list structures, and DRY (Don't Repeat Yourself) principles. During the Spring Boot application bootstrap phase, the OriginTrackedYamlLoader or OriginTrackedPropertiesLoader parses these files into PropertySource abstractions. While YAML supports multi-document files separated by triple dashes (---) for profile-specific configurations within a single file, properties files require distinct file naming conventions like application-dev.properties or application-prod.properties."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Metric",
+        "application.properties",
+        "application.yml"
+      ],
+      "rows": [
+        [
+          "Syntax Structure",
+          "Flat key-value pairs separated by '=' or ':'",
+          "Hierarchical indentation with whitespace and YAML nesting"
+        ],
+        [
+          "DRY Principle Support",
+          "Poor (requires repeating prefixes for nested paths)",
+          "Excellent (supports deep nesting and tree structures)"
+        ],
+        [
+          "Multi-profile Support",
+          "Requires separate files (e.g., application-prod.properties)",
+          "Supports multi-document files via '---' delimiters"
+        ],
+        [
+          "Parsing Performance",
+          "Marginally faster (direct flat map generation)",
+          "Slightly slower (requires parsing indentation trees into flat maps)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring Boot internally flattens both YAML and Properties files into a single LinkedHashMap of key-value pairs during the EnvironmentPostProcessor phase, meaning runtime lookup performance is virtually identical regardless of which format you choose.",
+        "YAML parsing is handled by SnakeYAML under the hood, which converts indented blocks into nested maps before Spring flattens them into dot-notation keys (e.g., spring.datasource.url) to match Java bean naming conventions.",
+        "When both application.properties and application.yml exist in the same classpath directory (src/main/resources), Spring Boot loads both, but properties files typically take precedence or follow deterministic overriding rules depending on the exact Spring Boot version."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "spring:\n  datasource:\n    url: jdbc:postgresql://localhost:5432/enterprise_db\n    username: ${DB_USER:postgres}\n    hikari:\n      maximum-pool-size: 20\n      connection-timeout: 30000\n--- \nspring:\n  config:\n    activate:\n      on-profile: production\n  datasource:\n    url: jdbc:postgresql://prod-cluster:5432/enterprise_db"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall with application.yml involves type coercion and loose typing. For instance, unquoted values like 'no', 'off', or 'yes' are automatically parsed as Booleans by SnakeYAML, which can lead to unexpected ClassCastExceptions if your @ConfigurationProperties expects a String. Additionally, deep YAML indentation hierarchies can obscure configuration bloat, making it difficult to audit environment overrides during a security review."
+    }
+  ],
+  "num": 779,
+  "title": "What is the difference between application.properties and application.yml?",
+  "category": "Exception Handling & I/O / NIO"
+}

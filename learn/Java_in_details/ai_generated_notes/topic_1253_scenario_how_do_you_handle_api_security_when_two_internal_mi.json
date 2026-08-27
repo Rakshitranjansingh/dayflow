@@ -1,0 +1,48 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In a distributed microservices architecture, the 'internal' network is never truly trusted. Relying solely on perimeter security (like a VPN or firewall) is a dangerous anti-pattern known as the 'crunchy shell, soft center' fallacy. When two internal microservices communicate, you must implement Zero Trust principles. The industry standard for this is the use of Mutual TLS (mTLS) combined with short-lived OAuth2/OIDC tokens, specifically using the Client Credentials flow. mTLS ensures that the transport layer is encrypted and that both the client and server verify each other's identity via X.509 certificates. Once the transport is secured, the application layer uses a JWT (JSON Web Token) to authorize the specific action, ensuring that even if a service is compromised, it cannot perform unauthorized operations on downstream dependencies."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Security Layer",
+        "Mechanism",
+        "Primary Goal"
+      ],
+      "rows": [
+        [
+          "Transport",
+          "mTLS (Mutual TLS)",
+          "Identity verification & Encrypted transit"
+        ],
+        [
+          "Application",
+          "OAuth2 Client Credentials",
+          "Scoped authorization & Auditing"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "mTLS Handshake: The client and server exchange certificates signed by a private internal Certificate Authority (CA). The server validates the client's certificate against its trust store, preventing unauthorized services from even initiating a TCP connection.",
+        "Token Propagation: When Service A calls Service B, it should ideally pass an 'on-behalf-of' token or a scoped machine-to-machine token. This prevents privilege escalation by ensuring the token only contains the scopes necessary for the specific downstream request.",
+        "Service Mesh Offloading: In modern Kubernetes environments, tools like Istio or Linkerd handle mTLS transparently via sidecar proxies (Envoy). This removes the burden of certificate rotation and handshake logic from the Java application code."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class SecurityConfig {\n    @Bean\n    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {\n        return http\n            .authorizeHttpRequests(auth -> auth.anyRequest().hasAuthority(\"SCOPE_service:read\"))\n            .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))\n            .build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is failing to rotate mTLS certificates, leading to catastrophic outages when they expire. Furthermore, never rely on IP-based allowlisting in Kubernetes; pods are ephemeral and IPs are recycled constantly. Always use SPIFFE IDs or service-level identities to enforce security policies, as these remain consistent regardless of the underlying infrastructure's network churn."
+    }
+  ],
+  "num": 1254,
+  "title": "Scenario: How do you handle API security when two internal microservices talk to each other?",
+  "category": "Spring Security & Web Security"
+}

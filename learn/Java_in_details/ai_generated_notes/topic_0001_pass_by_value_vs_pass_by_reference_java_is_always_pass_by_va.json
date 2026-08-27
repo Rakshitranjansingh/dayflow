@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A persistent source of confusion in Java is the distinction between pass-by-value and pass-by-reference. To be absolutely clear: Java is strictly pass-by-value, always and without exception. This confusion arises because Java handles primitives and objects differently in memory, leading developers to mistake the passing of an object reference for pass-by-reference behavior. In a true pass-by-reference language (like C++ or C# with the 'ref' keyword), the called method receives an implicit reference to the caller's actual variable. This means reassigning the parameter inside the method directly changes the variable in the caller's scope. Java never allows this.\n\nIn Java, the JVM allocates a stack frame for every method execution. When a method is invoked, the values of the arguments are copied into the local variable array of the new stack frame. For primitive types (like int, double, boolean), the actual raw value is copied. For object types, the value being copied is not the object itself, but the reference (the memory address pointing to the object on the managed heap). Because the method receives a copy of this reference, both the caller's variable and the method's parameter point to the exact same object in memory. This explains why mutating the object's internal state within the method is visible to the caller, while reassigning the parameter variable itself has no effect on the caller's original reference."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Behavioral Aspect",
+        "Java Primitives (Pass-by-Value)",
+        "Java Object References (Pass-by-Value of Reference)",
+        "True Pass-by-Reference (e.g., C++ / C# ref)"
+      ],
+      "rows": [
+        [
+          "What is copied to stack frame?",
+          "The actual literal value (e.g., 42, true).",
+          "The value of the reference (the 32-bit or 64-bit memory address pointing to the heap).",
+          "No copy of the value is made; a direct reference to the caller's variable storage location is passed."
+        ],
+        [
+          "Modifying parameter's internal state",
+          "N/A (Primitives have no internal state/methods).",
+          "Visible to caller. Changes to fields or collection elements affect the shared heap object.",
+          "Visible to caller. Changes to fields affect the shared heap object."
+        ],
+        [
+          "Reassigning the parameter variable",
+          "No effect on caller. The local stack variable is reassigned; caller's variable is untouched.",
+          "No effect on caller. The local parameter now points to a different heap object; caller's variable still points to the original.",
+          "Directly affects caller. The caller's original variable is reassigned to point to the new object or value."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Stack vs. Heap Mechanics: Primitives reside entirely on the thread's execution stack. Objects reside on the shared heap, while their reference variables reside on the stack. When passing an object, the reference value on the stack is duplicated via bytecode instructions like 'aload' and 'astore'.",
+        "The Pointer Analogy: Java references are conceptually equivalent to pointers in C/C++ that are passed by value. You can change the data pointed to by the pointer, but you cannot change the caller's pointer to point to a different memory address.",
+        "Bytecode Verification: Looking at JVM bytecode, passing an argument involves pushing the local variable onto the operand stack. For objects, the 'aload' instruction pushes the reference value. The invoked method then pops this reference value into its own local variable slot. There is no bytecode instruction in Java that can manipulate the caller's stack frame variables directly.",
+        "Immutability Illusion: Immutable objects like String, Integer, or Double often trick developers into thinking they are passed like primitives. Because these classes are immutable, any modification (like concatenation or addition) actually creates a new object and reassigns the local parameter reference, leaving the caller's original reference pointing to the unmodified original object."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class PassByValueVisualizer {\n\n    public static void main(String[] args) {\n        int primitiveVal = 100;\n        Dog myDog = new Dog(\"Fido\");\n\n        // 1. Demonstrate primitive pass-by-value\n        modifyPrimitive(primitiveVal);\n        System.out.println(\"After modifyPrimitive: \" + primitiveVal); // Prints 100 (Unchanged)\n\n        // 2. Demonstrate object mutation (sharing the same heap object)\n        mutateObject(myDog);\n        System.out.println(\"After mutateObject: \" + myDog.getName()); // Prints \"Rex\" (Mutated!)\n\n        // 3. Demonstrate object reassignment (proving it is NOT pass-by-reference)\n        reassignObject(myDog);\n        System.out.println(\"After reassignObject: \" + myDog.getName()); // Still prints \"Rex\" (Unchanged by reassignment)\n    }\n\n    private static void modifyPrimitive(int value) {\n        value = 500; // Only changes the local stack copy\n    }\n\n    private static void mutateObject(Dog dog) {\n        dog.setName(\"Rex\"); // Modifies the object on the heap that both references point to\n    }\n\n    private static void reassignObject(Dog dog) {\n        dog = new Dog(\"Max\"); // Reassigns local parameter to a new heap object; caller's reference is untouched\n    }\n\n    static class Dog {\n        private String name;\n        public Dog(String name) { this.name = name; }\n        public String getName() { return name; }\n        public void setName(String name) { this.name = name; }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is assuming the 'final' keyword on a method parameter changes this behavior or enforces immutability. Marking a parameter as 'final' (e.g., 'void process(final List<String> list)') only prevents the developer from reassigning the reference variable itself inside the method. It does absolutely nothing to prevent the developer from mutating the internal state of the object (e.g., calling 'list.add(\"danger\")'). To truly protect against accidental mutations across method boundaries, you must use defensive copying (e.g., 'List.copyOf(list)') or unmodifiable wrappers."
+    }
+  ],
+  "num": 2,
+  "title": "Pass-by-value vs Pass-by-reference (Java is always pass-by-value)",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,70 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Garbage Collection (GC) algorithms in the Java Virtual Machine (JVM) dictate how automatic memory management is performed, balancing throughput, pause times (latencies), and memory footprints. Over the evolution of Java, garbage collectors have transformed from simplistic stop-the-world implementations to highly concurrent, low-latency engines capable of handling multi-terabyte heaps with minimal pauses.\n\nTo understand the spectrum of GC algorithms, one must evaluate them across several architectural milestones: Serial GC, which utilizes a single thread for collection and is ideal for low-resource environments; Parallel GC, optimized for maximum throughput on multi-core processors; CMS (Concurrent Mark Sweep), the pioneering low-latency collector that unfortunately suffered from fragmentation and has since been deprecated; G1 (Garbage-First), the regionalized standard-bearer that balances latency and throughput; and ultra-low latency modern collectors like ZGC and Shenandoah, which execute almost all heavy lifting concurrently using load barriers and colored pointers."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Algorithm",
+        "Primary Design Goal",
+        "Heap Size Suitability",
+        "Pause Times"
+      ],
+      "rows": [
+        [
+          "Serial GC",
+          "Minimal footprint, single-threaded execution",
+          "Small (< 100MB)",
+          "Long (Stop-the-World)"
+        ],
+        [
+          "Parallel GC",
+          "Maximum application throughput",
+          "Medium to Large",
+          "Moderate to Long"
+        ],
+        [
+          "CMS GC",
+          "Low latency (Deprecated in Java 14)",
+          "Medium",
+          "Short (Concurrent)"
+        ],
+        [
+          "G1 GC",
+          "Predictable pause times with high throughput",
+          "Medium to Large (4GB - 32GB+)",
+          "Configurable (Millis)"
+        ],
+        [
+          "ZGC / Shenandoah",
+          "Ultra-low latency (< 10ms), terabyte scale",
+          "Massive (Multi-Terabyte)",
+          "Sub-millisecond"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Serial and Parallel collectors rely on a contiguous generational layout (Eden, Survivor, Tenured spaces) and employ stop-the-world (STW) phases for both minor and full collections, freezing all application mutation threads during object evacuation.",
+        "G1 breaks the heap into thousands of equal-sized regions dynamically assigned as Eden, Survivor, or Old. It uses a Remembered Set (RSet) to track cross-region references, enabling it to collect regions with the highest garbage density first ('Garbage-First') within a user-defined pause time target.",
+        "ZGC uses colored pointers (encoding metadata directly within the object reference bits) and load barriers to relocate objects concurrently while the application is actively running, eliminating long STW pauses even as the heap scales to 16TB.",
+        "Shenandoah utilizes concurrent compaction via Brooks pointers (or indirection pointers in later versions) embedded in object headers, allowing mutators and the GC to negotiate object moves without pausing the entire application runtime."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// JVM Command-Line Flag Configurations for Production Environments\n\n// 1. Enabling G1 GC with a target max pause time of 200ms\n// java -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -jar my-application.jar\n\n// 2. Enabling ZGC for Ultra-Low Latency on a Large Heap\n// java -XX:+UseZGC -Xms16g -Xmx16g -jar my-application.jar\n\npublic class GcDumpTrigger {\n    public static void requestManualGcIfNeeded(long freeMemoryThreshold) {\n        if (Runtime.getRuntime().freeMemory() < freeMemoryThreshold) {\n            // Suggests garbage collection (caution: hint only, JVM decides)\n            System.gc();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Never explicitly call System.gc() in production when running modern collectors like G1, ZGC, or Shenandoah unless explicitly configured otherwise via -XX:+ExplicitGCInvokesConcurrent. Doing so forces a full Stop-The-World compaction cycle, which can severely degrade latency SLOs and spike tail latencies (p99/p999) under high request loads."
+    }
+  ],
+  "num": 164,
+  "title": "GC Algorithms — Serial, Parallel, CMS (deprecated), G1, ZGC, Shenandoah",
+  "category": "JVM Architecture & Memory Tuning"
+}

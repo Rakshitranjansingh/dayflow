@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Java NIO (New I/O) was introduced in JDK 1.4 and significantly overhauled in JDK 7 with NIO.2 to address the blocking nature of traditional java.io streams. Unlike the original I/O API, which relies on blocking threads per connection—leading to massive memory overhead in high-concurrency systems—NIO utilizes channels and buffers. Channels represent open connections to I/O devices (like files or sockets), while buffers act as intermediate memory containers. This architecture allows for non-blocking I/O operations, where a single thread can manage multiple channels via a Selector, drastically reducing context switching and memory footprint. The transition from the legacy java.io.File class to the java.nio.file.Path interface represents a shift toward a more robust, platform-independent, and feature-rich file system abstraction. While File was limited to basic metadata and path manipulation, Path provides a sophisticated API for handling file system attributes, symbolic links, and atomic operations, effectively decoupling the file path representation from the actual I/O operations performed by the Files utility class."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "java.io.File",
+        "java.nio.file.Path"
+      ],
+      "rows": [
+        [
+          "Nature",
+          "Legacy Class",
+          "Interface (NIO.2)"
+        ],
+        [
+          "Error Handling",
+          "Returns boolean/null",
+          "Throws descriptive Exceptions"
+        ],
+        [
+          "Extensibility",
+          "Limited to local FS",
+          "Supports custom FileSystems"
+        ],
+        [
+          "Metadata",
+          "Basic (exists, length)",
+          "Advanced (Posix, UserDefined)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "NIO Channels are bi-directional, whereas java.io Streams are strictly uni-directional (either InputStream or OutputStream).",
+        "The Path interface is immutable and provides a hierarchical view of the file system, allowing for easy path resolution and normalization without touching the disk.",
+        "NIO.2 introduces the Files class, which acts as a static utility provider for Path objects, enabling atomic file moves, directory walking via Stream API, and efficient file copying.",
+        "Buffers in NIO are memory-mapped or direct, allowing the JVM to interact with native memory outside the heap, which minimizes the overhead of copying data between the kernel and user space."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.nio.file.*;\nimport java.io.IOException;\n\npublic class FileOps {\n    public void processFile(String pathString) throws IOException {\n        // Path is just a reference, not the file itself\n        Path path = Paths.get(pathString);\n        \n        // Files utility performs the actual I/O\n        if (Files.exists(path)) {\n            byte[] data = Files.readAllBytes(path);\n            // Process data...\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never use File.delete() or File.renameTo() in production. They return a boolean on failure, leaving you blind to the underlying OS reason (e.g., AccessDeniedException vs NoSuchFileException). Always use Files.delete(Path) or Files.move(Path, Path), which propagate specific IOException subclasses, allowing you to implement granular retry logic or meaningful logging for SRE teams."
+    }
+  ],
+  "num": 598,
+  "title": "What is NIO? What is the difference between File and Path?",
+  "category": "Exception Handling & I/O / NIO"
+}

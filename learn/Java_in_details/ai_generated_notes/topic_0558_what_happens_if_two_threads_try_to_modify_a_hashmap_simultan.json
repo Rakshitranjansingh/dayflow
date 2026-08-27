@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When two threads try to modify a standard java.util.HashMap simultaneously without proper synchronization, the underlying data structure enters an undefined, corrupted state. A HashMap is fundamentally not thread-safe. Its internal architecture relies on an array of Node buckets whose resizing, re-hashing, and structural modifications (such as put, remove, or clear) mutate internal pointers without atomic guarantees. If Thread A and Thread B concurrently write to the map, race conditions occur during bucket index calculation, collision resolution, and treeification transitions.\n\nHistorically, in pre-Java 8 implementations, concurrent modifications frequently triggered an infinite loop in the CPU during a resize operation due to cyclical linked-list pointer formation (a classic next-pointer corruption). Modern Java 8+ treeified HashMaps (where linked lists convert to red-black trees past a threshold) may not always loop infinitely, but they suffer from lost updates, array index out-of-bounds exceptions, ConcurrentModificationException (when fail-fast iterators detect structural changes, though this is best-effort and not a synchronization guarantee), and null-pointer dereferences within node pointers. The mutation of modCount is also non-atomic, meaning structural updates can overwrite each other, completely destroying data integrity."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric / Behavior",
+        "java.util.HashMap",
+        "java.util.concurrent.ConcurrentHashMap"
+      ],
+      "rows": [
+        [
+          "Thread Safety",
+          "None (Not thread-safe)",
+          "Thread-safe (Lock-free reads, fine-grained writes)"
+        ],
+        [
+          "Concurrent Modification Handling",
+          "Throws ConcurrentModificationException (fail-fast)",
+          "Handles concurrent updates safely via CAS and synchronized blocks per bucket"
+        ],
+        [
+          "Null Keys/Values",
+          "Allows one null key and multiple null values",
+          "Does NOT allow null keys or null values"
+        ],
+        [
+          "Performance under Contention",
+          "Unpredictable / Infinite loops / Data corruption",
+          "High throughput via segmented locking and CAS operations"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Bucket Array Overwrite: When two threads evaluate the same initial capacity and load factor thresholds, they may simultaneously trigger a resize() operation, instantiating new arrays and abandoning or overwriting references initialized by the opposing thread.",
+        "ModCount Mutation Race: The modCount field tracks structural modifications for fail-fast iterators. Because incrementing modCount (modCount++) is not atomic (read-modify-write), concurrent updates result in lost increments, failing to catch concurrent mutations deterministically.",
+        "Red-Black Tree Corruption: In Java 8+, if concurrent insertions force treeification (TreeNode rotations), pointer adjustments in the tree roots and left/right child references become completely desynchronized, causing permanent traversal failures like infinite loops or missing keys."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.HashMap;\nimport java.util.Map;\nimport java.util.concurrent.ExecutorService;\nimport java.util.concurrent.Executors;\nimport java.util.concurrent.TimeUnit;\n\npublic class HashMapRaceConditionDemo {\n    public static void main(String[] args) throws InterruptedException {\n        Map<String, String> unsafeMap = new HashMap<>();\n        ExecutorService executor = Executors.newFixedThreadPool(4);\n\n        for (int i = 0; i < 1000; i++) {\n            final int taskId = i;\n            executor.submit(() -> {\n                unsafeMap.put(\"Key-\" + taskId, \"Value-\" + taskId);\n            });\n        }\n\n        executor.shutdown();\n        executor.awaitTermination(5, TimeUnit.SECONDS);\n        \n        // Size will often be less than 1000 due to lost updates (race conditions)\n        System.out.println(\"Final map size: \" + unsafeMap.size());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is assuming that wrapping a HashMap inside Collections.synchronizedMap() makes it fully thread-safe for complex check-then-act sequences. While synchronizedMap synchronizes individual method calls, composite operations like 'if (!map.containsKey(k)) { map.put(k, v); }' are still prone to race conditions across multiple threads. Always use ConcurrentHashMap and atomic methods like putIfAbsent() for concurrent workloads."
+    }
+  ],
+  "num": 559,
+  "title": "What happens if two threads try to modify a HashMap simultaneously?",
+  "category": "Multithreading & Java Concurrency"
+}

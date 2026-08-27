@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Redis and Memcached represent the two pillars of distributed caching, yet they serve fundamentally different architectural needs. Memcached is a high-performance, multi-threaded, key-value store designed for simplicity and raw speed. It operates strictly as an in-memory cache, meaning it does not support persistence; if the server restarts, the data is lost. Its architecture is intentionally minimalist, utilizing a slab allocation mechanism to manage memory, which effectively eliminates external fragmentation but can lead to internal waste. It is the ideal choice for simple, ephemeral caching scenarios where you need to offload read-heavy database traffic with minimal latency.\n\nRedis, conversely, is a feature-rich, single-threaded (in its core command processing) data structure server. Beyond simple key-value pairs, Redis supports complex types like Hashes, Lists, Sets, Sorted Sets, and Bitmaps. Unlike Memcached, Redis offers robust persistence through RDB (snapshots) and AOF (append-only file) mechanisms, allowing it to function as a primary data store or a highly available distributed cache. While Redis is single-threaded, its I/O multiplexing allows it to handle massive concurrency, and its support for replication, clustering, and Lua scripting makes it a versatile tool for distributed locking, pub/sub messaging, and real-time analytics."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Memcached",
+        "Redis"
+      ],
+      "rows": [
+        [
+          "Data Types",
+          "Strings only",
+          "Strings, Hashes, Lists, Sets, Sorted Sets, Streams"
+        ],
+        [
+          "Persistence",
+          "None",
+          "RDB and AOF"
+        ],
+        [
+          "Threading",
+          "Multi-threaded",
+          "Single-threaded (Event Loop)"
+        ],
+        [
+          "High Availability",
+          "Client-side sharding",
+          "Redis Sentinel / Cluster"
+        ],
+        [
+          "Memory Management",
+          "Slab Allocation",
+          "LRU/LFU Eviction Policies"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Memcached uses a multi-threaded architecture that scales well with CPU cores, but it lacks the advanced data structures that allow developers to perform operations (like incrementing a hash field) server-side, forcing more network round-trips.",
+        "Redis utilizes an event-driven I/O multiplexing model (epoll/kqueue). Because the core command execution is single-threaded, it avoids the overhead of context switching and lock contention, provided that long-running commands (like KEYS * or heavy Lua scripts) do not block the event loop.",
+        "Redis memory management is highly tunable; you can define specific eviction policies (e.g., volatile-lru, allkeys-lru) to dictate how the system behaves when the maxmemory limit is reached, whereas Memcached's slab allocator is more rigid.",
+        "For distributed systems, Redis Cluster provides native sharding and automatic failover, whereas Memcached typically relies on consistent hashing implemented within the client library."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Redis usage with Jedis for complex data structures\nJedis jedis = new Jedis(\"localhost\", 6379);\njedis.hset(\"user:100\", \"name\", \"Alice\");\njedis.hset(\"user:100\", \"email\", \"alice@example.com\");\n\n// Memcached usage with SpyMemcached for simple key-value\nMemcachedClient client = new MemcachedClient(new InetSocketAddress(\"127.0.0.1\", 11211));\nclient.set(\"session:100\", 3600, \"active\");"
+    },
+    {
+      "type": "note",
+      "content": "Senior Architect Insight: Never use Redis's KEYS command in a production environment. Because Redis is single-threaded, a KEYS command on a large dataset will block the event loop, effectively freezing your entire application's cache layer. Always use SCAN for cursor-based iteration. Additionally, be wary of 'hot keys' in Memcached; because it uses a simple hash-based distribution, a single key receiving massive traffic can saturate a single node's network interface, whereas Redis Cluster allows for more sophisticated slot-based distribution."
+    }
+  ],
+  "num": 904,
+  "title": "Redis vs Memcached?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

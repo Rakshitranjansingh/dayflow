@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the landscape of algorithmic problem-solving and core data structure design, stacks and queues represent the bedrock of linear data organization. A Stack adheres to the Last-In-First-Out (LIFO) paradigm, where insertions and deletions happen exclusively at one terminal known as the top. Conversely, a Queue operates on a First-In-First-Out (FIFO) basis, enforcing processing order from the rear to the front. While their abstract data types are straightforward, their specialized variants—specifically the monotonic stack—unlock high-performance solutions to complex array-scanning challenges.\n\nA monotonic stack is a specialized variant where the elements stored within are maintained in a strictly increasing or decreasing order. As you iterate through an array, elements are pushed and popped to preserve this invariant. This structure is famously leveraged to solve the next greater element problem, which asks us to find, for every element in an array, the first subsequent element that is strictly greater than it. By processing elements and maintaining a decreasing monotonic stack, we can resolve these relationships in linear O(N) time complexity instead of the naive O(N^2) nested-loop approach, effectively trading spatial memory for temporal efficiency."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Property",
+        "Monotonic Stack",
+        "Standard Stack"
+      ],
+      "rows": [
+        [
+          "Element Ordering",
+          "Strictly increasing or decreasing invariant enforced on push",
+          "Unordered; elements pushed in arbitrary arrival sequence"
+        ],
+        [
+          "Time Complexity",
+          "O(N) amortized for Next Greater Element scans",
+          "O(1) for standard push, pop, and peek operations"
+        ],
+        [
+          "Primary Use Case",
+          "Span problems, histogram areas, next/previous greater/smaller lookups",
+          "DFS traversal, expression evaluation, call stack management"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Monotonic Decreasing Stack Mechanics: When evaluating for the 'next greater element', we maintain a stack of indices holding values in strictly decreasing order from bottom to top. If the current element in the array is greater than the element indexed at the top of the stack, we pop the stack and record the current element as the next greater for that popped index.",
+        "Amortized O(N) Analysis: Although there is a while-loop inside the primary for-loop, each element is pushed into the stack exactly once and popped from the stack at most once. This bounds the total number of stack operations to 2N, yielding true linear time complexity.",
+        "Space Complexity Trade-off: In the worst-case scenario (e.g., a strictly decreasing input array), the stack will store all N indices simultaneously, resulting in O(N) auxiliary space complexity consumed on the JVM heap or stack frame."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.ArrayDeque;\nimport java.util.Deque;\nimport java.util.Arrays;\n\npublic class MonotonicStackSolver {\n    public static int[] nextGreaterElement(int[] nums) {\n        int n = nums.length;\n        int[] result = new int[n];\n        Arrays.fill(result, -1);\n        \n        // Using ArrayDeque as a high-performance stack implementation\n        Deque<Integer> stack = new ArrayDeque<>();\n        \n        for (int i = 0; i < n; i++) {\n            while (!stack.isEmpty() && nums[i] > nums[stack.peek()]) {\n                int index = stack.pop();\n                result[index] = nums[i];\n            }\n            stack.push(i);\n        }\n        \n        return result;\n    }\n\n    public static void main(String[] args) {\n        int[] input = {2, 1, 2, 4, 3};\n        System.out.println(Arrays.toString(nextGreaterElement(input)));\n        // Output: [4, 2, 4, -1, -1]\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineering Gotcha: Avoid using java.util.Stack in production code. Stack extends Vector, which introduces unnecessary synchronization overhead and locks method calls. Always prefer java.util.Deque implemented via ArrayDeque for stack operations in modern Java applications."
+    }
+  ],
+  "num": 197,
+  "title": "Stacks & Queues — monotonic stack, next greater element",
+  "category": "Core Java & Fundamentals"
+}

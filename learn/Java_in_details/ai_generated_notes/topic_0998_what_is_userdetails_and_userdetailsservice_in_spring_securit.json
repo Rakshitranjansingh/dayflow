@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the architecture of Spring Security, handling authentication and principal retrieval relies heavily on two foundational interfaces: UserDetails and UserDetailsService. When a user attempts to authenticate against a secured application, Spring Security does not query the persistence layer directly. Instead, it delegates this responsibility to the UserDetailsService contract, which serves as a secure bridge between the authentication subsystem and your database, LDAP directory, or in-memory store. The sole purpose of UserDetailsService is to define a single method, loadUserByUsername(String username), whose responsibility is to locate the user data and return it wrapped inside a UserDetails object.\n\nThe UserDetails interface itself acts as the core adapter for principal information. It does not represent your application's domain User entity directly; rather, it provides Spring Security with the minimum necessary contract required to perform authentication and authorization checks. It encapsulates credentials, account status flags, and granted authorities. By decoupling your rich domain model from UserDetails, Spring Security ensures a clean separation of concerns, preventing database entities from leaking infrastructure-specific security requirements directly into business logic."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Concern",
+        "UserDetails",
+        "UserDetailsService"
+      ],
+      "rows": [
+        [
+          "Role in Architecture",
+          "Data container representing a single authenticated principal.",
+          "Service component responsible for fetching the principal data."
+        ],
+        [
+          "Primary Method",
+          "getAuthorities(), getPassword(), getUsername(), isAccountNonExpired()",
+          "loadUserByUsername(String username)"
+        ],
+        [
+          "Statefulness",
+          "Typically stateful, holding user credentials and security states.",
+          "Typically stateless component acting as a DAO adapter."
+        ],
+        [
+          "Framework Equivalent",
+          "java.security.Principal (extended)",
+          "Spring Data's CrudRepository for security domains"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The UserDetails interface mandates the return of a Collection<? extends GrantedAuthority> getAuthorities(), which maps directly to authorization checks like hasRole() or hasAuthority() within method security and HTTP security configurations.",
+        "Account status flags within UserDetails—such as isAccountNonExpired(), isAccountNonLocked(), isCredentialsNonExpired(), and isEnabled()—allow the authentication manager to throw specific exceptions (e.g., LockedException, DisabledException) before evaluating password hashes.",
+        "UserDetailsService implementations are typically injected into the SecurityFilterChain configuration or registered implicitly via an AuthenticationManager bean, frequently collaborating with a PasswordEncoder to verify hashed credentials against raw input."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class DomainUserDetailsService implements UserDetailsService {\n\n    private final UserRepository userRepository;\n\n    public DomainUserDetailsService(UserRepository userRepository) {\n        this.userRepository = userRepository;\n    }\n\n    @Override\n    @Transactional(readOnly = true)\n    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {\n        com.example.domain.User domainUser = userRepository.findByEmail(username)\n            .orElseThrow(() -> new UsernameNotFoundException(\"User not found with email: \" + username));\n\n        Set<GrantedAuthority> authorities = domainUser.getRoles().stream(\n            ).map(role -> new SimpleGrantedAuthority(role.getName()))\n            .collect(Collectors.toSet());\n\n        return new org.springframework.security.core.userdetails.User(\n            domainUser.getEmail(),\n            domainUser.getPasswordHash(),\n            domainUser.isEnabled(),\n            domainUser.isAccountNonExpired(),\n            domainUser.isCredentialsNonExpired(),\n            domainUser.isAccountNonLocked(),\n            authorities\n        );\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern is mapping your JPA entity directly to implement UserDetails. This tightly couples your database schema to your security framework, complicates lazy-loading issues (resulting in LazyInitializationException during security checks when fetching authorities outside an active transaction), and exposes internal domain states to the SecurityContext. Always project your database entities into Spring Security's standard User class or a dedicated DTO implementation inside your UserDetailsService."
+    }
+  ],
+  "num": 999,
+  "title": "What is UserDetails and UserDetailsService in Spring Security?",
+  "category": "Spring Security & Web Security"
+}

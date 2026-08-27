@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Pagination is the architectural strategy of partitioning a large dataset into smaller, manageable chunks to reduce memory pressure on the JVM heap and minimize network latency during I/O operations. Without pagination, fetching a massive result set would lead to OutOfMemoryErrors (OOME) and excessive GC pauses as the application attempts to materialize the entire collection into memory. Offset pagination, the traditional approach, uses 'LIMIT' and 'OFFSET' clauses in SQL. It is intuitive but suffers from performance degradation as the offset increases, because the database must scan and discard all preceding rows before returning the requested page. Cursor pagination, conversely, uses a stable pointer—usually a unique, indexed column like a timestamp or ID—to resume the query from the last seen record. This approach is O(log N) or O(1) depending on the index, making it significantly more performant for deep navigation and real-time data streams where new records are frequently inserted."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Offset Pagination",
+        "Cursor Pagination"
+      ],
+      "rows": [
+        [
+          "Performance",
+          "Degrades as offset increases",
+          "Constant, high performance"
+        ],
+        [
+          "Statefulness",
+          "Stateless, easy to jump to page N",
+          "Stateful, requires previous cursor"
+        ],
+        [
+          "Data Consistency",
+          "Prone to skipped/duplicate items",
+          "Resilient to insertions/deletions"
+        ],
+        [
+          "Implementation",
+          "Simple (LIMIT/OFFSET)",
+          "Complex (Requires opaque token/index)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Offset pagination relies on the database engine scanning through the 'OFFSET' count of rows, which forces the storage engine to perform heavy I/O even if the application only consumes the final few records.",
+        "Cursor pagination maintains stability by using a WHERE clause (e.g., WHERE created_at < :last_seen_timestamp) which allows the query optimizer to utilize B-Tree indexes effectively.",
+        "When implementing cursor pagination, ensure the cursor column is indexed and strictly monotonic to avoid missing records during concurrent write operations.",
+        "In NIO-based reactive stacks, cursor pagination is preferred to prevent backpressure issues, as it allows for predictable, non-blocking stream processing of large datasets."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Offset Pagination (Inefficient for large datasets)\nSELECT * FROM orders ORDER BY created_at DESC LIMIT 20 OFFSET 10000;\n\n// Cursor Pagination (Efficient, index-friendly)\nSELECT * FROM orders WHERE created_at < '2023-10-01T10:00:00Z' ORDER BY created_at DESC LIMIT 20;"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap with offset pagination is the 'phantom read' effect: if a user deletes a record on page 1 while you are navigating to page 2, the first record of page 2 shifts into page 1, causing the user to see the same item twice. Always prefer cursor pagination for infinite scroll UIs or high-frequency data feeds to maintain deterministic results."
+    }
+  ],
+  "num": 968,
+  "title": "What is pagination? Cursor pagination versus offset pagination?",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java architectures, navigating legacy APIs, decoupling abstractions from platform-specific implementations, and managing hierarchical object trees require robust structural design patterns. Specifically, the Adapter pattern acts as a software wrapper, resolving interface incompatibilities between two existing classes without modifying their source code, which is invaluable when integrating third-party libraries into strict internal domain models. Meanwhile, the Bridge pattern decouples an abstraction from its concrete implementations so that both can evolve independently through composition rather than inheritance, preventing explosive class hierarchies when multiple orthogonal axes of variation emerge. Finally, the Composite pattern treats individual leaf objects and complex container compositions uniformly by organizing them into tree structures, allowing client code to interact with primitives and aggregates through a single, consistent interface. Mastering these three patterns is essential for any senior Java engineer designing extensible, maintainable, and loosely coupled object-oriented systems."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Pattern",
+        "Primary Purpose",
+        "Structural Mechanism",
+        "Common Java Use Case"
+      ],
+      "rows": [
+        [
+          "Adapter",
+          "Interface conversion",
+          "Wrapper object mapping calls",
+          "Legacy XML parser to modern JSON interface"
+        ],
+        [
+          "Bridge",
+          "Decouple abstraction/implementation",
+          "Composition with a reference",
+          "JDBC driver architecture (DriverManager/Driver)"
+        ],
+        [
+          "Composite",
+          "Tree-structured hierarchies",
+          "Recursive container holding components",
+          "GUI component trees, file system nodes"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Adapter pattern comes in two primary flavors in Java: Class Adapter (using multiple inheritance via interfaces and extending the adaptee) and Object Adapter (using composition to hold an instance of the adaptee). Because Java does not support multiple implementation inheritance for classes, Object Adapters are overwhelmingly preferred in production.",
+        "The Bridge pattern relies heavily on the Dependency Inversion Principle. The abstraction holds a private reference to the implementation interface, allowing runtime swapping of underlying engines without client awareness.",
+        "The Composite pattern defines a component interface with methods for adding, removing, and getting child components. Leaf nodes typically throw UnsupportedOperationException for management methods, while composite nodes delegate work down the tree recursively."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Composite Pattern Implementation in Java\nimport java.util.ArrayList;\nimport java.util.List;\n\ninterface FileSystemComponent {\n    void printName();\n    long getSize();\n}\n\nclass File implements FileSystemComponent {\n    private final String name;\n    private final long size;\n\n    public File(String name, long size) {\n        this.name = name;\n        this.size = size;\n    }\n\n    @Override\n    public void printName() { System.out.println(\"File: \" + name); }\n\n    @Override\n    public long getSize() { return size; }\n}\n\nclass Directory implements FileSystemComponent {\n    private final String name;\n    private final List<FileSystemComponent> children = new ArrayList<>();\n\n    public Directory(String name) { this.name = name; }\n    public void add(FileSystemComponent component) { children.add(component); }\n\n    @Override\n    public void printName() {\n        System.out.println(\"Dir: \" + name);\n        for (FileSystemComponent child : children) {\n            child.printName();\n        }\n    }\n\n    @Override\n    public long getSize() {\n        return children.stream().mapToLong(FileSystemComponent::getSize).sum();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha with the Composite pattern is deciding whether to put child management operations (add/remove) in the base component interface or exclusively in the Composite class. Putting them in the base interface ensures transparency (clients treat leaves and composites identically) but compromises safety (leaf nodes throw runtime exceptions). Putting them in the composite class enforces safety at compile-time but sacrifices transparency, requiring type checks or casting by the client."
+    }
+  ],
+  "num": 183,
+  "title": "Adapter, Bridge, Composite",
+  "category": "Core Java & Fundamentals"
+}

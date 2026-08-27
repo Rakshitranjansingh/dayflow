@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern enterprise Java development, blocking threads on I/O or downstream REST calls is an architectural anti-pattern that destroys throughput. Before Java 8, `Future<V>` solved asynchronous computation in theory, but its API was fundamentally crippled: you could not manually complete it, you could not chain dependent actions without blocking on `get()`, and handling exceptions gracefully required tedious boilerplate. `CompletableFuture` bridges this gap by implementing both `Future` and `CompletionStage`. It represents a promise that a computation will eventually yield a result, allowing developers to construct complex, non-blocking execution pipelines using functional programming paradigms."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "java.util.concurrent.Future",
+        "java.util.concurrent.CompletableFuture"
+      ],
+      "rows": [
+        [
+          "Manual Completion",
+          "Not possible; only the executor can complete it.",
+          "Fully supported via complete() or completeExceptionally()."
+        ],
+        [
+          "Pipeline Chaining",
+          "Not supported; requires blocking get().",
+          "Native support via thenApply(), thenCompose(), etc."
+        ],
+        [
+          "Exception Handling",
+          "Thrown as ExecutionException inside get().",
+          "Handled inline via exceptionally() or handle()."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "By default, asynchronous stages like thenApplyAsync() execute on ForkJoinPool.commonPool() unless an explicit Executor is passed as a second parameter.",
+        "The async suffix on methods (e.g., thenApply vs thenApplyAsync) dictates whether the dependent stage runs on the thread that completed the previous stage or is submitted to a thread pool.",
+        "Completion stages are backed by Treiber stacks internally to manage dependent actions lock-free, ensuring high performance under high concurrency."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public CompletableFuture<UserProfile> fetchUserProfile(String userId) {\n    ExecutorService ioExecutor = Executors.newVirtualThreadPerTaskExecutor();\n    \n    return CompletableFuture\n        .supplyAsync(() -> databaseClient.queryUser(userId), ioExecutor)\n        .thenApplyAsync(user -> enrichWithPreferences(user), ioExecutor)\n        .exceptionally(ex -> {\n            logger.error(\"Failed to fetch user profile\", ex);\n            return UserProfile.defaultProfile();\n        });\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Production Gotcha: Never call blocking methods like get() or join() inside a ForkJoinPool thread (such as the common pool used by default in CompletableFuture). Doing so starves the pool of worker threads and can cause catastrophic deadlocks in reactive or microservice routing layers. Always prefer async chaining or offload blocking operations to dedicated custom executors."
+    }
+  ],
+  "num": 88,
+  "title": "CompletableFuture basics",
+  "category": "Multithreading & Java Concurrency"
+}

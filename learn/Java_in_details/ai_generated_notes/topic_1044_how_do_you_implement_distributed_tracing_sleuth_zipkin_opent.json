@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Implementing Distributed Tracing across a microservices architecture requires capturing causal execution chains as requests traverse network boundaries, message brokers, and database layers. In the modern Java ecosystem, this is achieved by instrumenting applications to inject, propagate, and extract telemetry context—specifically the TraceID and SpanID—across thread boundaries and remote procedure calls. Historically, Spring Cloud Sleuth acted as the standard facade for Spring Boot applications, automatically configuring interceptors for HTTP clients, messaging channels, and reactive streams. Sleuth abstracted the underlying propagation formats (like B3 propagation) and seamlessly integrated with backend collectors like Zipkin to visualize latency bottlenecks and dependency graphs.\n\nHowever, the telemetry landscape has evolved. OpenTelemetry (OTel) has emerged as the universal, vendor-neutral standard for collecting traces, metrics, and logs, effectively deprecating Spring Cloud Sleuth in modern Spring Boot 3+ architectures. OpenTelemetry relies on a unified API and SDK, utilizing automatic bytecode manipulation via Java agents or manual API instrumentation. When a request enters the edge service, a TraceID is generated to uniquely identify the entire transaction lifecycle, while a unique SpanID is minted for the specific unit of work handled by that microservice. As the request fans out to downstream services via HTTP or gRPC, these identifiers are propagated via W3C Trace Context headers (traceparent and tracestate), allowing the downstream service to continue the same trace and append child spans."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Concept",
+        "Spring Cloud Sleuth + Zipkin",
+        "OpenTelemetry (OTel)"
+      ],
+      "rows": [
+        [
+          "Standardization",
+          "Spring-specific ecosystem; B3 propagation focus",
+          "Vendor-neutral CNCF standard; W3C Trace Context native"
+        ],
+        [
+          "Instrumentation",
+          "Compile-time library integration and Spring AOP",
+          "Runtime Java Agent bytecode weaving or manual SDK calls"
+        ],
+        [
+          "Telemetry Scope",
+          "Primarily focused on distributed tracing",
+          "Unified framework for Traces, Metrics, and Logs"
+        ],
+        [
+          "Ecosystem Status",
+          "Maintenance mode / Deprecated for Spring Boot 3+",
+          "Active industry standard with widespread adoption"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "TraceID Generation & Lifecycle: A 128-bit or 64-bit hexadecimal string that remains entirely immutable as a request traverses every participating microservice, functioning as the primary key for correlating distributed logs.",
+        "SpanID & Parent-Child Relationships: Represents a single timed operation within a trace. Each downstream call increments the span hierarchy by generating a new SpanID while retaining the parent's SpanID as its reference, forming a directed acyclic graph.",
+        "Context Propagation: The mechanism of serializing tracing metadata into outbound transport headers (such as HTTP headers or AMQP properties) and parsing them upon ingress to restore thread-local or reactive context (MDC).",
+        "OpenTelemetry Collector Architecture: A vendor-agnostic proxy that receives, processes, and exports telemetry data to various backends (Zipkin, Jaeger, Prometheus, OTLP-compatible vendors) without burdening the application runtime."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import io.opentelemetry.api.trace.Tracer;\nimport io.opentelemetry.api.trace.Span;\nimport io.opentelemetry.api.trace.StatusCode;\nimport org.springframework.stereotype.Service;\nimport org.springframework.web.client.RestTemplate;\n\n@Service\npublic class OrderProcessingService {\n\n    private final Tracer tracer;\n    private final RestTemplate restTemplate;\n\n    public OrderProcessingService(Tracer tracer, RestTemplate restTemplate) {\n        this.tracer = tracer;\n        this.restTemplate = restTemplate;\n    }\n\n    public void processOrder(String orderId) {\n        Span span = tracer.spanBuilder(\"OrderProcessingService.processOrder\")\n                .setAttribute(\"order.id\", orderId)\n                .startSpan();\n        \n        try (io.opentelemetry.context.Scope scope = span.makeCurrent()) {\n            // The W3C TraceContext headers are automatically injected into RestTemplate requests\n            String inventoryUrl = \"http://inventory-service/check?orderId=\" + orderId;\n            restTemplate.getForObject(inventoryUrl, String.class);\n            \n            span.setStatus(StatusCode.OK);\n        } catch (Exception e) {\n            span.recordException(e);\n            span.setStatus(StatusCode.ERROR, \"Failed to process order: \" + e.getMessage());\n            throw e;\n        } finally {\n            span.end();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: When dealing with asynchronous code (e.g., Spring WebFlux, CompletableFuture, or Java Virtual Threads), standard ThreadLocal context propagation fails because child executions occur on different threads. Always ensure your tracing library (like OpenTelemetry Java Agent) has active context propagation plugins enabled for your specific concurrency primitives. Furthermore, be mindful of high-cardinality attributes in spans and logs, as unchecked labels can exhaust memory in your collector backend and drastically increase network overhead."
+    }
+  ],
+  "num": 1045,
+  "title": "How do you implement Distributed Tracing? (Sleuth, Zipkin, OpenTelemetry, TraceID, SpanID)",
+  "category": "Core Java & Fundamentals"
+}

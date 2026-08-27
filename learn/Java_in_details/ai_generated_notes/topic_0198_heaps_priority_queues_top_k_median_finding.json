@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In systems engineering, managing high-throughput streams requires specialized data structures when complete sorting is computationally prohibitive. A Heap is a specialized tree-based data structure that satisfies the heap property—in a max-heap, every parent node is greater than or equal to its children, whereas in a min-heap, parent nodes are less than or equal to their children. This structural invariant allows Priority Queues to be implemented efficiently, providing O(log N) insertion and extraction of the extreme element (maximum or minimum) while keeping the root accessible in O(1) time.\n\nBuilding upon these primitives, two classic algorithmic patterns dominate production stream processing: finding the top-K elements and maintaining a dynamic median. For top-K problems, rather than sorting an entire dataset of size N in O(N log N), a bounded min-heap of size K can process items in O(N log K) time, retaining only the largest elements seen so far. For median finding, utilizing a dual-heap architecture—comprising a max-heap for the lower half of the data and a min-heap for the upper half—allows real-time updates and O(1) median retrieval as elements stream through the system."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Memory Layout: Java's PriorityQueue implements a binary heap backed by a dynamically resizing array. Parent-child relationships are calculated via simple bit shifts (left child at 2*i + 1, right child at 2*i + 2), maximizing CPU cache locality compared to pointer-heavy tree nodes.",
+        "Top-K Mechanics: When processing a massive log stream or database result set, maintaining a PriorityQueue of size K ensures memory consumption remains bounded, preventing OutOfMemoryError scenarios common with full-collection sorting.",
+        "Dual-Heap Balancing: Median finding requires keeping the sizes of the max-heap (lower half) and min-heap (upper half) equal or differing by at most one, rebalancing via root extraction whenever the size invariant is violated."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.PriorityQueue;\nimport java.util.Collections;\n\npublic class MedianFinder {\n    private final PriorityQueue<Integer> lowerHalf = new PriorityQueue<>(Collections.reverseOrder());\n    private final PriorityQueue<Integer> upperHalf = new PriorityQueue<>();\n\n    public void addNum(int num) {\n        if (lowerHalf.isEmpty() || num <= lowerHalf.peek()) {\n            lowerHalf.offer(num);\n        } else {\n            upperHalf.offer(num);\n        }\n\n        if (lowerHalf.size() > upperHalf.size() + 1) {\n            upperHalf.offer(lowerHalf.poll());\n        } else if (upperHalf.size() > lowerHalf.size()) {\n            lowerHalf.offer(upperHalf.poll());\n        }\n    }\n\n    public double findMedian() {\n        if (lowerHalf.size() > upperHalf.size()) {\n            return lowerHalf.peek();\n        }\n        return (lowerHalf.peek() + upperHalf.peek()) / 2.0;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall when using Java's PriorityQueue is attempting to iterate over the collection expecting a sorted order. The internal array layout of a binary heap guarantees that only the root element is minimal/maximal; remaining elements are in an arbitrary partial order. Iteration visits elements in array order, yielding unsorted results. Always poll elements or create a copy before sorting if a fully ordered traversal is required."
+    }
+  ],
+  "num": 199,
+  "title": "Heaps / Priority Queues — top-K, median finding",
+  "category": "Exception Handling & I/O / NIO"
+}

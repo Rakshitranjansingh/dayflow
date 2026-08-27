@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When dealing with financial applications, relying on native primitive types like double or their boxed wrapper counterparts Float and Double is a recipe for silent, catastrophic accounting errors. The root cause lies in how computers represent fractional numbers using the IEEE 754 floating-point standard. Computers operate in binary (base-2), whereas human currency and monetary calculations require decimal (base-10) precision. Fractions like 0.1 in base-10 cannot be represented precisely in finite binary floating-point arithmetic; they result in repeating binary fractions, much like 1/3 in base-10 equals 0.333333... This leads to unavoidable rounding anomalies, precision drift, and accumulation errors over millions of transactions. BigDecimal exists precisely to solve this by providing arbitrary-precision signed decimal numbers, allowing developers to explicitly control scale, rounding modes, and precision limits.\n\nTo understand why double fails, consider the arithmetic expression 0.1 + 0.2. In IEEE 754 double-precision, this evaluates to 0.30000000000000004 rather than the exact mathematical value of 0.3. In a banking or e-commerce system processing ledger entries, interest accruals, or tax computations, these infinitesimal discrepancies compound rapidly. BigDecimal avoids this by storing values internally as an arbitrary-precision integer unscaled value combined with a 32-bit integer scale factor representing the number of digits to the right of the decimal point. This representation ensures exact base-10 calculations, preserving pennies and fractions of cents faithfully through additions, subtractions, multiplications, and divisions."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Metric",
+        "Primitive Double",
+        "BigDecimal"
+      ],
+      "rows": [
+        [
+          "Underlying Representation",
+          "IEEE 754 64-bit binary floating-point",
+          "Arbitrary-precision unscaled BigInteger + int scale"
+        ],
+        [
+          "Precision",
+          "Approx. 15-17 significant decimal digits",
+          "Arbitrary, bounded only by available system memory"
+        ],
+        [
+          "Arithmetic Operations",
+          "Hardware-accelerated CPU instructions",
+          "Software-based arbitrary-precision algorithms"
+        ],
+        [
+          "Memory Footprint",
+          "24 bytes object overhead + 8 bytes value (boxed)",
+          "Varies (typically 40+ bytes object overhead plus backing array)"
+        ],
+        [
+          "Suitability for Currency",
+          "Unacceptable (causes rounding drift and compliance failures)",
+          "Mandatory (exact decimal tracking and rounding compliance)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Internal Layout: A BigDecimal instance is structurally composed of a BigInteger for the unscaled value and a 32-bit integer representing the scale. For example, the monetary amount '123.45' is stored internally as an unscaled value of 12345 and a scale of 2.",
+        "Immutability: Just like String and BigInteger, BigDecimal is strictly immutable. Every arithmetic operation (add, subtract, multiply) allocates a new instance on the JVM heap, requiring mindful memory management in high-throughput loops.",
+        "The Scale and Rounding Trap: Division operations on BigDecimals can easily throw an ArithmeticException if the result yields an infinite non-repeating decimal expansion (e.g., 1/3) and no explicit MathContext or RoundingMode is provided.",
+        "String Construction Rule: Always initialize BigDecimal using the String constructor (new BigDecimal(\"0.1\")) rather than the double constructor (new BigDecimal(0.1)). The double constructor inherits the exact binary inaccuracy of the floating-point literal passed into it."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.math.BigDecimal;\nimport java.math.RoundingMode;\n\npublic final class CurrencyCalculator {\n    \n    // Always define standard rounding and scale for financial calculations\n    private static final int FINANCIAL_SCALE = 2;\n    private static final RoundingMode DEFAULT_ROUNDING = RoundingMode.HALF_EVEN;\n\n    public static BigDecimal calculateTotal(String basePriceStr, String taxRateStr) {\n        // CRITICAL: Always use String constructor, never new BigDecimal(double)\n        BigDecimal basePrice = new BigDecimal(basePriceStr);\n        BigDecimal taxRate = new BigDecimal(taxRateStr);\n        \n        BigDecimal taxAmount = basePrice.multiply(taxRate)\n                                      .setScale(FINANCIAL_SCALE, DEFAULT_ROUNDING);\n                                      \n        return basePrice.add(taxAmount).setScale(FINANCIAL_SCALE, DEFAULT_ROUNDING);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Never use the equals() method to compare two BigDecimal instances for monetary equality. BigDecimal.equals() takes both the value and the scale into account. For instance, new BigDecimal(\"10.0\").equals(new BigDecimal(\"10.00\")) evaluates to false because their scales differ (1 versus 2). Always use the compareTo() method (e.g., a.compareTo(b) == 0) for value-based equality checks in financial assertions and database mapping logic."
+    }
+  ],
+  "num": 1199,
+  "title": "Why do you use BigDecimal for currency instead of double?",
+  "category": "Core Java & Fundamentals"
+}

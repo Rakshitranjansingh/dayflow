@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Introduced in Java 10 via JEP 286, `var` brings local variable type inference to the Java language, bridging the gap between strong static typing and the visual verbosity often associated with boilerplate declarations. Contrary to popular misconception, `var` does not make Java dynamically typed; it is strictly a compile-time syntactic convenience. When you declare a variable using `var`, the Java compiler's type checker examines the right-hand side of the initialization statement, resolves the exact type, and bakes that concrete type directly into the bytecode's local variable table. The JVM remains entirely unaware that `var` was used in the source code.\n\nLocal variable type inference exists to eliminate redundant information without sacrificing safety. In pre-Java 10 code, developers constantly wrote code like `CustomerRepository repo = new CustomerRepository();`, where the class name appeared twice on a single line. By replacing the left-hand declaration with `var`, the cognitive load shifts away from repeating known types toward understanding the data flow and transformation logic. However, its scope is strictly restricted to local variables with initializers. It cannot be used for member fields, method parameters, return types, or uninitialized local variables, ensuring that API boundaries remain explicitly typed and easily documentable."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Context / Declaration Site",
+        "Allowed / Prohibited",
+        "Reasoning"
+      ],
+      "rows": [
+        [
+          "Local variables with initializers",
+          "Allowed",
+          "Compiler can deduce the exact type from the right-hand side expression."
+        ],
+        [
+          "Class fields (instance/static)",
+          "Prohibited",
+          "Fields define the public or package-private contract of a class; explicit types are mandatory."
+        ],
+        [
+          "Method parameters and return types",
+          "Prohibited",
+          "Would break method overloading resolution and API signature discovery."
+        ],
+        [
+          "For-loop indexes and try-with-resources",
+          "Allowed",
+          "Treated as local variable declarations tied to a specific scope and initializer."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The compiler enforces that the right-hand side of a `var` declaration must have a determinable type. Consequently, initializers consisting of a null literal, lambda expressions, method references, or array initializers without an explicit target type (e.g., `var x = {1, 2, 3};`) will cause a compilation error.",
+        "Using `var` with diamond operator generics (e.g., `var list = new ArrayList<>();`) infers the type `ArrayList<Object>` rather than a specific payload type if no target type or element type hints exist, which can lead to subtle runtime ClassCastExceptions down the line.",
+        "Although local variable type inference does not alter the underlying bytecode, overuse in complex expressions can severely degrade code readability. Senior engineers generally reserve `var` for instances where the right-hand side explicitly states the type name (like constructor calls) or when dealing with verbose, non-denotable types like intersection types or anonymous inner classes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class OrderProcessor {\n    public void processOrders(List<Order> orders) {\n        // Explicit type inference with diamond operator\n        var filteredOrders = new ArrayList<Order>();\n        \n        for (var order : orders) {\n            if (order.isUrgent()) {\n                filteredOrders.add(order);\n            }\n        }\n\n        // Stream API integration where types are verbose\n        var orderSummaryMap = filteredOrders.stream()\n            .collect(Collectors.groupingBy(Order::getCustomerId, Collectors.counting()));\n            \n        for (var entry : orderSummaryMap.entrySet()) {\n            System.out.println(\"Customer: \" + entry.getKey() + \" Count: \" + entry.getValue());\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production trap with `var` is breaking backwards compatibility or type safety during refactoring. If a method signature changes to return a broader or narrower interface (e.g., changing a method return from `ImmutableList` to `List`), code using `var` will silently adapt its inferred type. While sometimes desirable, this can inadvertently expose implementation details or change method overload resolution when the code is recompiled, leading to runtime failures that would have been caught instantly by explicit type declarations."
+    }
+  ],
+  "num": 91,
+  "title": "var (local variable type inference) — Java 10",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

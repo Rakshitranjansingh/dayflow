@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Exception propagation is the mechanism by which an exception, once thrown within a nested method call, automatically bubbles up the Java call stack through each preceding caller until it encounters a matching try-catch block or reaches the topmost execution thread. When an error or unexpected runtime condition occurs, the JVM instantiates an exception object and aborts the normal execution flow of the current method. If this method lacks local error handling, it terminates abruptly, popping its stack frame and transferring control back to the caller method that invoked it. This unwinding process repeats recursively up the call stack. Understanding this flow is essential for structuring robust Java applications, as it dictates where transactions should be rolled back, how resources are cleaned up, and at what architectural boundary infrastructural faults should be translated into user-friendly responses."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Unchecked exceptions (subclasses of RuntimeException and Error) propagate automatically through the call stack without requiring explicit throws declarations in method signatures.",
+        "Checked exceptions (subclasses of Exception excluding RuntimeException) force compile-time handling, requiring every intervening method in the propagation path to either catch the exception or declare it via the throws keyword.",
+        "During stack unwinding, the JVM traverses backwards through execution frames, preserving the stack trace via fillInStackTrace() to provide diagnostic visibility into the exact lineage of the failure.",
+        "If an exception propagates all the way to the top-level main thread or a custom Runnable/Callable execution thread without being caught, the thread terminates, and the JVM invokes the thread's UncaughtExceptionHandler."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ExceptionPropagationDemo {\n    public static void main(String[] args) {\n        try {\n            levelOne();\n        } catch (IllegalStateException e) {\n            System.err.println(\"Caught at root: \" + e.getMessage());\n            e.printStackTrace();\n        }\n    }\n\n    public static void levelOne() {\n        levelTwo();\n    }\n\n    public static void levelTwo() {\n        // Exception propagates up from levelThree, skipping levelTwo's catch blocks\n        levelThree();\n    }\n\n    public static void levelThree() {\n        throw new IllegalStateException(\"Critical failure propagated from the bottom up.\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic senior-level gotcha in exception propagation is 'exception swallowing' or improper wrapping. When catching an exception to rethrow it as a custom domain exception, always pass the original exception as the cause parameter (e.g., throw new CustomException(\"failed\", cause)). Failing to chain the cause completely obliterates the root stack trace, making asynchronous debugging, distributed tracing, and root-cause analysis nearly impossible in production."
+    }
+  ],
+  "num": 577,
+  "title": "What is exception propagation?",
+  "category": "Exception Handling & I/O / NIO"
+}

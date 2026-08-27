@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java architecture and web security, Authentication and Authorization represent two distinct, sequentially executed pillars of defense that protect systems against unauthorized access and privilege escalation. Authentication is the process of verifying *who* a user is—validating credentials such as username and password, API keys, or JWT tokens, and establishing a trusted identity inside the security context. In contrast, Authorization evaluates *what* an authenticated user is permitted to do, checking their assigned roles, scopes, or granular authorities against the requested resource or method signature. Conflating these two concepts results in severe security vulnerabilities; a system that confirms a user's identity but fails to properly restrict their operational bounds allows any valid user to perform administrative actions. Within frameworks like Spring Security, these concerns are decoupled into specific architectural components. Authentication is handled by the AuthenticationManager, which delegates to AuthenticationProviders to query UserDetailsService and verify passwords using PasswordEncoder implementations. Once the SecurityContextHolder is populated with an authenticated Authentication principal, authorization takes over via filter security interceptors, method security expressions, and AccessDecisionManagers that evaluate whether the principal possesses the required GrantedAuthority collections to proceed."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Security Dimension",
+        "Authentication",
+        "Authorization"
+      ],
+      "rows": [
+        [
+          "Core Question",
+          "Who are you? (Identity Verification)",
+          "What can you do? (Access Control)"
+        ],
+        [
+          "Timing",
+          "Occurs first in the request processing lifecycle.",
+          "Occurs second, strictly after successful authentication."
+        ],
+        [
+          "Core Artifacts",
+          "Credentials, Username/Password, JWT, Sessions, Principal.",
+          "Roles, Authorities, Scopes, Access Control Lists (ACLs)."
+        ],
+        [
+          "Failure Result",
+          "HTTP 401 Unauthorized (Unauthenticated / invalid credentials).",
+          "HTTP 403 Forbidden (Authenticated, but insufficient privileges)."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Authentication phase relies on extracting credentials from the incoming HttpServletRequest, wrapping them into an unauthenticated Authentication token, and passing them to the AuthenticationManager to verify identity and populate the ThreadLocal-backed SecurityContextHolder.",
+        "Authorization phase is enforced downstream via FilterSecurityInterceptor or MethodSecurityInterceptor, where an AccessDecisionManager consults AccessDecisionVoters to check if the principal's GrantedAuthority list satisfies the configured security expressions like hasRole() or hasAuthority().",
+        "Stateless architectures (like REST APIs using JWT) require authentication filters to re-authenticate the user on every single request by parsing and validating the token signature, whereas stateful architectures rely on an HTTP session cookie mapped to a serialized SecurityContext."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\n@EnableMethodSecurity\npublic class SecurityConfig {\n\n    @Bean\n    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {\n        http\n            .csrf(csrf -> csrf.disable())\n            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))\n            .authorizeHttpRequests(auth -> auth\n                // Authentication endpoints are public\n                .requestMatchers(\"/api/v1/auth/**\").permitAll()\n                // Authorization: requires specific roles\n                .requestMatchers(\"/api/v1/admin/**\").hasRole(\"ADMIN\")\n                .requestMatchers(\"/api/v1/orders/**\").hasAnyRole(\"USER\", \"ADMIN\")\n                // Any other request requires authentication at minimum\n                .anyRequest().authenticated()\n            );\n        return http.build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production bug is confusing hasRole(\"ADMIN\") with hasAuthority(\"ADMIN\"). Spring Security's hasRole() automatically prepends the 'ROLE_' prefix to the string, checking for 'ROLE_ADMIN' in the GrantedAuthority collection. If your database or OAuth2 provider supplies authorities without the prefix (e.g., just 'ADMIN'), using hasRole() will always result in an HTTP 403 Forbidden response despite correct authentication. Always verify whether your upstream identity provider emits prefixed roles or raw authorities."
+    }
+  ],
+  "num": 269,
+  "title": "Authentication vs Authorization",
+  "category": "Spring Security & Web Security"
+}

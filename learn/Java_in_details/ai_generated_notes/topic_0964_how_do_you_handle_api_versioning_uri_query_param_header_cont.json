@@ -1,0 +1,69 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "API versioning is a critical architectural discipline required to evolve distributed systems without breaking downstream clients. As business domains shift, data contracts inevitably mutate. Without a robust versioning strategy, changing a field type or removing a deprecated endpoint can cause cascading failures across microservices and mobile applications. To solve this, software engineers employ four primary strategies: URI path versioning, Query parameter versioning, Header versioning, and Content Negotiation (Media Type versioning). Each approach offers distinct trade-offs regarding RESTful semantics, caching efficiency, and routing complexity.\n\nURI path versioning embeds the version directly into the endpoint path (e.g., /api/v1/users). It is the most common and easily debuggable approach, but it violates pure RESTful principles by treating the version as part of the resource identifier rather than an attribute of the representation. Query parameter versioning appends a version flag to the URL (e.g., /api/users?version=1). While simple to implement, it complicates HTTP caching since proxies often ignore query parameters or cache them inconsistently. Header versioning moves the version specifier into custom HTTP headers (e.g., X-API-Version: 1) or accepts headers, keeping URLs clean and strictly REST-compliant. Finally, Content Negotiation utilizes the Accept header (e.g., Accept: application/vnd.company.v1+json) to explicitly request a specific media type representation. This is the most RESTful and standard-compliant mechanism, though it introduces significant client-side implementation overhead and testing complexity."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Example",
+        "REST Compliance",
+        "Caching Friendliness",
+        "Client Implementation Effort"
+      ],
+      "rows": [
+        [
+          "URI Path",
+          "/api/v1/users",
+          "Low (Version is not part of resource)",
+          "High (URLs are distinct)",
+          "Low (Easy to construct and test)"
+        ],
+        [
+          "Query Param",
+          "/api/users?v=1",
+          "Low (Pollutes query space)",
+          "Low (Cache keys vary by param order)",
+          "Low (Simple browser testing)"
+        ],
+        [
+          "Header",
+          "X-API-Version: 1",
+          "Medium (Separates routing from data)",
+          "Medium (Requires Vary header configuration)",
+          "Medium (Requires custom HTTP client interceptors)"
+        ],
+        [
+          "Content Negotiation",
+          "Accept: application/vnd.v1+json",
+          "High (Resource representations vary via MIME types)",
+          "High (Leverages standard HTTP Vary mechanics)",
+          "High (Complex header construction)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "URI versioning relies on Spring MVC request mapping prefix patterns or custom RequestCondition implementations to route requests to distinct controller packages or classes.",
+        "Content Negotiation leverages Spring's ContentNegotiationManager to inspect Accept headers and resolve MediaType mappings, delegating payload serialization to appropriate HttpMessageConverters.",
+        "Header and Query parameter strategies often utilize HandlerInterceptors or custom WebMvcConfigurer mappings to extract version tokens and populate thread-local context for downstream service layers.",
+        "Implementing API versioning alongside robust exception handling requires maintaining backward compatibility for error response formats (RFC 7807 Problem Details) across all active versions."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/users\")\npublic class UserController {\n\n    // 1. URI Path Versioning\n    @GetMapping(\"/v1/{id}\")\n    public ResponseEntity<UserV1Response> getUserV1(@PathVariable Long id) {\n        return ResponseEntity.ok(new UserV1Response(id, \"John Doe\"));\n    }\n\n    // 2. Content Negotiation (Media Type) Versioning\n    @GetMapping(value = \"/{id}\", produces = \"application/vnd.company.v2+json\")\n    public ResponseEntity<UserV2Response> getUserV2(@PathVariable Long id) {\n        return ResponseEntity.ok(new UserV2Response(id, \"John\", \"Doe\"));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when using Header or Content Negotiation versioning is improper HTTP Caching configuration. If your API gateway or CDN caches responses based solely on the URI path, a client requesting v2 might accidentally receive a cached v1 payload because the caching proxy ignored the Vary: Accept or Vary: X-API-Version header. Always ensure upstream proxies are configured to include version headers in the cache key definition."
+    }
+  ],
+  "num": 965,
+  "title": "How do you handle API Versioning? (URI, Query param, Header, Content Negotiation)",
+  "category": "Exception Handling & I/O / NIO"
+}

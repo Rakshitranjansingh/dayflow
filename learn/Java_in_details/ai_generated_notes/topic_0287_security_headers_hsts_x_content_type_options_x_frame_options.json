@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern web application development, securing the transport layer and preventing browser-side interpretation flaws is just as crucial as protecting data at rest. Spring Security provides a robust, out-of-the-box infrastructure for enforcing HTTP response headers that instruct compliant user agents on how to safely handle rendered content. Specifically, Http Strict Transport Security (HSTS) guarantees that clients communicate with the server exclusively via encrypted HTTPS connections, completely mitigating man-in-the-middle protocol downgrade attacks. Meanwhile, X-Content-Type-Options acts as a rigid defense against MIME-sniffing vulnerabilities by strictly enforcing the declared Content-Type, ensuring that a browser never executes scripts hidden inside mislabeled binary or image payloads. Finally, X-Frame-Options protects applications from sophisticated UI redressing vectors—commonly known as clickjacking—by explicitly controlling whether a browser is permitted to render a web page within a <frame>, <iframe>, <embed>, or <object> tag.\n\nWhen a Spring Boot application initializes its security filter chain, these headers are typically managed via the headers() DSL within the SecurityFilterChain bean. Left unconfigured, modern browsers default to lenient parsing heuristics, leaving windows of opportunity for persistent cross-site scripting (XSS), credential interception, and unauthorized UI framing. By explicitly orchestrating HSTS, X-Content-Type-Options, and X-Frame-Options, developers establish a defense-in-depth perimeter directly at the browser edge, minimizing reliance purely on application-layer input sanitation and transforming potential client-side browser exploits into safely ignored network events."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Security Header",
+        "Primary Threat Mitigated",
+        "Standard Configuration Value / Directive"
+      ],
+      "rows": [
+        [
+          "HSTS (Strict-Transport-Security)",
+          "Protocol downgrade attacks, SSL stripping, man-in-the-middle sniffing",
+          "max-age=31536000 ; includeSubDomains ; preload"
+        ],
+        [
+          "X-Content-Type-Options",
+          "MIME-sniffing execution of malicious scripts disguised as non-executable types",
+          "nosniff"
+        ],
+        [
+          "X-Frame-Options",
+          "Clickjacking and UI redressing via hidden iframe overlays",
+          "DENY or SAMEORIGIN"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "HSTS works by injecting the Strict-Transport-Security response header only over valid TLS connections. If an initial request hits the server over plain HTTP, the browser ignores the HSTS header; therefore, edge routers or load balancers must enforce immediate HTTP-to-HTTPS redirects before Spring Security evaluates the request.",
+        "X-Content-Type-Options: nosniff alters the browser's speculative rendering engine. Without this header, if a server serves an uploaded SVG file as application/octet-stream, a compromised browser might still parse it as HTML/JavaScript, triggering stored XSS.",
+        "X-Frame-Options superseded older frame-ancestors directives (though Content Security Policy now offers finer control). The DENY directive blocks all framing regardless of domain, while SAMEORIGIN permits framing exclusively if the embedding site shares the exact same origin protocol, host, and port."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\npublic class WebSecurityConfig {\n\n    @Bean\n    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {\n        http\n            .headers(headers -> headers\n                .httpStrictTransportSecurity(hsts -> hsts\n                    .includeSubDomains(true)\n                    .maxAgeInSeconds(31536000)\n                    .preload(true)\n                )\n                .contentTypeOptions(Customizer.withDefaults()) // Defaults to nosniff\n                .frameOptions(frame -> frame.sameOrigin())\n            );\n        return http.build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production pitfall involves enabling HSTS preload without verifying that every single subdomain (including legacy internal dev tools or staging environments) possesses a valid, trusted SSL/TLS certificate. Once your domain is hardcoded into browser HSTS preload lists, visiting any HTTP subdomain will trigger an unbypassable security crash for users, taking weeks or months to undo through browser vendor updates. Always start with a low max-age in production telemetry before ramping up to long-term caching."
+    }
+  ],
+  "num": 288,
+  "title": "Security headers — HSTS, X-Content-Type-Options, X-Frame-Options",
+  "category": "Spring Security & Web Security"
+}

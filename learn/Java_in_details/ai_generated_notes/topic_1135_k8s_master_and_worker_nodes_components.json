@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In a Kubernetes (K8s) cluster, the architecture is bifurcated into the Control Plane (Master Nodes) and the Data Plane (Worker Nodes). The Master Node acts as the brain of the cluster, responsible for maintaining the desired state, scheduling workloads, and managing API access. It houses the API Server, which serves as the primary entry point for all REST commands; the etcd distributed key-value store, which acts as the cluster's single source of truth; the Scheduler, which assigns pods to nodes based on resource availability; and the Controller Manager, which runs control loops to ensure the current cluster state matches the desired state. Conversely, Worker Nodes are the workhorses where your containerized applications actually execute. Each worker node runs the Kubelet, an agent that ensures containers are running in pods as specified; the Kube-proxy, which maintains network rules to allow communication to and from pods; and the Container Runtime (like containerd or CRI-O) that handles the actual lifecycle of the container images."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component",
+        "Location",
+        "Primary Responsibility"
+      ],
+      "rows": [
+        [
+          "API Server",
+          "Master",
+          "Exposes K8s API and handles authentication/authorization"
+        ],
+        [
+          "etcd",
+          "Master",
+          "Persistent storage for cluster state and metadata"
+        ],
+        [
+          "Kubelet",
+          "Worker",
+          "Ensures containers are running in a Pod"
+        ],
+        [
+          "Kube-proxy",
+          "Worker",
+          "Manages network traffic routing and load balancing"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The API Server is the only component that communicates directly with etcd, ensuring that state changes are serialized and consistent across the cluster.",
+        "The Kubelet performs periodic health checks (liveness and readiness probes) and reports the node status back to the API Server via heartbeats.",
+        "The Controller Manager executes 'reconciliation loops'—it continuously observes the cluster state and performs operations to move the system toward the desired state defined in YAML manifests.",
+        "Container Runtimes interact with the Linux kernel via namespaces and cgroups to provide process isolation and resource constraints, effectively sandboxing the application."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: java-app-pod\nspec:\n  containers:\n  - name: jvm-container\n    image: eclipse-temurin:17-jdk\n    resources:\n      limits:\n        memory: \"512Mi\"\n        cpu: \"500m\""
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: A common production failure occurs when the etcd database grows too large or disk I/O latency spikes on the Master Node. Because etcd is a Raft-based consensus store, any latency in disk writes will trigger a cluster-wide 'NotReady' state for nodes, as the API Server will fail to commit state updates. Always ensure your Master Nodes are backed by high-IOPS SSDs and monitor the 'etcd_disk_wal_fsync_duration_seconds' metric religiously."
+    }
+  ],
+  "num": 1136,
+  "title": "K8s Master and Worker Nodes components?",
+  "category": "Core Java & Fundamentals"
+}

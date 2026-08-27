@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Versioning REST APIs is a critical architectural decision that balances the need for evolution against the stability of client integrations. In a microservices ecosystem, especially when using Spring WebFlux for non-blocking I/O, breaking changes can trigger cascading failures across distributed systems. Versioning strategies generally fall into four categories: URI versioning (e.g., /api/v1/users), which is highly visible and cache-friendly; Header versioning (e.g., X-API-Version: 2), which keeps URIs clean but complicates proxy and browser-based testing; Media Type versioning (Content-Negotiation), which leverages the Accept header to request specific representations of a resource, adhering strictly to REST principles; and Query Parameter versioning, which is often considered an anti-pattern due to its impact on cache key generation. In WebFlux, we often implement these using custom RequestMappingHandlerMappings or WebFilter implementations to route traffic dynamically to different controller versions without polluting the business logic."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Cacheability",
+        "Client Complexity"
+      ],
+      "rows": [
+        [
+          "URI Path",
+          "Excellent",
+          "Low"
+        ],
+        [
+          "Custom Header",
+          "Poor",
+          "Moderate"
+        ],
+        [
+          "Content Negotiation",
+          "Excellent",
+          "High"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "URI versioning creates distinct resource identifiers, ensuring that a GET request to /v1/orders is treated as a different cache key than /v2/orders, which is vital for CDN efficiency.",
+        "Content-negotiation via the 'Accept' header allows for 'Evolutionary APIs' where the same resource URI returns different schema versions based on the client's capability, though it requires robust logic in the serialization layer (e.g., Jackson MixIns).",
+        "In WebFlux, using a RequestCondition allows you to intercept incoming requests and map them to specific bean versions before the handler is invoked, keeping the controller classes clean and focused on a single version.",
+        "Deprecation strategies should always include the 'Warning' or 'Deprecation' HTTP headers to proactively inform consumers before a version is decommissioned."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/v{version}/users\")\npublic class UserController {\n    @GetMapping(\"/{id}\")\n    public Mono<UserDto> getUser(@PathVariable String version, @PathVariable String id) {\n        if (\"1\".equals(version)) return userService.findByIdV1(id);\n        return userService.findByIdV2(id);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is 'version sprawl' where developers maintain too many active versions. Always implement a strict sunset policy. If you use URI versioning, ensure your API Gateway handles the routing logic to prevent 'leaky abstractions' where your microservice code becomes cluttered with version-checking if-else blocks. Also, be wary of shared DTOs; if you change a field in a shared library, you break all versions simultaneously—always version your DTOs independently of your service logic."
+    }
+  ],
+  "num": 1226,
+  "title": "How do you handle versioning in REST APIs?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

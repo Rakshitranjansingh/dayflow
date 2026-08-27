@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Validation in Spring Boot and Bean Validation represent the foundational mechanism for enforcing data integrity, domain constraints, and business rule invariants at the application boundary before payloads hit downstream services or data stores. Validation in Spring Boot refers to the orchestration layer provided by the framework to automatically intercept incoming HTTP requests, bind JSON payloads to Data Transfer Objects (DTOs), and trigger constraint verification. It leverages the Jakarta Bean Validation specification (formerly JSR-380 / Hibernate Validator as the default reference implementation) to declarative annotate object graphs using annotations like @NotNull, @Size, or @Email.\n\nBean Validation, on the other hand, is the underlying portable Java specification (Jakarta Validation API) that defines a metadata model and API for state-based validation of JavaBeans. Instead of cluttering controllers with imperative if-else checks, Bean Validation decouples rules from execution via annotations and XML descriptors. When combined with Spring Boot's 'spring-boot-starter-validation' module, the framework automatically registers a LocalValidatorFactoryBean into the application context. This triggers MethodValidationPostProcessor and integrates with Spring MVC's HandlerMethodArgumentResolver pipeline, ensuring that any controller method parameter annotated with @Valid or @Validated automatically invokes the validation engine, throwing a MethodArgumentNotValidException if constraint violations occur."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Concern",
+        "Spring Boot Validation",
+        "Bean Validation (Jakarta/Hibernate)"
+      ],
+      "rows": [
+        [
+          "Primary Role",
+          "Integration, lifecycle management, and HTTP error translation",
+          "Constraint definition, annotation processing, and validation engine execution"
+        ],
+        [
+          "Scope",
+          "Spring web layer, method parameters, global exception handling",
+          "Plain Java objects, property-level, method-level, and cross-field constraints"
+        ],
+        [
+          "Default Implementation",
+          "Delegates to Hibernate Validator via Spring Boot starters",
+          "Standardized specification (javax.validation / jakarta.validation)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The validation engine builds a MetaModel of the target bean by inspecting field annotations via reflection, caching metadata to avoid performance penalties on subsequent requests.",
+        "Constraint violations are aggregated into a ConstraintViolationSet, which Spring MVC intercepts and transforms into a structured HTTP 400 Bad Request response containing field-specific error codes.",
+        "Custom cross-field validation requires implementing the ConstraintValidator interface and defining a type-level annotation marked with @Constraint(validatedBy = ...).",
+        "Groups and Group Sequences allow validation execution to be sequenced, enabling multi-step form submissions or conditional validation depending on the target state."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/users\")\n@Validated\npublic class UserController {\n\n    @PostMapping\n    public ResponseEntity<UserResponse> createUser(@RequestBody @Valid UserRegistrationDto dto) {\n        // If validation fails, Spring automatically throws MethodArgumentNotValidException\n        UserResponse response = userService.register(dto);\n        return ResponseEntity.status(HttpStatus.CREATED).body(response);\n    }\n}\n\npublic record UserRegistrationDto(\n    @NotBlank(message = \"Username cannot be blank\")\n    @Size(min = 3, max = 50, message = \"Username must be between 3 and 50 characters\")\n    String username,\n\n    @Email(message = \"Invalid email format\")\n    @NotNull(message = \"Email is required\")\n    String email,\n\n    @Min(value = 18, message = \"User must be at least 18 years old\")\n    int age\n) {}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap occurs when developers forget to add the @Valid annotation on nested objects within a DTO graph. Bean Validation does not cascade into nested object fields by default unless you explicitly annotate the child property with @Valid. Furthermore, mixing @Validated at the controller class level is crucial when validating path variables or request parameters directly on methods, whereas @Valid is required for request body payload binding."
+    }
+  ],
+  "num": 1217,
+  "title": "What is validation in Spring Boot? What is Bean Validation?",
+  "category": "Spring Boot & Spring Framework"
+}

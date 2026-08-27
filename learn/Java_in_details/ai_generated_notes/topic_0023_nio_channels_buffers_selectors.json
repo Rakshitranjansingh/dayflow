@@ -1,0 +1,69 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Java NIO (New I/O), introduced in JDK 1.4, revolutionized Java's I/O subsystem by transitioning from a stream-oriented, blocking paradigm to a buffer-oriented, non-blocking, and multiplexed architecture. In traditional blocking I/O (java.io), every connection requires a dedicated thread. When a thread calls read() or write(), it blocks until data is fully available or transmitted. This 'one-thread-per-connection' model scales poorly under high-concurrency demands, such as in web servers or chat applications, due to massive thread stack memory overhead and excessive OS context switching. Java NIO solves this scalability bottleneck by decoupling connections from threads using three core abstractions: Channels, Buffers, and Selectors."
+    },
+    {
+      "type": "prose",
+      "content": "Channels represent open connections to hardware devices, files, network sockets, or program components capable of performing I/O operations. Unlike traditional streams, which are unidirectional (either InputStream or OutputStream), Channels are bidirectional; they can both read and write. However, Channels cannot interact with data directly. Instead, they must read data into a Buffer or write data out of a Buffer. Buffers act as dedicated, structured memory blocks (either on the JVM heap or off-heap) that hold data during transfer. Selectors provide the multiplexing magic, allowing a single thread to monitor multiple network channels for I/O events (like incoming connections, read readiness, or write readiness). This event-driven loop enables a single thread to efficiently manage thousands of concurrent connections."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Standard IO (java.io)",
+        "New IO (java.nio)"
+      ],
+      "rows": [
+        [
+          "Data Flow Model",
+          "Stream-oriented (unidirectional byte/char streams)",
+          "Buffer-oriented (bidirectional block-based transfers)"
+        ],
+        [
+          "Blocking Behavior",
+          "Strictly blocking; threads halt on read/write operations",
+          "Non-blocking; threads query readiness and proceed immediately"
+        ],
+        [
+          "Concurrency Model",
+          "One thread per connection (high resource overhead)",
+          "Multiplexed; one thread manages many channels via Selectors"
+        ],
+        [
+          "Memory Management",
+          "JVM Heap allocation only",
+          "Supports both JVM Heap and Direct (Off-Heap) memory allocation"
+        ],
+        [
+          "OS Integration",
+          "High abstraction; relies on standard OS read/write calls",
+          "Low-level OS integration (epoll, kqueue, select, zero-copy)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Buffer Pointer Mechanics: A Buffer is managed by four critical pointers: capacity (maximum elements), position (index of the next element to read/write), limit (index beyond which no elements should be read/write), and mark (a bookmarked position). The invariant '0 <= mark <= position <= limit <= capacity' is strictly enforced.",
+        "Buffer State Transitions: To write into a buffer and then read from it, you must manage its state. Calling flip() transitions the buffer from write-mode to read-mode by setting limit = position and position = 0. Calling clear() resets the buffer for writing by setting position = 0 and limit = capacity. Calling compact() copies unread data to the beginning of the buffer, setting position to the end of the unread data, allowing safe interleaved read/write operations.",
+        "Direct vs. Non-Direct Buffers: Non-direct buffers (ByteBuffer.allocate()) reside on the JVM heap. Direct buffers (ByteBuffer.allocateDirect()) bypass the JVM heap, allocating native memory via OS malloc. This enables 'Zero-Copy' operations because the OS kernel can read/write directly to this memory space without copying data to an intermediate JVM heap buffer first. However, direct buffers have high allocation and deallocation overhead.",
+        "Selector Multiplexing & OS Epoll: Selectors utilize underlying OS-level system calls such as epoll (Linux), kqueue (macOS), or IOCP (Windows). Instead of polling channels in a CPU-intensive loop, the Selector registers channels and blocks on select(). The OS kernel wakes up the Selector's thread only when registered events (OP_ACCEPT, OP_CONNECT, OP_READ, OP_WRITE) occur on the underlying file descriptors.",
+        "Channel Non-Blocking Configuration: To register a Channel with a Selector, the channel must be explicitly configured as non-blocking via channel.configureBlocking(false). FileChannels do not support non-blocking mode and cannot be registered with a Selector because local file systems do not support non-blocking I/O multiplexing in the same manner as network sockets."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.io.IOException;\nimport java.net.InetSocketAddress;\nimport java.nio.ByteBuffer;\nimport java.nio.channels.*;\nimport java.util.Iterator;\nimport java.util.Set;\n\npublic class NioEchoServer {\n    public static void main(String[] args) throws IOException {\n        Selector selector = Selector.open();\n        ServerSocketChannel serverChannel = ServerSocketChannel.open();\n        serverChannel.bind(new InetSocketAddress(\"localhost\", 8080));\n        serverChannel.configureBlocking(false);\n        serverChannel.register(selector, SelectionKey.OP_ACCEPT);\n\n        System.out.println(\"NIO Echo Server started on port 8080...\");\n\n        while (true) {\n            int readyChannels = selector.select();\n            if (readyChannels == 0) continue;\n\n            Set<SelectionKey> selectedKeys = selector.selectedKeys();\n            Iterator<SelectionKey> keyIterator = selectedKeys.iterator();\n\n            while (keyIterator.hasNext()) {\n                SelectionKey key = keyIterator.next();\n                keyIterator.remove();\n\n                if (!key.isValid()) continue;\n\n                if (key.isAcceptable()) {\n                    ServerSocketChannel ssc = (ServerSocketChannel) key.channel();\n                    SocketChannel clientChannel = ssc.accept();\n                    clientChannel.configureBlocking(false);\n                    clientChannel.register(selector, SelectionKey.OP_READ);\n                    System.out.println(\"Accepted connection from: \" + clientChannel.getRemoteAddress());\n                } else if (key.isReadable()) {\n                    SocketChannel clientChannel = (SocketChannel) key.channel();\n                    ByteBuffer buffer = ByteBuffer.allocate(256);\n                    int bytesRead = clientChannel.read(buffer);\n\n                    if (bytesRead == -1) {\n                        System.out.println(\"Client disconnected: \" + clientChannel.getRemoteAddress());\n                        clientChannel.close();\n                    } else if (bytesRead > 0) {\n                        buffer.flip(); // Prepare buffer for reading/writing out\n                        clientChannel.write(buffer); // Echo the data back\n                        buffer.clear(); // Clear buffer for next read\n                    }\n                }\n            }\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A notorious production trap in Java NIO is the 'Selector CPU 100% Bug' (JDK-6403933), primarily affecting Linux environments. Under high load, the underlying epoll mechanism can prematurely signal a read event on a closed connection, causing Selector.select() to return immediately with zero keys. This throws the event loop into an infinite, spinning busy-wait that pegs the CPU at 100%. Production-grade frameworks like Netty mitigate this by tracking consecutive empty select wakeups. If the threshold is crossed (e.g., 512 empty selects), Netty dynamically spawns a new Selector, transfers all registered channels to the new selector, and disposes of the corrupted old selector."
+    }
+  ],
+  "num": 24,
+  "title": "NIO — Channels, Buffers, Selectors",
+  "category": "Exception Handling & I/O / NIO"
+}

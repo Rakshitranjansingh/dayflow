@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In high-throughput, non-blocking asynchronous architectures, standard push-based models often overwhelm downstream consumers when upstream producers emit data faster than it can be processed. To solve this cascading failure pattern, Project Reactor and the broader Java ecosystem implement the Reactive Streams specification. This architecture governs asynchronous stream processing with non-blocking backpressure, ensuring that a fast producer never saturates a resource-constrained consumer. The specification revolves around four core interfaces: Publisher, Subscriber, Subscription, and Processor.\n\nThe Publisher acts as the data source, emitting items to registered subscribers according to their demand. It manages the lifecycle of data emission through a strict contract. The Subscriber consumes these emitted items, registering itself with a Publisher and reacting to signals such as data arrival, errors, or completion. The bridge connecting these two components is the Subscription. A Subscription is explicitly created when a Subscriber subscribes to a Publisher; it serves as the control plane for backpressure, allowing the consumer to explicitly signal how many items it is ready to handle via its request(long n) method, thereby preventing unbounded memory consumption. Finally, the Processor acts as both a Subscriber and a Publisher. It is typically used as a processing stage in a pipeline, intercepting data, applying transformations or filtering logic, and republishing the modified stream downstream."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Reactive Component",
+        "Primary Responsibility",
+        "Key Methods"
+      ],
+      "rows": [
+        [
+          "Publisher<T>",
+          "Emits items and manages subscriber registrations",
+          "subscribe(Subscriber<? super T> s)"
+        ],
+        [
+          "Subscriber<T>",
+          "Consumes data items and handles terminal signals",
+          "onSubscribe, onNext, onError, onComplete"
+        ],
+        [
+          "Subscription",
+          "Controls flow rate and manages backpressure demand",
+          "request(long n), cancel()"
+        ],
+        [
+          "Processor<T, R>",
+          "Transforms an incoming stream while acting as both downstream and upstream",
+          "Extends both Subscriber<T> and Publisher<R>"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Backpressure is fundamentally pull-push hybrid: the Publisher pushes data only when explicitly permitted by the Subscription's request(n) accumulator, preventing OutOfMemoryError scenarios in bounded queues.",
+        "The Subscription instance is strictly tied to a single Subscriber lifecycle; once cancel() is invoked, the upstream producer must release references to prevent memory leaks in long-lived reactive pipelines.",
+        "Processors must adhere strictly to the Reactive Streams rule that prohibits concurrent invocations of onNext, onError, or onComplete on a single Subscriber, requiring thread-safe handoffs or serializing dispatchers."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.reactivestreams.Publisher;\nimport org.reactivestreams.Subscriber;\nimport org.reactivestreams.Subscription;\n\npublic class CustomDataProcessor {\n    public static void main(String[] args) {\n        Publisher<String> publisher = s -> s.onSubscribe(new Subscription() {\n            private long count = 0;\n            @Override\n            public void request(long n) {\n                for (long i = 0; i < n && count < 3; i++) {\n                    s.onNext(\"Event-\" + (++count));\n                }\n                if (count >= 3) {\n                    s.onComplete();\n                }\n            }\n            @Override\n            public void cancel() {\n                // Cleanup resources\n            }\n        });\n\n        publisher.subscribe(new Subscriber<String>() {\n            private Subscription subscription;\n            @Override\n            public void onSubscribe(Subscription s) {\n                this.subscription = s;\n                s.request(2); // Request first 2 items\n            }\n            @Override\n            public void onNext(String t) {\n                System.out.println(\"Received: \" + t);\n                if (t.equals(\"Event-2\")) {\n                    subscription.request(1); // Request next item dynamically\n                }\n            }\n            @Override\n            public void onError(Throwable t) { t.printStackTrace(); }\n            @Override\n            public void onComplete() { System.out.println(\"Stream complete.\"); }\n        });\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap in Spring WebFlux applications is forgetting to invoke subscription.request(n) when writing custom operators or raw Subscribers. If request(long n) is never called, or if n is set to Long.MAX_VALUE without downstream rate-limiting, you either create a silent hanging stream that never emits data or completely bypass backpressure protections, defeating the purpose of Reactive Streams."
+    }
+  ],
+  "num": 298,
+  "title": "Reactive Streams — Publisher, Subscriber, Subscription, Processor",
+  "category": "REST APIs, WebFlux & Microservices"
+}

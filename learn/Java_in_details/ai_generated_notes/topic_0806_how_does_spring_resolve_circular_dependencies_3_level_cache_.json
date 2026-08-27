@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A circular dependency occurs in the Spring IoC container when Bean A explicitly depends on Bean B via constructor injection, field injection, or setter injection, and Bean B simultaneously depends on Bean A. In the earlier days of the Spring Framework, resolving these cycles was largely managed by a sophisticated internal mechanism known as the three-level cache, leveraging `ObjectFactory` instances to expose uninitialized bean references prematurely. However, as the framework evolved, particularly with the release of Spring Boot 2.6 and Spring Framework 6.0, circular dependencies between beans are no longer supported by default. This deliberate architectural shift forces developers to refactor tightly coupled components, eliminating architectural smells that previously led to unpredictable bean initialization ordering, hard-to-debug null pointer exceptions, and hidden side effects during context bootstrapping.\n\nTo understand how Spring traditionally resolves cycles, one must dissect the three-level cache implemented inside the `DefaultSingletonBeanRegistry`. These caches are `singletonObjects` (Level 1: fully initialized and ready beans), `earlySingletonObjects` (Level 2: exposed beans that are instantiated but not yet fully populated or post-processed), and `singletonFactories` (Level 3: lambdas wrapped in `ObjectFactory` instances that generate early references, often to support AOP proxies). When Bean A requires Bean B, Spring instantiates Bean A, places an `ObjectFactory` for it into Level 3, and proceeds to create Bean B. When Bean B subsequently requires Bean A, it queries Level 3, retrieves the factory, obtains the early reference to Bean A, and completes its own initialization. Bean B is then returned to Bean A, allowing Bean A to finish injection and initialization. Despite this mechanism working smoothly for setter and field injection, it fundamentally fails for constructor injection because a constructor must execute before an instance can even be registered in the early caches."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Cache Level",
+        "Data Structure Name",
+        "Purpose & Contents"
+      ],
+      "rows": [
+        [
+          "Level 1",
+          "singletonObjects",
+          "ConcurrentHashMap holding fully initialized, ready-to-use singleton beans."
+        ],
+        [
+          "Level 2",
+          "earlySingletonObjects",
+          "HashMap holding early references to uninitialized beans to prevent multiple factory invocations."
+        ],
+        [
+          "Level 3",
+          "singletonFactories",
+          "HashMap holding ObjectFactory lambdas capable of exposing early bean references, critical for AOP proxy generation."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Constructor injection circular dependencies are impossible to resolve natively because Java requires an object to be instantiated before its constructor finishes, meaning no early reference can be pushed to Level 3 of the singleton cache.",
+        "AOP proxies complicate Level 3 resolution. If a bean requires interception (e.g., @Transactional or @Async), the ObjectFactory in Level 3 invokes SmartInstantiationAwareBeanPostProcessor to return a proxy instead of the raw bean instance.",
+        "Spring Boot 2.6 changed spring.main.allow-circular-references to false by default, throwing an immediate BeanCurrentlyInCreationException during application startup rather than silently masking architectural design flaws.",
+        "Disabling circular references prevents initialization ordering non-determinism, where the injection point dictates whether a bean receives a raw instance or a fully post-processed proxy."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Component\npublic class OrderService {\n    // Field injection allows Spring's 3-level cache to resolve the cycle\n    @Autowired\n    private BillingService billingService;\n\n    public void processOrder() {\n        billingService.calculateTax();\n    }\n}\n\n@Component\npublic class BillingService {\n    @Autowired\n    private OrderService orderService;\n\n    public void calculateTax() {\n        orderService.processOrder();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Production Gotcha: Never rely on spring.main.allow-circular-references=true as a band-aid for legacy systems. Circular dependencies often point to missing domain boundaries or the need for an intermediate event-driven architecture. If you hit a circular dependency in modern Spring Boot, break the cycle by extracting shared state into a third service or utilizing ApplicationEventPublisher to decouple the components asynchronously."
+    }
+  ],
+  "num": 807,
+  "title": "How does Spring resolve Circular Dependencies? (3-level cache / ObjectFactory). Why not supported by default in newer Spring Boot?",
+  "category": "Spring Boot & Spring Framework"
+}

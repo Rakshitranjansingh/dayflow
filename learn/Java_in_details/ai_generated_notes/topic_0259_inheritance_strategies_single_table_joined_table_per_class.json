@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Object-oriented programming relies heavily on inheritance to model hierarchical domain models, allowing subclasses to inherit state and behavior from a common superclass. However, relational databases are structurally flat and operate on tables, rows, and foreign keys, introducing an architectural impedance mismatch when persisting class hierarchies. JPA and Hibernate bridge this gap using entity inheritance strategies: SINGLE_TABLE, JOINED, and TABLE_PER_CLASS. Each strategy dictates a fundamentally different table schema layout, query execution plan, and balance between runtime performance and normalization constraints.\n\nThe SINGLE_TABLE strategy maps an entire class hierarchy to a single, wide database table containing columns for all properties across all subclasses. A discriminator column is used to differentiate which specific entity type a given row represents. Conversely, the JOINED strategy normalizes the model into multiple tables—a base table containing fields common to all entities, and separate subclass tables containing only subclass-specific fields, linked via a primary-key/foreign-key join. Finally, the TABLE_PER_CLASS strategy creates completely independent, denormalized tables for every concrete subclass in the hierarchy, duplicating inherited columns across each physical table. Understanding the write amplification, polymorphic read performance, and nullability trade-offs of these three strategies is vital for designing high-throughput relational data access layers."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Schema Layout",
+        "Polymorphic Read Performance",
+        "Nullability in Columns"
+      ],
+      "rows": [
+        [
+          "SINGLE_TABLE",
+          "One table for all classes in hierarchy",
+          "High (No joins or unions required)",
+          "High (Subclass-specific columns must be nullable)"
+        ],
+        [
+          "JOINED",
+          "One table per class (joined via PK/FK)",
+          "Low-Moderate (Requires heavy SQL JOIN operations)",
+          "Low (Columns are constrained to their specific tables)"
+        ],
+        [
+          "TABLE_PER_CLASS",
+          "One table per concrete class",
+          "Moderate-Low (Requires UNION ALL queries)",
+          "None (Tables are self-contained per subclass)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "SINGLE_TABLE relies on a discriminator column (string or integer) managed by the persistence provider. Because all subclass attributes live in one table, adding a new subclass column forces you to make it nullable, breaking database-level NOT NULL constraints for subclass-specific fields.",
+        "JOINED inheritance executes inner or outer joins across multiple tables when fetching parent references that might be instances of child classes. This introduces significant SQL complexity and execution overhead when hierarchies grow deep or wide.",
+        "TABLE_PER_CLASS handles polymorphism by issuing a SQL UNION ALL across all concrete subclass tables when querying the base class type. This prevents efficient indexing on shared queries unless carefully partitioned, and makes ID generation tricky since primary keys must often be globally unique across distinct tables."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Entity\n@Inheritance(strategy = InheritanceType.JOINED)\n@DiscriminatorColumn(name = \"vehicle_type\")\npublic abstract class Vehicle {\n    @Id\n    @GeneratedValue(strategy = GenerationType.IDENTITY)\n    private Long id;\n    private String manufacturer;\n}\n\n@Entity\n@DiscriminatorValue(\"CAR\")\npublic class Car extends Vehicle {\n    private int seatCount;\n}\n\n@Entity\n@DiscriminatorValue(\n    \"TRUCK\"\n)\npublic class Truck extends Vehicle {\n    private double loadCapacityKg;\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap with TABLE_PER_CLASS and IDENTITY generation is that databases cannot guarantee globally unique primary keys across multiple independent tables unless a shared sequence or table-based generator is used. Always explicitly configure a pooled sequence generator (@SequenceGenerator with allocationSize) when using JOINED or TABLE_PER_CLASS to prevent high-concurrency batch insert bottlenecks."
+    }
+  ],
+  "num": 260,
+  "title": "Inheritance strategies — SINGLE_TABLE, JOINED, TABLE_PER_CLASS",
+  "category": "OOPs & Design Patterns"
+}

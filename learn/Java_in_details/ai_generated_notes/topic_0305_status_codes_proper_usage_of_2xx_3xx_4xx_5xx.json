@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "HTTP status codes are three-digit integers returned by a web server to communicate the outcome of a client's request. In modern Java backend development—whether building RESTful microservices with Spring Boot, Jakarta EE, or raw Java HTTP/2 servers—correctly utilizing status codes is non-negotiable. They form the explicit semantic contract between the client (such as a React frontend or mobile app) and the server. The 2xx family denotes unconditional success, signaling that the intent of the request was received, understood, and accepted. The 3xx family governs redirection, instructing the user agent that further actions are required to fulfill the request, often related to URI updates or cache validation. The 4xx family pinpoints client-side errors, indicating that the request contains bad syntax, missing authentication, or violates resource constraints. Finally, the 5xx family exposes server-side failures, denoting that the server experienced an unexpected condition, internal exception, or upstream dependency timeout preventing it from servicing a syntactically valid request.\n\nFailing to respect these ranges breaks standard HTTP semantics, confounding API clients, disrupting intermediary load balancers, and disabling browser caching mechanisms. For instance, returning a 200 OK with an error payload in the response body forces clients to parse application-layer JSON to check success, bypassing native HTTP infrastructure. Similarly, improper use of 500 internal server errors for validation issues will trigger aggressive retries from resilient client architectures, compounding traffic surges and degrading system stability. Mastering the proper usage of 2xx, 3xx, 4xx, and 5xx ensures that your Java applications integrate smoothly with proxies, API gateways, and monitoring systems."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Status Range",
+        "Semantic Meaning",
+        "Common Java / Spring Boot Scenario"
+      ],
+      "rows": [
+        [
+          "2xx (Success)",
+          "The request was successfully received, understood, and accepted.",
+          "Returning 200 OK for standard gets, 201 Created for entity persistence, or 204 No Content for successful deletes."
+        ],
+        [
+          "3xx (Redirection)",
+          "Further action needs to be taken by the user agent to complete the request.",
+          "Returning 304 Not Modified based on ETags, or 301/302 for API version migration paths."
+        ],
+        [
+          "4xx (Client Error)",
+          "The request contains bad syntax, invalid parameters, or lacks authorization.",
+          "Returning 400 Bad Request for validation failures, 401 Unauthorized for missing tokens, or 404 Not Found for missing entities."
+        ],
+        [
+          "5xx (Server Error)",
+          "The server failed to fulfill an apparently valid request due to internal failures.",
+          "Returning 500 Internal Server Error on unhandled exceptions, or 503 Service Unavailable during downstream circuit-breaker trips."
+        ]
+      ]
+    },
+    {
+      "bullet_list": [
+        "Use 200 OK for general queries, but enforce 201 Created combined with a Location header containing the URI of the newly minted resource when executing state-changing POST requests.",
+        "Utilize 204 No Content for idempotent operations like PUT updates or DELETE requests where no response payload is returned, preventing the client from parsing an empty JSON body.",
+        "Leverage 400 Bad Request alongside a structured problem detail payload (RFC 7807) when Jakarta Bean Validation (@Valid) fails on incoming DTOs, keeping domain logic clean.",
+        "Map Spring Security AuthenticationException directly to 401 Unauthorized and AccessDeniedException to 403 Forbidden to clearly delineate between unauthenticated and unauthorized states.",
+        "Catch unhandled runtime exceptions via a global @ControllerAdvice in Spring Boot to map unexpected system states cleanly to a 500 Internal Server Error without leaking database stack traces to clients."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/v1/users\")\npublic class UserController {\n\n    private final UserService userService;\n\n    public UserController(UserService userService) {\n        this.userService = userService;\n    }\n\n    @PostMapping\n    public ResponseEntity<UserResponseDto> createUser(@Valid @RequestBody UserCreateDto dto) {\n        UserResponseDto createdUser = userService.save(dto);\n        URI location = ServletUriComponentsBuilder\n                .fromCurrentRequest()\n                .path(\"/{id}\")\n                .buildAndExpand(createdUser.getId())\n                .toUri();\n        return ResponseEntity.created(location).body(createdUser);\n    }\n\n    @DeleteMapping(\"/{id}\")\n    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {\n        userService.delete(id);\n        return ResponseEntity.noContent().build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent architectural anti-pattern in enterprise Java is returning a generic 200 OK status code for every single operation, relying exclusively on an application-level wrapper object like { \"status\": \"ERROR\", \"message\": \"User not found\" }. This breaks HTTP caching proxies, prevents API gateways from intelligently routing or retrying requests, and makes monitoring dashboards impossible to configure accurately. Always let the HTTP status code drive the transport-layer protocol semantics."
+    }
+  ],
+  "num": 306,
+  "title": "Status codes — proper usage of 2xx, 3xx, 4xx, 5xx",
+  "category": "Core Java & Fundamentals"
+}

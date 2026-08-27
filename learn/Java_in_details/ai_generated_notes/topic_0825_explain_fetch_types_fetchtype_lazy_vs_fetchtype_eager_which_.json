@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Hibernate and Spring Data JPA, FetchType defines the strategy for loading associated entities from the database. FetchType.EAGER instructs the persistence provider to retrieve the associated entity immediately alongside the parent entity, usually via a SQL JOIN. While this avoids the N+1 query problem for simple cases, it often leads to 'Cartesian Product' issues or massive, unnecessary memory consumption when fetching large graphs of data. Conversely, FetchType.LAZY uses a virtual proxy object. The actual database hit is deferred until the application code explicitly invokes a getter method on the association. This is the gold standard for performance, as it minimizes the initial payload, but it introduces the infamous 'LazyInitializationException' if the proxy is accessed outside of an active Hibernate Session or Transactional boundary."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Association Type",
+        "Default FetchType",
+        "Recommended Strategy"
+      ],
+      "rows": [
+        [
+          "@OneToOne",
+          "EAGER",
+          "LAZY"
+        ],
+        [
+          "@ManyToOne",
+          "EAGER",
+          "LAZY"
+        ],
+        [
+          "@OneToMany",
+          "LAZY",
+          "LAZY"
+        ],
+        [
+          "@ManyToMany",
+          "LAZY",
+          "LAZY"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "EAGER fetching forces a LEFT OUTER JOIN in the generated SQL, which can exponentially increase the result set size if multiple EAGER collections are involved, leading to severe performance degradation.",
+        "LAZY fetching relies on bytecode instrumentation or dynamic proxies (CGLIB/ByteBuddy). When you call a getter on a lazy proxy, Hibernate checks the Session cache; if the entity is missing, it executes a secondary SELECT statement.",
+        "The default fetch strategies were chosen in the early days of JPA to prioritize safety over performance, which is why single-valued associations (ToOne) default to EAGER, despite being a common source of production performance bottlenecks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Entity\npublic class Order {\n    @Id @GeneratedValue\n    private Long id;\n\n    // Explicitly set to LAZY to avoid unnecessary JOINs\n    @ManyToOne(fetch = FetchType.LAZY)\n    private Customer customer;\n\n    // Collections default to LAZY, but explicit declaration is best practice\n    @OneToMany(mappedBy = \"order\", fetch = FetchType.LAZY)\n    private List<OrderItem> items;\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never rely on default fetch types. Always explicitly define fetch = FetchType.LAZY on all associations. If you need to fetch an association eagerly for a specific use case, use a JPQL 'JOIN FETCH' or an EntityGraph in your repository method. This keeps your domain model lean and allows you to tune performance per-query rather than locking your entire application into a rigid, global fetch strategy."
+    }
+  ],
+  "num": 826,
+  "title": "Explain Fetch Types: FetchType.LAZY vs FetchType.EAGER. Which is the default for different associations?",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

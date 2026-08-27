@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Event Sourcing is an architectural pattern where the state of an application is not stored as a current snapshot in a database, but as a sequence of immutable, append-only events. Instead of updating a row in a table (e.g., changing 'balance' from 100 to 50), you store an 'AmountWithdrawn' event. The current state is derived by replaying these events from the beginning of time. This provides a perfect audit log and allows developers to reconstruct the system state at any point in history, which is invaluable for debugging and regulatory compliance.\n\nCQRS, or Command Query Responsibility Segregation, is the natural partner to Event Sourcing. While Event Sourcing focuses on how data is stored, CQRS focuses on how data is accessed. It separates the write model (Command) from the read model (Query). In a standard CRUD application, the same model handles both reads and writes, leading to contention and performance bottlenecks. By separating them, you can optimize the write side for high-throughput event ingestion and the read side for specific query patterns, often using materialized views or denormalized projections that are updated asynchronously as events are emitted."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Traditional CRUD",
+        "Event Sourcing + CQRS"
+      ],
+      "rows": [
+        [
+          "Data Storage",
+          "Current state only",
+          "Immutable event stream"
+        ],
+        [
+          "Consistency",
+          "Strong (ACID)",
+          "Eventual (on the read side)"
+        ],
+        [
+          "Scalability",
+          "Limited by DB locks",
+          "Independent scaling of read/write"
+        ],
+        [
+          "Auditability",
+          "Requires triggers/logs",
+          "Built-in by design"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Event Store Mechanics: The event store acts as the 'source of truth'. It must support high-speed appending and efficient streaming of events to projectors.",
+        "Projections: These are the read-side models. A projector listens to the event bus, consumes events, and updates a database (like Elasticsearch or a relational DB) optimized for specific UI queries.",
+        "Versioning and Schema Evolution: Since events are immutable, you cannot change past events. You must implement 'upcasting'—a process where the application code transforms old event schemas into new ones during the replay process.",
+        "Snapshotting: To avoid replaying millions of events to reach the current state, systems periodically save the 'current state' as a snapshot, allowing the system to replay only events that occurred after the snapshot."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Command side: Emitting an event\npublic void withdraw(UUID accountId, BigDecimal amount) {\n    Account account = repository.load(accountId);\n    account.withdraw(amount); // Logic validates state\n    eventStore.save(new MoneyWithdrawnEvent(accountId, amount, Instant.now()));\n}\n\n// Query side: Projector updating a read model\n@EventListener\npublic void on(MoneyWithdrawnEvent event) {\n    readModelRepository.updateBalance(event.getAccountId(), -event.getAmount());\n}"
+    },
+    {
+      "type": "note",
+      "content": "The biggest trap in Event Sourcing is 'Eventual Consistency anxiety'. Developers often try to force strong consistency on the read side, which defeats the purpose of CQRS. Accept that the read model might be milliseconds behind the write model and design your UI to handle this, perhaps through optimistic UI updates or WebSockets to signal when the projection has caught up."
+    }
+  ],
+  "num": 1062,
+  "title": "What is Event Sourcing? How does it relate to CQRS?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

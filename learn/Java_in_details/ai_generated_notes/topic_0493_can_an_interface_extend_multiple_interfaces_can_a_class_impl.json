@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java, the type system allows for multiple inheritance of type, but strictly forbids multiple inheritance of state. An interface can extend multiple interfaces using the 'extends' keyword, creating a composite contract that mandates the implementation of all methods within the hierarchy. This is a powerful mechanism for interface segregation and building modular API designs. Similarly, a class can implement multiple interfaces, effectively promising to fulfill the contracts of all specified types. This allows for polymorphic behavior where an object can be treated as any of its implemented interfaces, facilitating decoupling in dependency injection containers like Spring.\n\nWhen multiple interfaces define a 'default' method with the same signature, the compiler encounters a diamond-like ambiguity. Java forces the developer to resolve this conflict explicitly at the implementation class level. Because the compiler cannot determine which implementation logic is 'correct' for the business domain, it mandates an override. This resolution ensures that the runtime behavior remains deterministic, preventing the 'fragile base class' problem common in languages that allow multiple inheritance of state."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Interface Extension",
+        "Class Implementation"
+      ],
+      "rows": [
+        [
+          "Inheritance Type",
+          "Multiple allowed",
+          "Multiple allowed"
+        ],
+        [
+          "Method Implementation",
+          "Optional (default/static)",
+          "Required (abstract)"
+        ],
+        [
+          "State Storage",
+          "Not allowed (only constants)",
+          "Allowed (instance fields)"
+        ],
+        [
+          "Conflict Resolution",
+          "Implicit via hierarchy",
+          "Explicit via override"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Interface extension creates a sub-interface that inherits all abstract and default methods from its parents; if two parents define the same default method, the sub-interface must override it to maintain binary compatibility.",
+        "When a class implements multiple interfaces with conflicting default methods, it must override the method and explicitly invoke the desired implementation using the syntax 'InterfaceName.super.methodName()'.",
+        "The JVM handles default methods via the 'invokespecial' opcode, which allows the class to bypass the standard virtual method lookup to target a specific interface's implementation.",
+        "Interface inheritance does not create a class hierarchy; it creates a type hierarchy, meaning 'instanceof' checks will return true for all inherited interface types."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public interface Reader { default void read() { System.out.println(\"Reading\"); } }\npublic interface Writer { default void read() { System.out.println(\"Writing\"); } }\n\npublic class Processor implements Reader, Writer {\n    @Override\n    public void read() {\n        // Explicitly resolve the conflict\n        Reader.super.read();\n        Writer.super.read();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Be wary of 'interface bloat.' While multiple interface implementation is syntactically clean, it can lead to 'God Objects' where a single class implements too many interfaces, violating the Interface Segregation Principle. If you find yourself constantly resolving default method conflicts, it is usually a design smell indicating that your interfaces are too broad or that your class is trying to be too many things at once."
+    }
+  ],
+  "num": 494,
+  "title": "Can an interface extend multiple interfaces? Can a class implement multiple interfaces? How do you resolve default method conflicts?",
+  "category": "OOPs & Design Patterns"
+}

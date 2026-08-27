@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Spring and Spring Boot web applications, handling HTTP requests requires defining component classes that map incoming web requests to specific methods. At the core of this mapping mechanism sit the stereotypes @Controller and @RestController. Understanding the precise distinction between them is vital for designing robust web applications and microservices.\n\nHistorically, Spring MVC relied entirely on @Controller, a specialized specialization of @Component, designed to support the Model-View-Controller design pattern. When a method inside a traditional @Controller returns a String, Spring's DispatcherServlet interprets that return value as a logical view name (such as a JSP, Thymeleaf, or FreeMarker template) and resolves it to render an HTML page. However, modern system architectures heavily rely on decoupled client-side single-page applications (SPAs) or microservices communicating strictly via JSON or XML payloads rather than server-rendered HTML. To eliminate the repetitive boilerplate of annotating every single method with @ResponseBody, the Spring team introduced @RestController in Spring 4.0.\n\n@RestController is a convenience stereotype annotation that is itself meta-annotated with both @Controller and @ResponseBody. By combining these two annotations, @RestController tells the Spring container that every handler method within the class should automatically serialize its return value directly into the HTTP response body (using configured HttpMessageConverters like Jackson for JSON), bypassing view resolution entirely. Consequently, whether you are building a reactive WebFlux service or a traditional servlet-based Spring MVC API, using @RestController ensures your endpoints cleanly and implicitly output structured data payloads directly to the wire."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Behavior",
+        "@Controller",
+        "@RestController"
+      ],
+      "rows": [
+        [
+          "Primary Use Case",
+          "Rendering HTML views (JSP, Thymeleaf, Server-Side Rendering)",
+          "Building RESTful APIs returning JSON, XML, or raw data payloads"
+        ],
+        [
+          "View Resolution",
+          "Active by default; return values are treated as logical view names",
+          "Bypassed entirely; return values are written straight to the response stream"
+        ],
+        [
+          "@ResponseBody Requirement",
+          "Must be explicitly added to individual methods to return raw data",
+          "Implicitly applied to every method in the class"
+        ],
+        [
+          "Underlying Metaclass",
+          "Meta-annotated with @Component",
+          "Meta-annotated with @Controller and @ResponseBody"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "When a request hits a @RestController, the DispatcherServlet delegates execution to a HandlerAdapter, which invokes the target handler method.",
+        "The method return value (be it a domain POJO, a Collection, or a ResponseEntity) is intercepted by Spring's HttpMessageConverter infrastructure.",
+        "MappingHttpMessageConverter or MappingJackson2HttpMessageConverter serializes the Java object graph into a JSON string using Jackson's ObjectMapper.",
+        "The serialized byte stream is written directly to the HttpServletResponse output stream with the appropriate Content-Type header (e.g., application/json)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.demo.controller;\n\nimport org.springframework.http.ResponseEntity;\nimport org.springframework.web.bind.annotation.GetMapping;\nimport org.springframework.web.bind.annotation.PathVariable;\nimport org.springframework.web.bind.annotation.RequestMapping;\nimport org.springframework.web.bind.annotation.RestController;\n\n@RestController\n@RequestMapping(\"/api/v1/users\")\npublic class UserRestController {\n\n    @GetMapping(\"/{id}\")\n    public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {\n        UserDto user = new UserDto(id, \"Jane Doe\", \"jane.doe@example.com\");\n        return ResponseEntity.ok(user);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap occurs when developers migrate a legacy application from @Controller to @RestController without auditing existing methods. If a method inside a @RestController is intended to return a legacy HTML view name string (like \"dashboard\"), the client will literally receive the plain text string \"dashboard\" instead of the rendered page because @ResponseBody forces raw string output. If your microservice architecture requires serving both REST endpoints and server-rendered administration pages, keep them cleanly separated into distinct classes utilizing @RestController and @Controller respectively."
+    }
+  ],
+  "num": 1211,
+  "title": "What is @RestController? Difference between @Controller and @RestController?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

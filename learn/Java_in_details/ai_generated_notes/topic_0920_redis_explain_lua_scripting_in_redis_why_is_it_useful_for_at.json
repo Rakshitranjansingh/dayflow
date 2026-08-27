@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Redis Lua scripting introduces a powerful mechanism for executing complex, multi-step operations on the server side with strict transaction-like guarantees. When building high-throughput distributed systems, developers frequently encounter race conditions where multiple clients read, compute, and write back values to a shared cache or state store. Traditionally, developers attempted to solve this using Redis transactions via MULTI and EXEC blocks, combined with optimistic locking through WATCH. However, WATCH has severe limitations: if a watched key changes, the transaction aborts, forcing expensive retry loops at the application layer, and MULTI/EXEC cannot read the intermediate results of operations inside the transaction before executing subsequent steps.\n\nLua scripting completely bypasses these constraints by executing atomically inside the single-threaded Redis event loop. When a Lua script runs, no other client commands or scripts can interleave. This guarantees that any sequence of commands reading and writing keys will execute as an unbroken atomic unit, exactly mimicking the isolation properties of database stored procedures. Furthermore, Redis caches compiled Lua scripts using a cryptographic SHA1 digest via the SCRIPT LOAD and EVALSHA commands, drastically reducing network overhead and parser latency by eliminating the need to send the script source text on every invocation. Network round-trips are minimized, and state evaluation happens right alongside the data in memory, making it an indispensable tool for distributed rate limiters, distributed locks, and complex data structure manipulations."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Mechanism",
+        "Redis MULTI / EXEC",
+        "Redis Lua Scripting"
+      ],
+      "rows": [
+        [
+          "Atomicity Level",
+          "All commands executed sequentially without interruption, but commands cannot depend on intermediate read values within the block.",
+          "Complete execution atomicity with full computational capability, conditional branching, and mid-script key reads/writes."
+        ],
+        [
+          "Concurrency Control",
+          "Relies on optimistic locking (WATCH), which aborts and forces retries under high contention.",
+          "Pessimistic execution guarantees; the single-threaded event loop blocks all other clients during script evaluation."
+        ],
+        [
+          "Network Overhead",
+          "Requires transmitting every command in the transaction queue to the server during EXEC.",
+          "Can use EVALSHA with a 40-character SHA1 hash after initial loading, minimizing payload size."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Redis executes all Lua scripts using a single embedded Lua 5.1 interpreter instance, ensuring that script execution remains strictly non-reentrant and single-threaded relative to the rest of the Redis command queue.",
+        "To maintain cluster consistency and master-replica replication streams, Redis replicates Lua scripts rather than the individual write commands they generate (unless redis.replicate_commands() is explicitly invoked), meaning scripts must be deterministic and avoid non-reproducible calls like math.random() or accessing system time without precautions.",
+        "Keys accessed by the script must be explicitly passed as input arguments (KEYS array) rather than hardcoded inside the script body, allowing Redis Cluster to correctly route the execution request to the appropriate hash slot shard."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public boolean acquireRateLimit(JedisPool jedisPool, String userId, int maxRequests, int windowSeconds) {\n    String luaScript = \n        \"local current = redis.call('get', KEYS[1]) \" +\n        \"if current and tonumber(current) >= tonumber(ARGV[1]) then \" +\n        \"    return 0 \" +\n        \"end \" +\n        \"redis.call('incr', KEYS[1]) \" +\n        \"if not current then \" +\n        \"    redis.call('expire', KEYS[1], ARGV[2]) \" +\n        \"end \" +\n        \"return 1\";\n\n    String key = \"rate_limit:\" + userId;\n    try (Jedis jedis = jedisPool.getResource()) {\n        Object result = jedis.eval(luaScript, Collections.singletonList(key), Arrays.asList(String.valueOf(maxRequests), String.valueOf(windowSeconds)));\n        return Long.valueOf(1L).equals(result);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Never write long-running, blocking Lua scripts. Because Redis evaluates scripts within its main event loop, a computationally expensive script or an infinite loop will completely block all connected clients, causing catastrophic cascading timeouts across your entire microservices architecture. Additionally, avoid using non-deterministic Lua features like iterating over keys using non-deterministic table ordering when replicating to slaves, which can cause master-replica state drift."
+    }
+  ],
+  "num": 921,
+  "title": "Redis: Explain Lua scripting in Redis. Why is it useful for atomicity?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

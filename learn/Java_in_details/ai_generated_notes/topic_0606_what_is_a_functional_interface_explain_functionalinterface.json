@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the evolution of Java as a modern, expressive programming language, the introduction of lambda expressions in Java 8 revolutionized how developers handle behavior parameterization. However, Java remains a statically typed, object-oriented language where every piece of code must reside within a class or an interface. To seamlessly bridge the gap between functional programming paradigms and object-oriented runtime structures, Java introduced the concept of the functional interface, backed by the @FunctionalInterface annotation.\n\nA functional interface is an interface that contains precisely one abstract method (SAM - Single Abstract Method), though it may contain any number of default methods, static methods, or methods inherited from java.lang.Object. The @FunctionalInterface annotation is an explicit design-time contract enforced by the Java compiler. While an interface meeting the SAM criteria functions as a functional interface even without the annotation, adding it tells the compiler to verify the type at build time. If a developer mistakenly adds a second abstract method or removes the sole abstract method, the compiler immediately halts compilation with an informative error. This guarantees robust API design and prevents silent regressions during refactoring.\n\nUnder the hood, when a lambda expression or method reference is assigned to a functional interface variable, the JVM leverages invokedynamic bytecode instructions introduced in Java 7. Instead of instantiating an anonymous inner class on every invocation—which creates unnecessary garbage collection pressure and metadata bloat—the JVM uses LambdaMetafactory to dynamically spin up or link a lightweight call site. This makes functional interfaces not only syntactically concise but also highly performant in enterprise applications."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Standard Interface",
+        "Functional Interface (@FunctionalInterface)"
+      ],
+      "rows": [
+        [
+          "Abstract Methods",
+          "Zero, one, or multiple abstract methods allowed.",
+          "Strictly restricted to exactly one abstract method."
+        ],
+        [
+          "Default / Static Methods",
+          "Allowed.",
+          "Allowed (any number of them can coexist with the single abstract method)."
+        ],
+        [
+          "Compiler Enforcement",
+          "No compile-time check for method counts.",
+          "Compiler throws an error if zero or multiple abstract methods exist."
+        ],
+        [
+          "Lambda Assignment",
+          "Cannot be instantiated via lambda expressions or method references.",
+          "Directly targetable via lambda expressions and method references."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The @FunctionalInterface annotation is processed at compile-time by the annotation processor embedded in javac; it has zero runtime overhead and is not retained in the bytecode via RUNTIME retention policies.",
+        "Object class methods (like toString(), equals(), and hashCode()) do not count toward the single abstract method limit because every interface implementation implicitly inherits these implementations from java.lang.Object.",
+        "Lambda expressions target functional interfaces by matching their parameter types and return types to the signature of the SAM, utilizing structural subtyping (or functional subtyping) rather than nominal subtyping."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@FunctionalInterface\npublic interface DataTransformer<T, R> {\n    R transform(T input) throws Exception;\n\n    default void logExecution() {\n        System.out.println(\"Executing transformation...\");\n    }\n\n    static <T> DataTransformer<T, T> identity() {\n        return input -> input;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Gotcha: Be extremely careful when overloading methods that accept different functional interfaces (e.g., processing(Consumer<String>) vs processing(Predicate<String>)). If you pass a lambda expression like s -> s.isEmpty(), the Java compiler may throw a 'reference to processing is ambiguous' error because multiple functional interfaces match the target type, forcing you to explicitly cast the lambda."
+    }
+  ],
+  "num": 607,
+  "title": "What is a Functional Interface? (Explain @FunctionalInterface)",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In systems programming and technical interviews, manipulating contiguous memory segments efficiently is a baseline requirement. Arrays and Strings serve as the foundational data structures for evaluating algorithmic competence in Java. When dealing with large linear collections, naive nested iteration leads to $O(N^2)$ quadratic time complexity, which fails instantly under production loads. To optimize these workloads, modern software engineers rely on three algorithmic patterns: two pointers, sliding window, and prefix sums. The two-pointers technique involves maintaining two index references—often moving inward from opposite ends or tracking relative paces—to process linear data in a single pass of $O(N)$ time. The sliding window pattern dynamically expands or shrinks a window bound by left and right indices, transforming subarray problems into manageable $O(N)$ operations by avoiding redundant recalculations. Finally, prefix sums precompute cumulative totals of an array to answer arbitrary range-sum queries in $O(1)$ constant time after an initial $O(N)$ preprocessing phase."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Technique",
+        "Time Complexity",
+        "Space Complexity",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "Two Pointers",
+          "O(N)",
+          "O(1)",
+          "In-place array reversals, palindrome validation, sorted pair matching"
+        ],
+        [
+          "Sliding Window",
+          "O(N)",
+          "O(K) or O(1)",
+          "Longest substring without repeating characters, max sum subarray of size K"
+        ],
+        [
+          "Prefix Sums",
+          "O(N) setup, O(1) query",
+          "O(N)",
+          "Range sum queries, subarray sum equals K, matrix sub-region sums"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Two Pointers leverage sorted properties or structural symmetry, allowing left and right indices to converge conditionally without extra memory allocations.",
+        "Sliding Window maintains an invariant state (such as character frequencies or current sums) within a dynamic boundary, updating edge elements as the window shifts right.",
+        "Prefix Sum arrays store running totals where the sum of elements from index i to j is efficiently calculated as P[j+1] - P[i], eliminating inner loops."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ArrayStringAlgorithms {\n    // Sliding Window: Find length of longest substring without repeating characters\n    public static int lengthOfLongestSubstring(String s) {\n        int[] charIndices = new int[128];\n        java.util.Arrays.fill(charIndices, -1);\n        int maxLength = 0, left = 0;\n        \n        for (int right = 0; right < s.length(); right++) {\n            char c = s.charAt(right);\n            left = Math.max(left, charIndices[c] + 1);\n            maxLength = Math.max(maxLength, right - left + 1);\n            charIndices[c] = right;\n        }\n        return maxLength;\n    }\n\n    // Prefix Sum: Range sum query implementation\n    public static class RangeSumQuery {\n        private final int[] prefixSums;\n\n        public RangeSumQuery(int[] nums) {\n            prefixSums = new int[nums.length + 1];\n            for (int i = 0; i < nums.length; i++) {\n                prefixSums[i + 1] = prefixSums[i] + nums[i];\n            }\n        }\n\n        public int sumRange(int left, int right) {\n            return prefixSums[right + 1] - prefixSums[left];\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Beware of off-by-one errors when implementing prefix sums and sliding windows. In prefix sum arrays, always size your auxiliary array to `nums.length + 1` to handle zero-indexed range boundaries cleanly without complex conditional branching. When handling Java Strings inside sliding windows, remember that `String.charAt()` on standard UTF-16 strings can hide performance pitfalls if you deal with surrogate pairs; consider operating on `char[]` arrays directly for high-throughput stream processing."
+    }
+  ],
+  "num": 195,
+  "title": "Arrays & Strings — two pointers, sliding window, prefix sums",
+  "category": "Core Java & Fundamentals"
+}

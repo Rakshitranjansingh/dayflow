@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Structured Concurrency represents a paradigm shift in how Java developers manage multithreaded lifecycles, moving away from unstructured execution models like ExecutorService where tasks run completely decoupled from the parent thread that spawned them. Introduced as an incubating and preview feature via JEPs such as JEP 428, 453, and subsequent iterations leading to its evolution in modern JDKs, Structured Concurrency treats groups of related concurrent tasks operating on different threads as a single unit of work. When executing multiple asynchronous subtasks, unstructured code easily leads to thread leaks, cancellation propagation failures, and unhandled exceptions that get lost across thread boundaries. By binding the lifetime of concurrent tasks to a lexical scope, structured concurrency ensures that subtasks cannot outlive their parent block, enforcing automatic cleanup, predictable cancellation cascades, and comprehensive observability.\n\nThe evolution of this feature bridges the gap between traditional thread-pool programming and Project Loom's virtual threads. Virtual threads make it cheap to create millions of threads, but raw concurrency without organizational guardrails results in tangled debugging flows and unmanageable error states. Structured concurrency addresses this by providing APIs like StructuredTaskScope, which guarantees that once a scope closes, all spawned threads within it have either completed or been forcefully interrupted. Whether handling multiple remote procedure calls where you want to fail fast if any single request fails (ShutdownOnFailure) or racing operations to take the fastest result (ShutdownOnSuccess), structured concurrency transforms messy asynchronous callback and future chains into clean, readable, block-structured code."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Dimension",
+        "Unstructured Concurrency (ExecutorService / CompletableFuture)",
+        "Structured Concurrency (StructuredTaskScope)"
+      ],
+      "rows": [
+        [
+          "Lifecycle Management",
+          "Decoupled from caller; threads can leak or outlive the spawning scope.",
+          "Strictly bound to a lexical try-with-resources block."
+        ],
+        [
+          "Error Propagation",
+          "Exceptions are swallowed or require explicit exceptionally() / handle() chains.",
+          "Fail-fast semantics automatically propagate errors and cancel sibling tasks."
+        ],
+        [
+          "Observability & Thread Dumps",
+          "Flat thread dumps show unrelated threads with no clear parent-child context.",
+          "Hierarchical thread dumps explicitly show subtask relationships and nesting."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Lexical Scoping Enforcement: Using try-with-resources with StructuredTaskScope ensures that the thread blocks at the closing brace until all nested subtasks complete or are cancelled via interrupt propagation.",
+        "Subtask Forking: The fork(Callable) method creates a dedicated subtask running on its own virtual thread, returning a Subtask handle that encapsulates the computation state (SUCCESS, FAILED, or UNAVAILABLE).",
+        "Policy-Driven Coordination: Built-in subclasses like StructuredTaskScope.ShutdownOnFailure and StructuredTaskScope.ShutdownOnSuccess implement short-circuiting patterns natively without manual CountDownLatch or CompletableFuture.allOf/anyOf orchestration.",
+        "Thread Dump Integration: Modern JVM tooling leverages the structure of active scopes to render indented, tree-like thread dumps that instantly reveal which parent task is waiting on which collection of subtasks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.StructuredTaskScope;\nimport java.util.concurrent.Future;\nimport java.time.Duration;\n\npublic class UserDashboardService {\n\n    record UserProfile(String name, String preferences) {}\n    record UserOrders(int orderCount) {}\n\n    public String fetchDashboard(long userId) throws InterruptedException, java.util.concurrent.ExecutionException {\n        try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {\n            \n            Future<UserProfile> userSubtask = scope.fork(() -> fetchUserProfile(userId));\n            Future<UserOrders> ordersSubtask = scope.fork(() -> fetchUserOrders(userId));\n\n            // Join blocks until both complete, or if one fails, it cancels the other\n            scope.join();\n            scope.throwIfFailed(e -> new RuntimeException(\"Dashboard aggregation failed\", e));\n\n            // Both succeeded safely\n            return \"User: \" + userSubtask.get().name() + \", Orders: \" + ordersSubtask.get().orderCount();\n        }\n    }\n\n    private UserProfile fetchUserProfile(long id) { return new UserProfile(\"Alice\", \"Dark Mode\"); }\n    private UserOrders fetchUserOrders(long id) { return new UserOrders(5); }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Because Structured Concurrency is an evolving preview feature across JDK releases, always ensure your build tool configuration explicitly enables preview flags (--enable-preview in javac and java). Furthermore, avoid sharing a single StructuredTaskScope instance across multiple threads; a scope is designed to be confined to the thread that creates and enters it, preserving single-threaded control over multi-threaded subtask coordination."
+    }
+  ],
+  "num": 105,
+  "title": "Structured Concurrency (preview → evolving)",
+  "category": "Multithreading & Java Concurrency"
+}

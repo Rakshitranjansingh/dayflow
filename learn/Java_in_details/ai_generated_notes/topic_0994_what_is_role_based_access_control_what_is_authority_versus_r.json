@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Role-Based Access Control (RBAC) is an authorization paradigm that restricts network and system access based on the organizational roles assigned to individual users. Instead of binding access control lists directly to individual user identities—which creates a brittle, unmaintainable administrative nightmare at scale—RBAC introduces an abstraction layer: the role. Users are granted roles based on their operational responsibilities, and roles are granted permissions to perform specific operations on protected resources. Within enterprise Java applications and frameworks like Spring Security, understanding the precise boundary between a role and an authority is paramount for designing robust security models.\n\nTo unpack the distinction between authority versus role, we must examine how security engines evaluate them at runtime. In Java security semantics, a role is typically a high-level macro-grouping of permissions, universally prefixed with a convention like ROLE_ (e.g., ROLE_ADMINISTRATOR, ROLE_MANAGER). It represents a job function within an enterprise hierarchy. An authority, conversely, is a fine-grained, atomic permission to execute a specific action or access a particular resource, such as USER_CREATE, DOCUMENT_DELETE, or READ_METRICS. While a role is often treated by security frameworks as merely a shorthand macro for a collection of underlying authorities, an authority stands on its own as a direct capability check. Conflating these two concepts often leads to either coarse-grained security vulnerabilities where users bypass specific operational checks because they possess a broad role, or architectural rigidity where creating a new user type requires proliferating redundant roles rather than assigning targeted authorities."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Dimension",
+        "Role",
+        "Authority"
+      ],
+      "rows": [
+        [
+          "Granularity",
+          "Coarse-grained (job function or organizational title)",
+          "Fine-grained (specific capability or permission operation)"
+        ],
+        [
+          "Naming Convention",
+          "Typically prefixed with ROLE_ (e.g., ROLE_USER)",
+          "Typically represents an action (e.g., POST_COMMENT, DELETE_FILE)"
+        ],
+        [
+          "Framework Mapping",
+          "Mapped to hierarchical groups of permissions",
+          "Mapped directly to method-level or URL-level access rules"
+        ],
+        [
+          "Use Case",
+          "Categorizing users into broad operational tiers",
+          "Enforcing strict least-privilege security boundaries"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In enterprise Java security contexts, roles are frequently translated into authorities behind the scenes; for instance, Spring Security's RoleHierarchy allows ROLE_ADMIN to automatically inherit ROLE_USER, simplifying authorization matrices.",
+        "Direct authority checks (e.g., hasAuthority('ORDER_FULFILL')) are vastly preferred over role checks in domain-driven design because they decouple business logic permissions from corporate titles.",
+        "RBAC enforcement happens post-authentication via the SecurityContextHolder, where the Authentication object holds a Collection of GrantedAuthority instances representing both the user's roles and individual permissions."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableMethodSecurity\npublic class SecurityConfiguration {\n\n    @Bean\n    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {\n        http\n            .authorizeHttpRequests(auth -> auth\n                // Using an Authority for fine-grained resource access\n                .requestMatchers(\"/api/v1/audits/**\").hasAuthority(\"AUDIT_READ\")\n                // Using a Role for broad administrative surface areas\n                .requestMatchers(\"/api/v1/admin/**\").hasRole(\"ADMIN\")\n                .anyRequest().authenticated()\n            );\n        return http.build();\n    }\n\n    @PreAuthorize(\"hasAuthority('USER_MODIFY') or hasRole('SUPERVISOR')\")\n    public void updateManagedUser(Long userId, UserUpdateDto dto) {\n        // Business logic for updating a user profile\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in Spring Security is mixing up hasRole() and hasAuthority() filters. Because hasRole() automatically prepends the ROLE_ prefix under the hood, passing 'ADMIN' to hasRole() checks for 'ROLE_ADMIN'. However, if you pass 'ROLE_ADMIN' to hasAuthority(), it looks for an exact string match without prepending anything, frequently resulting in silent authorization failures (HTTP 403) that baffle developers during integration testing."
+    }
+  ],
+  "num": 995,
+  "title": "What is role-based access control? What is authority versus role?",
+  "category": "Core Java & Fundamentals"
+}

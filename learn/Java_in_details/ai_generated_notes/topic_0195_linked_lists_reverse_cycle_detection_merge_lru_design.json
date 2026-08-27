@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Linked lists are foundational sequential data structures in computer science, contrasting with contiguous memory buffers like arrays by distributing elements across disjoint heap allocations connected via explicit node references. In interview and production contexts, mastering linked lists requires fluent manipulation of pointers—specifically dealing with head and tail invariants, null safety, and sentinel nodes. To reverse a linked list, one must iteratively or recursively rewire directional next pointers, shifting the previous, current, and next pointers carefully to avoid memory leaks or lost references. Cycle detection solves the classic topology problem of finding loops within a graph-like node structure without infinite traversal, famously solved by Floyd's Cycle-Finding Algorithm utilizing slow and fast pointers. Merging lists (such as sorted sequences) relies on maintaining a clean pointer-advance pattern, often leveraging a dummy head node to simplify edge cases at the boundaries. Finally, designing an LRU (Least Recently Used) cache ties these concepts together, combining a doubly linked list for O(1) removals and insertions with a hash map to achieve O(1) key-value lookups, satisfying strict performance guarantees required by high-throughput systems."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Operation",
+        "Singly Linked List",
+        "Doubly Linked List",
+        "LRU Cache (HashMap + DLL)"
+      ],
+      "rows": [
+        [
+          "Access by Index",
+          "O(N)",
+          "O(N)",
+          "O(1) (Key Lookup)"
+        ],
+        [
+          "Insert/Delete at Head",
+          "O(1)",
+          "O(1)",
+          "O(1)"
+        ],
+        [
+          "Insert/Delete at Tail",
+          "O(N) (without tail ptr)",
+          "O(1) (with tail ptr)",
+          "O(1)"
+        ],
+        [
+          "Memory Overhead",
+          "Low (1 ref per node)",
+          "High (2 refs per node)",
+          "High (Map entries + DLL nodes)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In-place reversal requires maintaining three tracking references: 'prev', 'curr', and 'nextTemp'. Failing to cache 'nextTemp' before breaking the 'curr.next = prev' link results in a severed list and permanent memory isolation of subsequent nodes.",
+        "Floyd's Tortoise and Hare cycle detection algorithm guarantees meeting inside the cycle if a loop exists because the fast pointer advances by 2 steps while the slow pointer advances by 1 step, mathematically reducing the distance between them by 1 unit per iteration.",
+        "An LRU Cache implementation leverages a doubly linked list so that node extraction and movement to the head (marking as most recently used) requires zero traversal steps, as adjacent node pointers are immediately accessible."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class LRUCache<K, V> {\n    private final int capacity;\n    private final java.util.Map<K, Node<K, V>> map;\n    private final Node<K, V> head;\n    private final Node<K, V> tail;\n\n    private static class Node<K, V> {\n        K key;\n        V value;\n        Node<K, V> prev;\n        Node<K, V> next;\n        Node(K k, V v) { key = k; value = v; }\n    }\n\n    public LRUCache(int capacity) {\n        this.capacity = capacity;\n        this.map = new java.util.HashMap<>();\n        this.head = new Node<>(null, null);\n        this.tail = new Node<>(null, null);\n        head.next = tail;\n        tail.prev = head;\n    }\n\n    public synchronized V get(K key) {\n        Node<K, V> node = map.get(key);\n        if (node == null) return null;\n        moveToHead(node);\n        return node.value;\n    }\n\n    public synchronized void put(K key, V value) {\n        Node<K, V> node = map.get(key);\n        if (node != null) {\n            node.value = value;\n            moveToHead(node);\n        } else {\n            if (map.size() >= capacity) {\n                Node<K, V> lru = removeTail();\n                if (lru != null) map.remove(lru.key);\n            }\n            Node<K, V> newNode = new Node<>(key, value);\n            addToHead(newNode);\n            map.put(key, newNode);\n        }\n    }\n\n    private void removeNode(Node<K, V> node) {\n        node.prev.next = node.next;\n        node.next.prev = node.prev;\n    }\n\n    private void addToHead(Node<K, V> node) {\n        node.next = head.next;\n        node.prev = head;\n        head.next.prev = node;\n        head.next = node;\n    }\n\n    private void moveToHead(Node<K, V> node) {\n        removeNode(node);\n        addToHead(node);\n    }\n\n    private Node<K, V> removeTail() {\n        Node<K, V> res = tail.prev;\n        if (res == head) return null;\n        removeNode(res);\n        return res;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "When implementing custom linked lists or LRU caches in multithreaded enterprise environments, ensure thread safety via explicit synchronization or concurrent structures. A common production bug in custom LRU implementations is updating pointer links out of order during 'moveToHead()', which silently corrupts the doubly linked list topology and triggers infinite loops during traversal."
+    }
+  ],
+  "num": 196,
+  "title": "Linked Lists — reverse, cycle detection, merge, LRU design",
+  "category": "Collections Framework & Internals"
+}

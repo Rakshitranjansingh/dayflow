@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java architectures—especially when dealing with frameworks like Spring AOP—proxy types are the invisible scaffolding that enables cross-cutting concerns such as transaction management, security auditing, and caching. A proxy acts as an intermediary wrapping a target object, intercepting method invocations to execute advice before or after the actual target method runs. Understanding the dichotomy between JDK dynamic proxies and CGLIB (Code Generation Library) is crucial because it directly impacts application startup performance, memory footprints, and runtime constraints.\n\nJDK dynamic proxies are built directly into the Java Standard Library and rely on interfaces. To use a JDK proxy, the target class must implement at least one interface. At runtime, the `java.lang.reflect.Proxy` class dynamically generates an implementation class that implements the specified interfaces and delegates method calls to an `InvocationHandler`. Because it operates via interface contracts, it avoids complex bytecode manipulation, resulting in fast proxy creation times. However, this design introduces a hard requirement: you cannot cast the resulting proxy to the concrete target class, only to its implemented interfaces.\n\nOn the other hand, CGLIB solves the interface limitation by generating proxy types via dynamic subclassing. When a target class has no interfaces or when forced by configuration (such as `proxyTargetClass = true` in Spring), CGLIB utilizes the low-level ASM bytecode manipulation library to generate a runtime subclass of the target class. It overrides non-final methods, intercepts calls using a `MethodInterceptor`, and routes them through the advice chain. Because it creates a subclass, the proxy can be safely cast to the concrete target class type. However, this comes with drawbacks: CGLIB cannot proxy `final` classes or `final` methods, and the class loading and bytecode generation overhead makes initialization slower than its JDK counterpart."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "JDK Dynamic Proxy",
+        "CGLIB Proxy"
+      ],
+      "rows": [
+        [
+          "Underlying Mechanism",
+          "Reflection & Interface implementation",
+          "Bytecode generation & Subclassing (ASM)"
+        ],
+        [
+          "Interface Requirement",
+          "Mandatory (Target must implement interface)",
+          "Optional (Works on concrete classes)"
+        ],
+        [
+          "Handling Final Elements",
+          "N/A (Interface methods cannot be final)",
+          "Cannot proxy final classes or final methods"
+        ],
+        [
+          "Instantiation Speed",
+          "Fast",
+          "Slower (due to bytecode generation)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "JDK dynamic proxies generate classes implementing target interfaces dynamically at runtime using `Proxy.newProxyInstance()`, storing the generated class in the JVM's permanent generation or metaspace.",
+        "CGLIB creates an enhanced subclass by directly writing bytecode via ASM, copying method metadata and substituting method bodies with calls to a `MethodInterceptor` callback.",
+        "Spring Boot 2.x and later default to CGLIB proxies for AOP and transaction management to prevent common ClassCastExceptions caused by casting proxies to concrete implementations rather than interfaces."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public interface Service {\n    void execute();\n}\n\npublic class ServiceImpl implements Service {\n    @Override\n    public void execute() { System.out.println(\"Executing business logic\"); }\n}\n\n// JDK Dynamic Proxy Usage\nService target = new ServiceImpl();\nService jdkProxy = (Service) Proxy.newProxyInstance(\n    Service.class.getClassLoader(),\n    new Class<?>[]{Service.class},\n    (proxy, method, args) -> {\n        System.out.println(\"Before JDK proxy call\");\n        Object result = method.invoke(target, args);\n        System.out.println(\"After JDK proxy call\");\n        return result;\n    }\n);\njdkProxy.execute();"
+    },
+    {
+      "type": "note",
+      "content": "A classic production gotcha with CGLIB proxies involves private or final constructors and methods. Because CGLIB relies on subclassing, the target class must have a non-private, non-parameterized constructor (or Spring must use constructor injection reflection tricks to bypass it), and any method marked final cannot be intercepted because subclass overriding is blocked at the JVM bytecode level. If you attempt to annotate a final method with `@Transactional`, the advice will silently fail to execute, leaving your database operations outside a transaction boundary without throwing a compile-time error."
+    }
+  ],
+  "num": 230,
+  "title": "Proxy types — JDK dynamic proxy vs CGLIB",
+  "category": "OOPs & Design Patterns"
+}

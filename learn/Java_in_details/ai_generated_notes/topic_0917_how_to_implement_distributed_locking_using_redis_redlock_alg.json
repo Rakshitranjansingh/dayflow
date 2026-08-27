@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In a distributed system, a traditional Java synchronized block or ReentrantLock is insufficient because they only enforce mutual exclusion within a single JVM memory space. When multiple service instances compete for a shared resource—such as a database row update or a file write—you need a distributed lock. Redis is the industry standard for this because of its single-threaded event loop and atomic primitives. A naive implementation using a simple SETNX (Set if Not Exists) with an expiration is prone to failure if the Redis master crashes before replicating the lock to a slave, leading to a split-brain scenario where two nodes believe they hold the lock.\n\nThe Redlock algorithm, proposed by Redis creator Salvatore Sanfilippo, addresses this by using multiple independent Redis masters (typically 5). To acquire a lock, a client attempts to acquire the same key in all N nodes sequentially. The lock is considered acquired only if the client successfully obtains it from a majority (N/2 + 1) of the nodes within a specific timeout. This approach ensures that even if one node fails or experiences a network partition, the system maintains safety, provided the majority of nodes are healthy. It effectively turns the lock into a quorum-based operation, mitigating the risks inherent in single-node Redis deployments."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Single-Node Redis Lock",
+        "Redlock Algorithm"
+      ],
+      "rows": [
+        [
+          "Fault Tolerance",
+          "Low (Single point of failure)",
+          "High (Quorum-based)"
+        ],
+        [
+          "Complexity",
+          "Low (Simple SETNX)",
+          "High (Multi-node coordination)"
+        ],
+        [
+          "Consistency",
+          "Eventual (Risk of lock loss)",
+          "Strong (Majority consensus)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Clock Drift Sensitivity: Redlock relies on the assumption that the time elapsed during lock acquisition is less than the lock TTL. If the system clock drifts significantly across nodes, the lock might expire prematurely.",
+        "Fencing Tokens: To prevent race conditions caused by GC pauses, always include a monotonically increasing 'fencing token' (version number) when interacting with the downstream resource, as the lock might have expired while the thread was paused.",
+        "Atomic Release: Releasing a lock must be done via a Lua script that checks if the value in Redis matches the unique identifier generated during acquisition to prevent deleting a lock owned by another process."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Using Redisson, the standard Java client for Redlock\nRLock lock = redisson.getLock(\"my-resource-key\");\ntry {\n    // Wait 10s, lease for 30s to prevent deadlocks if the node crashes\n    if (lock.tryLock(10, 30, TimeUnit.SECONDS)) {\n        try {\n            // Perform critical section logic\n        } finally {\n            lock.unlock();\n        }\n    }\n} catch (InterruptedException e) {\n    Thread.currentThread().interrupt();\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never use Redlock if your business requirements demand strict linearizability (e.g., financial ledger updates). Redlock is technically not a formal CP system under extreme network partitions due to clock drift issues. For high-stakes consistency, prefer consensus algorithms like Raft or Paxos implemented via Zookeeper or etcd."
+    }
+  ],
+  "num": 918,
+  "title": "How to implement distributed locking using Redis? (Redlock algorithm)",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

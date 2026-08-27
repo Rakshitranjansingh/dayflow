@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Redis is an in-memory data structure store, but its performance is often bottlenecked by network latency rather than CPU or memory throughput. A Redis Pipeline is a client-side optimization technique that allows a client to send multiple commands to the server without waiting for the replies of previous commands, and finally reading the replies in a single step. In a standard request-response cycle, each command incurs a full round-trip time (RTT), which includes the network transit time, context switching, and kernel buffer management. By pipelining, you collapse these RTTs into a single network stream, significantly reducing the overhead of the TCP stack and system calls on both the client and server sides.\n\nUsing pipelines over individual commands is the difference between a chatty application and a high-throughput system. When you execute commands individually, the client blocks waiting for an acknowledgment, effectively idling the network interface. Pipelining transforms this into a batch operation, allowing the server to process commands as fast as it can pull them from the input buffer, while the client continues to push data into the output buffer. This is essential for bulk loading data, mass cache invalidation, or any scenario where you need to perform thousands of operations per second without the cumulative latency of sequential network round-trips."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric",
+        "Individual Commands",
+        "Pipelined Commands"
+      ],
+      "rows": [
+        [
+          "Network RTT",
+          "1 per command",
+          "1 total per batch"
+        ],
+        [
+          "Throughput",
+          "Limited by latency",
+          "Limited by bandwidth/CPU"
+        ],
+        [
+          "Atomicity",
+          "None",
+          "None (Pipeline is not a transaction)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Pipeline mechanics: The client buffers commands in memory and sends them in a single write() system call. The Redis server reads the entire buffer, processes the commands sequentially, and queues the responses in its own output buffer to be sent back in one or more packets.",
+        "Resource utilization: Pipelining reduces the number of context switches between user-space and kernel-space, as the OS handles fewer read/write events on the socket.",
+        "Non-atomic nature: Unlike MULTI/EXEC (Redis Transactions), a pipeline does not guarantee atomicity. Other clients can interleave their commands between the commands sent in your pipeline; it is strictly a performance optimization, not a concurrency control mechanism."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "try (Jedis jedis = pool.getResource()) {\n    Pipeline p = jedis.pipelined();\n    for (String key : keys) {\n        p.set(key, value);\n    }\n    // sync() sends the buffered commands and retrieves all responses\n    List<Object> results = p.syncAndReturnAll();\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Be careful with the size of your pipeline. If you pack too many commands (e.g., 100,000+ SET operations) into a single pipeline, you risk exhausting the client-side memory buffer or causing the Redis server to block while it processes the massive incoming stream, which can lead to latency spikes for other clients. Always batch pipelines into reasonable chunks, such as 1,000 to 5,000 commands, to balance throughput with system responsiveness."
+    }
+  ],
+  "num": 920,
+  "title": "Redis: What is a Redis Pipeline? Why use it over multiple commands?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java Collections Framework, sorting is primarily governed by the contract between the Comparable interface and the Comparator interface. While Comparable defines the 'natural ordering' of objects—the intrinsic way an object should be sorted—the Comparator interface provides a strategy pattern implementation that allows you to define arbitrary sorting logic external to the object's class definition. This is critical in production systems where you might need to sort the same data set by different fields (e.g., sorting a 'User' object by 'lastName' in one view and by 'registrationDate' in another) without modifying the source code of the entity itself. By passing a custom Comparator implementation to methods like Collections.sort() or List.sort(), you inject a comparison strategy that the underlying sorting algorithm—typically a tuned Timsort for objects—uses to perform binary comparisons during the merge process."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Comparable (Natural)",
+        "Comparator (Custom)"
+      ],
+      "rows": [
+        [
+          "Implementation",
+          "Implemented by the class itself",
+          "Implemented by an external class/lambda"
+        ],
+        [
+          "Flexibility",
+          "Single sorting strategy",
+          "Multiple, interchangeable strategies"
+        ],
+        [
+          "Modification",
+          "Requires source code access",
+          "Non-intrusive, external to class"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Timsort algorithm used by Java's Collections.sort() is a stable, adaptive merge sort. It requires the Comparator to strictly adhere to the general contract: it must be reflexive, symmetric, and transitive. Failure to maintain transitivity (e.g., a > b, b > c, but c > a) will result in an IllegalArgumentException at runtime.",
+        "When using Comparator.comparing(), Java creates a functional interface instance. Under the hood, this leverages lambda meta-factories, which are more memory-efficient than anonymous inner classes as they avoid generating extra class files on disk.",
+        "For performance-critical code, avoid boxing/unboxing in your comparator. Use Comparator.comparingInt or similar primitive-specialized methods to prevent the overhead of wrapping integers into Integer objects during every comparison step."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "List<User> users = getProductionUsers();\n\n// Efficient, readable sorting using method references\nusers.sort(Comparator.comparing(User::getLastName)\n                     .thenComparing(User::getRegistrationDate, Comparator.reverseOrder()));\n\n// Legacy style for complex logic\nusers.sort((u1, u2) -> {\n    int res = u1.getDepartment().compareTo(u2.getDepartment());\n    return (res != 0) ? res : Double.compare(u2.getSalary(), u1.getSalary());\n});"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is using 'return u1.getAge() - u2.getAge()' in a comparator. This is dangerous because it is susceptible to integer overflow if the age values are large or negative; always use Integer.compare(u1.getAge(), u2.getAge()) to ensure safe, predictable results."
+    }
+  ],
+  "num": 540,
+  "title": "How do you sort a collection using a custom comparator?",
+  "category": "Collections Framework & Internals"
+}

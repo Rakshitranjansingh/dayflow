@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of high-scale Java systems, understanding the distinction between block storage and object storage is critical for designing persistence layers that don't bottleneck the JVM. Block storage treats data as a collection of fixed-size raw blocks, typically managed by a file system (like ext4 or NTFS) or a SAN (Storage Area Network). To the OS, it appears as a local disk drive, allowing the Java application to perform low-level, random-access I/O operations using Memory Mapped Files (MappedByteBuffer) or RandomAccessFile. It is optimized for low latency and high-performance transactional workloads where you need to modify specific bytes within a file without rewriting the entire structure.\n\nObject storage, conversely, treats data as immutable blobs bundled with rich metadata and a globally unique identifier. It is accessed via RESTful APIs rather than file system drivers. In a Java ecosystem, you interact with object storage (like AWS S3 or MinIO) using SDKs that handle HTTP/HTTPS requests. Because objects are immutable, you cannot 'update' a byte in the middle of a file; you must replace the entire object. This makes it ideal for unstructured data like user uploads, logs, or backups, where horizontal scalability and cost-efficiency outweigh the need for low-latency byte-level mutations."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Block Storage",
+        "Object Storage"
+      ],
+      "rows": [
+        [
+          "Access Method",
+          "SCSI/NVMe/iSCSI",
+          "REST API (HTTP)"
+        ],
+        [
+          "Data Granularity",
+          "Byte-level (Random Access)",
+          "Object-level (Full replacement)"
+        ],
+        [
+          "Scalability",
+          "Limited by volume/mount",
+          "Massively scalable (Flat namespace)"
+        ],
+        [
+          "Typical Use Case",
+          "Databases, OS boot drives",
+          "Media, Archives, Data Lakes"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Block storage utilizes a hierarchical directory structure, which introduces metadata overhead at the file system level (inodes/dentry caches) that can degrade performance as the number of files grows into the millions.",
+        "Object storage uses a flat namespace, eliminating the 'directory tree' bottleneck. The metadata is stored alongside the data, allowing for complex querying and indexing without traversing a file system hierarchy.",
+        "Java applications interacting with block storage benefit from OS-level page caching, whereas object storage interactions are network-bound, requiring careful management of connection pools and buffering to avoid heap exhaustion during large transfers."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Block Storage: Random access using FileChannel\nRandomAccessFile raf = new RandomAccessFile(\"data.bin\", \"rw\");\nFileChannel channel = raf.getChannel();\nByteBuffer buffer = ByteBuffer.allocate(1024);\nchannel.read(buffer, 4096); // Seek and read at specific offset\n\n// Object Storage: SDK approach (AWS S3)\nS3Client s3 = S3Client.builder().build();\nPutObjectRequest request = PutObjectRequest.builder().bucket(\"my-bucket\").key(\"file.txt\").build();\ns3.putObject(request, RequestBody.fromFile(Paths.get(\"local.txt\")));"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is attempting to use Object Storage as a backing store for a high-frequency transactional database. Because object storage is eventually consistent in many cloud implementations and requires a full HTTP round-trip for every write, your Java application will suffer from severe latency spikes and potential data corruption if you don't implement robust optimistic locking or versioning. Always use Block Storage for the database 'data files' and Object Storage for the 'blobs' or 'backups'."
+    }
+  ],
+  "num": 1086,
+  "title": "What is object storage versus block storage?",
+  "category": "Core Java & Fundamentals"
+}

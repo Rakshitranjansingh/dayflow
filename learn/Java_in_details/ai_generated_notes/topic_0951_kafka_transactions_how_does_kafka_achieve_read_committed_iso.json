@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Kafka Transactions and Exact-Once Processing (EOP) are architectural primitives designed to solve the 'read-process-write' problem in distributed streaming. Without transactional support, a failure during the consumption-processing-production cycle would lead to duplicate events or data loss. Kafka achieves atomicity by introducing a Transaction Coordinator, a Transaction Log, and a PID (Producer ID) mapping. When a producer initiates a transaction, it registers with the coordinator, which manages the lifecycle of the transaction state (Ongoing, PrepareCommit, Complete). Read-committed isolation is enforced at the consumer level by the 'read_committed' isolation level, which instructs the consumer to ignore messages belonging to aborted transactions or messages that are part of an ongoing transaction that has not yet been committed to the log."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Read-Uncommitted",
+        "Read-Committed"
+      ],
+      "rows": [
+        [
+          "Visibility",
+          "All messages immediately",
+          "Only committed messages"
+        ],
+        [
+          "Performance",
+          "High throughput, no latency",
+          "Slight overhead due to LSO tracking"
+        ],
+        [
+          "Use Case",
+          "Low-latency monitoring",
+          "Financial/Stateful processing"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Transaction Coordinator maintains the Last Stable Offset (LSO) for each partition, which represents the point up to which all transactions are either committed or aborted.",
+        "Producers use a transactional ID to ensure that zombies (old instances of the same producer) are fenced out via the epoch mechanism, preventing them from committing stale data.",
+        "The Kafka broker writes a 'Control Record' to the partition log upon transaction completion, which acts as a marker for consumers to filter out uncommitted transactional data.",
+        "EOP is achieved by atomically committing the consumer offsets within the same transaction as the produced output, ensuring that the input offset is only advanced if the output is successfully persisted."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "Properties props = new Properties();\nprops.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, \"prod-1\");\nKafkaProducer<String, String> producer = new KafkaProducer<>(props);\nproducer.initTransactions();\n\ntry {\n    producer.beginTransaction();\n    producer.send(new ProducerRecord<>(\"output-topic\", \"key\", \"value\"));\n    producer.sendOffsetsToTransaction(offsets, \"consumer-group-id\");\n    producer.commitTransaction();\n} catch (ProducerFencedException | OutOfOrderSequenceException e) {\n    producer.close();\n} catch (KafkaException e) {\n    producer.abortTransaction();\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is misconfiguring the 'transaction.max.timeout.ms'. If your processing logic involves heavy external calls (e.g., a slow database lookup), the transaction might time out on the broker side, causing the coordinator to abort it automatically. This leads to 'TransactionAbortedException' loops. Always keep your transactional window as short as possible and never perform blocking I/O that isn't strictly necessary within the transaction block."
+    }
+  ],
+  "num": 952,
+  "title": "Kafka Transactions: How does Kafka achieve read-committed isolation for exact-once processing?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

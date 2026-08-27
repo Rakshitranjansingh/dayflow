@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The RED method is a prominent performance and reliability monitoring framework designed specifically for request-driven microservices and distributed architectures. Originating as a refinement of the older USE method (Utilization, Saturation, and Errors) which was tailored for hardware resources, RED focuses on the customer experience and application boundary metrics. By centering observability on three core pillars—Rate, Errors, and Duration—engineering teams can instantly gauge the health of their I/O subsystems, network boundaries, and HTTP or gRPC endpoints without getting lost in the noise of low-level system metrics."
+    },
+    {
+      "type": "prose",
+      "content": "To fully understand RED, we must dissect each metric in the context of high-throughput enterprise systems. Rate measures the number of incoming requests per second hitting your service, allowing teams to spot traffic spikes, downstream shedding, or sudden drops that might indicate load balancer misconfigurations. Errors track the absolute count or ratio of failed requests per second—distinguishing between unhandled runtime exceptions, IOExceptions stemming from socket timeouts, and HTTP 5xx or 4xx responses. Finally, Duration captures the latency distribution of requests, typically measured via histograms or high-percentile latency markers (p95, p99) to detect garbage collection pauses, blocking thread pool starvation, or slow database I/O queries."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "RED Metric",
+        "Definition & Focus",
+        "Common Production Pitfall"
+      ],
+      "rows": [
+        [
+          "Rate",
+          "The number of requests, events, or transactions per second processed by the service.",
+          "Ignoring cardinality explosion when tagging metrics with dynamic client IDs or unconstrained paths."
+        ],
+        [
+          "Errors",
+          "The number or percentage of failed requests per second (e.g., HTTP 5xx or unhandled exceptions).",
+          "Failing to increment error counters on intercepted I/O timeouts, misclassifying them as normal completions."
+        ],
+        [
+          "Duration",
+          "The amount of time requests take to complete, represented through latency histograms.",
+          "Relying on averages instead of percentiles (p95, p99), which completely masks tail latency spikes."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Rate monitoring must be implemented at the ingress boundary (e.g., servlet filters, Netty channel handlers) to capture every incoming payload before it drops due to thread pool exhaustion or backpressure.",
+        "Error tracking requires deep integration with exception-handling mechanisms to differentiate between client-induced faults (4xx) and system-induced infrastructure failures (5xx or broken I/O sockets).",
+        "Duration metrics should never rely on naive stopwatches that allocate objects in the hot path; instead, they must leverage zero-allocation histogram implementations like Micrometer's Timer or HDRHistograms to prevent GC overhead."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Component\npublic class RedMetricsInterceptor implements HandlerInterceptor {\n    private final MeterRegistry registry;\n\n    public RedMetricsInterceptor(MeterRegistry registry) {\n        this.registry = registry;\n    }\n\n    @Override\n    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {\n        request.setAttribute(\"startTime\", System.nanoTime());\n        registry.counter(\"http.server.requests.rate\", \"uri\", request.getRequestURI()).increment();\n        return true;\n    }\n\n    @Override\n    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {\n        long startTime = (Long) request.getAttribute(\"startTime\");\n        long duration = System.nanoTime() - startTime;\n\n        registry.timer(\"http.server.requests.duration\", \"uri\", request.getRequestURI())\n                .record(duration, TimeUnit.NANOSECONDS);\n\n        if (ex != null || response.getStatus() >= 500) {\n            registry.counter(\"http.server.requests.errors\", \"uri\", request.getRequestURI(), \"status\", String.valueOf(response.getStatus())).increment();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "When implementing RED metrics in reactive or non-blocking I/O engines (like Netty or Project Reactor), beware of context propagation. Standard thread-local storage will fail across asynchronous boundaries, leading to dropped metrics or misattributed durations. Always bind your timers and counters to reactive context operators (like contextWrite or doOnEach) to ensure accurate end-to-end telemetry."
+    }
+  ],
+  "num": 1177,
+  "title": "What is the RED method for monitoring? (Rate, Errors, Duration)",
+  "category": "Exception Handling & I/O / NIO"
+}

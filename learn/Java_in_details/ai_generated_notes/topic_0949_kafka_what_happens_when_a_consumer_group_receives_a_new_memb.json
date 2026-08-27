@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When a new member joins an existing Kafka consumer group, the cluster initiates a rebalance protocol to redistribute partition ownership. This process is essential for horizontal scalability, allowing the group to adjust its workload dynamically as instances are added or removed. The rebalance protocol is orchestrated by the Group Coordinator—a broker elected to manage the group's state. When a join request arrives, the coordinator transitions the group to a 'rebalancing' state, forcing all existing members to stop processing and rejoin the group. This ensures that the partition assignment remains consistent across the entire cluster, preventing race conditions or duplicate processing of messages.\n\nHistorically, Kafka used the 'Range' or 'RoundRobin' assignors, which were notoriously inefficient because they would revoke all existing partition assignments during a rebalance, causing significant 'stop-the-world' latency. The introduction of the Sticky Assignor solved this by attempting to preserve as many existing partition assignments as possible. By minimizing the movement of partitions between consumers, the Sticky Assignor significantly reduces the overhead of re-initializing local state, such as local caches or RocksDB instances in Kafka Streams, thereby maintaining high throughput even during scaling events."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Eager Rebalance (Range/RoundRobin)",
+        "Cooperative Rebalance (Sticky/Incremental)"
+      ],
+      "rows": [
+        [
+          "Partition Movement",
+          "Revokes all, then reassigns",
+          "Only moves necessary partitions"
+        ],
+        [
+          "Processing Impact",
+          "Full stop of all consumers",
+          "Incremental stop for affected consumers"
+        ],
+        [
+          "Throughput Recovery",
+          "Slow (Cold start)",
+          "Fast (Warm state preservation)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Group Coordinator uses the 'JoinGroup' and 'SyncGroup' RPCs to facilitate the handshake between the new member and the existing group.",
+        "The Sticky Assignor maintains two invariants: it balances the number of partitions per consumer as evenly as possible and preserves existing assignments to minimize data movement.",
+        "In modern Kafka clients (2.4+), the CooperativeStickyAssignor allows for incremental rebalancing, where consumers only revoke partitions that are actually being reassigned, rather than pausing the entire group.",
+        "The 'rebalance.timeout.ms' configuration is critical; if a consumer takes too long to rejoin due to heavy processing, it will be kicked out, triggering a cascading rebalance loop."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "Properties props = new Properties();\nprops.put(ConsumerConfig.GROUP_ID_CONFIG, \"my-microservice-group\");\n// Use the CooperativeStickyAssignor to minimize partition movement during scaling\nprops.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, \n          \"org.apache.kafka.clients.consumer.CooperativeStickyAssignor\");\n\nKafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Always monitor 'rebalance.rate' in your metrics. If you see frequent rebalances, it is often not due to scaling, but rather 'livelock' caused by the 'max.poll.interval.ms' being too short. If your processing logic (e.g., a database call or external API request) takes longer than this interval, the consumer will drop out of the group, triggering a rebalance, which then forces the consumer to rejoin, creating an infinite loop of rebalances that effectively kills your throughput."
+    }
+  ],
+  "num": 950,
+  "title": "Kafka: What happens when a consumer group receives a new member? (Rebalance protocol, Sticky Assignor)",
+  "category": "REST APIs, WebFlux & Microservices"
+}

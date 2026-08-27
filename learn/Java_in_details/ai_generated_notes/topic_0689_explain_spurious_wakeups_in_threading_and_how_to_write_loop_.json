@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A spurious wakeup is a phenomenon in multithreaded programming where a thread waiting on a synchronization primitive, such as a Java Object monitor (via wait()), is awakened from its waiting state even though no other thread has explicitly called notify() or notifyAll(). This behavior is not a bug in the JVM, but rather a design concession to the underlying operating system's thread scheduling primitives (like POSIX threads). On many platforms, ensuring that a thread is only woken up by a signal is computationally expensive; allowing spurious wakeups permits the OS kernel to be more efficient. Consequently, a thread that was blocked on a condition might suddenly find itself in a runnable state without the condition it was waiting for actually being met. Failure to account for this leads to race conditions where a thread proceeds with invalid state assumptions, potentially corrupting shared resources or violating business invariants."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The wait() method must always be enclosed in a 'while' loop rather than an 'if' statement. The loop ensures that upon waking, the thread re-evaluates the predicate condition.",
+        "When a thread wakes up, it must re-acquire the object's monitor lock before it can proceed, which naturally serializes access and allows the thread to check the state again.",
+        "The condition being checked must be a shared variable protected by the same monitor lock used for the wait() call, ensuring visibility across threads via the happens-before relationship.",
+        "Spurious wakeups are non-deterministic; they can occur at any time, making them notoriously difficult to reproduce in local development environments without stress testing."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public synchronized void consume() throws InterruptedException {\n    // Always use a while loop to guard against spurious wakeups\n    while (queue.isEmpty()) {\n        wait();\n    }\n    // Proceed only when the condition is actually met\n    process(queue.remove());\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never assume that waking up from a wait() implies your condition is true. If you use an 'if' statement instead of a 'while' loop, you are essentially creating a 'time-of-check to time-of-use' (TOCTOU) vulnerability. In high-concurrency systems, this is a common source of intermittent 'IndexOutOfBoundsException' or 'NullPointerException' errors that only appear under heavy load when the OS scheduler is forced to context-switch frequently."
+    }
+  ],
+  "num": 690,
+  "title": "Explain Spurious Wakeups in threading and how to write loop checks to avoid them.",
+  "category": "Multithreading & Java Concurrency"
+}

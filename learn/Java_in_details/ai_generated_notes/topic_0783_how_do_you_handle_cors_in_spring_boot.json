@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Cross-Origin Resource Sharing (CORS) is a W3C specification implemented by browsers to enforce the Same-Origin Policy (SOP). In the context of Spring Boot, CORS handling is essential when your backend API resides on a different domain, protocol, or port than your frontend client. Without proper configuration, the browser blocks the response to an XHR or Fetch request, throwing a security exception. Spring Boot abstracts this complexity through the 'CorsConfiguration' object and 'CorsRegistry', which allow you to define which origins, HTTP methods, and headers are permitted to interact with your resources. By default, Spring Security and Spring MVC enforce strict SOP, so developers must explicitly whitelist trusted origins to allow cross-site communication."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Scope",
+        "Use Case"
+      ],
+      "rows": [
+        [
+          "@CrossOrigin",
+          "Method/Controller level",
+          "Granular control for specific endpoints"
+        ],
+        [
+          "Global Configuration",
+          "Application-wide",
+          "Standard REST APIs with consistent security policies"
+        ],
+        [
+          "CorsFilter",
+          "Servlet Filter level",
+          "Complex scenarios requiring custom logic before Spring MVC"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Pre-flight requests: Browsers send an OPTIONS request before the actual HTTP method (GET/POST) to verify if the server permits the cross-origin request. Spring Boot handles this automatically by inspecting the 'Access-Control-Request-Method' and 'Access-Control-Request-Headers' headers.",
+        "Security Context: When using Spring Security, the CORS filter must be registered before the SecurityFilterChain. If the filter is not properly ordered, the security interceptor might reject the pre-flight OPTIONS request because it lacks authentication credentials.",
+        "Credential Handling: If your frontend needs to send cookies or Authorization headers, you must set 'allowCredentials(true)' and ensure the 'allowedOrigins' does not use the wildcard '*', as browsers strictly forbid combining these two configurations."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class WebConfig implements WebMvcConfigurer {\n    @Override\n    public void addCorsMappings(CorsRegistry registry) {\n        registry.addMapping(\"/api/**\")\n                .allowedOrigins(\"https://app.example.com\")\n                .allowedMethods(\"GET\", \"POST\", \"PUT\", \"DELETE\")\n                .allowedHeaders(\"Authorization\", \"Content-Type\")\n                .allowCredentials(true)\n                .maxAge(3600);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is the 'CORS misconfiguration loop'. If you are using Spring Security, simply adding a WebMvcConfigurer is often insufficient because the Security Filter Chain executes before the MVC layer. You must explicitly configure the 'corsConfigurationSource' within your 'SecurityFilterChain' bean using 'http.cors(Customizer.withDefaults())' to ensure the security layer correctly handles the pre-flight OPTIONS requests."
+    }
+  ],
+  "num": 784,
+  "title": "How do you handle CORS in Spring Boot?",
+  "category": "Spring Boot & Spring Framework"
+}

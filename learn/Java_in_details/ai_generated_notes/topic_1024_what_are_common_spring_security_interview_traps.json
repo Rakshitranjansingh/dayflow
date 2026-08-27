@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Navigating Spring Security interviews requires diving deep into how the framework handles authentication and authorization behind the scenes, far beyond basic configuration. Candidates often fall into traps because they treat Spring Security as a black-box annotation framework rather than a sophisticated, highly customizable filter chain executing within the Servlet container. Interviewers routinely exploit misunderstandings surrounding the SecurityFilterChain, the transition from WebSecurityConfigurerAdapter (now deprecated) to component-based SecurityFilterChain beans, Method Security (@PreAuthorize vs @Secured), and the delicate thread-binding mechanics of SecurityContextHolder. When developers fail to understand how the AuthenticationManager delegates to AuthenticationProviders via ProviderManager, or how UsernamePasswordAuthenticationFilter intercepts requests, they frequently introduce severe vulnerabilities into production systems, such as unsecured endpoints, session fixation flaws, or concurrency leaks in reactive and servlet-based applications alike."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Trap Area",
+        "Common Misconception",
+        "Production Reality"
+      ],
+      "rows": [
+        [
+          "Filter Chain Order",
+          "Assuming URL matchers process strictly sequentially without overlapping rules.",
+          "First matching requestMatcher wins; broader matchers placed before specific ones shadow critical security constraints."
+        ],
+        [
+          "SecurityContextHolder",
+          "Thinking SecurityContext automatically propagates across asynchronous thread boundaries.",
+          "ThreadLocal strategy defaults to thread-per-request; async execution (CompletableFuture/reactive) drops context unless explicitly wrapped."
+        ],
+        [
+          "Method Security",
+          "Assuming @PreAuthorize works out of the box by simply adding the annotation to a service.",
+          "Requires explicit enablement via @EnableMethodSecurity and works via Spring AOP dynamic proxies, which fail on self-invocations."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The DelegatingFilterProxy acts as a bridge between the Servlet container's lifecycle and Spring's ApplicationContext, delegating incoming HTTP requests to a FilterChainProxy bean which manages a list of SecurityFilterChain instances.",
+        "AuthenticationManager delegates authentication requests to a configured list of AuthenticationProvider implementations, iterating through them until one successfully authenticates the token or throws an AuthenticationException.",
+        "SecurityContextHolder strategies (MODE_THREADLOCAL, MODE_INHERITABLETHREADLOCAL, MODE_GLOBAL) dictate how authentication state is stored and retrieved across threads, heavily impacting multi-threaded web controller architectures and reactive WebFlux pipelines."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\n@EnableMethodSecurity\npublic class SecurityConfig {\n\n    @Bean\n    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {\n        http\n            .csrf(csrf -> csrf.disable()) // Gotcha: Disabling CSRF globally for APIs without stateless token consideration\n            .authorizeHttpRequests(auth -> auth\n                .requestMatchers(\"/api/public/**\").permitAll()\n                .requestMatchers(\"/api/admin/**\").hasRole(\"ADMIN\")\n                .anyRequest().authenticated()\n            )\n            .sessionManagement(session -> session\n                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)\n            )\n            .httpBasic(Customizer.withDefaults());\n        return http.build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic senior-level interview trap involves asking why @PreAuthorize fails when a method is called internally from another method within the same Spring bean. Candidates who do not understand Spring AOP proxies will miss that self-invocation bypasses the proxy interceptor entirely, rendering the security check dead code. Always remind interviewers that proxy-based security requires inter-bean calls or AspectJ weaving."
+    }
+  ],
+  "num": 1025,
+  "title": "What are common Spring Security interview traps?",
+  "category": "Spring Security & Web Security"
+}

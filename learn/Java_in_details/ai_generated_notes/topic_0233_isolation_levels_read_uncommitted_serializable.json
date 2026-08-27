@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Database isolation levels represent the degree to which concurrent transactions are isolated from one another to prevent data corruption while balancing throughput. The SQL standard defines four distinct isolation levels—READ_UNCOMMITTED, READ_COMMITTED, REPEATABLE_READ, and SERIALIZABLE—each trading concurrency for consistency. At the bottom of the hierarchy, READ_UNCOMMITTED allows dirty reads, meaning a transaction can read data modified by another uncommitted transaction that might eventually roll back. Moving up, READ_COMMITTED eliminates dirty reads by forcing queries to read only committed data, though non-repeatable reads can still occur if another transaction modifies data between two separate reads. REPEATABLE_READ ensures that any data read once cannot change if read again within the same transaction, mitigating non-repeatable reads, though phantom reads (where concurrent inserts introduce new rows matching a range predicate) may still happen depending on the database engine. At the pinnacle of strictness sits SERIALIZABLE, which completely isolates transactions to execute as if they were running serially, preventing dirty reads, non-repeatable reads, and phantom reads entirely.\n\nIn high-performance database-backed Java applications using frameworks like Hibernate, JPA, or raw JDBC, understanding these isolation levels is critical for preventing subtle data anomalies and handling concurrent exceptions. Choosing the correct isolation level directly impacts locking strategies, multi-version concurrency control (MVCC) overhead, and the frequency of serialization failures or deadlocks. Improper isolation settings frequently surface in production as race conditions, lost updates, or unexpected query results during high-throughput transaction processing."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Isolation Level",
+        "Dirty Read",
+        "Non-Repeatable Read",
+        "Phantom Read"
+      ],
+      "rows": [
+        [
+          "READ_UNCOMMITTED",
+          "Allowed",
+          "Allowed",
+          "Allowed"
+        ],
+        [
+          "READ_COMMITTED",
+          "Prevented",
+          "Allowed",
+          "Allowed"
+        ],
+        [
+          "REPEATABLE_READ",
+          "Prevented",
+          "Prevented",
+          "Allowed (or prevented via MVCC/locks)"
+        ],
+        [
+          "SERIALIZABLE",
+          "Prevented",
+          "Prevented",
+          "Prevented"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Under MVCC architectures (like PostgreSQL and MySQL InnoDB), READ_COMMITTED creates a fresh read-view (snapshot) for every single SQL statement executed within a transaction, while REPEATABLE_READ establishes a single read-view at the start of the first consistent read, maintaining visibility rules across the entire transaction lifetime.",
+        "The SERIALIZABLE level in InnoDB enforces gap locking and next-key locking on top of record locks to prevent phantom reads, or relies on Serializable Snapshot Isolation (SSI) in engines like PostgreSQL to detect write-skew anomalies and throw serialization failure exceptions.",
+        "When dealing with Java persistence layers, setting isolation levels via Connection.setTransactionLevel() or Spring's @Transactional(isolation = Isolation.SERIALIZABLE) alters how the underlying database acquires shared and exclusive locks, substantially increasing lock contention and reducing throughput."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class FinancialAccountService {\n\n    @Autowired\n    private AccountRepository accountRepository;\n\n    @Transactional(isolation = Isolation.SERIALIZABLE, propagation = Propagation.REQUIRED)\n    public void transferFunds(Long sourceId, Long targetId, BigDecimal amount) {\n        Account source = accountRepository.findById(sourceId)\n            .orElseThrow(() -> new EntityNotFoundException(\"Source not found\"));\n        Account target = accountRepository.findById(targetId)\n            .orElseThrow(() -> new EntityNotFoundException(\"Target not found\"));\n\n        if (source.getBalance().compareTo(amount) < 0) {\n            throw new InsufficientFundsException(\"Declined\");\n        }\n\n        source.setBalance(source.getBalance().subtract(amount));\n        target.setBalance(target.getBalance().add(amount));\n\n        accountRepository.save(source);\n        accountRepository.save(target);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall when using SERIALIZABLE isolation is the exponential rise in database deadlocks and TransactionRollbackExceptions (e.g., PostgreSQL error 40001). Because SERIALIZABLE acquires extensive range and gap locks, high concurrency on overlapping row sets will cause threads to block and frequently abort. Always ensure your application layer gracefully catches serialization exceptions and implements an idempotent retry mechanism with exponential backoff."
+    }
+  ],
+  "num": 234,
+  "title": "Isolation levels — READ_UNCOMMITTED → SERIALIZABLE",
+  "category": "Exception Handling & I/O / NIO"
+}

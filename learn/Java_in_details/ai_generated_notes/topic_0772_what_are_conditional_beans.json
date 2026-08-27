@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the modern enterprise Java landscape, particularly when building large-scale Spring Boot applications or systems handling complex Exception Handling & I/O / NIO operations, hardcoding bean definitions quickly becomes an architectural bottleneck. Conditional beans represent a powerful meta-annotation paradigm that allows the Spring IoC container to dynamically register or skip beans based on a specific set of runtime constraints. Instead of polluting your service layers with profile-specific boilerplate or try-catch initialization guards, conditional configuration evaluates environment properties, classpath presence, OS characteristics, or even custom bean existence before instantiating target objects into the application context.\n\nWhen we bridge conditional bean evaluation into the realm of Exception Handling & I/O / NIO, the pattern becomes vital. Imagine designing a high-throughput reactive Netty server or an asynchronous file-channel NIO processing pipeline. You might need an Epoll-based socket channel selector implementation on Linux environments, while gracefully falling back to a standard NIO Selector provider on Windows or macOS. Conditional beans evaluate these operating system capabilities, JVM runtime flags, or custom exception handler beans at startup, ensuring that your application injects the optimal I/O strategy without risking runtime UnsatisfiedDependencyExceptions or unhandled native OS exceptions."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring evaluates @Conditional annotations during the configuration phase, specifically during the post-processing of ConfigurationClassParser before singleton beans are instantiated in the BeanFactory.",
+        "Custom conditions implement the Condition interface, analyzing the ConditionContext to inspect the BeanFactory, Environment, and ResourceLoader, returning a boolean to dictate bean registration.",
+        "Standard conditions like @ConditionalOnProperty, @ConditionalOnClass, and @ConditionalOnMissingBean cover the vast majority of enterprise configuration scenarios for I/O driver selection and exception translation strategies.",
+        "Order of evaluation matters: if a conditional bean depends on another custom condition, the parser relies on explicit or implicit ordering to prevent circular evaluation deadlocks during container boot."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class NioTransportConfiguration {\n\n    @Bean\n    @ConditionalOnProperty(name = \"server.transport.type\", havingValue = \"epoll\", matchIfMissing = false)\n    @ConditionalOnClass(name = \"io.netty.channel.epoll.EpollChannelOption\")\n    public NetworkChannelManager epollChannelManager() {\n        return new EpollSocketChannelManager();\n    }\n\n    @Bean\n    @ConditionalOnMissingBean(NetworkChannelManager.class)\n    public NetworkChannelManager defaultNioChannelManager() {\n        return new StandardNioChannelManager();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic 7+ YOE production gotcha with conditional beans involves using @ConditionalOnMissingBean incorrectly in auto-configurations or multi-module projects. Because bean definition ordering across different configuration classes is non-deterministic unless explicitly ordered via @AutoConfigureAfter or @Order, a fallback bean might evaluate and register *before* your primary custom bean is parsed. This leads to intermittent test failures where your custom exception handler or I/O driver is silently overridden by the default fallback bean."
+    }
+  ],
+  "num": 773,
+  "title": "What are conditional beans?",
+  "category": "Exception Handling & I/O / NIO"
+}

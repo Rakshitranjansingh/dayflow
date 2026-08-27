@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "gRPC is a modern, high-performance, open-source Remote Procedure Call (RPC) framework initially designed by Google. It leverages HTTP/2 as its underlying transport protocol, Protocol Buffers (Protobuf) as its Interface Definition Language (IDL) and serialization format, and provides features such as authentication, bi-directional streaming, flow control, and cancellation. When comparing gRPC to REST, REST relies heavily on human-readable text formats like JSON over HTTP/1.1 (or increasingly HTTP/2), treating resources as nouns mapped to HTTP verbs. gRPC, by contrast, focuses on actions (procedures) with strongly typed service contracts defined in `.proto` files, compiling down to efficient binary stubs across multiple programming languages. \n\ngRPC achieves its superior performance through a combination of binary serialization via Protocol Buffers and the multiplexing capabilities of HTTP/2. While JSON parsing requires heavy CPU cycles for string scanning, tokenization, and reflection-based mapping, Protobuf serializes data into compact, variable-length binary payloads that reduce wire size significantly. Furthermore, HTTP/2 eliminates head-of-line blocking found in HTTP/1.1 by allowing multiple concurrent requests and responses to be interleaved over a single TCP connection, drastically lowering latency and maximizing network throughput in microservices architectures."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "gRPC",
+        "REST (HTTP/1.1 + JSON)"
+      ],
+      "rows": [
+        [
+          "Payload Format",
+          "Binary (Protocol Buffers)",
+          "Text (JSON / XML)"
+        ],
+        [
+          "Transport Protocol",
+          "HTTP/2 (Required)",
+          "HTTP/1.1 or HTTP/2"
+        ],
+        [
+          "API Contract",
+          "Strictly typed via .proto IDL",
+          "Optional (OpenAPI/Swagger, JSON Schema)"
+        ],
+        [
+          "Communication Style",
+          "Unary, Client/Server/Bi-directional Streaming",
+          "Request-Response (RESTful verb mapping)"
+        ],
+        [
+          "Browser Support",
+          "Requires gRPC-Web proxy",
+          "Native browser support via Fetch/XHR"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Protocol Buffers pack fields into tiny type-length-value (TLV) binary structures. Field numbers and wire types are encoded into single-byte tags, completely eliminating the transmission of verbose JSON key names over the network.",
+        "HTTP/2 multiplexing allows hundreds of concurrent logical streams to share a single TCP connection, bypassing the TCP slow-start penalty and connection-exhaustion bottlenecks typical of high-frequency REST microservice communication.",
+        "Bi-directional streaming enables both client and server to send a sequence of messages using a single read-write stream, making gRPC ideal for real-time telemetry, chat applications, and high-frequency event-driven architectures.",
+        "Code generation via the protoc compiler produces strongly typed client and server stubs, catching schema mismatches and breaking API changes at compile-time rather than runtime."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "syntax = \"proto3\";\n\npackage com.example.grpc;\n\noption java_multiple_files = true;\noption java_package = \"com.example.grpc.generated\";\n\n// The Greeting service definition.\nservice Greeter {\n  // Sends a greeting\n  rpc SayHello (HelloRequest) returns (HelloReply);\n}\n\n// The request message containing the user's name.\nmessage HelloRequest {\n  string name = 1;\n}\n\n// The response message containing the greetings\nmessage HelloReply {\n  string message = 1;\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha when adopting gRPC in Java environments is mismanaging the lifecycle of ManagedChannel instances. Creating a new ManagedChannel per request destroys HTTP/2 connection pooling benefits and introduces severe CPU and memory overhead due to repeated TCP handshakes and TLS negotiations. Always instantiate channels as long-lived singletons (or use connection pools) and remember to properly shut them down using awaitTermination to prevent resource leaks."
+    }
+  ],
+  "num": 985,
+  "title": "What is gRPC? How is it different from REST? How does gRPC achieve better performance?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

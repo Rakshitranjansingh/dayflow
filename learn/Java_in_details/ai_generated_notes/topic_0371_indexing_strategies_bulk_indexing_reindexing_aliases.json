@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When dealing with high-throughput search engines or large-scale data stores (such as Elasticsearch or OpenSearch, which are heavily integrated into enterprise Java ecosystems), standard single-document writes quickly become a bottleneck. To tackle this, engineers rely on sophisticated architectural patterns: bulk indexing, reindexing, and index aliases. Bulk indexing allows applications to batch dozens or thousands of document mutations into a single network payload, minimizing TCP overhead and context switching on the server. However, as business requirements evolve, schema mappings drift, forcing a complete reindexing operation to port old data into a newly structured index without dropping production traffic.\n\nReindexing a massive dataset in place is both expensive and disruptive, which is where index aliases become mission-critical. An alias acts as a dynamic pointer or symbolic link pointing to one or more underlying physical indices. By abstracting the concrete index name away from the client application code, Java services can read and write exclusively to an alias. When a schema change or structural migration requires a fresh data build, the system writes the bulk operations to a new index behind the scenes, validates the integrity, and atomically swaps the alias pointer to target the new index. This zero-downtime strategy prevents race conditions, eliminates read-service interruption, and encapsulates index lifecycle management directly within the data access layer."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Primary Use Case",
+        "Performance Trade-off",
+        "Downtime Risk"
+      ],
+      "rows": [
+        [
+          "Bulk Indexing",
+          "High-throughput data ingestion & initial population",
+          "Maximizes CPU and network utilization via batching",
+          "None if properly throttled; can overwhelm GC if batch size is excessive"
+        ],
+        [
+          "Reindexing",
+          "Schema evolution, analyzer updates, shard rebalancing",
+          "Consumes high I/O and CPU while copying documents",
+          "High if done on a live single index; zero if wrapped with aliases"
+        ],
+        [
+          "Aliases",
+          "Zero-downtime cutovers & routing multi-indices",
+          "Negligible metadata lookup overhead",
+          "None, pointer switch is an atomic operation"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Bulk indexing pipelines should leverage asynchronous thread pools and backpressure mechanisms (such as reactive streams or bounded blocking queues) to prevent OutOfMemoryErrors caused by unmanaged payload inflation.",
+        "Reindexing jobs often run as asynchronous, scroll-based cursor operations that read from a source index and stream into a destination index, requiring careful tuning of the scroll timeout and batch size to avoid stale shard contexts.",
+        "Zero-downtime reindexing workflows rely on the atomic metadata swap of an alias: adding the new index to the alias while simultaneously removing the old index within a single cluster state update.",
+        "When dealing with time-series or append-only logs, indices can be partitioned by date and grouped under a read alias spanning multiple concrete indices, optimizing search performance by pruning irrelevant shards."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;\nimport org.elasticsearch.action.bulk.BulkRequest;\nimport org.elasticsearch.action.index.IndexRequest;\nimport org.elasticsearch.client.RequestOptions;\nimport org.elasticsearch.client.RestHighLevelClient;\nimport org.elasticsearch.common.xcontent.XContentType;\n\npublic class SearchIndexManager {\n    private final RestHighLevelClient client;\n\n    public SearchIndexManager(RestHighLevelClient client) {\n        this.client = client;\n    }\n\n    public void executeBulkBatch(String indexName, java.util.List<String> jsonDocuments) throws java.io.IOException {\n        BulkRequest bulkRequest = new BulkRequest();\n        for (String jsonDoc : jsonDocuments) {\n            bulkRequest.add(new IndexRequest(indexName).source(jsonDoc, XContentType.JSON));\n        }\n        // Execute synchronous bulk ingestion; production should handle retries for 429 Too Many Requests\n        client.bulk(bulkRequest, RequestOptions.DEFAULT);\n    }\n\n    public void atomicAliasSwap(String oldIndex, String newIndex, String aliasName) throws java.io.IOException {\n        IndicesAliasesRequest request = new IndicesAliasesRequest();\n        IndicesAliasesRequest.AliasActions addAction = \n            new IndicesAliasesRequest.AliasActions(IndicesAliasesRequest.AliasActions.Type.ADD)\n                .index(newIndex)\n                .alias(aliasName);\n        \n        IndicesAliasesRequest.AliasActions removeAction = \n            new IndicesAliasesRequest.AliasActions(IndicesAliasesRequest.AliasActions.Type.REMOVE)\n                .index(oldIndex)\n                .alias(aliasName);\n\n        request.addAliasAction(addAction);\n        request.addAliasAction(removeAction);\n\n        client.indices().updateAliases(request, RequestOptions.DEFAULT);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production antipattern during bulk indexing and reindexing is failing to disable index refresh intervals (refresh_interval = -1) and replica shards during the initial data load phase. Leaving refreshes active forces the engine to continuously build Lucene segments on disk, leading to severe CPU thrashing and disk I/O bottlenecks. Always crank down replicas and disable refreshes during heavy ingestion, then restore them and trigger a manual force-merge before flipping your alias."
+    }
+  ],
+  "num": 372,
+  "title": "Indexing strategies — bulk indexing, reindexing, aliases",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When designing modern web applications and microservices using the Spring ecosystem, understanding the exact tier-based semantics of @Controller, @RestController, and @RequestMapping is vital for routing HTTP traffic, managing serialization boundaries, and handling view rendering. At the root of this hierarchy is @RequestMapping, the core meta-annotation responsible for mapping web requests onto specific handler methods and classes. Whether operating inside a traditional Spring MVC servlet container or a reactive Netty-backed WebFlux application, @RequestMapping abstracts URL path matching, HTTP methods, and media type constraints.\n\nBuilding upon this foundation, @Controller is a specialized stereotype annotation that tells the Spring IoC container to treat the annotated class as a web controller, typically returning HTML views via engines like Thymeleaf or FreeMarker. However, with the rise of single-page applications and JSON/XML-based microservices, Spring introduced @RestController as a specialized convenience composite. Combining @Controller and @ResponseBody, @RestController automatically serializes return values directly into the HTTP response body using registered HttpMessageConverters, eliminating the need to manually annotate every single method with @ResponseBody."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Behavior",
+        "@Controller",
+        "@RestController"
+      ],
+      "rows": [
+        [
+          "Primary Use Case",
+          "Traditional server-side HTML rendering (Views)",
+          "RESTful APIs (JSON, XML, String payloads)"
+        ],
+        [
+          "Response Body Handling",
+          "Requires explicit @ResponseBody on methods for raw data",
+          "Implicitly applies @ResponseBody to all handler methods"
+        ],
+        [
+          "Meta-Annotation",
+          "Annotated with @Component",
+          "Annotated with @Controller and @ResponseBody"
+        ],
+        [
+          "View Resolution",
+          "Active by default (InternalResourceViewResolver, etc.)",
+          "Suppressed; return types are written directly to the stream"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The @RequestMapping annotation can be applied at both the class and method levels. Class-level mapping acts as a shared URI prefix or namespace, while method-level mapping refines the path, query parameters, headers, and HTTP verbs (GET, POST, PUT, DELETE, PATCH).",
+        "@RestController is a textbook example of a composed annotation. Under the hood, Spring processes the presence of @ResponseBody on the meta-annotation during bean post-processing, configuring the handler adapter to bypass view resolution altogether.",
+        "In Spring WebFlux, these annotations map seamlessly onto reactive return types such as Mono and Flux, where the underlying framework leverages non-blocking codecs (like Jackson 2 JSON encoder over Netty ByteBuffers) to stream data back to the client as chunks become available."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/v1/orders\")\npublic class OrderController {\n\n    private final OrderService orderService;\n\n    public OrderController(OrderService orderService) {\n        this.orderService = orderService;\n    }\n\n    @GetMapping(\"/{id}\")\n    public ResponseEntity<OrderDto> getOrderById(@PathVariable Long id) {\n        OrderDto order = orderService.findById(id);\n        return ResponseEntity.ok(order);\n    }\n\n    @PostMapping\n    @ResponseStatus(HttpStatus.CREATED)\n    public OrderDto createOrder(@Valid @RequestBody OrderCreateRequest request) {\n        return orderService.create(request);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha occurs when developers mix up @Controller and @RestController inside an API project. If you use a plain @Controller and forget to append @ResponseBody on a method meant to return JSON data, Spring's DispatcherServlet will interpret the returned object's string representation as a physical view name (e.g., trying to resolve a view named 'UserDto(id=1, name=John)' to a file like '/WEB-INF/jsp/UserDto(id=1, name=John).jsp'), resulting in a frustrating Whitelabel Error Page or a 404 Not Found."
+    }
+  ],
+  "num": 290,
+  "title": "@Controller, @RestController, @RequestMapping hierarchy",
+  "category": "REST APIs, WebFlux & Microservices"
+}

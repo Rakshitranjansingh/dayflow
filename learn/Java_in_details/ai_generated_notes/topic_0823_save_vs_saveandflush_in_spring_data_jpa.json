@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Spring Data JPA, the save() method is a convenience abstraction provided by the CrudRepository interface. When you call save(), Hibernate does not immediately issue an SQL INSERT or UPDATE statement to the database. Instead, it transitions the entity into the Persistence Context (the First Level Cache). The actual synchronization with the database—the 'flush'—is deferred until the transaction commits or a query is executed that requires a synchronized state. This lazy-writing approach is a performance optimization designed to minimize round-trips to the database.\n\nConversely, saveAndFlush() is an explicit instruction to the EntityManager to perform the save operation and immediately execute the SQL statements against the database. This is critical in scenarios where you need to trigger database-level constraints, such as triggers, unique index violations, or auto-incremented ID generation, before proceeding with subsequent logic in the same transaction. While save() is sufficient for 90% of use cases, saveAndFlush() is the surgical tool used when the application logic depends on the database state being perfectly aligned with the object state mid-transaction."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "save()",
+        "saveAndFlush()"
+      ],
+      "rows": [
+        [
+          "SQL Execution",
+          "Deferred (at commit/flush)",
+          "Immediate"
+        ],
+        [
+          "Performance",
+          "Higher (batching potential)",
+          "Lower (forces round-trip)"
+        ],
+        [
+          "Use Case",
+          "Standard CRUD operations",
+          "Triggering DB constraints/IDs"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "save() relies on Hibernate's dirty checking mechanism. If the entity is managed, Hibernate compares the state at flush time to the snapshot taken when the entity was loaded, issuing updates only if changes are detected.",
+        "saveAndFlush() invokes entityManager.flush(), which forces the Persistence Context to synchronize its state with the underlying database by executing all pending SQL operations.",
+        "Using saveAndFlush() inside a loop is a common performance anti-pattern, as it effectively disables Hibernate's ability to batch SQL statements, leading to N+1 network latency issues."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Transactional\npublic void processOrder(Order order) {\n    // Standard save: SQL is queued in the Persistence Context\n    repository.save(order);\n    \n    // Force flush: SQL executes now. \n    // Useful if a DB trigger updates a 'status' column that we need immediately.\n    repository.saveAndFlush(order);\n    \n    log.info(\"Database state is now synchronized with the entity\");\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common 'gotcha' for junior developers is assuming saveAndFlush() will commit the transaction. It does not. It only synchronizes the Persistence Context with the database. If an exception occurs after saveAndFlush() but before the method returns, the transaction will still roll back, and the changes will be discarded. Always remember that flush != commit."
+    }
+  ],
+  "num": 824,
+  "title": "save() vs saveAndFlush() in Spring Data JPA?",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

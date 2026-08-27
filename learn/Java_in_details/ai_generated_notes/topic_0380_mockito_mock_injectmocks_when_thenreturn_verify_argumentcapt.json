@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java architectures, unit testing requires isolating the class under test from its collaborative dependencies to ensure determinism, speed, and focus. Mockito is the de facto mocking framework for Java, providing a fluent API to simulate behavior and verify interactions. To orchestrate this isolation effectively, developers rely on a robust suite of annotations and utility constructs: @Mock creates synthetic proxy-based implementations of dependent interfaces or classes, while @InjectMocks automatically instantiates the target system under test (SUT) and injects these mock dependencies via constructor, setter, or field injection.\n\nDefining collaborative behavior is handled via the when/thenReturn stubbing paradigm, which records expectations on mock interactions, returning predefined responses when specific method signatures are invoked. Conversely, verification (verify) shifts focus from state-based assertions to behavior-based assertions, confirming that specific methods were called with exact parameters or correct invocation counts. When stubbing or verifying dynamic inputs whose exact values cannot be hardcoded, ArgumentMatchers (such as anyString(), any(Class), or eq()) provide flexible matching rules. Finally, ArgumentCaptor acts as a sophisticated probing mechanism, intercepting and storing actual arguments passed to a mocked method during execution, enabling deep structural assertions on complex internal data payloads that were generated dynamically by the SUT."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Construct",
+        "Primary Purpose",
+        "Execution Phase"
+      ],
+      "rows": [
+        [
+          "@Mock",
+          "Generates a dynamic mock proxy for a collaborator",
+          "Initialization (MockitoAnnotations.openMocks)"
+        ],
+        [
+          "@InjectMocks",
+          "Instantiates the SUT and injects annotated mocks",
+          "Initialization (MockitoAnnotations.openMocks)"
+        ],
+        [
+          "when/thenReturn",
+          "Defines deterministic stub responses for mock calls",
+          "Arrangement (Given)"
+        ],
+        [
+          "verify",
+          "Asserts method invocation counts and parameters",
+          "Assertion (Then)"
+        ],
+        [
+          "ArgumentCaptor",
+          "Extracts actual runtime arguments for assertions",
+          "Assertion (Then)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Mockito implements mocks dynamically at runtime using bytecode generation libraries (traditionally Byte Buddy), creating a dynamic proxy subclass or interface implementation that intercepts method calls and routes them through an InvocationContainerImpl.",
+        "@InjectMocks evaluates injection targets hierarchically, prioritizing constructor injection, falling back to property setter injection, and finally utilizing direct field reflection if no setter is found.",
+        "ArgumentMatchers must be used for all arguments in a stubbed or verified method call once any matcher is introduced; mixing raw values with matchers causes an InvalidUseOfMatchersException because Mockito relies on a thread-safe argument matcher stack to register state.",
+        "ArgumentCaptor works by registering an argument matcher under the hood that captures any value passing through the method invocation pipeline into an internal list, which can then be retrieved via capture() during verification."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@ExtendWith(MockitoExtension.class)\nclass OrderServiceTest {\n\n    @Mock\n    private PaymentGateway paymentGateway;\n\n    @Mock\n    private OrderRepository orderRepository;\n\n    @InjectMocks\n    private OrderServiceImpl orderService;\n\n    @Captor\n    private ArgumentCaptor<OrderEntity> orderCaptor;\n\n    @Test\n    void shouldProcessOrderSuccessfully() {\n        OrderRequest request = new OrderRequest(\"item-123\", 2, 99.99);\n        OrderEntity savedEntity = new OrderEntity(\"ORD-999\", \"item-123\", 2);\n\n        when(paymentGateway.charge(anyString(), anyDouble())).thenReturn(true);\n        when(orderRepository.save(any(OrderEntity.class))).thenReturn(savedEntity);\n\n        OrderResponse response = orderService.processOrder(request);\n\n        assertNotNull(response);\n        assertEquals(\"ORD-999\", response.getOrderId());\n\n        verify(paymentGateway).charge(eq(\"item-123\"), eq(199.98));\n        verify(orderRepository).save(orderCaptor.capture());\n        \n        OrderEntity capturedOrder = orderCaptor.getValue();\n        assertEquals(\"item-123\", capturedOrder.getItemId());\n        assertEquals(2, capturedOrder.getQuantity());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap with @InjectMocks is assuming it performs Spring-like dependency injection complete with qualifier resolution or lifecycle callbacks. Mockito's injection mechanism is strictly heuristic: it matches fields by type, and if multiple fields of the same type exist, it falls back to matching by field name. If your SUT has multiple dependencies of the exact same interface type (e.g., two different KafkaTemplate beans), @InjectMocks will often fail silently or inject the wrong mock into the wrong field unless your mock field names match the parameter/field names inside the SUT precisely."
+    }
+  ],
+  "num": 381,
+  "title": "Mockito — @Mock, @InjectMocks, when/thenReturn, verify, ArgumentCaptor, ArgumentMatchers",
+  "category": "Testing, Observability & Cloud Native"
+}

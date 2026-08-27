@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When dealing with character-based input streams in Java, developers frequently choose between BufferedReader and Scanner. Understanding the architectural differences between these two utilities is critical for writing high-performance I/O applications. BufferedReader, introduced in JDK 1.0, is a synchronous, buffered wrapper around a Reader that is explicitly designed to read text from a character-input stream efficiently by buffering characters to minimize expensive underlying OS-level read operations. It operates primarily on lines of text, reading into an internal char array buffer (typically 8KB by default) and treating everything as raw strings.\n\nOn the other hand, Scanner, introduced later in JDK 1.5, is a text scanner that can parse primitive types and strings using regular expressions. Scanner breaks its input down into tokens using a delimiter pattern, which defaults to whitespace. While this makes Scanner exceptionally convenient for parsing console input or structured files containing mixed types (like integers, floats, and strings), it introduces a heavy performance penalty due to regex compilation, token matching, and lack of thread-safety. BufferedReader is synchronized on its reader lock for thread safety (though typically used within a single thread), whereas Scanner is entirely unsynchronized and unsafe for concurrent access."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "BufferedReader",
+        "Scanner"
+      ],
+      "rows": [
+        [
+          "Buffer Size",
+          "8 KB (Default, customizable)",
+          "1 KB (Char buffer internally)"
+        ],
+        [
+          "Parsing Capability",
+          "Reads raw strings/lines only",
+          "Parses primitives and regex patterns"
+        ],
+        [
+          "Performance",
+          "Extremely fast, minimal overhead",
+          "Slower due to regex matching and tokenization"
+        ],
+        [
+          "Thread Safety",
+          "Synchronized (methods use locks)",
+          "Not thread-safe"
+        ],
+        [
+          "Exception Handling",
+          "Requires explicit IOException handling",
+          "Hides IOException internally (checked via ioException())"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "BufferedReader maintains an internal 8KB char array buffer. When a read() or readLine() request is made, it checks if the buffer has data remaining. If empty, it triggers a single bulk read(char[] cbuf, int offset, int length) on the underlying Reader, drastically reducing system call overhead.",
+        "Scanner uses a Matcher and a Pattern engine to parse tokens. Even simple calls like nextInt() involve regular expression compilation and matching states, causing significant CPU overhead and garbage collection pressure due to frequent intermediate object allocations.",
+        "Scanner masks underlying IOExceptions by catching them internally and setting an internal exception state, which can be retrieved using the ioException() method. BufferedReader forces the developer to explicitly catch or declare IOExceptions, adhering strictly to Java's checked exception contract."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.io.BufferedReader;\nimport java.io.FileReader;\nimport java.io.IOException;\nimport java.util.Scanner;\n\npublic class IoComparison {\n    public static void readWithBufferedReader(String path) {\n        try (BufferedReader reader = new BufferedReader(new FileReader(path))) {\n            String line;\n            while ((line = reader.readLine()) != null) {\n                // Process raw line efficiently\n            }\n        } catch (IOException e) {\n            e.printStackTrace();\n        }\n    }\n\n    public static void readWithScanner(String path) {\n        try (Scanner scanner = new Scanner(new java.io.File(path))) {\n            while (scanner.hasNextInt()) {\n                int number = scanner.nextInt();\n                // Process parsed token\n            }\n        } catch (Exception e) {\n            e.printStackTrace();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production gotcha occurs when mixing Scanner with BufferedReader on standard input (System.in). Scanner can leave trailing newline characters in the input buffer because it uses whitespace delimiters, causing subsequent BufferedReader.readLine() calls to immediately return empty strings. Furthermore, always favor BufferedReader when processing large files or competitive programming inputs where throughput is paramount; switch to Scanner only when interactive parsing of mixed primitive types from trusted, small inputs is required."
+    }
+  ],
+  "num": 591,
+  "title": "What is the difference between BufferedReader and Scanner?",
+  "category": "Exception Handling & I/O / NIO"
+}

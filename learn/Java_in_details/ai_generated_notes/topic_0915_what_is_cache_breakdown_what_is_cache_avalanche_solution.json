@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In high-concurrency distributed systems, Cache Breakdown and Cache Avalanche are critical failure modes that occur when the caching layer fails to shield the underlying database from a surge in traffic. Cache Breakdown (often called 'hotspot invalidation') happens when a specific, highly popular key expires, causing a massive influx of concurrent requests to hit the database simultaneously to recompute the value. Cache Avalanche is a more systemic failure where a large cluster of cache keys expires at the same time, or the entire cache node goes offline, leading to a catastrophic 'thundering herd' effect that can crash the database due to connection pool exhaustion and CPU saturation."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Cache Breakdown",
+        "Cache Avalanche"
+      ],
+      "rows": [
+        [
+          "Scope",
+          "Single hot key",
+          "Multiple keys or entire cache"
+        ],
+        [
+          "Trigger",
+          "Key expiration/eviction",
+          "Mass expiration or node failure"
+        ],
+        [
+          "Impact",
+          "Database latency spike",
+          "System-wide outage/DB crash"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "To mitigate Cache Breakdown, implement 'Mutex Locking' (or distributed locks via Redis SETNX) to ensure only one thread recomputes the value while others wait or return a stale value.",
+        "To prevent Cache Avalanche, apply 'Jitter' or 'Randomized Expiration' to your TTLs, ensuring that keys do not expire at the exact same timestamp.",
+        "Utilize 'Logical Expiration' where the cache entry contains an explicit timestamp, allowing the application to serve stale data while an asynchronous thread refreshes the cache.",
+        "Implement circuit breakers (e.g., Resilience4j) to fail fast when the database latency exceeds a threshold, preventing the application from hanging on blocked I/O threads."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public String getWithMutex(String key) {\n    String value = redis.get(key);\n    if (value == null) {\n        if (redis.setnx(key + \":lock\", \"1\", Duration.ofSeconds(5))) {\n            try {\n                value = db.query(key);\n                redis.setex(key, 3600 + new Random().nextInt(300), value); // Add jitter\n            } finally {\n                redis.del(key + \":lock\");\n            }\n        } else {\n            Thread.sleep(100);\n            return getWithMutex(key); // Retry\n        }\n    }\n    return value;\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is setting a fixed TTL for all keys in a cache. If you load 10,000 keys at startup, they will all expire simultaneously 60 minutes later. Always add a random jitter (e.g., +/- 10%) to your TTLs to spread the load across the timeline."
+    }
+  ],
+  "num": 916,
+  "title": "What is Cache Breakdown? What is Cache Avalanche? Solution?",
+  "category": "Exception Handling & I/O / NIO"
+}

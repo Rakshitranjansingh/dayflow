@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A WeakHashMap in Java is a specialized, concurrency-unfriendly implementation of the java.util.Map interface that uses weak references for its keys. Unlike a standard HashMap where keys are held via strong references—forcing the Garbage Collector to retain them in the JVM heap as long as the map itself is reachable—a WeakHashMap allows its keys to be garbage-collected when no other strong references to those keys exist in the application. This core capability prevents memory leaks in scenarios where external objects need to be dynamically associated with transient metadata. When a key is collected, its corresponding entry is automatically removed from the map during subsequent mutation or accessor operations, mediated via an internal ReferenceQueue."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "HashMap",
+        "WeakHashMap"
+      ],
+      "rows": [
+        [
+          "Key Reference Type",
+          "Strong Reference",
+          "Weak Reference"
+        ],
+        [
+          "Memory Management",
+          "Retained until explicitly removed or map is destroyed",
+          "Collected automatically when key has no other strong references"
+        ],
+        [
+          "Thread Safety",
+          "Not Thread-Safe (Fail-fast iterators)",
+          "Not Thread-Safe (Fail-fast iterators)"
+        ],
+        [
+          "Null Handling",
+          "Allows one null key and multiple null values",
+          "Allows one null key and multiple null values"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "WeakHashMap relies heavily on the java.lang.ref.WeakReference class and a shared ReferenceQueue. When keys lose all strong references, the garbage collector enqueues them into this queue.",
+        "The map periodically polls this ReferenceQueue during normal operations (like get(), put(), or size()) to purge stale entries whose keys have already been finalized and collected.",
+        "Because it is not synchronized, wrapping it via Collections.synchronizedMap() is mandatory in multithreaded environments, though external synchronization is still required for compound operations.",
+        "Values in a WeakHashMap are held via strong references. If a value strongly references its own key, a memory leak will occur because the key will never become weakly reachable."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.Map;\nimport java.util.WeakHashMap;\n\npublic class MetadataCache {\n    // Use WeakHashMap to bind transient metadata to heavy request objects\n    private final Map<RequestContext, RequestMetrics> metricsCache = new WeakHashMap<>();\n\n    public void trackRequest(RequestContext context, RequestMetrics metrics) {\n        synchronized (metricsCache) {\n            metricsCache.put(context, metrics);\n        }\n    }\n\n    public RequestMetrics getMetrics(RequestContext context) {\n        synchronized (metricsCache) {\n            return metricsCache.get(context);\n        }\n    }\n}\n\nclass RequestContext {}\nclass RequestMetrics {}"
+    },
+    {
+      "type": "note",
+      "content": "Beware of the 'Value Strong Reference Trap': if your WeakHashMap's value object contains a reference (direct or indirect) back to its key, the key will remain strongly reachable, completely defeating the purpose of the WeakHashMap and causing a subtle, persistent memory leak."
+    }
+  ],
+  "num": 555,
+  "title": "What is WeakHashMap? Provide a use case.",
+  "category": "Multithreading & Java Concurrency"
+}

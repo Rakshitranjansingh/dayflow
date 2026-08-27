@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "SQL Injection is a critical security vulnerability where an attacker manipulates a database query by injecting malicious SQL fragments into input fields. This occurs when user-supplied data is concatenated directly into a query string, allowing the attacker to break out of the intended data context and execute arbitrary commands. To prevent this, we utilize Prepared Statements, which decouple the query structure from the data. When you use a PreparedStatement, the SQL template is sent to the database engine first for parsing, compilation, and optimization. The actual user input is then sent separately as parameters. Because the database has already compiled the execution plan, the input is treated strictly as literal data, never as executable code, effectively neutralizing the injection vector."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Statement (Concatenation)",
+        "PreparedStatement"
+      ],
+      "rows": [
+        [
+          "Execution Plan",
+          "Recompiled every time",
+          "Compiled once, reused"
+        ],
+        [
+          "Security",
+          "Vulnerable to injection",
+          "Immune to injection"
+        ],
+        [
+          "Performance",
+          "Slow (parsing overhead)",
+          "Fast (plan caching)"
+        ],
+        [
+          "Data Typing",
+          "String-based only",
+          "Type-safe parameter binding"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The PreparedStatement interface uses the '?' placeholder, which acts as a type-safe binding point for the JDBC driver to escape or sanitize data according to the database's specific protocol.",
+        "By separating the command from the data, the database engine treats input as a constant value, preventing the 'OR 1=1' tautology attacks that bypass authentication.",
+        "PreparedStatements allow the database to cache the execution plan, which significantly reduces CPU overhead in high-throughput applications where the same query structure is executed repeatedly with different parameters.",
+        "Always use specific setter methods like setString(), setInt(), or setTimestamp() to ensure the JDBC driver handles character encoding and null values correctly, preventing potential buffer overflows or encoding-based bypasses."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public User findUserById(String userId) throws SQLException {\n    String sql = \"SELECT id, username FROM users WHERE id = ?\";\n    try (Connection conn = dataSource.getConnection();\n         PreparedStatement pstmt = conn.prepareStatement(sql)) {\n        pstmt.setString(1, userId);\n        try (ResultSet rs = pstmt.executeQuery()) {\n            if (rs.next()) {\n                return new User(rs.getString(\"username\"));\n            }\n        }\n    }\n    return null;\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is assuming that PreparedStatements are a silver bullet for all dynamic SQL. While they prevent injection, they do not protect against dynamic table or column names, as these cannot be parameterized. If you must build dynamic queries (e.g., dynamic sorting), use a whitelist of allowed column names rather than passing raw user input into the query string. Additionally, ensure your connection pool is configured to use server-side prepared statements where supported, as some drivers emulate them client-side, which may not provide the same level of security or performance benefits."
+    }
+  ],
+  "num": 1014,
+  "title": "How do you prevent SQL Injection? (Prepared Statements)",
+  "category": "Exception Handling & I/O / NIO"
+}

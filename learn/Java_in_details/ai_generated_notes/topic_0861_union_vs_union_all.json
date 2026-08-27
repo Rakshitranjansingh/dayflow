@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In SQL query composition, UNION and UNION ALL are set operators used to combine the result sets of two or more SELECT statements into a single output. The fundamental distinction lies in how they handle duplicate rows. When you use UNION, the database engine performs an implicit DISTINCT operation on the combined result set, scanning and sorting the data to eliminate any rows that are identical across all columns. This is a computationally expensive process, especially on large datasets, as it often requires a temporary sort or a hash-based deduplication phase in the execution plan. Conversely, UNION ALL simply concatenates the result sets. It does not perform any deduplication, making it significantly faster and less resource-intensive, as the database can stream rows directly from the source tables without waiting to verify uniqueness."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "UNION",
+        "UNION ALL"
+      ],
+      "rows": [
+        [
+          "Duplicate Handling",
+          "Removes duplicates",
+          "Keeps all records"
+        ],
+        [
+          "Performance",
+          "Slower (requires sort/hash)",
+          "Faster (direct concatenation)"
+        ],
+        [
+          "Resource Usage",
+          "High (TempDB/Memory pressure)",
+          "Low (Minimal overhead)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "UNION requires the database to perform a sort or hash-match operation to identify duplicates, which can trigger disk spilling if the result set exceeds the allocated memory (sort area) in the database engine.",
+        "UNION ALL preserves the original order of rows from the individual SELECT statements, whereas UNION may reorder rows during the deduplication process.",
+        "From an execution plan perspective, UNION ALL is an O(N+M) operation, while UNION is effectively O((N+M) log (N+M)) due to the sorting requirement.",
+        "Always prefer UNION ALL if you know the datasets are disjoint or if duplicates are either impossible or acceptable for your business logic."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "sql",
+      "content": "-- Efficient approach: Use UNION ALL when data is known to be unique\nSELECT user_id, email FROM active_users\nUNION ALL\nSELECT user_id, email FROM archived_users;\n\n-- Expensive approach: Use UNION only when deduplication is strictly required\nSELECT category_id FROM products\nUNION\nSELECT category_id FROM categories;"
+    },
+    {
+      "type": "note",
+      "content": "A common performance anti-pattern is using UNION when the application layer or the database schema already guarantees uniqueness (e.g., joining on primary keys). I have seen production systems suffer from severe latency spikes during high-concurrency periods because developers defaulted to UNION, forcing the database to perform massive sorts in TempDB. Always default to UNION ALL and explicitly add DISTINCT only if the business requirement demands it."
+    }
+  ],
+  "num": 862,
+  "title": "UNION vs UNION ALL?",
+  "category": "Exception Handling & I/O / NIO"
+}

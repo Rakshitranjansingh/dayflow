@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java, immutability is a design pattern where an object's state cannot be modified after it is constructed. Truly immutable classes are the cornerstone of robust, concurrent programming because they are inherently thread-safe without requiring synchronization, can be safely shared by reference, and make excellent keys in hash-based collections like HashMap. However, achieving true immutability is more complex than simply declaring all fields as final and omitting setter methods. If an immutable class holds references to mutable objects (such as java.util.Date, arrays, or standard collections), external code can still alter the internal state of the immutable object via those shared references. This vulnerability is known as a mutable state leak.\n\nTo prevent state leaks, developers must employ defensive copying. Defensive copying involves creating a completely new copy of a mutable object whenever it enters or leaves the boundary of the immutable class. This ensures that the immutable class maintains exclusive control over its internal state, isolating it from external modifications made by callers. By mastering defensive copying during both object construction and state retrieval, you can design classes that are genuinely bulletproof against accidental or malicious state mutation."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Mutability of Source",
+        "Performance Overhead",
+        "Thread Safety",
+        "Best Use Case"
+      ],
+      "rows": [
+        [
+          "Shallow Copy (Reference Copy)",
+          "Mutable (Changes to source affect target)",
+          "Extremely Low (O(1) reference assignment)",
+          "Unsafe (Shared mutable state)",
+          "Only for primitive types or deeply immutable objects"
+        ],
+        [
+          "Unmodifiable Wrapper (e.g., Collections.unmodifiableList)",
+          "Semi-Mutable (Changes to backing list reflect in wrapper)",
+          "Low (Wraps existing reference)",
+          "Conditional (Safe only if backing list is never modified)",
+          "Exposing read-only views of internal state to trusted code"
+        ],
+        [
+          "Defensive Copy (Deep/Hard Copy)",
+          "Fully Immutable (Completely decoupled)",
+          "Medium to High (O(N) allocation and copy overhead)",
+          "Guaranteed Safe",
+          "Constructors and getters handling mutable types like Date, arrays, or collections"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Class Finality: The class must be declared as 'final' to prevent subclassing. If a class can be extended, a malicious subclass could override accessor methods to return mutable state or introduce mutable fields.",
+        "Field Encapsulation: All fields must be declared 'private' and 'final'. This ensures that fields are assigned exactly once during construction and cannot be accessed directly from outside the class.",
+        "Constructor-Level Defensive Copying: When passing mutable objects to a constructor, you must copy the parameters before assigning them to the fields. Crucially, copy the parameters *before* validating them to prevent a Time-of-Check to Time-of-Use (TOCTOU) vulnerability.",
+        "Accessor-Level Defensive Copying: If an accessor method (getter) must return a mutable field, it must return a defensive copy of that field. Returning the raw reference allows callers to mutate the internal state of your immutable object.",
+        "Avoid clone() for Defensive Copies: Do not use the 'clone()' method of non-final classes for defensive copying. If a parameter's type can be subclassed (e.g., an untrusted subclass of java.util.Date), its 'clone()' method might return an instance of a malicious subclass designed to retain a reference to the copied data.",
+        "Collection Immutability: For collections, use true copy factory methods like 'List.copyOf()', 'Set.copyOf()', or 'Map.copyOf()' (introduced in Java 10). These methods guarantee a truly unmodifiable, decoupled copy of the collection, unlike 'Collections.unmodifiableList()' which is merely a read-only view of a mutable backing list."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.Date;\nimport java.util.List;\nimport java.util.ArrayList;\n\n// 1. Class is final to prevent extension\npublic final class ImmutableUserSession {\n    \n    // 2. All fields are private and final\n    private final String sessionId;\n    private final Date loginTime; // Mutable object\n    private final List<String> roles; // Mutable collection\n\n    public ImmutableUserSession(String sessionId, Date loginTime, List<String> roles) {\n        this.sessionId = sessionId;\n        \n        // 3. Defensive copy of mutable Date (Do not use loginTime.clone() if Date can be subclassed)\n        if (loginTime == null) {\n            throw new IllegalArgumentException(\"Login time cannot be null\");\n        }\n        this.loginTime = new Date(loginTime.getTime());\n        \n        // 4. Defensive copy of collection using Java 10+ List.copyOf (creates an unmodifiable copy)\n        if (roles == null) {\n            throw new IllegalArgumentException(\"Roles cannot be null\");\n        }\n        this.roles = List.copyOf(roles);\n    }\n\n    public String getSessionId() {\n        return sessionId; // Safe: String is inherently immutable\n    }\n\n    // 5. Defensive copy on accessor to prevent state leak\n    public Date getLoginTime() {\n        return new Date(this.loginTime.getTime());\n    }\n\n    // 6. Safe to return directly because List.copyOf guarantees the list is unmodifiable\n    public List<String> getRoles() {\n        return roles;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is relying on Collections.unmodifiableList() for defensive copying. This method does *not* create a copy of the list; it merely returns a wrapper around the original list. If the caller retains a reference to the original list and modifies it, those changes will propagate directly into your 'immutable' object. Always use List.copyOf() or manually instantiate a new collection (e.g., new ArrayList<>(original)) wrapped in an unmodifiable view to ensure complete isolation. Additionally, modern codebases should prefer java.time classes (like Instant, LocalDateTime) over java.util.Date, as the java.time API is entirely immutable by design, eliminating the need for defensive copying of temporal fields."
+    }
+  ],
+  "num": 6,
+  "title": "Immutability — designing truly immutable classes (defensive copies)",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Handling distributed transactions is the process of ensuring atomicity, consistency, isolation, and durability (ACID) across multiple microservices or heterogeneous data stores. In a monolithic architecture, a local transaction manager handles ACID properties via a single database connection. However, in distributed systems, the 'CAP theorem' dictates that we must trade off between consistency and availability. When a business operation spans multiple services, we cannot rely on standard JDBC transactions because the global state is partitioned. Instead, we must implement patterns like Two-Phase Commit (2PC) for strict consistency or the Saga pattern for eventual consistency. The Saga pattern is the industry standard for high-scale systems, breaking a distributed transaction into a sequence of local transactions, each with a corresponding compensating transaction to handle failures. Exception handling in this context requires robust idempotency, as network timeouts in NIO-based communication layers often lead to retries where the outcome of the initial request is unknown."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Consistency Level",
+        "Complexity"
+      ],
+      "rows": [
+        [
+          "Two-Phase Commit (2PC)",
+          "Strong",
+          "High (Blocking)"
+        ],
+        [
+          "Saga (Choreography)",
+          "Eventual",
+          "Medium (Decentralized)"
+        ],
+        [
+          "Saga (Orchestration)",
+          "Eventual",
+          "High (Centralized)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "2PC relies on a transaction coordinator and a 'prepare' phase that locks resources across all participating nodes, leading to significant performance bottlenecks and potential deadlocks under high contention.",
+        "Saga Orchestration utilizes a state machine to manage the workflow, ensuring that if a step fails, the orchestrator triggers compensating actions in reverse order to roll back state changes.",
+        "NIO (Non-blocking I/O) introduces complexity in distributed transactions because connections are multiplexed; if a socket closes during a transaction, the application must distinguish between a transport-level failure and a business-logic failure.",
+        "Idempotency is non-negotiable. Every service must track processed request IDs to prevent duplicate side effects during retry loops initiated by the distributed transaction manager."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Transactional\npublic void processOrder(Order order) {\n    // Local transaction for inventory\n    inventoryService.reserve(order.getItems());\n    try {\n        // Remote call via NIO-based client\n        paymentService.charge(order.getAmount());\n    } catch (Exception e) {\n        // Compensating transaction to restore consistency\n        inventoryService.release(order.getItems());\n        throw new DistributedTransactionException(\"Payment failed, rolling back inventory\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The biggest trap for junior engineers is assuming that a 'rollback' in a distributed system is as simple as a database ROLLBACK command. In distributed systems, you cannot 'undo' a committed local transaction. You must 'compensate' by issuing a new transaction that negates the effect of the previous one (e.g., a refund for a charge). Always design your state machines to be 'forward-recoverable'—if a compensation fails, the system should retry the compensation until it succeeds, rather than leaving the system in a partially applied state."
+    }
+  ],
+  "num": 1070,
+  "title": "How do you handle distributed transactions?",
+  "category": "Exception Handling & I/O / NIO"
+}

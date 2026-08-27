@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When architecting resilient enterprise systems in Java, defining your high-availability strategy boils down to choosing between Active-Active and Active-Passive failover topologies. In an Active-Active deployment, multiple nodes or data centers handle live client traffic simultaneously, sharing the load via a load balancer or global traffic manager. This model maximizes hardware utilization and provides horizontal scalability, but introduces fierce consistency challenges—especially when dealing with distributed state, transactional locking, and network partitions (split-brain syndrome). Conversely, an Active-Passive failover model designates a single primary node to process all mutations and read/write requests, while a secondary standby node idles or takes strictly read-only traffic. Upon primary node failure, a heartbeat monitor or consensus algorithm (such as ZooKeeper or Raft) triggers a promotion workflow, shifting the virtual IP or DNS routing to the passive node. While Active-Passive minimizes race conditions and simplifies transactional boundaries, it leaves standby hardware underutilized and demands careful state replication to avoid data loss."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric",
+        "Active-Active Failover",
+        "Active-Passive Failover"
+      ],
+      "rows": [
+        [
+          "Resource Utilization",
+          "High (All nodes serve traffic)",
+          "Low (Standby nodes idle or read-only)"
+        ],
+        [
+          "State Synchronization",
+          "Synchronous/Asynchronous multi-master replication",
+          "Continuous primary-to-replica replication"
+        ],
+        [
+          "Failover Time (RTO)",
+          "Instantaneous (Traffic routes to surviving nodes)",
+          "Dependent on detection and promotion lag (seconds to minutes)"
+        ],
+        [
+          "Data Loss Risk (RPO)",
+          "High if split-brain or conflict resolution fails",
+          "Low if asynchronous replication lag is minimal"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In Active-Active systems, distributed locks (via Redis, ZooKeeper, or database-level advisory locks) are mandatory to serialize concurrent mutations across distinct nodes and prevent dirty reads or lost updates.",
+        "Active-Passive configurations rely heavily on heartbeat mechanisms and split-brain guards (fencing tokens) to ensure a zombie primary node cannot continue writing data after the standby node has been promoted.",
+        "Database replication lag directly impacts Recovery Point Objective (RPO) in Active-Passive setups; asynchronous replication guarantees lower latency but risks data loss upon abrupt node failure."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class FailoverHealthMonitor {\n    private final AtomicBoolean isActive = new AtomicBoolean(false);\n    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();\n\n    public void startMonitoring(String peerUrl) {\n        scheduler.scheduleAtFixedRate(() -> {\n            try {\n                boolean peerAlive = pingPeer(peerUrl);\n                if (!peerAlive && !isActive.get()) {\n                    promoteToActive();\n                }\n            } catch (Exception e) {\n                // Handle network partition or timeout\n            }\n        }, 0, 2, TimeUnit.SECONDS);\n    }\n\n    private boolean pingPeer(String url) { /* HTTP check */ return false; }\n    private void promoteToActive() { isActive.set(true); /* Initialize writers */ }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic trap in Active-Active architectures is assuming you can scale write operations linearly without sharding data domains. Without partition keys, multi-master replication will cause endless deadlock cascades at the database level. For Active-Passive, watch out for 'split-brain' scenarios where a network partition isolates the primary node, causing the passive node to promote itself while the old primary is still happily serving stale writes to isolated clients."
+    }
+  ],
+  "num": 1087,
+  "title": "Active-Active vs Active-Passive failover?",
+  "category": "Core Java & Fundamentals"
+}

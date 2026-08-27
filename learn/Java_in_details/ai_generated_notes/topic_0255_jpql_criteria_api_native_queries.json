@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When building enterprise persistence layers with Spring Data JPA and Hibernate ORM, choosing the right query mechanism is a critical architectural decision. JPQL (Java Persistence Query Language) is an object-oriented, database-independent query language defined by the JPA specification. Unlike raw SQL that operates on tables and columns, JPQL operates directly on entity objects, attributes, and relationships. Hibernate translates these JPQL strings into optimized database-specific SQL dialects at runtime. However, static JPQL strings lack type safety and make dynamic query composition cumbersome, which is where the Criteria API shines. The Criteria API is a programmatic, type-safe alternative introduced to build queries dynamically using a Java-based metamodel (often generated via Hibernate Annotation Processor). It eliminates string concatenation vulnerabilities and syntax errors at compile-time rather than runtime. Finally, when performance tuning demands vendor-specific features, window functions, hints, or complex legacy schemas that do not map cleanly to domain entities, Native queries allow developers to execute raw SQL directly through the EntityManager, returning scalar values, projected DTOs, or mapped entities."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Query Mechanism",
+        "Type Safety",
+        "Dynamic Query Support",
+        "Portability Across DBs"
+      ],
+      "rows": [
+        [
+          "JPQL",
+          "Runtime (strings)",
+          "Hard (string concatenation/builders)",
+          "High (translated by Dialect)"
+        ],
+        [
+          "Criteria API",
+          "Compile-time (Metamodel)",
+          "Native and robust (fluent API)",
+          "High (translated by Dialect)"
+        ],
+        [
+          "Native Queries",
+          "None / Manual Mapping",
+          "Complex (string manipulation)",
+          "Low (vendor-specific SQL)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "JPQL queries are parsed and validated by Hibernate's AST (Abstract Syntax Tree) parser, generating an internal execution plan that gets cached in the SessionFactory statement cache to bypass expensive re-parsing overhead.",
+        "The Criteria API constructs a CriteriaQuery object graph. In modern Hibernate 6+, the underlying translation engine maps this directly to the same internal SQL generation pipeline used by JPQL, ensuring identical runtime optimization characteristics.",
+        "Native queries can be mapped using @SqlResultSetMapping or dynamic result transformers (like Hibernate's AliasToBeanResultTransformer) to map raw JDBC result sets directly into immutable Java records or DTOs."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Repository\npublic interface UserRepository extends JpaRepository<User, Long> {\n\n    // 1. JPQL Query with Named Parameters\n    @Query(\"SELECT u FROM User u JOIN FETCH u.roles WHERE u.status = :status\")\n    List<User> findActiveUsersWithRoles(@Param(\"status\") UserStatus status);\n\n    // 2. Native Query with DTO Projection\n    @Query(value = \"SELECT u.id AS id, u.username AS username FROM users u WHERE u.created_date >= :startDate\", nativeQuery = true)\n    List<UserSummaryDto> findRecentUsersNative(@Param(\"startDate\") LocalDate startDate);\n}\n\n// 3. Criteria API Dynamic Query Example\n@Service\npublic class UserSearchService {\n    @PersistenceContext\n    private EntityManager em;\n\n    public List<User> searchUsers(String name, UserStatus status) {\n        CriteriaBuilder cb = em.getCriteriaBuilder();\n        CriteriaQuery<User> cq = cb.createQuery(User.class);\n        Root<User> user = cq.from(User.class);\n\n        List<Predicate> predicates = new ArrayList<>();\n        if (name != null) {\n            predicates.add(cb.like(user.get(User_.username), \"%\" + name + \"%\"));\n        }\n        if (status != null) {\n            predicates.add(cb.equal(user.get(User_.status), status));\n        }\n\n        cq.where(predicates.toArray(new Predicate[0]));\n        return em.createQuery(cq).getResultList();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern with JPQL is the N+1 select problem when fetching lazy collections without a explicit JOIN FETCH. Conversely, the biggest trap with the Criteria API is memory consumption and cache misses if dynamic queries generate non-reusable execution plans, though modern Hibernate versions have largely mitigated plan caching issues. When using Native queries, always ensure column aliases match your mapping targets explicitly, as ordinal index mapping breaks silently when DB schemas evolve."
+    }
+  ],
+  "num": 256,
+  "title": "JPQL, Criteria API, Native queries",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

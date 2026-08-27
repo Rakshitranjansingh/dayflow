@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In database systems, indexes are B-Tree or Hash structures designed to accelerate data retrieval by providing a shortcut to specific rows. While they drastically reduce the time complexity of SELECT queries from O(N) to O(log N), they are not free. Every index on a table is a separate physical data structure that must be maintained by the database engine. When you have 'too many' indexes, you encounter a significant performance degradation during Data Manipulation Language (DML) operations—specifically INSERT, UPDATE, and DELETE. Each time a row is modified, the database must traverse and update every single index associated with that table to maintain consistency, effectively turning a single write operation into a multi-write transaction that increases I/O overhead and lock contention."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Operation",
+        "Index Impact (Few)",
+        "Index Impact (Too Many)"
+      ],
+      "rows": [
+        [
+          "SELECT",
+          "High speed, efficient lookup",
+          "Potential query optimizer confusion"
+        ],
+        [
+          "INSERT",
+          "Minimal overhead",
+          "Significant latency due to tree rebalancing"
+        ],
+        [
+          "UPDATE",
+          "Targeted index updates",
+          "High I/O contention and transaction log bloat"
+        ],
+        [
+          "DELETE",
+          "Fast row removal",
+          "Expensive index cleanup and fragmentation"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Write Amplification: Every index adds a new pointer or key entry that must be written to disk. A table with 10 indexes requires 11 writes (1 for the heap/data page, 10 for the indexes) for every single row insertion.",
+        "Buffer Pool Pressure: Indexes consume memory. The database engine caches index pages in the Buffer Pool (or Buffer Cache). Excessive indexes evict useful data pages, forcing the engine to perform more physical disk reads.",
+        "Optimizer Overhead: The Query Optimizer must evaluate the cost of using every available index before executing a query. With too many indexes, the search space for the optimal execution plan grows, sometimes leading the optimizer to choose a suboptimal path or simply time out.",
+        "Fragmentation: Frequent updates on heavily indexed tables lead to page splits and fragmentation, which degrades both storage efficiency and sequential scan performance."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "sql",
+      "content": "-- Example of an over-indexed table scenario\nCREATE TABLE orders (\n    order_id BIGINT PRIMARY KEY,\n    customer_id BIGINT,\n    status VARCHAR(20),\n    created_at TIMESTAMP,\n    total_amount DECIMAL(10,2),\n    -- Too many indexes lead to DML death\n    INDEX idx_customer (customer_id),\n    INDEX idx_status (status),\n    INDEX idx_created (created_at),\n    INDEX idx_total (total_amount),\n    INDEX idx_cust_status (customer_id, status),\n    INDEX idx_cust_created (customer_id, created_at)\n);"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never add an index 'just in case'. Always follow the 'Index Selectivity' rule. If an index does not filter out at least 80-90% of the rows, it is often a liability rather than an asset. Use tools like 'EXPLAIN ANALYZE' to verify if your indexes are actually being used. If you see 'Index Scan' on a table with 50+ indexes, you are likely suffering from 'Index Bloat', and it is time to drop the unused ones to reclaim write throughput."
+    }
+  ],
+  "num": 872,
+  "title": "What happens to performance if there are too many indexes on a table?",
+  "category": "Core Java & Fundamentals"
+}

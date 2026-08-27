@@ -1,0 +1,61 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java multithreading, abruptly stopping a thread via Thread.stop() is deprecated because it leaves shared mutable state, locks, and monitors in inconsistent, corrupted states. Instead, Java relies on a cooperative interruption mechanism. Thread interruption is a signaling protocol rather than a forced termination command. Every active Thread contains an internal boolean flag known as the interruption status. The three core methods governing this mechanism—interrupt(), interrupted(), and isInterrupted()—collaborate to set, check, and clear this flag, enabling threads to safely abort blocked or long-running computations when requested."
+    },
+    {
+      "type": "prose",
+      "content": "When you invoke the interrupt() method on a target thread instance, the JVM sets its internal interruption flag to true. If the target thread is currently blocked in a blocking I/O or coordination operation—such as Thread.sleep(), Object.wait(), or BlockingQueue.put()—the JVM immediately unblocks the thread by throwing a checked InterruptedException and, crucially, clears the interruption status back to false. If the thread is executing normally, interrupt() merely flips the flag, leaving it up to the application code to periodically poll the status via isInterrupted() or handle it reactively. Understanding how these states transition is vital for writing responsive, deadlock-free concurrent systems."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Method Signature",
+        "Scope",
+        "Clears Interruption Flag?",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "public void interrupt()",
+          "Instance Method",
+          "No (Sets flag to true)",
+          "Signaling a thread to stop working or unblocking it from a wait state."
+        ],
+        [
+          "public boolean isInterrupted()",
+          "Instance Method",
+          "No (Reads flag)",
+          "Checking if another thread has requested an interruption without modifying state."
+        ],
+        [
+          "public static boolean interrupted()",
+          "Static Method",
+          "Yes (Reads and resets flag to false)",
+          "Clearing the flag inside the current thread after reacting to an interruption."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The static Thread.interrupted() method is a common source of bugs because it performs a side effect: it checks the current thread's interruption status and atomically resets it to false. If called twice consecutively without handling, the second call will return false.",
+        "Blocking methods like Thread.sleep() and Object.wait() guarantee that when they catch an InterruptedException, they clear the thread's interruption status. If your catch block swallows this exception without re-interrupting or throwing, you silently discard the interruption signal.",
+        "When designing custom blocking or compute-intensive loops, you must continuously check Thread.currentThread().isInterrupted() to ensure your code respects cancellation requests from executors or parent threads."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class WorkerTask implements Runnable {\n    @Override\n    public void run() {\n        try {\n            while (!Thread.currentThread().isInterrupted()) {\n                // Perform heavy computation or check a blocking structure\n                doWork();\n                \n                // Simulating a cancellable wait state\n                Thread.sleep(1000);\n            }\n        } catch (InterruptedException e) {\n            // Thread was interrupted during sleep(); flag is now cleared by JVM.\n            // Best practice: restore the flag so callers up the stack know.\n            Thread.currentThread().interrupt();\n        } finally {\n            cleanupResources();\n        }\n    }\n\n    private void doWork() {\n        // Check explicitly if computation is non-blocking\n        if (Thread.interrupted()) {\n            // Thread.interrupted() clears the flag. We must handle or restore it.\n            throw new RuntimeException(new InterruptedException());\n        }\n    }\n\n    private void cleanupResources() {\n        // Release JDBC connections, sockets, or file handles safely\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in enterprise frameworks (like Spring Async or custom thread pools) is catching InterruptedException and doing nothing with it. If you catch InterruptedException and fail to call Thread.currentThread().interrupt() or rethrow it, you break the contract of higher-level concurrency utilities like ExecutorService, which rely on the interruption flag to cancel running tasks during a graceful shutdown."
+    }
+  ],
+  "num": 121,
+  "title": "Thread interruption — interrupt(), interrupted(), isInterrupted()",
+  "category": "Multithreading & Java Concurrency"
+}

@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of the Java Virtual Machine (JVM) memory management, a PLAB (Promotion Local Allocation Buffer) is a critical optimization mechanism used by parallel and concurrent garbage collectors, such as ParallelGC, G1, and CMS, to minimize contention during the evacuation phase of garbage collection. When the JVM performs a minor GC, it must move surviving objects from the Young Generation (Eden/Survivor spaces) to the Old Generation or to a different Survivor space. If every GC thread attempted to allocate memory in the target heap region simultaneously using a global lock, the resulting thread contention would effectively serialize the evacuation process, negating the performance benefits of multi-threaded GC. PLABs solve this by allowing each GC thread to reserve a private, thread-local chunk of memory in the target generation. This allows threads to perform 'bump-the-pointer' allocations for promoted objects without synchronization overhead."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Global Allocation",
+        "PLAB Allocation"
+      ],
+      "rows": [
+        [
+          "Synchronization",
+          "Heavy (Mutex/CAS)",
+          "None (Thread-local)"
+        ],
+        [
+          "Throughput",
+          "Low (Contention bottleneck)",
+          "High (Parallel efficiency)"
+        ],
+        [
+          "Memory Usage",
+          "Efficient (Exact fit)",
+          "Potential fragmentation/waste"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "During the evacuation phase, a GC thread requests a buffer of a specific size (e.g., 1KB to 4KB) from the target region; this buffer is the PLAB.",
+        "The thread fills its PLAB with promoted objects sequentially, which is extremely cache-friendly and minimizes CPU cycles spent on memory management.",
+        "If a PLAB becomes full before the evacuation is complete, the thread requests a new buffer, potentially leaving a small 'slack' area at the end of the previous buffer that remains unused.",
+        "PLAB sizing is dynamically adjusted by the JVM based on the promotion rate and the number of active GC threads to balance between allocation speed and heap fragmentation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "bash",
+      "content": "-XX:TargetPLABSize=4096\n-XX:+PrintPLABStatistics\n-XX:ParallelGCThreads=8"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall occurs when the PLAB size is too large relative to the object promotion rate, leading to significant memory fragmentation and 'wasted' space within the Old Generation. If you observe high heap usage despite low object counts, check your PLAB statistics. Conversely, if your application promotes a massive volume of objects in a single GC pause, setting the PLAB size too small will force threads to frequently request new buffers, triggering excessive synchronization and causing 'GC pause time' spikes that can degrade latency-sensitive NIO applications."
+    }
+  ],
+  "num": 742,
+  "title": "What is PLAB (Promotion Local Allocation Buffer)?",
+  "category": "Exception Handling & I/O / NIO"
+}

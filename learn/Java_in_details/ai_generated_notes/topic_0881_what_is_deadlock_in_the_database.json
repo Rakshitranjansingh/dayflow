@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A database deadlock is a cyclical dependency state where two or more transactions are permanently blocked because each is waiting for a resource—typically a row, page, or table lock—held by another transaction in the same cycle. In a high-concurrency RDBMS environment, this occurs when Transaction A locks Resource 1 and requests Resource 2, while Transaction B concurrently locks Resource 2 and requests Resource 1. Neither can proceed because the engine's locking protocol requires the other to release its hold, leading to a complete stall of the affected threads. This is not a software bug in the traditional sense, but an inevitable byproduct of ACID-compliant isolation levels like Repeatable Read or Serializable, where the database must enforce strict data integrity by preventing concurrent modifications to the same data set."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Database Deadlock",
+        "JVM Thread Deadlock"
+      ],
+      "rows": [
+        [
+          "Detection",
+          "Automatic (Deadlock Detector)",
+          "Manual/None (Requires ThreadMXBean)"
+        ],
+        [
+          "Resolution",
+          "Automatic Rollback of victim",
+          "Application hang (requires restart)"
+        ],
+        [
+          "Scope",
+          "External (Database locks)",
+          "Internal (Object monitors/locks)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Database Deadlock Detector runs as a background process, periodically scanning the Wait-For Graph to identify cycles. Once a cycle is detected, the engine selects a 'victim' transaction—usually the one with the lowest cost to roll back—and kills it with a specific error code (e.g., SQLState 40001).",
+        "Lock escalation is a primary catalyst for deadlocks; when a transaction acquires too many row-level locks, the engine promotes them to a page or table lock, significantly increasing the probability of collision with other concurrent operations.",
+        "The 'Hold and Wait' condition is the most common culprit: transactions acquire locks incrementally rather than requesting all necessary locks upfront, creating a window of vulnerability where partial sets of resources are held while waiting for others."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void updateAccountBalances(Long fromId, Long toId, BigDecimal amount) {\n    // Always sort resource acquisition by ID to prevent circular wait conditions\n    Long first = Math.min(fromId, toId);\n    Long second = Math.max(fromId, toId);\n    \n    try {\n        repository.lockAccount(first);\n        repository.lockAccount(second);\n        repository.transfer(fromId, toId, amount);\n    } catch (DeadlockLoserDataAccessException e) {\n        // Production code must implement retry logic with exponential backoff\n        retryTransaction();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is assuming that database deadlocks are always a sign of poor design. While they can be mitigated by consistent lock ordering and keeping transaction scopes short, they are statistically inevitable in high-throughput systems. Your application code must treat deadlock exceptions as 'transient failures' and implement a robust retry mechanism with jittered exponential backoff to ensure system resilience."
+    }
+  ],
+  "num": 882,
+  "title": "What is deadlock in the database?",
+  "category": "Multithreading & Java Concurrency"
+}

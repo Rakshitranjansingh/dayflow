@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When building enterprise persistence layers using Spring Data JPA and Hibernate ORM, bridging the relational database paradigm with the object-oriented Java domain model requires explicit structural metadata. The @Entity annotation serves as the foundational marker, instructing the Hibernate session factory that a given plain old Java object (POJO) represents a database table row and should be managed within the persistence context's lifecycle. Every such entity must uniquely identify its rows, a contract enforced by the @Id annotation which designates a field as the primary key mapped to a unique relational index. However, managing primary key creation across distributed application nodes or high-concurrency transactional boundaries introduces complex consistency challenges.\n\nThis is where @GeneratedValue strategies come into play, abstracting the underlying database's key generation mechanics. Hibernate provides four distinct allocation strategies via the GenerationType enumeration: AUTO, IDENTITY, SEQUENCE, and TABLE. Selecting the correct strategy dictates whether your application can leverage JDBC batching efficiently, how write-behind caching behaves during entity persistence, and whether inserting a new record forces an immediate, un-batchable database round-trip. Understanding these strategies is paramount for preventing N+1 insert anomalies and maintaining optimal transaction throughput under heavy database loads."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Batching Compatibility",
+        "Performance Impact",
+        "Underlying SQL Mechanism"
+      ],
+      "rows": [
+        [
+          "IDENTITY",
+          "Incompatible (Disables JDBC batching)",
+          "High latency due to immediate SQL execution",
+          "Auto-increment columns (e.g., SERIAL, IDENTITY)"
+        ],
+        [
+          "SEQUENCE",
+          "Fully Compatible",
+          "Low latency via pooled sequence allocation",
+          "Database sequences (e.g., CREATE SEQUENCE)"
+        ],
+        [
+          "TABLE",
+          "Compatible with limitations",
+          "High contention due to shared table locking",
+          "Dedicated primary key generator table"
+        ],
+        [
+          "AUTO",
+          "Variable (Depends on dialect fallback)",
+          "Unpredictable depending on chosen target dialect",
+          "Automatic selection based on JDBC DatabaseMetaData"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The IDENTITY strategy forces Hibernate to execute an immediate SQL INSERT statement upon calling EntityManager.persist() to retrieve the generated database ID, completely breaking write-behind optimization and disabling JDBC batch inserts for that entity.",
+        "The SEQUENCE strategy leverages database sequences and pairs exceptionally well with Hibernate's pooled allocation algorithms (such as PooledLoOptimizer), requesting blocks of IDs (e.g., increments of 50) in memory to minimize round-trips to the database engine.",
+        "The TABLE strategy relies on a dedicated database table to simulate sequences by locking rows and updating counters, which creates severe serialization bottlenecks and thread contention in high-throughput enterprise systems.",
+        "The @Id field must never be a primitive type like long when dealing with transient states prior to persistence, because uninitialized primitives default to 0, which Hibernate may mistakenly interpret as an existing database identifier rather than a new transient entity."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.domain;\n\nimport jakarta.persistence.Entity;\nimport jakarta.persistence.GeneratedValue;\nimport jakarta.persistence.GenerationType;\nimport jakarta.persistence.Id;\nimport jakarta.persistence.SequenceGenerator;\nimport jakarta.persistence.Table;\n\n@Entity\n@Table(name = \"orders\")\npublic class Order {\n\n    @Id\n    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = \"order_seq\")\n    @SequenceGenerator(name = \"order_seq\", sequenceName = \"order_sequence\", allocationSize = 50)\n    private Long id;\n\n    private String trackingNumber;\n\n    protected Order() {}\n\n    public Order(String trackingNumber) {\n        this.trackingNumber = trackingNumber;\n    }\n\n    public Long getId() {\n        return id;\n    }\n\n    public String getTrackingNumber() {\n        return trackingNumber;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap occurs when developers use GenerationType.IDENTITY alongside spring.jpa.properties.hibernate.jdbc.batch_size configured in application.yml. Because IDENTITY forces an immediate insert to fetch the identifier, Hibernate cannot batch the statements, silently degrading bulk insert performance by an order of magnitude. Always prefer GenerationType.SEQUENCE with an explicit allocationSize matching your batch size for high-performance systems."
+    }
+  ],
+  "num": 253,
+  "title": "@Entity, @Id, @GeneratedValue strategies",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

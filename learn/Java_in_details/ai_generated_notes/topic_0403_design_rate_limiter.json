@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a distributed rate limiter requires balancing strict algorithmic accuracy with minimal latency overhead across a clustered environment. In large-scale distributed systems, a rate limiter protects downstream services from cascading failures, mitigates Distributed Denial of Service (DDoS) attacks, and enforces monetization tiers. Unlike a single-instance rate limiter that can rely on local JVM memory (such as a Guava Cache or ConcurrentHashMap), a distributed implementation must synchronize request counts or token buckets across multiple API gateway nodes, often deployed across different availability zones. \n\nThe core challenge lies in the trade-off between consistency and availability. If you choose strong consistency using distributed locks or synchronized database transactions, your latency will spike and throughput will plummet. Consequently, modern architectures lean toward atomic operations in high-performance memory stores like Redis, utilizing Lua scripts or sliding window logs to achieve near-instantaneous decrement and increment operations without locking the entire datastore. Understanding how to handle race conditions, clock drift, and memory exhaustion is critical for engineering a bulletproof rate-limiting pipeline."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Algorithm",
+        "Memory Footprint",
+        "Burst Handling",
+        "Implementation Complexity"
+      ],
+      "rows": [
+        [
+          "Token Bucket",
+          "Low (Counter + Timestamp)",
+          "Yes (Allows burst up to capacity)",
+          "Medium (Requires last-refill tracking)"
+        ],
+        [
+          "Leaky Bucket",
+          "Low (Queue size)",
+          "No (Smooths out traffic to constant rate)",
+          "Medium (Requires queue management)"
+        ],
+        [
+          "Fixed Window Counter",
+          "Very Low (Single counter per window)",
+          "Yes (Can double traffic at window edge)",
+          "Low (Simple atomic increments)"
+        ],
+        [
+          "Sliding Window Log",
+          "High (Stores timestamp per request)",
+          "Yes",
+          "High (Sorted sets and memory growth)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Redis Atomic Execution via Lua: To prevent race conditions where two concurrent requests read the same counter value and both increment it incorrectly, rate-limiting logic is encapsulated in Lua scripts executed atomically by the Redis single-threaded event loop.",
+        "Sliding Window Counter Optimization: Instead of storing every single request timestamp (which consumes excessive memory in Redis sorted sets), systems often approximate the sliding window by blending the weight of the previous fixed window with the current window's request count.",
+        "Local Caching with Token Bucket: To minimize network hops to Redis on every single API call, gateways can use a local token bucket synchronized asynchronously with Redis via a batching mechanism, trading absolute precision for ultra-low latency."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class RedisRateLimiter {\n    private final RedisTemplate<String, String> redisTemplate;\n    private final RedisScript<Long> limitScript;\n\n    public RedisRateLimiter(RedisTemplate<String, String> redisTemplate) {\n        this.redisTemplate = redisTemplate;\n        this.limitScript = new DefaultRedisScript<>(\n            \"local key = KEYS[1]\\n\" +\n            \"local limit = tonumber(ARGV[1])\\n\" +\n            \"local current = tonumber(redis.call('get', key) or '0')\\n\" +\n            \"if current + 1 > limit then\\n\" +\n            \"    return 0\\n\" +\n            \"else\\n\" +\n            \"    redis.call('INCRBY', key, 1)\\n\" +\n            \"    if current == 0 then\\n\" +\n            \"        redis.call('EXPIRE', key, 1)\\n\" +\n            \"    end\\n\" +\n            \"    return 1\\n\" +\n            \"end\",\n            Long.class\n        );\n    }\n\n    public boolean isAllowed(String userId, int limit) {\n        String key = \"rate_limit:\" + userId;\n        Long result = redisTemplate.execute(limitScript, Collections.singletonList(key), String.valueOf(limit));\n        return result != null && result == 1L;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is failing to handle Redis cluster failovers gracefully. If your rate limiter fails open (allowing all traffic during a Redis outage), your downstream services might crash due to overload. Conversely, failing closed blocks all legitimate users. Ensure you have fallback logic, circuit breakers, and sensible timeouts around your distributed rate-limiting infrastructure."
+    }
+  ],
+  "num": 404,
+  "title": "Design Rate Limiter",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

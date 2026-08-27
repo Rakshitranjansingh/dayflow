@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed Java applications and microservices architectures, robust error handling goes far beyond simply throwing a NullPointerException or a generic RuntimeException. When methods execute across network boundaries or concurrent threads, unmanaged failures lead to cascading outages, exhausted thread pools, and opaque debugging logs. To build resilient systems, developers must master three core primitives: Status codes, metadata, and deadlines. Status codes provide a standardized vocabulary to communicate the exact classification of a failure (such as whether an operation can be safely retried). Metadata, often passed via headers or key-value trailers, carries context-rich diagnostic payloads like trace identifiers, validation constraint violations, or rate-limiting quotas without polluting the primary data path. Finally, deadlines establish a hard time-bound contract on execution, preventing runaway resource consumption by proactively propagating cancellation signals down the invocation call stack."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Primitive",
+        "Primary Purpose",
+        "Production Antipattern"
+      ],
+      "rows": [
+        [
+          "Status Codes",
+          "Categorizing success, transient failures, and permanent rejections",
+          "Returning a generic HTTP 500 for every exception encountered"
+        ],
+        [
+          "Metadata",
+          "Transmitting diagnostic telemetry and business context out-of-band",
+          "Encoding error stack traces directly into the human-readable message field"
+        ],
+        [
+          "Deadlines",
+          "Bounding execution time and cascading cancellation",
+          "Using infinite blocking sockets or unbounded CompletableFuture chains"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Status codes must be chosen deliberately to distinguish between client-side user errors (e.g., INVALID_ARGUMENT, NOT_FOUND) and server-side infrastructure degradation (e.g., INTERNAL, UNAVAILABLE). This distinction drives automated circuit breaker triggers and exponential backoff retry policies.",
+        "Metadata propagation relies on thread-local contexts or reactive context carriers (such as Reactor's Context) to pass tracing spans and correlation IDs across asynchronous thread switches without explicit method signature pollution.",
+        "Deadlines require cooperative cancellation. When a timeout budget expires, downstream operations must immediately abort ongoing I/O operations, release database connections back to the HikariCP pool, and return control to the caller."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public CompletableFuture<PaymentResponse> processPayment(PaymentRequest request, Duration deadline) {\n    long timeoutMs = deadline.toMillis();\n    return CompletableFuture.supplyAsync(() -> executeGatewayCall(request))\n        .orTimeout(timeoutMs, TimeUnit.MILLISECONDS)\n        .exceptionally(ex -> {\n            if (ex instanceof TimeoutException) {\n                throw new ServiceStatusException(Status.DEADLINE_EXCEEDED, \"Payment timed out after \" + timeoutMs + \"ms\", Map.of(\"traceId\", MDC.get(\"traceId\")));\n            }\n            throw new ServiceStatusException(Status.UNAVAILABLE, \"Payment gateway unreachable\", Map.of(\"cause\", ex.getMessage()));\n        });\n}"
+    },
+    {
+      "type": "note",
+      "content": "Never rely solely on client-side timeouts without propagating deadline parameters downstream. If a top-level API gateway sets a 2-second timeout, but your internal service continues processing an expensive database query for 30 seconds after the client has already disconnected, you are leaking CPU cycles, database connections, and memory. Always propagate deadlines through your RPC or reactive context."
+    }
+  ],
+  "num": 328,
+  "title": "Error handling — Status codes, metadata, deadlines",
+  "category": "Core Java & Fundamentals"
+}

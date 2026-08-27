@@ -117,6 +117,28 @@ function syncLearnState() {
         }
       }
     }
+  // Backup state sync directly from java_in_details_done_v1
+  try {
+    const javaDetailsDoneStr = localStorage.getItem('java_in_details_done_v1');
+    if (javaDetailsDoneStr) {
+      const doneArr = JSON.parse(javaDetailsDoneStr);
+      if (Array.isArray(doneArr)) {
+        if (typeof state !== 'undefined') {
+          if (!state.learning) state.learning = { enrollments: {} };
+          if (!state.learning.enrollments) state.learning.enrollments = {};
+          
+          const existing = state.learning.enrollments.Java_in_details || {};
+          const pct = Math.round((doneArr.length / 1272) * 100);
+          state.learning.enrollments.Java_in_details = {
+            enrolled: true,
+            enrolledDate: existing.enrolledDate || new Date().toISOString().split('T')[0],
+            completed: doneArr,
+            progress: pct,
+            lastStudied: existing.lastStudied || new Date().toISOString()
+          };
+        }
+      }
+    }
   } catch(e) {}
 }
 

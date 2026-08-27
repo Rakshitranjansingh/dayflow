@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "An intermittent test failure—commonly known as a flaky test—is one of the most insidious problems a Java engineer faces. It erodes team confidence in the continuous integration (CI) pipeline, masks genuine regressions, and wastes precious engineering cycles chasing ghosts. Unlike deterministic failures where an assertion consistently fails due to a bug, intermittent failures typically stem from environmental pollution, thread synchronization issues, hidden assumptions about time, unmanaged randomness, or subtle leaks of shared mutable state across test boundaries. Debugging these requires shifting away from merely rerunning the build until it passes and moving toward aggressive isolation, deterministic state injection, and a deep understanding of the underlying execution environment."
+    },
+    {
+      "type": "prose",
+      "content": "To systematically hunt down a flaky test, you must first classify the root cause. Concurrency flaws often manifest as race conditions in multi-threaded code or unthreadsafe static collections. Temporal couplings happen when tests rely on Thread.sleep() or actual system clocks, leading to race conditions under high CPU load in CI runners. State pollution occurs when a test modifies a global singleton, static variable, or shared database sequence without properly rolling back or resetting in a @BeforeEach or @AfterEach lifecycle hook. Mastering tools like test execution loops, thread dumps, and deterministic schedulers is mandatory for a senior Java developer."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Flakiness Vector",
+        "Common Symptom",
+        "Remediation Strategy"
+      ],
+      "rows": [
+        [
+          "State Pollution",
+          "Fails only when run after TestX",
+          "Enforce strict state resets, avoid static mutability, use Testcontainers"
+        ],
+        [
+          "Concurrency / Race Condition",
+          "Fails randomly under heavy CI load",
+          "Use CountDownLatch,Awaitility, or deterministic executors"
+        ],
+        [
+          "Temporal Coupling",
+          "Fails on slow CI VMs, passes locally",
+          "Inject Clock abstractions instead of using System.currentTimeMillis()"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Test Isolation Violations: JUnit creates a new test class instance for every test method, but static fields and singleton frameworks (like Spring context caching) persist across tests, causing hidden cross-test coupling.",
+        "Asynchronous Polling: Never use Thread.sleep() to wait for async events. Use libraries like Awaitility to poll conditions with exponential backoff, eliminating arbitrary timing assumptions.",
+        "Randomness Seed Exploitation: If tests use java.util.Random or UUIDs, ensure the test framework logs the random seed so failing executions can be deterministically replayed."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.junit.jupiter.api.Test;\nimport java.time.Clock;\nimport java.time.Instant;\nimport java.time.ZoneId;\nimport static org.junit.jupiter.api.Assertions.assertTrue;\n\npublic class TimeDependentServiceTest {\n\n    @Test\n    public void testTokenExpirationWithFixedClock() {\n        // Fix the clock to avoid temporal flakiness in CI environments\n        Instant fixedInstant = Instant.parse(\"2023-10-01T12:00:00Z\");\n        Clock fixedClock = Clock.fixed(fixedInstant, ZoneId.of(\"UTC\"));\n        \n        TokenService service = new TokenService(fixedClock);\n        assertTrue(service.isTokenValid(fixedInstant.plusSeconds(30)));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Production Gotcha: Never use maven-surefire-plugin's default configuration if you suspect test pollution. Use properties like -Dtest=MyFlakyTest to isolate it, and leverage plugins like junit-flaky-test-detector or maven-failsafe-plugin with parallel execution turned off to confirm whether the flakiness is due to shared state or true thread concurrency."
+    }
+  ],
+  "num": 1247,
+  "title": "How do you debug an intermittent test failure?",
+  "category": "Core Java & Fundamentals"
+}

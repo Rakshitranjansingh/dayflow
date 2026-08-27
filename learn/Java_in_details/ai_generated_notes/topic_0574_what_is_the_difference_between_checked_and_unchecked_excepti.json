@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java exception handling, the distinction between checked and unchecked exceptions represents a foundational design choice regarding API contract enforcement and error recoverability. Checked exceptions, which inherit directly from `java.lang.Exception` excluding `RuntimeException`, force the compiler to enforce handling via a try-catch block or a throws declaration in the calling method's signature. They are meant to model recoverable, external environmental failures—such as a missing file during I/O operations or a network timeout—where the caller can reasonably be expected to take corrective action.\n\nConversely, unchecked exceptions, which inherit from `java.lang.RuntimeException` and `java.lang.Error`, bypass compile-time verification entirely. These exceptions are specifically designed to represent programming bugs, logic flaws, or invariant violations, such as a `NullPointerException`, `ArrayIndexOutOfBoundsException`, or an `IllegalArgumentException`. Forcing a developer to catch a `NullPointerException` everywhere it might theoretically occur would lead to unmaintainable, heavily polluted codebases. By leaving unchecked exceptions unforced at compile time, the Java runtime allows them to propagate cleanly up the call stack until they hit a global exception handler or thread uncaught exception handler, crashing the specific thread or request safely rather than swallowing structural code bugs."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Checked Exceptions",
+        "Unchecked Exceptions"
+      ],
+      "rows": [
+        [
+          "Base Class",
+          "java.lang.Exception (excluding RuntimeException)",
+          "java.lang.RuntimeException and java.lang.Error"
+        ],
+        [
+          "Compiler Enforcement",
+          "Mandatory (Catch or Specify Requirement)",
+          "Optional (Implicit propagation)"
+        ],
+        [
+          "Intended Use Case",
+          "Recoverable external conditions (I/O, network drops)",
+          "Programming flaws and logic bugs (Null pointers, bad arguments)"
+        ],
+        [
+          "API Design Impact",
+          "Can lead to verbose boilerplate and tight coupling",
+          "Promotes cleaner signatures and flexible layering"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The catch-or-specify requirement for checked exceptions forces developers to explicitly document failure modes in method signatures, creating a contract that is validated at compile-time rather than production runtime.",
+        "Runtime exceptions (unchecked) propagate automatically through the call stack without requiring intermediate methods to pollute their throws clauses, preserving encapsulation in large software architectures.",
+        "Errors (subclasses of `java.lang.Error`) are technically unchecked but represent catastrophic JVM-level failures like `OutOfMemoryError` or `StackOverflowError`, which application code should never attempt to catch or recover from."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class FileProcessor {\n    // Checked Exception: Compiler forces handling or throws declaration\n    public String readConfigFile(String path) throws java.io.IOException {\n        if (path == null) {\n            // Unchecked Exception: Represents a programming bug, no throws clause needed\n            throw new IllegalArgumentException(\"Path cannot be null\");\n        }\n        \n        try (java.io.BufferedReader reader = java.nio.file.Files.newBufferedReader(java.nio.file.Paths.get(path))) {\n            return reader.readLine();\n        } \n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common anti-pattern in enterprise Java applications is the 'catch-and-swallow' or indiscriminate wrapping of checked exceptions into runtime exceptions just to satisfy the compiler, such as `catch (IOException e) { throw new RuntimeException(e); }`. While wrapping can be useful for translating infrastructure exceptions into domain-specific runtime exceptions at architectural boundaries (like Service-to-DAO layers), doing it lazily destroys the semantic value of checked exceptions and hides critical recoverability states from the API consumer."
+    }
+  ],
+  "num": 575,
+  "title": "What is the difference between checked and unchecked exceptions?",
+  "category": "Exception Handling & I/O / NIO"
+}

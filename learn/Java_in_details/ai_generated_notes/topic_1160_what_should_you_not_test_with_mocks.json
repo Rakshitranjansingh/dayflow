@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When writing unit tests in Java, the temptation to mock every collaborating object is high, but doing so leads to brittle, implementation-bound test suites that fail to verify actual business requirements. Specifically, you should never mock domain models, value objects, third-party libraries without abstractions, and static methods or final classes. Mocking domain models—such as entities containing complex business logic and state invariants—turns your tests into trivial mocks of getters and setters rather than validating real state transitions. Similarly, value objects like records or immutable data carriers rely on structural equality; mocking them destroys the very properties that make them safe to use.\n\nFurthermore, mocking boundary entities like external libraries directly (without an anti-corruption layer or interface wrapper) often leads to false-positive test runs where your mocks pass, but the actual third-party contract fails in production due to serialization or network changes. Finally, trying to mock static methods, final classes, or private methods using advanced byte-code manipulation frameworks (like PowerMock or inline Mockito) is a severe architectural smell. It indicates that your class under test is tightly coupled to concrete implementations or procedural utility code, violating the Dependency Inversion Principle and making the JVM bytecode heavy and slow to load during test execution."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component Type",
+        "Mock It? Or Test Real?",
+        "Technical Rationale"
+      ],
+      "rows": [
+        [
+          "Domain Models / Entities",
+          "Test Real Instances",
+          "Encapsulate critical state invariants and business logic; mocking them bypasses domain validation."
+        ],
+        [
+          "Value Objects / Records",
+          "Test Real Instances",
+          "Depend on immutability and structural equality (`equals`/`hashCode`); mocks break these contracts."
+        ],
+        [
+          "Third-Party SDKs",
+          "Wrap with Interface",
+          "Direct mocks hide API changes; wrapping them in custom interfaces allows safe, lightweight test doubles."
+        ],
+        [
+          "Static / Final Classes",
+          "Refactor / Real",
+          "Bytecode manipulation for static mocking slows down test suites and hides structural design flaws."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Mocking value objects bypasses the execution of `equals()` and `hashCode()` methods, meaning your test suite will never catch subtle bugs where two equivalent object states evaluate to false due to incorrect field mapping.",
+        "Overusing mocks on domain entities transforms unit tests into rigid scripts that assert method invocation counts rather than observable state outcomes, making refactoring internal implementation details painful.",
+        "Using inline mock makers to mock final classes or static methods forces the JVM to retransform bytecode at runtime, significantly inflating test execution time across large enterprise suites."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// BAD: Mocking a Value Object and trying to assert business rules on mocks\npublic class OrderServiceTest {\n    @Test\n    public void testCalculateTotal() {\n        Money mockMoney = mock(Money.class);\n        when(mockMoney.getAmount()).thenReturn(BigDecimal.valueOf(100)); // Fragile!\n        // Testing nothing of value here\n    }\n}\n\n// GOOD: Using real Value Objects and Domain models\npublic class OrderServiceTest {\n    @Test\n    public void testCalculateTotal() {\n        Money price = new Money(BigDecimal.valueOf(50), Currency.USD);\n        Order order = new Order(price, 2);\n        \n        Money total = order.calculateTotal();\n        \n        assertEquals(new Money(BigDecimal.valueOf(100), Currency.USD), total);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "If you find yourself writing Mockito syntax to verify that a private method was called, or that a static utility method returned a specific value, stop immediately. This is a classic symptom of procedural programming disguised as object-oriented Java. Extract the static or utility logic into an injectable service with a clean interface, allowing you to substitute a clean test double naturally without relying on heavy bytecode-shading libraries."
+    }
+  ],
+  "num": 1161,
+  "title": "What should you not test with mocks?",
+  "category": "Core Java & Fundamentals"
+}

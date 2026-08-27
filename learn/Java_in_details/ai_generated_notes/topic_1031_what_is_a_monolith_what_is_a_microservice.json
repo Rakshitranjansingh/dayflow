@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A monolith is an architectural pattern where an entire application is built as a single, unified codebase and deployed as a single artifact, such as a WAR or executable JAR. In a Java context, this typically manifests as a monolithic Spring Boot application where the web layer, business logic, and data access layer all reside within the same JVM process. This approach is often the starting point for most projects because it simplifies local development, debugging, and transaction management, as you can leverage local ACID transactions across your entire domain model. However, as the codebase grows, the 'big ball of mud' anti-pattern often emerges, where tight coupling makes it impossible to change one module without risking regression in another, and scaling requires replicating the entire stack even if only one specific service is under load.\n\nMicroservices represent an architectural evolution where the application is decomposed into a collection of loosely coupled, independently deployable services. Each service is scoped to a specific business capability and owns its own data schema. In the Java ecosystem, this usually involves using Spring Cloud or Quarkus to facilitate service discovery, circuit breaking, and inter-service communication via REST or gRPC. While microservices solve the scaling and team-autonomy bottlenecks of monoliths, they introduce significant distributed systems complexity. You trade the simplicity of local method calls for the volatility of network calls, necessitating robust handling of partial failures, eventual consistency, and complex observability patterns like distributed tracing."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Aspect",
+        "Monolith",
+        "Microservices"
+      ],
+      "rows": [
+        [
+          "Deployment",
+          "Single artifact/process",
+          "Multiple independent services"
+        ],
+        [
+          "Data Management",
+          "Shared database/schema",
+          "Database-per-service"
+        ],
+        [
+          "Communication",
+          "In-process method calls",
+          "Network-based (REST/gRPC/Messaging)"
+        ],
+        [
+          "Scaling",
+          "Scale the entire application",
+          "Scale individual services independently"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Monolithic memory layout: All objects share the same JVM heap, allowing for high-performance object references, but a single memory leak in one module can crash the entire application.",
+        "Microservices isolation: Each service runs in its own JVM/Container, providing fault isolation where a crash in the 'Order Service' does not necessarily take down the 'User Service'.",
+        "Transaction boundaries: Monoliths utilize local JTA or Spring @Transactional across beans; microservices require distributed transaction patterns like Sagas or Two-Phase Commits (2PC) to maintain consistency.",
+        "Deployment lifecycle: Monoliths require a full redeploy for any change; microservices support CI/CD pipelines where individual teams can push updates to their service without coordinating with other teams."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Monolithic approach: Direct bean injection\n@Service\npublic class OrderService {\n    @Autowired private InventoryRepository inventory;\n    public void placeOrder() { inventory.decrement(); }\n}\n\n// Microservice approach: Feign client call\n@FeignClient(name = \"inventory-service\")\npublic interface InventoryClient {\n    @PostMapping(\"/decrement\")\n    void decrement();\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common trap for junior engineers is 'distributed monolith' syndrome. This happens when you split your code into separate services but keep them tightly coupled via shared databases or synchronous calls that require all services to be up simultaneously. If you find yourself needing to deploy three different services at the exact same time to make a feature work, you have all the complexity of microservices with none of the benefits of decoupling."
+    }
+  ],
+  "num": 1032,
+  "title": "What is a monolith? What is a microservice?",
+  "category": "Core Java & Fundamentals"
+}

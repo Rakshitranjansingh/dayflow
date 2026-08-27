@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Java 21 officially delivered Project Loom, introducing Virtual Threads to the JVM ecosystem as a monumental shift in how concurrent applications manage blocking operations and thread scaling. Historically, Java's concurrency model relied exclusively on platform threads, which are thin wrappers around operating system (OS) threads managed by the kernel scheduler. Because OS threads are heavy—typically allocating 1MB to 2MB of stack space and incurring costly context switches mediated by the kernel—applications facing high I/O throughput (such as web servers handling thousands of simultaneous REST or database calls) quickly hit scalability bottlenecks, famously known as the Thread-per-Request bottleneck or the C10K problem. To mitigate this, developers resorted to asynchronous, reactive programming frameworks like Netty, Project Reactor, or RxJava, which decouple tasks from threads using non-blocking callbacks, drastically sacrificing code readability, stack trace debuggability, and maintainability.\n\nVirtual Threads solve this architectural dilemma by introducing user-mode threads managed entirely by the JVM runtime rather than the underlying operating system. A virtual thread is an instance of java.lang.Thread that does not own a dedicated OS thread. Instead, the JVM employs a work-stealing ForkJoinPool (the default virtual thread scheduler) to mount virtual threads onto a small pool of carrier platform threads. When a virtual thread encounters a blocking I/O operation—such as reading from a socket, waiting on a database connection, or executing a synchronized block—the JVM unmounts the virtual thread from its carrier thread, preserving its call stack in heap memory (as stack chunks). The underlying carrier thread is instantly freed to mount and execute another runnable virtual thread. Once the I/O resource becomes available, the JVM schedules the virtual thread to resume execution, typically on the same or a different carrier thread. This mechanism allows developers to retain the classic, highly intuitive synchronous thread-per-request programming style while scaling concurrency to millions of active threads without exhausting OS-level thread limits."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Platform Threads",
+        "Virtual Threads"
+      ],
+      "rows": [
+        [
+          "OS Mapping",
+          "1:1 mapping with OS kernel threads",
+          "M:N mapping (many virtual threads on fewer carrier threads)"
+        ],
+        [
+          "Memory Footprint",
+          "Large (Fixed 1MB+ stack allocated by OS kernel)",
+          "Tiny (Dynamic heap-allocated stack chunks starting at a few hundred bytes)"
+        ],
+        [
+          "Context Switching",
+          "Expensive kernel-mode transitions involving CPU register saves",
+          "Inexpensive user-mode JVM scheduling via ForkJoinPool"
+        ],
+        [
+          "Creation Cost",
+          "High (Requires OS system calls and native memory allocation)",
+          "Negligible (Simple Java object allocation on the heap)"
+        ],
+        [
+          "Ideal Use Case",
+          "Long-running CPU-bound tasks and heavy native integration",
+          "Short-lived, blocking I/O bound tasks (web servers, database queries)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Virtual threads are built on top of internal stack chunk structures managed by the JVM. When a virtual thread blocks, its stack frames are copied off the carrier thread's stack and stored as stack chunks in the garbage-collected heap. When unblocked, they are recopied back onto a carrier thread stack.",
+        "The underlying scheduler for virtual threads is a specialized ForkJoinPool operating in FIFO mode. Unlike traditional ForkJoinPools used for parallel streams (which operate LIFO to maximize cache locality), virtual thread schedulers prioritize FIFO execution to ensure fair scheduling across millions of tasks.",
+        "Thread-local variables (ThreadLocal) are fully supported in virtual threads, but because an application can spawn millions of virtual threads, unchecked usage of ThreadLocals can trigger catastrophic memory bloat on the heap. Developers are strongly encouraged to migrate toward Scoped Values (JEP 446) for sharing immutable data safely across thread boundaries.",
+        "Pinning is a critical performance pitfall where a virtual thread cannot be unmounted from its carrier thread during a blocking operation. This occurs inside synchronized blocks/methods or during native method/foreign function invocations. When pinned, the carrier thread is blocked alongside the virtual thread, temporarily reducing the effective pool size."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {\n    IntStream.range(0, 10_000).forEach(i -> {\n        executor.submit(() -> {\n            Thread.sleep(Duration.ofMillis(1000)); // Non-blocking unmount under the hood\n            return fetchRemoteData(i);\n        });\n    });\n} // Executor auto-closes and awaits completion of all virtual threads"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Do not pool virtual threads! A common antipattern inherited from platform thread optimization is wrapping virtual threads in a fixed-size thread pool (like Executors.newFixedThreadPool). Virtual threads are designed to be cheap, disposable, and created on-the-fly per task. Pooling them defeats their purpose, adds unnecessary coordination overhead, and can easily lead to thread starvation or deadlocks if tasks depend on other pooled virtual threads. Additionally, watch out for legacy synchronization blocks which cause carrier thread pinning; refactor hotspots to use java.util.concurrent.locks.ReentrantLock where appropriate."
+    }
+  ],
+  "num": 697,
+  "title": "(Java 21) What are Virtual Threads (Project Loom)? How do they differ from Platform Threads?",
+  "category": "Virtual Threads & Concurrency"
+}

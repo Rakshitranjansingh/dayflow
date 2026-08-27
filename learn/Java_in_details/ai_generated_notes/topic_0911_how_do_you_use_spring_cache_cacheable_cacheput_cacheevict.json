@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Cache is an abstraction layer over various cache providers (like Caffeine, Redis, or Ehcache) that allows developers to transparently add caching to methods without polluting business logic with cache-management boilerplate. At its core, it leverages Spring's AOP (Aspect-Oriented Programming) proxy mechanism to intercept method calls. When you annotate a method, Spring creates a proxy that checks the cache before executing the actual method body. If the data exists, the proxy returns the cached value, bypassing the method entirely. This is crucial for reducing latency in I/O-bound operations like database queries or expensive external API calls, effectively offloading the JVM heap or external memory stores to prevent redundant computation.\n\n@Cacheable is the primary annotation for 'check-then-act' logic. It triggers the cache lookup; if the key exists, the method is skipped. If not, the method executes, and the result is stored. @CachePut, by contrast, always executes the method, ensuring the cache is updated with the latest result regardless of whether an entry existed previously—ideal for update operations. @CacheEvict is the cleanup mechanism, removing entries from the cache based on specific keys or clearing the entire cache region, which is essential for maintaining data consistency when the underlying source of truth changes."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Annotation",
+        "Method Execution",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "@Cacheable",
+          "Conditional (skipped if hit)",
+          "Read-heavy operations"
+        ],
+        [
+          "@CachePut",
+          "Always executes",
+          "Updating state/write-through"
+        ],
+        [
+          "@CacheEvict",
+          "Always executes",
+          "Cache invalidation/cleanup"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Proxy Mechanics: Spring uses either JDK dynamic proxies or CGLIB. If you call a @Cacheable method from within the same class (self-invocation), the proxy is bypassed, and the cache logic will not trigger.",
+        "Key Generation: By default, Spring uses a SimpleKeyGenerator based on method parameters. For complex objects, you must implement a custom KeyGenerator or use SpEL (Spring Expression Language) to define a unique key.",
+        "Thread Safety: The underlying cache provider (e.g., Caffeine) handles concurrency, but the cache abstraction itself is non-blocking; ensure your cache manager configuration matches your application's concurrency requirements.",
+        "Serialization: When using distributed caches like Redis, the return types of your cached methods must be Serializable, or you must configure a custom JSON serializer to avoid ClassCastExceptions."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class ProductService {\n\n    @Cacheable(value = \"products\", key = \"#id\")\n    public Product getProduct(Long id) {\n        return repository.findById(id).orElseThrow();\n    }\n\n    @CachePut(value = \"products\", key = \"#product.id\")\n    public Product updateProduct(Product product) {\n        return repository.save(product);\n    }\n\n    @CacheEvict(value = \"products\", key = \"#id\")\n    public void deleteProduct(Long id) {\n        repository.deleteById(id);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is the 'Cache Stampede' or 'Thundering Herd' problem. If a high-traffic key expires, multiple threads might simultaneously trigger the expensive method execution. Always use a cache provider that supports 'sync = true' in @Cacheable, which forces threads to wait for the first thread to populate the cache, or implement a proactive refresh strategy."
+    }
+  ],
+  "num": 912,
+  "title": "How do you use Spring Cache? (@Cacheable, @CachePut, @CacheEvict)",
+  "category": "Core Java & Fundamentals"
+}

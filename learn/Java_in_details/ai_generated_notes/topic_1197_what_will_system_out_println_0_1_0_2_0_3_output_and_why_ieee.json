@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The expression System.out.println(0.1 + 0.2 == 0.3) will output 'false'. This behavior is not a bug in Java, but a direct consequence of how computers represent fractional numbers using the IEEE 754 standard for floating-point arithmetic. In Java, the types 'double' and 'float' use binary floating-point representation, which is inherently incapable of exactly representing most decimal fractions. While integers are stored as exact bit patterns, fractions like 0.1 are stored as an infinite repeating binary fraction, similar to how 1/3 is a repeating decimal (0.333...) in base-10. Because the mantissa (the significant digits) has a fixed number of bits—53 bits for a double—the value is truncated, leading to a small rounding error. When you add 0.1 and 0.2, the result is slightly larger than 0.3, causing the equality check to fail."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Value",
+        "Binary Approximation",
+        "Exactness"
+      ],
+      "rows": [
+        [
+          "0.1",
+          "0.00011001100110011...",
+          "Inexact"
+        ],
+        [
+          "0.2",
+          "0.00110011001100110...",
+          "Inexact"
+        ],
+        [
+          "0.3",
+          "0.01001100110011001...",
+          "Inexact"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "IEEE 754 defines the storage of floating-point numbers using a sign bit, an exponent, and a significand (mantissa). The precision limit of the 64-bit double forces the rounding of the binary representation of 0.1 and 0.2.",
+        "When performing 0.1 + 0.2, the CPU performs binary addition on the rounded significands. The resulting sum is approximately 0.30000000000000004.",
+        "The equality operator '==' compares the underlying bit patterns of the two doubles. Since the bit pattern of the sum does not match the bit pattern of the literal 0.3, the expression evaluates to false.",
+        "For financial applications or any scenario requiring exact decimal precision, never use double or float. Use java.math.BigDecimal, which performs arbitrary-precision signed decimal arithmetic."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.math.BigDecimal;\n\npublic class PrecisionDemo {\n    public static void main(String[] args) {\n        // The problematic way\n        System.out.println(0.1 + 0.2 == 0.3); // false\n\n        // The production-grade way\n        BigDecimal a = new BigDecimal(\"0.1\");\n        BigDecimal b = new BigDecimal(\"0.2\");\n        BigDecimal sum = a.add(b);\n        System.out.println(sum.equals(new BigDecimal(\"0.3\"))); // true\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never use the double constructor for BigDecimal (e.g., new BigDecimal(0.1)). This constructor captures the floating-point error of the double literal itself. Always use the String constructor (new BigDecimal(\"0.1\")) to ensure the value is parsed exactly as intended."
+    }
+  ],
+  "num": 1198,
+  "title": "What will System.out.println(0.1 + 0.2 == 0.3) output and why? (IEEE 754 floating point)",
+  "category": "Core Java & Fundamentals"
+}

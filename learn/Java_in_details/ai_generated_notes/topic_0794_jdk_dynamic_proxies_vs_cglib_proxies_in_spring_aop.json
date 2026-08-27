@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Framework and Spring AOP architecture, cross-cutting concerns like transaction management, security, and logging are modularized using aspects. To apply these aspects without altering the core business logic, Spring intercepts method calls by wrapping target beans in proxy objects. Understanding the fundamental mechanics, performance trade-offs, and architectural divergence between JDK Dynamic Proxies and CGLIB Proxies is essential for designing high-throughput, memory-efficient enterprise applications.\n\nJDK Dynamic Proxies are a built-in feature of the Java standard library, residing in the `java.lang.reflect` package. They operate strictly by leveraging Java interfaces. When a target class implements at least one interface, Spring defaults to creating a JDK dynamic proxy. This proxy implements the target interfaces and delegates method invocations to an `InvocationHandler`. Because it generates classes dynamically at runtime that implement interface contracts, it avoids complex bytecode manipulation libraries, resulting in faster proxy creation times and lightweight classloader footprints.\n\nConversely, CGLIB (Code Generation Library) proxies are utilized when a target class does not implement any interfaces, or when explicitly forced via configuration. CGLIB works by dynamically generating a subclass of the target class at runtime using the ASM bytecode manipulation framework. It overrides non-final methods of the target class and intercepts calls using a `MethodInterceptor`. This subclassing mechanism allows Spring AOP to apply aspects to concrete classes directly, bypassing the architectural constraint of requiring interface-based designs, though it introduces specific memory and initialization costs."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Metric",
+        "JDK Dynamic Proxy",
+        "CGLIB Proxy"
+      ],
+      "rows": [
+        [
+          "Underlying Mechanism",
+          "Implements interfaces via java.lang.reflect.Proxy",
+          "Subclasses target class via ASM bytecode generation"
+        ],
+        [
+          "Interface Requirement",
+          "Mandatory (Target must implement $\\ge 1$ interface)",
+          "Not required (Operates on concrete classes)"
+        ],
+        [
+          "Instantiation Speed",
+          "Fast (Leverages native JVM proxy generation)",
+          "Slower (Involves bytecode generation and class loading)"
+        ],
+        [
+          "Method Invocation Overhead",
+          "Slightly higher via reflection (`Method.invoke`)",
+          "Faster via direct method invocation or 'FastClass'"
+        ],
+        [
+          "Final Class/Method Limitation",
+          "Cannot proxy final methods",
+          "Cannot proxy final classes or final methods"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "JDK dynamic proxies construct instances by implementing the interface signatures at runtime, routing every intercepted method call through the `invoke(Object proxy, Method method, Object[] args)` method, which relies on standard Java reflection.",
+        "CGLIB proxies bypass standard reflection for method execution by generating auxiliary 'FastClass' helpers during proxy construction, mapping method signatures directly to integer indexes for rapid, direct invocation speeds.",
+        "Since Spring Boot 2.x, CGLIB proxying has been made the default for auto-configuration (`spring.aop.proxy-target-class=true`), drastically reducing confusing casting exceptions caused by developers injecting concrete types instead of interface references.",
+        "Memory considerations: CGLIB generates a distinct subclass in the JVM metaspace for every proxied bean class. In applications with thousands of unique types, excessive CGLIB usage can lead to Metaspace exhaustion if classloaders are not carefully managed."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.aop;\n\nimport org.springframework.aop.framework.ProxyFactory;\nimport org.springframework.aop.support.AopUtils;\n\npublic class ProxyDemo {\n    public interface Service {\n        void execute();\n    }\n\n    public static class ServiceImpl implements Service {\n        @Override\n        public void execute() {\n            System.out.println(\"Executing business logic...\");\n        }\n    }\n\n    public static void main(String[] args) {\n        ServiceImpl target = new ServiceImpl();\n        \n        // Forcing JDK Dynamic Proxy (Target implements interface)\n        ProxyFactory jdkFactory = new ProxyFactory(target);\n        jdkFactory.setProxyTargetClass(false); // Forces JDK proxy\n        Service jdkProxy = (Service) jdkFactory.getProxy();\n        \n        System.out.println(\"Is JDK Proxy? \" + AopUtils.isJdkDynamicProxy(jdkProxy));\n        jdkProxy.execute();\n\n        // Forcing CGLIB Proxy (Subclasses the target directly)\n        ProxyFactory cglibFactory = new ProxyFactory(target);\n        cglibFactory.setProxyTargetClass(true); // Forces CGLIB proxy\n        ServiceImpl cglibProxy = (ServiceImpl) cglibFactory.getProxy();\n        \n        System.out.println(\"Is CGLIB Proxy? \" + AopUtils.isCglibProxy(cglibProxy));\n        cglibProxy.execute();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic trap in Spring AOP occurs when a proxied bean calls a transactional or secured method internally on 'this'. Neither JDK nor CGLIB proxies can intercept self-invocations because the call goes directly to the raw target instance, bypassing the proxy wrapper entirely. To solve this, avoid self-injection or expose the proxy context using `AopContext.currentProxy()` with `spring.aop.expose-proxy=true`."
+    }
+  ],
+  "num": 795,
+  "title": "JDK Dynamic Proxies vs CGLIB Proxies in Spring AOP?",
+  "category": "Spring Boot & Spring Framework"
+}

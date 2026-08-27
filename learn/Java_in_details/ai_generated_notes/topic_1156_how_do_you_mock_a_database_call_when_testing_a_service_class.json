@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Testing a Service class that relies on a database call requires decoupling business logic from underlying data storage mechanisms to achieve fast, deterministic, and isolated unit tests. In modern Java applications, this isolation is achieved by introducing a repository interface layer, injecting that interface into the service via constructor injection, and substituting it with a mock implementation during test execution using frameworks like Mockito. By replacing real JDBC or ORM calls with mock objects, tests avoid the overhead of spinning up an embedded database or hitting a production-like instance, eliminating flaky network timeouts and state-leakage issues between test runs.\n\nWhen a service delegates persistence operations to a DAO or Spring Data Repository, the testing strategy centers on verifying interactions and defining expected behaviors. Instead of executing actual SQL statements, the test harness configures mock stubs to return pre-defined domain objects when specific repository methods are invoked. This allows engineers to systematically test edge cases, such as handling empty result sets, database constraint violations, or transactional rollbacks, without manipulating state on a physical disk."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Constructor Injection: Ensure your service classes accept repositories as constructor parameters rather than using field-level annotations like @Autowired, enabling straightforward instantiation of the service in pure Java tests without relying on the Spring IoC container.",
+        "Behavior Stubbing: Use Mockito's when(...).thenReturn(...) syntax to define predictable responses from database-facing interfaces, ensuring tests isolate only the business logic within the service method.",
+        "Interaction Verification: Leverage Mockito.verify(...) assertions to guarantee that the service correctly calls repository write methods (like save or delete) the exact expected number of times with valid entity states."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import static org.mockito.Mockito.*;\nimport static org.junit.jupiter.api.Assertions.*;\nimport org.junit.jupiter.api.Test;\nimport org.junit.jupiter.api.extension.ExtendWith;\nimport org.mockito.InjectMocks;\nimport org.mockito.Mock;\nimport org.mockito.junit.jupiter.MockitoExtension;\n\n@ExtendWith(MockitoExtension.class)\nclass UserServiceTest {\n\n    @Mock\n    private UserRepository userRepository;\n\n    @InjectMocks\n    private UserService userService;\n\n    @Test\n    void shouldReturnUserWhenIdExists() {\n        // Arrange\n        User mockUser = new User(1L, \"Alice\");\n        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));\n\n        // Act\n        User result = userService.getUserById(1L);\n\n        // Assert\n        assertNotNull(result);\n        assertEquals(\"Alice\", result.getName());\n        verify(userRepository, times(1)).findById(1L);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when mocking database calls is over-mocking and writing brittle tests that mirror the implementation details of the repository rather than validating service behavior. If your unit test breaks every time a SQL query optimization or internal JPA method call changes, your tests are too tightly coupled. Reserve mocks strictly for the boundaries of your system (like database repositories or external HTTP clients), and let pure domain objects handle internal calculations."
+    }
+  ],
+  "num": 1157,
+  "title": "How do you mock a database call when testing a Service class?",
+  "category": "Core Java & Fundamentals"
+}

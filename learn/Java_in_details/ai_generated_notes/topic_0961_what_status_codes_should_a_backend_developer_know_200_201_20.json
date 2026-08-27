@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "HTTP status codes serve as the universal contract between your Java backend and the client, dictating the flow of control and error handling logic. A 200 OK signifies a successful request, while 201 Created is the mandatory response for POST operations that successfully persist a resource. 204 No Content is frequently overlooked but critical for DELETE or PUT operations where the server has processed the request but has no body to return, saving bandwidth. On the client error side, 400 Bad Request indicates a malformed request syntax, whereas 401 Unauthorized signals that the client lacks valid authentication credentials. 403 Forbidden is distinct: the server understands the user, but they lack the specific permissions to access the resource. 404 Not Found is the standard for missing URIs. 409 Conflict is essential for state-based operations, such as trying to create a resource that already exists or performing an update that violates a database unique constraint. 422 Unprocessable Entity is the RESTful standard for validation errors (e.g., a JSON payload that is syntactically correct but logically invalid). 429 Too Many Requests is the mechanism for rate limiting, signaling the client to back off. Finally, 500 Internal Server Error is the catch-all for unhandled exceptions, representing a failure in your application logic or infrastructure."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Status Code",
+        "Category",
+        "Use Case"
+      ],
+      "rows": [
+        [
+          "200/201/204",
+          "Success",
+          "Resource retrieval, creation, or deletion acknowledgement"
+        ],
+        [
+          "400/401/403",
+          "Client Error",
+          "Validation, AuthN, and AuthZ failures"
+        ],
+        [
+          "404/409/422",
+          "Client Error",
+          "Resource missing, state conflicts, or semantic validation"
+        ],
+        [
+          "429",
+          "Client Error",
+          "Rate limiting and throttling"
+        ],
+        [
+          "500",
+          "Server Error",
+          "Unhandled runtime exceptions"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "201 Created responses should always include a 'Location' header pointing to the URI of the newly created resource to adhere to HATEOAS principles.",
+        "401 Unauthorized requires a 'WWW-Authenticate' header, whereas 403 Forbidden does not, as the latter implies authentication will not change the outcome.",
+        "422 Unprocessable Entity is preferred over 400 Bad Request when the JSON is well-formed but fails business logic validation (e.g., age < 18).",
+        "500 Internal Server Error should never be returned for validation issues; it should only occur when the JVM encounters an unhandled exception that breaks the request lifecycle."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@PostMapping(\"/users\")\npublic ResponseEntity<User> createUser(@Valid @RequestBody UserDto dto) {\n    try {\n        User saved = userService.save(dto);\n        return ResponseEntity.created(URI.create(\"/users/\" + saved.getId())).body(saved);\n    } catch (DataIntegrityViolationException e) {\n        return ResponseEntity.status(HttpStatus.CONFLICT).build();\n    } catch (Exception e) {\n        log.error(\"Unexpected error\", e);\n        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never leak stack traces in a 500 response. Always map internal exceptions to sanitized error DTOs. Also, be wary of using 404 for 'business logic' missing data (like a user not having a profile); sometimes a 404 is appropriate for the resource, but if the resource exists but the relation is missing, consider if a 200 with an empty object or a 404 is more semantically correct for your API consumers."
+    }
+  ],
+  "num": 962,
+  "title": "What status codes should a backend developer know? (200, 201, 204, 400, 401, 403, 404, 409, 422, 429, 500)",
+  "category": "Core Java & Fundamentals"
+}

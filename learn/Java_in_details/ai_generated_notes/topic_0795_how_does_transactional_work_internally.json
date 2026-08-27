@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "At its core, the @Transactional annotation in Spring is a declarative abstraction over the low-level imperative transaction management APIs (PlatformTransactionManager). When you annotate a method with @Transactional, Spring does not execute that code directly. Instead, it wraps your bean in a dynamic proxy—either a JDK dynamic proxy if the bean implements an interface, or a CGLIB-generated subclass if it does not. This proxy intercepts every method call, checks for the presence of the annotation, and orchestrates the transaction lifecycle before delegating the actual work to your target object.\n\nInternally, this process relies on the TransactionInterceptor, which acts as the 'brain' of the operation. It interacts with the TransactionManager to open a new connection or join an existing one, binds it to the current thread using ThreadLocal storage (via TransactionSynchronizationManager), and handles the commit or rollback logic based on the outcome of your method. This mechanism solves the 'boilerplate' problem of manually managing try-catch-rollback blocks, ensuring that your business logic remains decoupled from infrastructure concerns like atomicity, consistency, isolation, and durability (ACID)."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "JDK Dynamic Proxy",
+        "CGLIB Proxy"
+      ],
+      "rows": [
+        [
+          "Requirement",
+          "Target must implement an interface",
+          "Works on concrete classes"
+        ],
+        [
+          "Mechanism",
+          "java.lang.reflect.Proxy",
+          "Bytecode generation (ASM)"
+        ],
+        [
+          "Performance",
+          "Slightly slower reflection",
+          "Faster, but higher memory footprint"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Transaction Synchronization: Spring uses ThreadLocal to store the Connection object, ensuring that all DAO calls within the same thread share the same transactional context.",
+        "Propagation Behaviors: The interceptor evaluates the propagation setting (e.g., REQUIRED, REQUIRES_NEW) to decide whether to suspend an existing transaction or create a new one.",
+        "Rollback Rules: By default, Spring only triggers a rollback for unchecked exceptions (RuntimeException and Error). Checked exceptions require explicit configuration via rollbackFor.",
+        "Proxy Self-Invocation: If a method within the same class calls another @Transactional method, the proxy is bypassed, and the transaction will not start. This is the most common pitfall in Spring development."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderService {\n    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)\n    public void processOrder(Order order) {\n        repository.save(order);\n        // If this throws an exception, the proxy catches it and triggers rollback\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Beware of the 'Self-Invocation' trap. Because @Transactional is enforced by the proxy, calling a transactional method from within the same class (this.method()) bypasses the proxy entirely. The transaction will not start, and the database operation will execute outside of any transactional boundary. If you absolutely need this, inject the bean into itself (via @Lazy) or refactor the transactional logic into a separate service component."
+    }
+  ],
+  "num": 796,
+  "title": "How does @Transactional work internally?",
+  "category": "Spring Boot & Spring Framework"
+}

@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Spring Data JPA and Hibernate ORM, the @EntityGraph annotation is a powerful declarative tool designed to solve the classic JPA N+1 select problem by overriding the default fetch plans of entities at runtime. When mapping relational databases to object models, developers frequently encounter scenarios where fetching a parent entity (like an Order) results in subsequent, individual queries for each associated child entity (like OrderItems or Customer). By default, Hibernate relies on fetching strategies defined on relationships—LAZY or EAGER. While LAZY prevents immediate memory and network bloat, it often leads to LazyInitializationException outside transactional boundaries or cascades into dozens of discrete SQL statements if the collection is subsequently traversed. Conversely, making everything EAGER is a performance anti-pattern that over-fetches unnecessary data for every single query.\n\nEnter @EntityGraph. It allows engineers to define explicit fetch graphs (attributes to fetch eagerly) or load graphs (attributes to fetch eagerly plus remaining attributes following their default fetch types) directly on repository query methods. Instead of writing complex, hand-crafted JPQL fetch joins or altering global mapping annotations, @EntityGraph lets you compose fetch plans dynamically using attribute paths. Spring Data inspects this annotation during repository proxy invocation, translates the graph configuration into Hibernate-specific entity graph hints (specificallyjakarta.persistence.fetchgraph or jakarta.persistence.loadgraph), and passes them down to the underlying Session. This ensures that the root entity and its specified sub-graphs are loaded in a single, highly optimized SQL statement—typically utilizing an INNER or LEFT OUTER JOIN—radically cutting down database roundtrips and maintaining clean separation between your domain models and your repository access logic."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Strategy",
+        "@EntityGraph (FETCH)",
+        "@EntityGraph (LOAD)"
+      ],
+      "rows": [
+        [
+          "Graph Type",
+          "FetchGraph",
+          "LoadGraph"
+        ],
+        [
+          "Specified Attributes",
+          "Fetched Eagerly",
+          "Fetched Eagerly"
+        ],
+        [
+          "Unspecified Attributes",
+          "Treated as LAZY, regardless of mapping",
+          "Follows the entity's default mapping (LAZY or EAGER)"
+        ],
+        [
+          "Primary Use Case",
+          "Strict isolation: fetch only what is explicitly requested, nothing else.",
+          "Augmentation: ensure certain LAZY fields are loaded while keeping standard eager defaults intact."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Behind the scenes, Spring Data JPA creates an instance of org.springframework.data.jpa.repository.support.JpaEntityGraph which parses the attributePaths array supplied to the @EntityGraph annotation.",
+        "It communicates with the Hibernate PersistenceProvider by adding hints into the Jakarta Persistence query object, mapping them to org.hibernate.graph.GraphSemantic.FETCH or LOAD.",
+        "When Hibernate executes the SQL generation phase, its LoadPlan or SQLLoadable creation engine intercepts the graph hints, modifying the AST (Abstract Syntax Tree) to dynamically convert lazy proxy associations into explicit SQL outer joins.",
+        "Using attribute paths allows traversing deep object graphs (e.g., 'customer.address.country'), instructing Hibernate to construct multi-level join trees in a single roundtrip without polluting the global entity metadata."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Entity\n@Table(name = \"orders\")\npublic class Order {\n    @Id\n    @GeneratedValue(strategy = GenerationType.IDENTITY)\n    private Long id;\n    \n    private String orderNumber;\n\n    @ManyToOne(fetch = FetchType.LAZY)\n    @JoinColumn(name = \"customer_id\")\n    private Customer customer;\n\n    @OneToMany(mappedBy = \"order\", cascade = CascadeType.ALL, fetch = FetchType.LAZY)\n    private List<OrderItem> items = new ArrayList<>();\n}\n\npublic interface OrderRepository extends JpaRepository<Order, Long> {\n    \n    @EntityGraph(\n        type = EntityGraph.EntityGraphType.FETCH,\n        attributePaths = {\"customer\", \"items\"}\n    )\n    @Query(\"SELECT o FROM Order o WHERE o.orderNumber = :orderNumber\")\n    Optional<Order> findByOrderNumberWithGraph(@Param(\"orderNumber\") String orderNumber);\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall with @EntityGraph is attempting to fetch multiple child collections (e.g., attributePaths = {\"items\", \"payments\"}) via a JOIN in SQL. This can cause a Cartesian product explosion, transmitting massive redundant data packets over the network and heavily degrading database performance. If you must fetch multiple collections, prefer executing separate queries, utilizing batch fetching (@BatchSize), or accepting multiple distinct query executions over a single massive cartesian join."
+    }
+  ],
+  "num": 839,
+  "title": "What is @EntityGraph?",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

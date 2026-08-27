@@ -1,0 +1,62 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Security method security provides a declarative mechanism to secure business logic at the individual method level, decoupling authorization logic from HTTP transport layers. Unlike URL-based security configured in a SecurityFilterChain, method security intercepts calls to Spring-managed beans using dynamic proxies, evaluating access control rules right before or after execution. To achieve this, Spring Security relies on several distinct annotations: @Secured, @PreAuthorize, @PostAuthorize, and the Spring Expression Language (SpEL). Each plays a specific role in defining who can invoke a method and what data they can see when it returns.\n\nThe @Secured annotation is the legacy, role-based authorization mechanism inherited from older Acegi Security days. It accepts a simple array of role strings (e.g., ROLE_ADMIN) and performs a straightforward check against the granted authorities of the current SecurityContext. Because it does not support complex logical expressions or context evaluation, it is largely superseded by more modern annotations. However, it remains useful for straightforward, role-based access control where SpEL overhead is unnecessary.\n\nFor advanced requirements, @PreAuthorize and @PostAuthorize introduce fine-grained expression-driven security powered by SpEL. The @PreAuthorize annotation evaluates a SpEL expression prior to method entry, allowing developers to inspect method arguments, user credentials, and security context attributes before a single line of business logic runs. Conversely, @PostAuthorize executes the target method first, captures the return value (accessible via the special variable returnObject), and then evaluates a SpEL expression to verify whether the caller is authorized to receive the resulting data. This is critical for data-filtering scenarios where authorization depends on the state of the entity being returned."
+    },
+    {
+      "type": "prose",
+      "content": "Spring Expression Language (SpEL) serves as the evaluation engine behind method security annotations, granting unprecedented context-awareness. SpEL expressions can inspect method parameters by name (e.g., #userId), evaluate root security objects like authentication and principal, and even invoke Spring beans directly within the authorization expression using the @beanName syntax. To enable method security across a Spring application, developers must register the @EnableMethodSecurity annotation on a configuration class. This activates the underlying infrastructure, primarily consisting of MethodSecurityMetadataSource advisors, MethodSecurityInterceptor, and expression handlers that parse and cache SpEL expressions during application startup to optimize runtime performance."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Annotation",
+        "Evaluation Timing",
+        "SpEL Support",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "@Secured",
+          "Before execution",
+          "No (Strings only)",
+          "Simple role-based checks"
+        ],
+        [
+          "@PreAuthorize",
+          "Before execution",
+          "Yes",
+          "Parameter validation & pre-checks"
+        ],
+        [
+          "@PostAuthorize",
+          "After execution",
+          "Yes",
+          "Return-value filtering & ownership checks"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Method security relies on Spring AOP proxies (either JDK dynamic proxies or CGLIB subclasses), meaning internal method calls (self-invocation) will bypass security interceptors entirely because they do not flow through the proxy.",
+        "@PostAuthorize still executes the underlying method; if the SpEL expression evaluates to false, an AccessDeniedException is thrown after the database query or business logic has already run, which may impact performance for expensive operations.",
+        "SpEL parameter name resolution requires compiling Java code with the -parameters compiler flag, otherwise Spring falls back to synthetic names like arg0 and arg1.",
+        "SecurityExpressionRoot provides built-in evaluation context variables such as hasRole(), hasAuthority(), principal, and authentication, making complex Boolean authorization rules concise and readable."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\n@Validated\npublic class DocumentService {\n\n    @PreAuthorize(\"hasRole('ADMIN') or #document.ownerId == principal.id\")\n    public Document updateDocument(Document document) {\n        // Business logic for updating document\n        return document;\n    }\n\n    @PostAuthorize(\"returnObject.ownerId == principal.id or hasRole('AUDITOR')\")\n    public Document getDocumentById(Long id) {\n        return documentRepository.findById(id).orElseThrow();\n    }\n\n    @Secured(\"ROLE_MANAGER\")\n    public void deleteDocument(Long id) {\n        documentRepository.deleteById(id);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap with @PostAuthorize is assuming it prevents side effects. Because the method executes *before* the SpEL check, any mutations made to database entities, external API calls, or local state within that method will happen regardless of authorization. If a method modifies state and then evaluates @PostAuthorize to false, the state change has already occurred (though transaction rollback may occur if the exception propagates, depending on transaction configuration). Always use @PreAuthorize for methods with side effects."
+    }
+  ],
+  "num": 275,
+  "title": "Method security — @PreAuthorize, @PostAuthorize, @Secured, SpEL",
+  "category": "Spring Security & Web Security"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed systems engineering, Idempotency and Eventual Consistency are twin pillars for maintaining data integrity despite network partitions, packet drops, and thread retries. Idempotency guarantees that an operation can be applied multiple times without changing the result beyond the initial application. Mathematically, a function $f$ is idempotent if $f(f(x)) = f(x)$. In a Java-based microservices architecture, this is vital for compensating against at-least-once message delivery semantics where a message broker (like Kafka or RabbitMQ) might redeliver a payload due to an unacknowledged socket timeout. Without idempotent command handlers, repeating a database insert or a bank transfer creates catastrophic duplicate side-effects.\n\nEventual consistency, conversely, addresses the CAP theorem trade-off in distributed data stores. Instead of demanding strict linearizability—which introduces severe latency penalties via consensus algorithms like Raft or Paxos across wide-area networks—eventual consistency allows replicas to diverge temporarily. System nodes accept writes locally and propagate state mutations asynchronously. The core invariant is convergence: if no new updates are made, all replicas will eventually read identical state values. In enterprise Java systems, bridging these two concepts requires careful choreography of state machines, idempotency keys, vector clocks, and conflict-free replicated data types (CRDTs)."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Property",
+        "Idempotency",
+        "Eventual Consistency"
+      ],
+      "rows": [
+        [
+          "Primary Goal",
+          "Prevent duplicate side-effects on retry",
+          "Guarantee replica convergence over time"
+        ],
+        [
+          "Time Horizon",
+          "Synchronous (per transaction/request execution)",
+          "Asynchronous (bounded by replication lag)"
+        ],
+        [
+          "State Dependency",
+          "Requires tracking historical unique execution tokens",
+          "Requires state reconciliation/merge logic"
+        ],
+        [
+          "Failure Mode",
+          "Duplicate requests fail or short-circuit safely",
+          "Temporary stale reads or concurrent write conflicts"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Idempotency keys are typically stored in a high-speed persistence tier (such as Redis with a TTL) or a relational database table with a unique constraint on the request UUID before downstream business logic executes.",
+        "Eventual consistency in asynchronous event-driven flows often relies on outbox patterns combined with consumer-side idempotency tables to ensure that duplicate domain events do not corrupt read-models or aggregate roots.",
+        "Conflict resolution in eventually consistent stores requires deterministic merge strategies, such as Last-Write-Wins (LWW) utilizing monotonic wall-clock or vector timestamps, or domain-specific semantic reconciliation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class PaymentService {\n\n    @Autowired\n    private RedisTemplate<String, String>\n        redisTemplate;\n\n    @Autowired\n    private PaymentRepository paymentRepository;\n\n    @Transactional\n    public PaymentResponse processPayment(\n            String idempotencyKey,\n            PaymentRequest request) {\n        \n        // Enforce Idempotency via Atomic Redis Set\n        Boolean acquired = redisTemplate.opsForValue()\n            .setIfAbsent(\"lock:idmp:\" + idempotencyKey,\n                         \"PROCESSING\",\n                         Duration.ofMinutes(10));\n                         \n        if (Boolean.FALSE.equals(acquired)) {\n            throw new DuplicateRequestException(\n                \"Operation currently processing or completed\"\n            );\n        }\n\n        try {\n            // Execute domain logic safely\n            Payment payment = new Payment(request);\n            paymentRepository.save(payment);\n            \n            redisTemplate.opsForValue().set(\n                \"lock:idmp:\" + idempotencyKey, \n                \"COMPLETED\"\n            );\n            \n            return new PaymentResponse(payment.getId(), \"SUCCESS\");\n        } catch (Exception e) {\n            redisTemplate.delete(\"lock:idmp:\" + idempotencyKey);\n            throw e;\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in eventually consistent, distributed systems is assuming idempotency keys protect against race conditions when requests arrive concurrently. If two threads hit an instance simultaneously with the same idempotency key before the database unique constraint or Redis lock is written, both might bypass the check. Always use database-level unique indexes (e.g., UNIQUE(idempotency_key)) coupled with atomic lock primitives to guarantee absolute isolation under high concurrency."
+    }
+  ],
+  "num": 341,
+  "title": "Idempotency, eventual consistency",
+  "category": "Core Java & Fundamentals"
+}

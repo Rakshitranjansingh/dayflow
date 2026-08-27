@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed event streaming architectures, building a robust data processing pipeline requires mastering Kafka Consumers, their continuous poll loop, appropriate offset commit strategies, and handling consumer group rebalancing. The consumer is not merely a passive listener; it maintains an active, stateful TCP connection to the cluster, pulling batches of records via the poll loop. Every consumer belongs to a consumer group, which enables horizontal scaling and fault-tolerant stream processing by dividing partition ownership among its members.\n\nThe poll loop is the heart of the consumer runtime. It is a synchronous method invocation (poll()) that serves a dual purpose: it fetches records from assigned partitions and acts as a heartbeat mechanism to the group coordinator. If the application logic takes longer than max.poll.interval.ms to process a batch and call poll() again, the coordinator assumes the consumer is dead and triggers a rebalancing event. Managing how and when offsets are committed—whether automatically in the background or manually for precise, at-least-once or at-most-once delivery semantics—dictates the consistency of your downstream systems.\n\nRebalancing is the protocol-driven reallocation of partition assignments across the members of a consumer group. It occurs when new consumers join, existing consumers leave or crash, or topic metadata changes. During a rebalance, processing halts entirely while the group stops-the-world to negotiate new ownership, making low-latency rebalance listeners and efficient cooperative sticky assignors critical for minimizing application downtime."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Commit Strategy",
+        "Delivery Guarantee",
+        "Performance",
+        "Risk of Data Loss / Duplication"
+      ],
+      "rows": [
+        [
+          "Auto-Commit (enable.auto.commit=true)",
+          "At-Most-Once",
+          "High throughput, minimal code",
+          "High risk of data loss if processing fails after commit but before completion"
+        ],
+        [
+          "Synchronous Manual Commit (commitSync)",
+          "At-Least-Once",
+          "Lower throughput due to blocking network calls",
+          "Low risk of data loss; high risk of duplicate processing on failure"
+        ],
+        [
+          "Asynchronous Manual Commit (commitAsync)",
+          "At-Least-Once",
+          "High throughput, non-blocking",
+          "Potential out-of-order offset overwrites if retries aren't carefully managed"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The poll loop relies on a internal fetcher that buffers records locally. When poll(Duration timeout) is called, it returns records from this local buffer, and asynchronously triggers the next network fetch in the background.",
+        "Consumer group rebalancing is orchestrated by a designated broker acting as the Group Coordinator. It uses JoinGroup and SyncGroup heartbeats to coordinate state transitions between the consumer instances and assignors.",
+        "Cooperative Sticky Assignor minimizes partition movement during a rebalance by revoking only the specific partitions that need to move, avoiding the stop-the-world partition drop of the older Range or Eager assignors."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "Properties props = new Properties();\nprops.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, \"localhost:9092\");\nprops.put(ConsumerConfig.GROUP_ID_CONFIG, \"order-processor-group\");\nprops.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, \"false\");\nprops.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());\nprops.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());\n\nKafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);\nconsumer.subscribe(Collections.singletonList(\"orders\"), new ConsumerRebalanceListener() {\n    @Override\n    public void onPartitionsRevoked(Collection<TopicPartition> partitions) {\n        // Synchronously commit current offsets before losing partition ownership\n        consumer.commitSync();\n    }\n    @Override\n    public void onPartitionsAssigned(Collection<TopicPartition> partitions) {\n        // Reset state or seek if necessary\n    }\n});\n\ntry {\n    while (true) {\n        ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));\n        for (ConsumerRecord<String, String> record : records) {\n            processRecord(record);\n        }\n        consumer.commitAsync((offsets, exception) -> {\n            if (exception != null) {\n                logger.error(\"Commit failed for offsets\", exception);\n            }\n        });\n    }\n} finally {\n    consumer.close();\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production failure mode is the 'livelock' or continuous rebalance storm caused by long-running business logic inside the poll loop. If your database write takes 6 minutes and max.poll.interval.ms is set to 5 minutes (default 300000ms), the consumer will drop out of the group, trigger a rebalance, rejoin, and immediately drop out again. Always offload heavy processing to a thread pool executor, pause consumption on those partitions using consumer.pause(), or tune your polling intervals appropriately."
+    }
+  ],
+  "num": 344,
+  "title": "Consumers — poll loop, offset commit strategies, rebalancing",
+  "category": "Core Java & Fundamentals"
+}

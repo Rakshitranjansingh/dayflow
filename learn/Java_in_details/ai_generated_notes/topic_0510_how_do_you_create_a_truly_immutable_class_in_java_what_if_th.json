@@ -1,0 +1,30 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Creating a truly immutable class in Java requires rigorous discipline beyond merely marking fields as final. Immutability guarantees that once an object is instantiated, its state cannot be modified, making it inherently thread-safe, serializable-friendly, and ideal for use as Map keys without requiring defensive copying on every lookup. When a class contains a mutable object such as java.util.Date, a naive implementation fails because final object references only prevent the variable from being reassigned to a different memory address; they do not prevent internal state mutations of the referenced object through setter methods or direct instance modification. To achieve true immutability, developers must intercept state leakage at both the construction boundary and the retrieval boundary.\n\nThe mechanics of defending against mutable references demand deep architectural care. Since java.util.Date inherits from java.util.Date and contains internal long time states that are easily modified via setTime(), exposing a Date field directly breaks object invariants. A robust immutable class must perform defensive copying during construction by invoking a clone or a new copy constructor of the incoming mutable reference. Likewise, any getter method must never return the internal reference; instead, it must return a fresh defensive copy of the mutable object. Furthermore, the class itself must be declared final to prevent sub-classing anomalies where a malicious subclass could introduce non-final mutable fields, circumventing the contract of the parent class."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Declare the class final to prevent subclassing and unauthorized state expansion.",
+        "Mark all fields as private and final to enforce single-assignment semantics.",
+        "Omit all setter methods to eliminate structural mutation vectors.",
+        "Perform deep defensive copying on mutable parameters inside the constructor.",
+        "Return new defensive copies inside getter methods to protect internal state."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.Date;\n\npublic final class ImmutableUser {\n    private final String username;\n    private final Date birthDate;\n\n    public ImmutableUser(String username, Date birthDate) {\n        this.username = username;\n        // Defensive copy on construction to block external mutation\n        this.birthDate = (birthDate != null) ? new Date(birthDate.getTime()) : null;\n    }\n\n    public String getUsername() {\n        return username;\n    }\n\n    public Date getBirthDate() {\n        // Defensive copy on return to prevent internal state leakage\n        return (birthDate != null) ? new Date(birthDate.getTime()) : null;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production trap is relying on java.util.Date, which is inherently mutable. In modern Java, the definitive solution is to bypass java.util.Date entirely and use java.time.LocalDate or java.time.Instant from the java.time API introduced in Java 8, as these types are immutable by design and eliminate the need for defensive copying overhead."
+    }
+  ],
+  "num": 511,
+  "title": "How do you create a truly Immutable class in Java? (What if the class contains a mutable object like java.util.Date?)",
+  "category": "Core Java & Fundamentals"
+}

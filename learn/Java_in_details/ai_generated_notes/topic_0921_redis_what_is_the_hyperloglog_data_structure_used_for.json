@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Redis HyperLogLog is a probabilistic data structure designed to estimate the cardinality of a massive dataset—the number of unique elements—with extreme memory efficiency. In high-scale distributed systems, tracking unique visitors, distinct IP addresses, or unique event IDs across billions of records using a standard Set would consume gigabytes of RAM, leading to inevitable OOM (Out of Memory) errors. HyperLogLog solves this by leveraging the Flajolet-Martin algorithm, which uses the properties of hash functions to observe the maximum number of leading zeros in a binary sequence. By tracking only these patterns, it provides an estimate with a standard error of less than 1% while consuming a fixed, tiny memory footprint of approximately 12KB, regardless of whether you are counting one thousand or one billion unique items."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Redis Set (SADD)",
+        "Redis HyperLogLog (PFADD)"
+      ],
+      "rows": [
+        [
+          "Memory Complexity",
+          "O(N) - Linear with unique elements",
+          "O(1) - Fixed 12KB"
+        ],
+        [
+          "Accuracy",
+          "100% Precise",
+          "Probabilistic (~0.81% error)"
+        ],
+        [
+          "Use Case",
+          "Small sets, membership testing",
+          "Big Data cardinality estimation"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The algorithm works by hashing the input element into a 64-bit integer, then splitting this hash into two parts: a bucket index (determined by the first few bits) and a value (the position of the leftmost '1' bit in the remaining bits).",
+        "It maintains an array of 16,384 registers, each 6 bits wide. Each register stores the maximum number of leading zeros observed for the inputs mapped to that specific bucket.",
+        "The final cardinality is calculated using the harmonic mean of these registers, which effectively dampens the impact of outliers and provides a statistically robust estimate.",
+        "HyperLogLog is strictly a write-only estimation structure; you cannot retrieve the original elements, nor can you perform set intersections or differences with the same precision as standard Redis Sets."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Using Jedis to track unique daily active users\njedis.pfadd(\"dau:2023-10-27\", \"user_123\", \"user_456\", \"user_123\");\n\n// Returns the estimated count of unique users\nlong uniqueCount = jedis.pfcount(\"dau:2023-10-27\");\n\n// Merge multiple days to get unique monthly active users\njedis.pfmerge(\"mau:october\", \"dau:2023-10-27\", \"dau:2023-10-28\");"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never use HyperLogLog if your business logic requires exact counts (e.g., financial ledger balances). The 0.81% error rate is cumulative; if you merge multiple HLL structures, the error can drift slightly. Always ensure your hash function is uniform to avoid skewing the register distribution, though Redis handles this internally with MurmurHash64."
+    }
+  ],
+  "num": 922,
+  "title": "Redis: What is the HyperLogLog data structure used for?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

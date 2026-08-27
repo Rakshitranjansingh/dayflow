@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Foreign Function & Memory (FFM) API, developed under Project Panama, is a modern, high-performance solution designed to replace the legacy Java Native Interface (JNI). Historically, Java developers wanting to interoperate with native code (such as C/C++ libraries or operating system system calls) had to rely on JNI or third-party wrappers like JNA. JNI is notoriously complex, prone to memory leaks, notoriously slow due to runtime overhead, and lacks safety guarantees. Furthermore, memory management outside the JVM heap historically meant relying on `sun.misc.Unsafe`—an internal, unsupported API—or `ByteBuffer`, which carries performance overhead and address limitations.\n\nProject Panama fundamentally bridges this gap by introducing two core components: the Foreign Function API and the Memory API. The Foreign Function API allows Java programs to call native libraries directly without writing C/C++ bridge code. It uses `MethodHandle` representations linked dynamically via `SymbolLookup` and `Linker`. The Memory API introduces abstractions like `MemorySegment` and `MemoryAddress`, which represent contiguous regions of memory allocated either on-heap, off-heap, or mapped from a file. This completely eliminates reliance on `sun.misc.Unsafe` while providing deterministic deallocation via `Arena` scopes, spatial bounds checking, and temporal safety bounds that prevent use-after-free bugs."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Dimension",
+        "Legacy JNI",
+        "Foreign Function & Memory API (Project Panama)"
+      ],
+      "rows": [
+        [
+          "Boilerplate Code",
+          "Requires C/C++ glue code (.cpp files and header generation)",
+          "Zero native glue code; pure Java definitions via MethodHandles"
+        ],
+        [
+          "Memory Safety",
+          "Prone to segmentation faults, buffer overflows, and memory leaks",
+          "Enforces spatial (bounds) and temporal (lifetime) safety checks"
+        ],
+        [
+          "Performance",
+          "High overhead due to JNI transitions and lack of JIT optimization",
+          "Optimized by JVM; native calls can be inlined and optimized directly"
+        ],
+        [
+          "API Status",
+          "Legacy, complex, and tightly coupled to internal JVM internals",
+          "Standard Java SE API (JEP finalized in JDK 22)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "MemorySegment abstracts a contiguous region of memory, which can be sliced, offset, and bound to specific layouts using MemoryLayout.",
+        "Arena manages the lifecycle of memory segments. An Arena can be confined (accessible by a single thread) or shared, and ensures deterministic deallocation when closed.",
+        "Linker handles downcalls (Java calling native functions) and upcalls (native code calling Java method handles) by mapping signatures to system ABI specifications.",
+        "SymbolLookup locates native library symbols (functions or global variables) within standard system libraries or dynamically loaded shared objects (.so, .dll, .dylib)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.lang.foreign.*;\nimport java.lang.invoke.MethodHandle;\nimport java.lang.invoke.VarHandle;\n\npublic class PanamaDemo {\n    public static void main(String[] args) throws Throwable {\n        // 1. Obtain the system linker\n        Linker linker = Linker.nativeLinker();\n        \n        // 2. Lookup the standard C library 'strlen' function\n        SymbolLookup stdlib = linker.defaultLookup();\n        MemorySegment strlenSymbol = stdlib.find(\"strlen\").orElseThrow();\n        \n        // 3. Define function descriptor (arguments and return types)\n        FunctionDescriptor descriptor = FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS);\n        MethodHandle strlen = linker.downcallHandle(strlenSymbol, descriptor);\n        \n        // 4. Allocate off-heap memory safely using an Arena\n        try (Arena arena = Arena.ofConfined()) {\n            MemorySegment nativeString = arena.allocateUtf8String(\"Hello, Project Panama!\");\n            \n            // 5. Invoke the native function\n            long length = (long) strlen.invoke(nativeString);\n            System.out.println(\"String length calculated by native C strlen: \" + length);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "When working with the FFM API, remember that temporal safety is enforced by the Arena. If you attempt to access a MemorySegment after its associated Arena has been closed, the JVM throws an IllegalStateException immediately instead of crashing with a native JVM segmentation fault. However, if you invoke native code that expects a raw pointer and pass it a closed or invalid segment, native memory corruption can still occur. Always ensure native downcalls are safely wrapped within try-with-resources blocks managing your Arenas."
+    }
+  ],
+  "num": 1287,
+  "title": "What is the Foreign Function & Memory API (Project Panama)?",
+  "category": "Exception Handling & I/O / NIO"
+}

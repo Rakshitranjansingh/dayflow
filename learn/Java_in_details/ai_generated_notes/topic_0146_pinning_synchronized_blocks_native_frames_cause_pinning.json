@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Virtual threads, introduced as part of Project Loom, revolutionize high-throughput concurrent Java applications by decoupling Java threads from operating system (OS) threads. Unlike traditional platform threads that map 1:1 to OS threads, millions of virtual threads can be managed by the Java Virtual Machine (JVM) over a small pool of carrier threads using an M:N scheduling model (ForkJoinPool). However, this abstraction is not entirely transparent. When a virtual thread executes code inside a synchronized block or method, or invokes a native method (Java Native Interface - JNI or Foreign Function & Memory API), it can trigger a phenomenon known as pinning.\n\nPinning occurs when a virtual thread cannot be unmounted from its underlying carrier thread (an OS thread) during a blocking operation (such as waiting on a socket read or a ReentrantLock). Because the carrier thread is forcefully bound to that specific virtual thread for the duration of the critical section, the carrier thread is blocked and cannot be reused to execute other ready virtual threads. If enough virtual threads become pinned—often due to legacy blocking libraries utilizing synchronized blocks or heavy native interop—the carrier pool is exhausted, severely degrading system throughput and nullifying the primary performance benefits of Project Loom."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Synchronized Block Mechanics: The JVM's current monitor implementation uses internal OS-level synchronization primitives or tracks ownership tied to the executing thread. When a virtual thread enters a synchronized block, the JVM's ForkJoinPool scheduler cannot safely unmount the virtual thread without risking monitor state corruption or violating the Java Language Specification's visibility guarantees.",
+        "Native Frames Mechanics: When a virtual thread calls a native method, the execution stack transitions from Java bytecode frames to C/C++ native stack frames. Because the JVM cannot inspect, manipulate, or relocate native stack frames managed by the host OS compiler, the virtual thread is permanently pinned to its carrier thread until the native invocation returns.",
+        "Mitigation via ReentrantLock: Replacing synchronized blocks/methods with java.util.concurrent.locks.ReentrantLock completely resolves monitor pinning. ReentrantLocks are implemented using AbstractQueuedSynchronizer (AQS) and LockSupport park/unpark mechanisms, which are fully virtual-thread-aware and allow clean unmounting."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.locks.ReentrantLock;\n\npublic class PinningMitigationService {\n    // BAD: Using 'synchronized' causes the virtual thread to pin the carrier thread during I/O\n    private final Object legacyLock = new Object();\n\n    public void legacySynchronizedMethod() {\n        synchronized (legacyLock) {\n            // If this blocks on I/O, the carrier thread is pinned!\n            blockingIoOperation();\n        }\n    }\n\n    // GOOD: Using java.util.concurrent.locks.ReentrantLock allows virtual thread unmounting\n    private final ReentrantLock modernLock = new ReentrantLock();\n\n    public void modernLockedMethod() {\n        modernLock.lock();\n        try {\n            // If this blocks on I/O, the virtual thread safely unmounts from the carrier\n            blockingIoOperation();\n        } finally {\n            modernLock.unlock();\n        }\n    }\n\n    private void blockingIoOperation() {\n        // Simulated blocking operation\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: You can diagnose pinning in production by passing the JVM flag -Djdk.tracePinnedThreads=full (or =short). When a virtual thread remains blocked on a monitor or native frame for longer than a threshold (default 20ms), the JVM dumps a stack trace highlighting the exact line causing the pin. Remember that future versions of the JVM (via ongoing Project Loom enhancements) aim to eliminate synchronized block pinning natively, but migrating to ReentrantLocks and avoiding long-running JNI calls remains the gold standard for production stability today."
+    }
+  ],
+  "num": 147,
+  "title": "Pinning — synchronized blocks & native frames cause pinning",
+  "category": "Virtual Threads & Concurrency"
+}

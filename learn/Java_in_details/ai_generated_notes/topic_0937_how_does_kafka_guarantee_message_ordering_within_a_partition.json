@@ -1,0 +1,49 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Apache Kafka, message ordering is not a global guarantee across an entire topic, but rather a strict, sequential guarantee scoped strictly to a single partition. Kafka achieves this by treating a partition as an immutable, append-only commit log. When a producer sends a message, it is assigned a monotonically increasing offset within that specific partition. Because a partition is physically stored as a single log file on a broker, the broker appends new messages to the end of this file, ensuring that the order in which the broker receives the messages is the order in which they are persisted and subsequently read by consumers. This design choice is fundamental to Kafka's high-throughput architecture; by avoiding global locks or cross-partition synchronization, Kafka can write to multiple partitions in parallel while maintaining strict local ordering."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Scope",
+        "Ordering Guarantee",
+        "Performance Impact"
+      ],
+      "rows": [
+        [
+          "Single Partition",
+          "Strictly Sequential",
+          "High (Sequential I/O)"
+        ],
+        [
+          "Multiple Partitions",
+          "Non-deterministic",
+          "Highest (Parallel I/O)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Producer Retries: To maintain order during network hiccups, producers must set 'max.in.flight.requests.per.connection' to 1 if strict ordering is required, or enable 'enable.idempotence=true' to allow multiple in-flight requests while preventing reordering due to retries.",
+        "Partitioning Key: The producer uses a Partitioner (defaulting to a hash of the key) to map messages to specific partitions. All messages with the same key are guaranteed to land in the same partition, ensuring they remain ordered relative to each other.",
+        "Consumer Group Dynamics: Kafka ensures that only one consumer instance within a group is assigned to a specific partition at any given time, preventing race conditions where multiple consumers process messages from the same partition out of order.",
+        "Log Compaction: Even when log compaction is enabled, the relative order of messages with the same key is preserved; the broker simply removes older versions of the message, keeping the latest state."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "Properties props = new Properties();\nprops.put(\"enable.idempotence\", \"true\");\nprops.put(\"acks\", \"all\");\nprops.put(\"max.in.flight.requests.per.connection\", \"5\");\n\nKafkaProducer<String, String> producer = new KafkaProducer<>(props);\n// All messages with key 'order-123' will land in the same partition\nproducer.send(new ProducerRecord<>(\"orders\", \"order-123\", \"payload\"));"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is assuming that increasing the number of partitions for an existing topic is a 'free' operation. If you change the partition count, the mapping of keys to partitions changes (hash % new_count), which will break the ordering of messages for existing keys. Always ensure your partitioning strategy is finalized before production traffic hits, or be prepared to handle out-of-order events in your downstream consumers."
+    }
+  ],
+  "num": 938,
+  "title": "How does Kafka guarantee message ordering? (Within a partition)",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

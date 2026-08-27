@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern cloud-native software architecture, virtualization has evolved from heavy hypervisor-based virtual machines to lightweight, OS-level virtualization. Docker is the dominant containerization platform that allows developers to package applications with all their runtime dependencies—such as binaries, configuration files, and libraries—into a single, portable unit. The core engine leverages Linux kernel features like namespaces for process isolation and control groups (cgroups) for resource constraint enforcement, enabling applications to run reliably across heterogeneous environments from a local developer's MacBook to a massive Kubernetes cluster in AWS.\n\nTo understand Docker fundamentally, one must distinguish between a Docker Image and a Docker Container. A Docker Image is an immutable, read-only template composed of stacked read-only layers that defines how a containerized application should be built and executed. It is built from a declarative text file called a Dockerfile. Conversely, a Docker Container is the runtime instantiation of a Docker Image. When you run an image, Docker adds a thin, writable container layer on top of the immutable image layers, allocating a private network stack, process space, and isolated filesystem. Multiple isolated containers can be spun up simultaneously from the exact same base image without interfering with one another."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Docker Image",
+        "Docker Container"
+      ],
+      "rows": [
+        [
+          "State",
+          "Immutable, read-only template",
+          "Mutable, active runtime instance"
+        ],
+        [
+          "Lifecycle",
+          "Static file stored in a registry (e.g., Docker Hub)",
+          "Ephemeral, runs, stops, and can be destroyed easily"
+        ],
+        [
+          "Storage Layer",
+          "Stacked read-only layers",
+          "Read-only layers + top writable thin layer"
+        ],
+        [
+          "Analogy",
+          "A class definition in Object-Oriented Programming",
+          "An instantiated object object in memory"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Image Layers and Union File Systems: Docker images use copy-on-write (CoW) strategies via Union File Systems (like OverlayFS). Each instruction in a Dockerfile creates a new read-only layer. If multiple images share common base layers, Docker caches them on disk, drastically reducing storage and network transmission footprints.",
+        "Process Namespace Isolation: When a container starts, it receives its own Process ID (PID) namespace. Processes running inside the container see PID 1 as their root application process, completely blind to host-level processes or other sibling containers running on the same machine.",
+        "Cgroups and Resource Governance: Control groups monitor and throttle CPU, memory, block I/O, and network bandwidth usage per container, ensuring that a memory-leaking Java application inside one container cannot starve the host node or adjacent containers of system resources."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "version: '3.8'\nservices:\n  app:\n    image: openjdk:17-jdk-slim\n    container_name: production-springboot-service\n    ports:\n      - \"8080:8080\"\n    environment:\n      - SPRING_PROFILES_ACTIVE=prod\n    deploy:\n      resources:\n        limits:\n          cpus: '2.0'\n          memory: 2G\n    restart: always"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha is treating containers like persistent virtual machines. Because the container's writable layer is ephemeral, any data written directly inside the container filesystem is permanently lost when the container stops or crashes. Always externalize state by mounting Docker Volumes or bind mounts for database files, logs, and uploaded assets."
+    }
+  ],
+  "num": 1129,
+  "title": "What is Docker? Image vs Container?",
+  "category": "Testing, Observability & Cloud Native"
+}

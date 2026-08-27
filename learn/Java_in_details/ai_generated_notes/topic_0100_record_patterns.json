@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Record Patterns, introduced as a preview feature in Java 19 and finalized in Java 21 via JEP 440, radically enhance data navigation by allowing developers to deconstruct aggregate data types—specifically records—directly within pattern matching contexts like `instanceof` and `switch` expressions. Historically, once a developer verified an object's type via `instanceof`, they were forced to cast the reference and explicitly invoke accessor methods to extract state fields, leading to verbose, repetitive boilerplate code. Record patterns solve this by lifting the structural definition of a record into the pattern syntax itself, allowing the compiler to automatically match the runtime type, check its components recursively, and bind those extracted components to local variables in a single atomic operation."
+    },
+    {
+      "type": "prose",
+      "content": "Beneath the surface, record patterns leverage the compiler's rigorous understanding of a record class's nominal shape and component order. When a record pattern is compiled, the JVM verifies that the target object implements the record contract and invokes the underlying component accessor methods implicitly to extract state. Furthermore, Java supports nested record patterns, enabling developers to deconstruct complex, hierarchical domain models in a single clean expression without chaining intermediate null-checks or explicit casts. This dramatically aligns object-oriented encapsulation with functional data-processing paradigms, making domain models easier to query and transform."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Context",
+        "Legacy Approach (Java 8-15)",
+        "Modern Record Patterns (Java 21+)"
+      ],
+      "rows": [
+        [
+          "Type Checking & Extraction",
+          "Explicit `instanceof` check followed by a downcast and multiple getter calls.",
+          "Combined type test and state deconstruction in a single pattern matching construct."
+        ],
+        [
+          "Nested Object Navigation",
+          "Deep nested null checks, sequential casting, and temporary variable assignments.",
+          "Recursive pattern matching allowing nested record deconstruction in one line."
+        ],
+        [
+          "Compiler Safety",
+          "Manual type casting risks `ClassCastException` if types drift or assertions fail.",
+          "Exhaustive compile-time checks and type inference for bound pattern variables."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Record patterns can be unnamed using the underscore character (`_`) in Java 21+ for components whose values are irrelevant to the subsequent execution branch, preventing unused variable compiler warnings.",
+        "When used inside `switch` blocks, record patterns ensure type safety and can be checked for exhaustiveness, forcing the compiler to verify that all permitted record subtypes or variations are handled.",
+        "Nested record patterns allow matching against inner records recursively, translating structurally into chained component extractions managed entirely by the bytecode generator."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public sealed interface Shape permits Circle, Rectangle {}\npublic record Point(int x, int y) {}\npublic record Circle(Point center, int radius) implements Shape {}\npublic record Rectangle(Point topLeft, int width, int height) implements Shape {}\n\npublic class ShapeAnalyzer {\n    public static void describeShape(Shape shape) {\n        switch (shape) {\n            case Circle(Point(var x, var y), var r) -> \n                System.out.println(\"Circle at (\" + x + \", \" + y + \") with radius \" + r);\n            case Rectangle(Point(var x, var y), var w, var h) -> \n                System.out.println(\"Rectangle at (\" + x + \", \" + y + \") with dimensions \" + w + \"x\" + h);\n            default -> \n                System.out.println(\"Unknown shape\");\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Watch out for null-handling semantics when dealing with record patterns in `instanceof` and `switch`. Just like traditional `instanceof` checks, if the target reference is `null`, the record pattern evaluates to `false` and will not throw a `NullPointerException` (unlike legacy explicit casting). However, passing a `null` value directly into a `switch` statement without an explicit `case null` label will still throw an NPE, even if record patterns are present."
+    }
+  ],
+  "num": 101,
+  "title": "Record Patterns",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

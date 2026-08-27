@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Foreign Function and Memory API, developed under Project Panama, represents a monumental shift in how Java interacts with native code and off-heap memory. Historically, Java developers relied on the legacy Java Native Interface (JNI) and sun.misc.Unsafe to bridge the gap between the JVM and native libraries or custom memory allocations. JNI is notoriously difficult to write, prone to native memory leaks, hard to debug, and requires tedious C-header generation and compilation steps. Furthermore, sun.misc.Unsafe exposes internal JVM internals without safety guarantees, leading to severe security vulnerabilities and JVM crashes.\n\nProject Panama replaces these outdated mechanisms with a modern, pure-Java, type-safe API consisting of two primary pillars: the Foreign Memory Access API (for allocating and operating on off-heap memory safely) and the Foreign Function API (for invoking native libraries without writing custom C/C++ glue code). By utilizing abstractions like MemorySegment, Arena, SymbolLookup, and Linker, developers can safely manage non-JVM memory lifecycles and interact with native C libraries directly from bytecode with performance approaching that of native invocations."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Legacy JNI",
+        "Foreign Function & Memory API (Project Panama)"
+      ],
+      "rows": [
+        [
+          "Safety",
+          "High risk of JVM crashes, buffer overflows, and segmentation faults.",
+          "Type-safe, bounds-checked, explicit temporal and spatial ownership."
+        ],
+        [
+          "Ease of Use",
+          "Requires C/C++ header files, dynamic link libraries, and JNI boilerplate.",
+          "Pure Java API utilizing method handles, lambdas, and Panama descriptors."
+        ],
+        [
+          "Memory Management",
+          "Manual tracking via native malloc/free or ByteBuffer wrappers.",
+          "Managed deterministic lifecycles using Scoped Arenas and MemorySegments."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "MemorySegment provides spatial and temporal bounds, ensuring that off-heap memory cannot be accessed out-of-bounds or after its owning arena has been closed.",
+        "Arena controls the lifecycle of memory segments. Using Arena.ofConfined() or Arena.ofShared(), developers enforce deterministic deallocation, preventing native memory leaks.",
+        "Linker and SymbolLookup replace JNI's native method binding by dynamically looking up native symbols and binding them to standard java.lang.invoke.MethodHandle instances.",
+        "MemoryLayout allows developers to declare structural layouts (structs, unions, arrays) in Java code, making native data marshaling declarative rather than manual byte manipulation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.lang.foreign.*;\nimport java.lang.invoke.MethodHandle;\n\npublic class PanamaDemo {\n    public static void main(String[] args) throws Throwable {\n        // 1. Open a confined arena for deterministic memory management\n        try (Arena arena = Arena.ofConfined()) {\n            // 2. Allocate off-heap memory for a C string\n            MemorySegment nativeString = arena.allocateUtf8String(\"Hello from Project Panama!\");\n            \n            // 3. Look up the standard C library and 'puts' function\n            SymbolLookup stdlib = Linker.nativeLinker().defaultLookup();\n            MemorySegment putsAddress = stdlib.find(\"puts\").orElseThrow();\n            \n            // 4. Link the native function using a downcall descriptor\n            Linker linker = Linker.nativeLinker();\n            MethodHandle puts = linker.downcallHandle(\n                putsAddress,\n                FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS)\n            );\n            \n            // 5. Invoke the native function safely\n            int result = (int) puts.invoke(nativeString);\n            System.out.println(\"Native puts returned: \" + result);\n        } // Arena closes automatically, freeing native memory safely\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "When working with the Foreign Function & Memory API, be extremely cautious with shared arenas across multiple threads. While Arena.ofShared() allows concurrent safe access, improper synchronization outside the API can lead to race conditions if a thread closes the arena while another thread is still reading or writing to a MemorySegment. Always scope your resource lifecycles tightly using try-with-resources blocks to prevent native memory exhaustion."
+    }
+  ],
+  "num": 107,
+  "title": "Foreign Function & Memory API (Project Panama)",
+  "category": "Exception Handling & I/O / NIO"
+}

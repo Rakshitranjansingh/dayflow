@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Handling webhooks safely in a distributed, asynchronous environment requires addressing two critical pillars: signature verification and retry policies. When a third-party service dispatches an HTTP POST request to your ingestion endpoint, you are exposing an unauthenticated entry point to the world. Without signature verification, bad actors can spoof payloads, leading to unauthorized state transitions, data corruption, or denial-of-service vectors. Signature verification relies on a cryptographic MAC—typically HMAC-SHA256—where the sender signs the payload body using a shared secret key, attaching the digest to an HTTP header like X-Hub-Signature. Your receiving service must recompute this HMAC using the raw incoming request bytes and perform a constant-time comparison to prevent timing attacks.\n\nSimultaneously, network partitions, upstream application crashes, or downstream database deadlocks will cause webhook deliveries to fail. A robust system must establish fault-tolerant retry policies combined with idempotency mechanisms. Because webhook providers (such as Stripe, GitHub, or Shopify) operate on an at-least-once delivery guarantee, your ingestion pipeline will inevitably receive duplicate events. Implementing exponential backoff with jitter prevents thundering herd problems when downstream systems recover, while idempotency keys stored in a transactional datastore ensure that processing the exact same event payload multiple times yields a single, consistent business outcome."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Cryptographic Validation: Always read the raw, unparsed request body as a byte array or String before any framework body-mapping deserialization occurs. Modifying whitespace, JSON indentation, or character encodings will invalidate the HMAC-SHA256 signature.",
+        "Constant-Time Comparison: Use MessageDigest.isEqual() or Arrays.equals() rather than standard string equality checks to mitigate side-channel timing attacks that allow attackers to guess signatures byte by byte.",
+        "Idempotency Guard: Cache the unique event identifier (UUID) provided by the webhook payload header in a Redis or SQL unique constraint table with a Time-To-Live (TTL) to safely discard duplicate deliveries.",
+        "Retry Jitter and Dead Letter Queues (DLQ): If processing fails with a transient exception, respond with an HTTP 5xx status code to trigger the provider's retry schedule, while permanently malformed payloads (4xx errors) should immediately route to a DLQ for manual inspection."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/webhooks\")\npublic class WebhookController {\n\n    private static final String SIGNATURE_HEADER = \"X-Signature-256\";\n    private static final String SECRET = \"whsec_production_secret_key\";\n\n    @PostMapping(\"/stripe\")\n    public ResponseEntity<String> handleWebhook(\n            @RequestHeader(value = SIGNATURE_HEADER, required = false) String signature,\n            @RequestBody byte[] rawPayload) {\n        \n        if (signature == null || !verifySignature(rawPayload, signature)) {\n            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(\"Invalid signature\");\n        }\n\n        try {\n            // Process event idempotently\n            processEvent(rawPayload);\n        } catch (TransientDataAccessException e) {\n            // Return 5xx to prompt provider retry\n            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(\"Database busy, retry later\");\n        } catch (Exception e) {\n            // Return 4xx for unrecoverable errors to prevent infinite loops\n            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(\"Malformed payload\");\n        }\n\n        return ResponseEntity.ok(\"Received\");\n    }\n\n    private boolean verifySignature(byte[] payload, String receivedSignature) {\n        try {\n            Mac sha256Hmac = Mac.getInstance(\"HmacSHA256\");\n            SecretKeySpec secretKey = new SecretKeySpec(SECRET.getBytes(StandardCharsets.UTF_8), \"HmacSHA256\");\n            sha256Hmac.init(secretKey);\n            byte[] hashBytes = sha256Hmac.doFinal(payload);\n            String computedSignature = HexFormat.of().formatHex(hashBytes);\n            \n            // Constant-time comparison\n            return MessageDigest.isEqual(\n                computedSignature.getBytes(StandardCharsets.UTF_8),\n                receivedSignature.replace(\"sha256=\", \"\").getBytes(StandardCharsets.UTF_8)\n            );\n        } catch (Exception e) {\n            return false;\n        }\n    }\n\n    private void processEvent(byte[] payload) {\n        // Idempotency check and business logic execution\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production failure mode occurs when a Spring Boot application uses Jackson to automatically deserialize the body parameter before signature verification, or when a servlet filter intercepts and reads the InputStream. Because standard Servlet InputStreams can only be read once, consuming the stream prematurely leaves the controller's @RequestBody empty, causing signature verification to fail due to an empty byte array. Always use a ContentCachingRequestWrapper or explicitly extract raw bytes from the request reader prior to binding object graphs."
+    }
+  ],
+  "num": 1289,
+  "title": "How do you handle Webhooks safely? (Signature verification, retry policies)",
+  "category": "Exception Handling & I/O / NIO"
+}

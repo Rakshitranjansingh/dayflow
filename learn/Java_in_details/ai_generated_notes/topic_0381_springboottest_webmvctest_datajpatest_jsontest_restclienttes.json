@@ -1,0 +1,69 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Spring Boot development, writing tests that provide rapid feedback without sacrificing fidelity requires slicing the application context rather than booting the entire monolithic runtime for every test suite. Spring Boot introduces sliced testing annotations (@SpringBootTest, @WebMvcTest, @DataJpaTest, @JsonTest, and @RestClientTest) to solve this exact architectural pain point. Instead of loading every single bean from your configuration classes, each annotation instructs the Spring TestContext Framework to load a customized subset of the ApplicationContext tailored to a specific integration layer.\n\nThe @SpringBootTest annotation acts as the heaviest hammer in your testing arsenal, loading the complete ApplicationContext—including embedded databases, message queues, and all service beans—to mimic full-stack runtime behavior. Conversely, sliced annotations isolate architectural boundaries. @WebMvcTest strips away data access layers and security configuration by default, focusing exclusively on the Spring MVC infrastructure, controllers, filter chains, and handler mappings. @DataJpaTest pivots to the persistence layer, configuring an embedded in-memory database, registering Hibernate, Spring Data repositories, and entity managers while ignoring web controllers. @JsonTest provisions only Jackson ObjectMapper components and JSON serializers/deserializers for precise payload validation. Finally, @RestClientTest locks down HTTP client testing by configuring RestTemplateBuilder and MockRestServiceServer for contract testing external API consumers."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Annotation",
+        "Primary Context Slice",
+        "Default Database Behavior",
+        "Included Components"
+      ],
+      "rows": [
+        [
+          "@SpringBootTest",
+          "Full ApplicationContext",
+          "Depends on config / Real DB",
+          "All beans, services, controllers, repositories"
+        ],
+        [
+          "@WebMvcTest",
+          "MVC Infrastructure",
+          "None",
+          "Controllers, @ControllerAdvice, Filters, MockMvc"
+        ],
+        [
+          "@DataJpaTest",
+          "Persistence Layer",
+          "Embedded (H2/HSQL) by default",
+          "Entities, Spring Data Repositories, DataSource"
+        ],
+        [
+          "@JsonTest",
+          "JSON Serialization",
+          "None",
+          "Jackson ObjectMapper, @JsonComponent beans"
+        ],
+        [
+          "@RestClientTest",
+          "HTTP Clients",
+          "None",
+          "RestTemplateBuilder, MockRestServiceServer, @JsonTest components"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "@DataJpaTest automatically wraps each test method in a transaction and rolls it back by default, preventing state leakage between test executions while interacting with the database.",
+        "@WebMvcTest disables full auto-configuration and scans only for @Controller, @ControllerAdvice, JsonComponent, Converter, and GenericConverter, requiring explicit MockBean definitions for collaborator services.",
+        "@SpringBootTest with webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT spins up a real embedded servlet container (Tomcat/Jetty), enabling end-to-end integration testing using RestAssured or TestRestTemplate."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@DataJpaTest\nclass UserRepositoryTest {\n\n    @Autowired\n    private TestEntityManager entityManager;\n\n    @Autowired\n    private UserRepository userRepository;\n\n    @Test\n    void whenFindByUsername_thenReturnUser() {\n        User user = new User(\"jane_doe\", \"jane@example.com\");\n        entityManager.persistAndFlush(user);\n\n        Optional<User> found = userRepository.findByUsername(\"jane_doe\");\n        \n        assertThat(found).isPresent();\n        assertThat(found.get().getEmail()).isEqualTo(\"jane@example.com\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha with @DataJpaTest is that it enables transaction rollback by default, which can mask database constraints like missing @Column(nullable = false) exceptions that only surface during actual transaction commits. Furthermore, overusing @SpringBootTest across dozens of test classes forces Spring to continuously recreate the entire ApplicationContext, drastically inflating CI/CD build times. Always prefer sliced tests when validating isolated architectural layers."
+    }
+  ],
+  "num": 382,
+  "title": "@SpringBootTest, @WebMvcTest, @DataJpaTest, @JsonTest, @RestClientTest",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

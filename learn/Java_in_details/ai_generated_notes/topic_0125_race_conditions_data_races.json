@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In concurrent programming, understanding the distinction and intersection between race conditions and data races is paramount for building robust, thread-safe Java applications. A data race occurs specifically when two or more threads concurrently access the same memory location, at least one of these accesses is a write, and there is no synchronization or happens-before relationship ordering them. At the CPU and memory subsystem levels, data races trigger undefined behavior because modern processor architectures, caches, and memory controllers aggressively reorder instructions, write-buffer flushes, and speculative executions. \n\nOn the other hand, a race condition is a semantic flaw in the execution sequence of a program where the correctness of the result depends on the relative timing or interleaving of threads. While a data race is a hardware and low-level memory model violation, a race condition is an algorithmic bug. You can have a race condition without a data race—for instance, when two threads acquire and release a mutex correctly around individual checks and updates, but the aggregate window between releasing the first lock and acquiring the second allows another thread to invalidate the underlying business invariant. Conversely, data races can exist in benign scenarios (like double-checked locking without volatile prior to Java 5), but they typically corrupt heap state, yielding garbage reads or lost updates."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Data Race",
+        "Race Condition"
+      ],
+      "rows": [
+        [
+          "Definition",
+          "Concurrent accesses to the same variable, at least one write, no synchronization.",
+          "Program correctness depends on execution timing or thread interleaving."
+        ],
+        [
+          "Memory Model Impact",
+          "Violates the Java Memory Model (JMM), causing visibility and ordering failures.",
+          "May respect JMM atomicity and visibility, yet fail due to logical interleavings."
+        ],
+        [
+          "Prevention",
+          "Use volatile, synchronized, atomic variables, or locks to establish happens-before.",
+          "Use higher-level atomic compound operations, transactional boundaries, or domain locking."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Java Memory Model (JMM) relies on a strict 'happens-before' consistency model. Without explicit synchronization primitives, writes made by one thread are entirely unobservable to another due to CPU register caching and store buffers.",
+        "Data races break out-of-order execution safety guarantees, leading to object corruption where partially constructed objects or half-written 64-bit values (like longs and doubles without volatile) are exposed across threads.",
+        "Race conditions frequently manifest as TOCTOU (Time-Of-Check to Time-Of-Use) bugs, where a boolean state check passes, but the state changes immediately before the execution step that relies on that state."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class Counter {\n    private long count = 0; // Prone to data race and race condition\n    private final Object lock = new Object();\n\n    // Unsafe: Data race on 'count'\n    public void incrementUnsafe() {\n        count++; // Read-modify-write is not atomic\n    }\n\n    // Safe: Eliminates both data race and race condition\n    public void incrementSafe() {\n        synchronized (lock) {\n            count++; // Establishes happens-before and mutual exclusion\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Developers often assume that using AtomicLong or volatile fields completely eradicates race conditions. While volatile and Atomic primitives prevent data races by enforcing visibility and atomic single-variable updates, compound actions like 'if (map.containsKey(k)) map.put(k, v)' are still vulnerable to race conditions because the check and the put are not executed under a single atomic lock boundary."
+    }
+  ],
+  "num": 126,
+  "title": "Race conditions, data races",
+  "category": "Multithreading & Java Concurrency"
+}

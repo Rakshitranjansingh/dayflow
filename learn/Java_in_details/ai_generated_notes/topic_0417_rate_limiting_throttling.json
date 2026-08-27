@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In high-throughput distributed systems, Rate limiting and Throttling are crucial defensive patterns employed to protect backend infrastructure, database engines, and upstream microservices from being overwhelmed by catastrophic traffic spikes or malicious denial-of-service attempts. Rate limiting refers to the strict enforcement of a maximum request capacity within a sliding or fixed temporal window—rejecting excess payloads immediately with an HTTP 429 Too Many Requests status code. Throttling, while frequently conflated, generally implies a queueing or delaying strategy where excess requests are not instantly dropped, but instead buffered or artificially delayed to smooth out traffic bursts into a predictable, manageable processing stream.\n\nImplementing these mechanisms in Core Java requires careful consideration of thread synchronization, lock contention, memory footprints, and multi-node coordination. Simple single-node implementations often leverage concurrent atomic primitives or specialized data structures like concurrent queues, whereas production-grade distributed architectures require backing stores like Redis paired with Lua scripts to achieve atomic multi-instance rate checks. Understanding the mathematical bounds and concurrency overhead of algorithms such as Token Bucket, Leaky Bucket, and Sliding Window Counters is a mandatory skill for preventing catastrophic cascading failures in large-scale enterprise applications."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Algorithm / Pattern",
+        "Traffic Shape Handling",
+        "Memory Complexity",
+        "Burst Allowance"
+      ],
+      "rows": [
+        [
+          "Token Bucket",
+          "Smooths traffic while allowing configurable burst capacity",
+          "O(1) per bucket instance",
+          "Yes"
+        ],
+        [
+          "Leaky Bucket",
+          "Strictly outputs a constant, smoothed processing rate",
+          "O(N) based on queue capacity",
+          "No (excess queued or dropped)"
+        ],
+        [
+          "Fixed Window Counter",
+          "Resets limits at hard time intervals; prone to boundary spikes",
+          "O(1) per key",
+          "Yes (up to 2x at boundaries)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Token Bucket algorithm maintains a counter of tokens that replenish at a constant refill rate up to a maximum bucket capacity, consuming one or more tokens per incoming request and immediately rejecting requests if insufficient tokens remain.",
+        "The Leaky Bucket algorithm queues incoming bursts into a First-In-First-Out (FIFO) structure, processing items at a fixed, constant outflow rate which inherently flattens traffic profiles at the cost of increased tail latency.",
+        "Sliding Window Log and Sliding Window Counter approaches solve the boundary spike vulnerability of fixed windows by tracking exact timestamps or computing weighted averages across overlapping sub-windows."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.atomic.AtomicLong;\nimport java.util.concurrent.locks.Lock;\nimport java.util.concurrent.locks.ReentrantLock;\n\npublic final class TokenBucketRateLimiter {\n    private final long capacity;\n    private final long refillTokensPerSecond;\n    private double availableTokens;\n    private long lastRefillTimestamp;\n    private final Lock lock = new ReentrantLock();\n\n    public TokenBucketRateLimiter(long capacity, long refillTokensPerSecond) {\n        this.capacity = capacity;\n        this.refillTokensPerSecond = refillTokensPerSecond;\n        this.availableTokens = capacity;\n        this.lastRefillTimestamp = System.nanoTime();\n    }\n\n    public boolean tryConsume(long tokens) {\n        lock.lock();\n        try {\n            refill();\n            if (availableTokens >= tokens) {\n                availableTokens -= tokens;\n                return true;\n            }\n            return false;\n        } finally {\n            lock.unlock();\n        }\n    }\n\n    private void refill() {\n        long now = System.nanoTime();\n        long elapsedTimeMicros = (now - lastRefillTimestamp) / 1_000;\n        lastRefillTimestamp = now;\n        \n        double tokensToAdd = (elapsedTimeMicros * refillTokensPerSecond) / 1_000_000.0;\n        availableTokens = Math.min(capacity, availableTokens + tokensToAdd);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Beware of synchronized lock contention in high-concurrency Java services when implementing in-memory rate limiters. Using a global ReentrantLock across all incoming threads will bottleneck your application on multi-core hardware. For ultra-low latency requirements, prefer lock-free atomic CAS loops or partition your limiters by client identifier (e.g., User ID or API Key) using a ConcurrentHashMap with segmented striping."
+    }
+  ],
+  "num": 418,
+  "title": "Rate limiting / Throttling",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of high-scale JVM applications, observability is the ability to understand the internal state of a system based solely on its external outputs. Logs, metrics, and traces form the 'three pillars' that provide a holistic view of system health. Logs are discrete, timestamped events that capture specific application state changes or errors, providing the 'why' behind a failure. Metrics are numerical representations of data measured over intervals, such as JVM heap usage or request latency, providing the 'what'—the trend-based health of the system. Traces, specifically distributed traces, track the causal path of a request as it traverses microservices, providing the 'where'—identifying exactly which component or network hop is introducing latency or failure."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Pillar",
+        "Primary Use Case",
+        "Data Cardinality"
+      ],
+      "rows": [
+        [
+          "Logs",
+          "Debugging specific errors",
+          "High (Unstructured/Semi-structured)"
+        ],
+        [
+          "Metrics",
+          "Alerting and capacity planning",
+          "Low (Aggregated numbers)"
+        ],
+        [
+          "Traces",
+          "Latency bottleneck analysis",
+          "High (Contextual spans)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Logs: In Java, these are typically handled via SLF4J/Logback. High-volume logging can cause significant I/O blocking and GC pressure due to String allocation; use asynchronous appenders to mitigate this.",
+        "Metrics: Powered by Micrometer, these rely on gauges, counters, and histograms. They are periodically scraped by systems like Prometheus. Avoid high-cardinality labels (e.g., user IDs) in metrics to prevent memory exhaustion in the time-series database.",
+        "Traces: Implemented via OpenTelemetry, these use 'Trace IDs' and 'Span IDs' injected into ThreadLocals or Context objects. They allow you to reconstruct the call graph across asynchronous boundaries, such as CompletableFutures or Message Queues."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Example of correlating logs with traces using MDC\nimport org.slf4j.MDC;\n\npublic void processRequest(Request req) {\n    String traceId = Span.current().getSpanContext().getTraceId();\n    MDC.put(\"traceId\", traceId);\n    try {\n        log.info(\"Processing request: {}\", req.getId());\n        meterRegistry.counter(\"requests.processed\").increment();\n        // Business logic here\n    } finally {\n        MDC.remove(\"traceId\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common production failure in observability is 'Log Injection' or 'Metric Cardinality Explosion'. Never log raw user input without sanitization, and never attach dynamic, unbounded values (like UUIDs or timestamps) as labels in your Micrometer metrics; doing so will crash your Prometheus instance or fill your disk with high-cardinality data that is impossible to aggregate."
+    }
+  ],
+  "num": 424,
+  "title": "The three pillars of observability — logs, metrics, traces",
+  "category": "Core Java & Fundamentals"
+}

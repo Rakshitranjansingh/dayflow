@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing resilient enterprise endpoints requires a defense-in-depth architecture covering API security, rate limiting, input validation, and request signing. API security forms the perimeter, ensuring that only authenticated and authorized actors can traverse the network boundary. However, relying solely on identity assertions is insufficient; malicious or erratic clients can overwhelm downstream microservices. This is where rate limiting steps in as a traffic-shaping mechanism, enforcing strict quotas on throughput over sliding windows using distributed data stores like Redis to prevent Denial of Service (DoS) and brute-force attacks. Parallel to rate limiting, input validation acts as the first line of defense against injection vulnerabilities (SQLi, XSS, Deserialization). By leveraging Bean Validation (JSR-380) and custom sanitizers, we ensure that incoming JSON payloads adhere to rigid structural and semantic contracts before hitting service layers. Finally, request signing secures communication channels between trusted systems or mobile clients and APIs. Through cryptographic HMAC (Hash-based Message Authentication Code) signatures or asymmetric digital signatures, request signing guarantees authenticity, payload integrity, and non-repudiation, thwarting man-in-the-middle (MitM) and replay attacks by validating timestamps and nonces."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Security Mechanism",
+        "Primary Threat Addressed",
+        "Implementation Layer",
+        "Performance Impact"
+      ],
+      "rows": [
+        [
+          "Rate Limiting",
+          "DoS, Brute-force, Resource Exhaustion",
+          "API Gateway / Filter Chain",
+          "Low (O(1) Redis lookups)"
+        ],
+        [
+          "Input Validation",
+          "Injection (SQLi, XSS), Malformed Payloads",
+          "Controller / Domain Model",
+          "Negligible (Regex / AST parsing)"
+        ],
+        [
+          "Request Signing",
+          "MitM, Replay Attacks, Payload Tampering",
+          "Interceptor / Filter Layer",
+          "Moderate (Cryptographic hashing/signatures)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Rate limiting algorithms like Token Bucket, Leaky Bucket, and Fixed/Sliding Window Counters dictate how client traffic is measured. Sliding window logs stored in Redis sorted sets (ZREMRANGEBYSCORE, ZADD, ZCARD) provide high precision without race conditions if wrapped in Lua scripts.",
+        "Input validation must happen at the boundary before mapping to domain objects. Relying on annotations like @NotNull, @Size, and @Pattern is standard, but nested objects require the @Valid cascade annotation to prevent partial validation bypass.",
+        "Request signing relies on concatenating canonicalized HTTP components (method, URI, query parameters, timestamp, nonce, and payload hash) and signing them with a shared secret via HmacSHA256. The server must recompute the signature and compare it in constant time (MessageDigest.isEqual) to prevent timing attacks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/v1/secure\")\n@Validated\npublic class SecureDataController {\n\n    @PostMapping\n    public ResponseEntity<String> processSecureData(\n            @RequestHeader(\"X-Signature\") String clientSignature,\n            @RequestHeader(\"X-Timestamp\") long timestamp,\n            @Valid @RequestBody SecurePayload payload) {\n        \n        // Guard against replay attacks (e.g., 5-minute window tolerance)\n        if (Math.abs(System.currentTimeMillis() - timestamp) > 300000) {\n            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(\"Request expired\");\n        }\n\n        return ResponseEntity.ok(\"Processed successfully\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in rate limiting is implementing check-then-act logic without atomic operations, causing race conditions in distributed clusters. Always execute rate-limiting checks via atomic Redis Lua scripts. For request signing, never use standard String.equals() for signature verification, as it leaks timing information; always use MessageDigest.isEqual() to ensure constant-time byte comparisons."
+    }
+  ],
+  "num": 287,
+  "title": "API security — rate limiting, input validation, request signing",
+  "category": "Spring Security & Web Security"
+}

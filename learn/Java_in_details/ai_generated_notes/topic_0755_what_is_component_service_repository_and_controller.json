@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Framework, @Component, @Service, @Repository, and @Controller are specialized stereotypes used for auto-detection and dependency injection via classpath scanning. At their core, they are all meta-annotated with @Component, meaning the Spring IoC container treats them as managed beans. The primary purpose of these annotations is to provide semantic meaning to the architecture, allowing developers to categorize classes based on their role within an application's layered design. @Component is the generic stereotype for any Spring-managed component; @Service is intended for the business logic layer, where it often serves as a facade for transactional boundaries; @Repository is the specialized marker for the Data Access Object (DAO) layer, which automatically enables translation of platform-specific exceptions (like SQLException) into Spring's DataAccessException hierarchy; and @Controller is the entry point for web requests, signaling to the DispatcherServlet that the class should be evaluated for request mapping."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Annotation",
+        "Primary Layer",
+        "Special Behavior"
+      ],
+      "rows": [
+        [
+          "@Component",
+          "Generic",
+          "None (Base stereotype)"
+        ],
+        [
+          "@Service",
+          "Business Logic",
+          "Semantic marker for transactions"
+        ],
+        [
+          "@Repository",
+          "Persistence",
+          "Exception translation"
+        ],
+        [
+          "@Controller",
+          "Web/API",
+          "Request mapping integration"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Classpath Scanning: When @ComponentScan is triggered, Spring uses an ASM-based ClassMetadataReadingVisitor to inspect bytecode for these annotations without actually loading the classes into the JVM, optimizing startup time.",
+        "Bean Naming Strategy: By default, Spring assigns a bean name using the decapitalized class name (e.g., 'userService' for 'UserService'). This can be overridden explicitly via the annotation value.",
+        "Exception Translation: The @Repository annotation enables a BeanPostProcessor that wraps persistence-related beans in a proxy, catching native database exceptions and re-throwing them as Spring's unchecked DataAccessException, ensuring consistent error handling across different ORM providers.",
+        "AOP Proxies: Because these beans are managed by the container, they are eligible for AOP proxying. This is critical for @Service classes, where @Transactional annotations rely on proxy-based interception to manage commit/rollback cycles."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Repository\npublic class UserRepository {\n    private final JdbcTemplate jdbcTemplate;\n\n    public UserRepository(JdbcTemplate jdbcTemplate) {\n        this.jdbcTemplate = jdbcTemplate;\n    }\n\n    public User findById(Long id) {\n        return jdbcTemplate.queryForObject(\"SELECT * FROM users WHERE id = ?\", \n            new BeanPropertyRowMapper<>(User.class), id);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is assuming these annotations are purely cosmetic. While they are functionally interchangeable for dependency injection, using the wrong one breaks Spring's exception translation and AOP features. Specifically, if you omit @Repository on a DAO, you lose the automatic translation of vendor-specific SQL exceptions, making your service layer tightly coupled to the underlying database driver's error codes."
+    }
+  ],
+  "num": 756,
+  "title": "What is @Component, @Service, @Repository, and @Controller?",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Java 21 introduces Structured Concurrency (Preview) and Scoped Values as transformative paradigms designed to replace error-prone, unstructured asynchronous programming models like ExecutorService and CompletableFuture. Structured concurrency treats groups of related concurrent tasks running in different threads as a single unit of work, ensuring robust cancellation propagation, error handling, and clean lexical lifetimes. Simultaneously, Scoped Values provide a modern, immutable, and thread-safe alternative to ThreadLocal variables. While ThreadLocal allows mutable data to be shared globally within a thread, it suffers from severe memory leaks, unbounded mutability, and high overhead when dealing with millions of virtual threads. Scoped Values bind a value to a specific code block, guaranteeing that the data is strictly immutable, securely bound, and automatically reclaimed as soon as the scope exits, making them uniquely suited for high-throughput, virtual-thread-based architectures."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Structured Concurrency (StructuredTaskScope)",
+        "Scoped Values (ScopedValue)"
+      ],
+      "rows": [
+        [
+          "Primary Goal",
+          "Treat multiple concurrent tasks as a single structural unit of execution.",
+          "Safely and efficiently share immutable execution context across methods without method parameter passing."
+        ],
+        [
+          "Lifecycle",
+          "Bounded by the lexical block of the try-with-resources scope.",
+          "Bounded by the execution block of ScopedValue.where().run() or call()."
+        ],
+        [
+          "Mutability",
+          "N/A (manages task lifecycles, futures, and subtasks)",
+          "Strictly immutable once bound; cannot be reassigned within the scope."
+        ],
+        [
+          "Thread Alignment",
+          "Designed to orchestrate both platform and virtual threads seamlessly.",
+          "Optimized for virtual threads, avoiding the memory overhead of ThreadLocal maps."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "StructuredTaskScope enforces a strict containment rule: child threads spawned within a scope must complete before the scope's block exits, preventing runaway threads and resource leaks.",
+        "When using StructuredTaskScope.ShutdownOnFailure, the failure of any subtask automatically signals cancellation to all other concurrent subtasks, cutting short unnecessary CPU cycles and I/O operations.",
+        "Scoped Values utilize a carrier-thread-based underlying binding mechanism that scales effortlessly to millions of virtual threads, contrasting sharply with ThreadLocal's per-thread ThreadLocalMap which frequently causes OOM errors under high thread churn."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import jdk.incubator.concurrent.StructuredTaskScope;\nimport jdk.incubator.concurrent.ScopedValue;\n\npublic class OrderService {\n    private static final ScopedValue<String> TRANSACTION_ID = ScopedValue.newInstance();\n\n    public OrderResult processOrder(OrderRequest request) throws Exception {\n        return ScopedValue.where(TRANSACTION_ID, request.transactionId()).call(() -> {\n            try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {\n                var userFuture = scope.fork(() -> fetchUser(request.userId()));\n                var inventoryFuture = scope.fork(() -> checkInventory(request.itemId()));\n                \n                scope.join();          // Join all subtasks\n                scope.throwIfFailed(); // Propagate exceptions if any failed\n                \n                return new OrderResult(userFuture.get(), inventoryFuture.get());\n            }\n        });\n    }\n\n    private User fetchUser(String userId) { return new User(userId); }\n    private Inventory checkInventory(String itemId) { return new Inventory(itemId);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Because Structured Concurrency and Scoped Values are heavily tied to Project Loom's virtual threads, never use blocking synchronization primitives like synchronized blocks or legacy ReentrantLocks inside ScopedValue scopes if they trigger pin-ning. Pinning forces the virtual thread to monopolize its carrier thread, defeating the massive throughput advantages you gain by combining structured concurrency with Scoped Values."
+    }
+  ],
+  "num": 637,
+  "title": "(Java 21) Structured Concurrency (Preview) and Scoped Values.",
+  "category": "Multithreading & Java Concurrency"
+}

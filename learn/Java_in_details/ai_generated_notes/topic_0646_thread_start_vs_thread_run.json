@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java multithreading, understanding the profound architectural difference between Thread.start() and Thread.run() is a foundational requirement for any senior engineer. When developers begin writing concurrent code, a common novice pitfall is directly invoking the run() method of a Thread instance or a Runnable implementation, expecting asynchronous execution. However, calling run() directly executes the code synchronously on the current thread—completely bypassing the Java Virtual Machine's thread lifecycle management, OS-level thread creation, and memory barrier establishment.\n\nTo understand why this happens, we must examine the internal machinery of Thread.start(). When you invoke start(), it triggers a native JNI (Java Native Interface) call into the JVM runtime, which allocates a new native OS thread, sets up its dedicated execution stack, transitions the thread state to RUNNABLE, and then calls the run() method internally within that newly minted execution context. Conversely, calling run() directly is nothing more than a standard, synchronous method invocation. No new thread is spawned, no scheduler interaction occurs, and your application logic blocks the caller thread entirely until the run() method completes."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Aspect",
+        "Thread.start()",
+        "Thread.run()"
+      ],
+      "rows": [
+        [
+          "Thread Creation",
+          "Spawns a new native OS thread via JVM native code",
+          "Executes synchronously on the current calling thread"
+        ],
+        [
+          "JVM State Transition",
+          "Moves thread state from NEW to RUNNABLE",
+          "No state change occurs; existing thread stays in its current state"
+        ],
+        [
+          "Multiple Invocations",
+          "Throws IllegalThreadStateException if called more than once",
+          "Can be called repeatedly as a normal Java method"
+        ],
+        [
+          "Concurrency",
+          "Achieves true hardware-level parallelism / concurrency",
+          "Strictly sequential execution"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Native Interfacing: Thread.start() invokes a private native method, start0(), which interfaces directly with the host operating system's thread creation API (such as pthread_create on Unix/Linux systems).",
+        "Memory Visibility and Happens-Before: Calling start() establishes a critical happens-before relationship defined in the Java Language Specification. Any actions taken by the thread before start() are visible to the new thread when it begins execution, ensuring safe publication of shared state.",
+        "The IllegalThreadStateException Trap: The Thread class maintains an internal thread status integer. Once start() has successfully transitioned a thread, invoking start() a second time on the same instance triggers an IllegalThreadStateException to prevent undefined behavior and resource leakage."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ThreadExecutionDemo {\n    public static void main(String[] args) {\n        Runnable task = () -> {\n            System.out.println(\"Running on thread: \" + Thread.currentThread().getName());\n        };\n\n        Thread worker = new Thread(task, \"Worker-Thread\");\n\n        // CORRECT: Spawns a new OS thread and executes asynchronously\n        worker.start();\n\n        // INCORRECT: Executes synchronously on the 'main' thread!\n        // worker.run();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: One of the most insidious bugs in concurrent systems occurs when developers wrap heavy processing or blocking I/O inside a Runnable and accidentally invoke .run() instead of .start() during a refactoring pass. The code will still compile and execute successfully, but it will run completely single-threaded, destroying system throughput and causing subtle latency spikes or thread starvation in surrounding frameworks."
+    }
+  ],
+  "num": 647,
+  "title": "Thread.start() vs Thread.run()?",
+  "category": "Multithreading & Java Concurrency"
+}

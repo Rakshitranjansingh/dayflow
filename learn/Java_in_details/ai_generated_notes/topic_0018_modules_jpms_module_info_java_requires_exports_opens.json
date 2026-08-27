@@ -1,0 +1,88 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Before Java 9, the JVM relied entirely on the flat classpath model. This model suffered from two critical architectural flaws: 'JAR hell' (where missing or duplicate classes were only discovered at runtime via NoClassDefFoundError) and the complete lack of strong encapsulation (where any public class in any JAR could be accessed by any other class, even if it was intended as an internal implementation detail). The Java Platform Module System (JPMS), introduced in JDK 9, solved these issues by introducing a first-class module abstraction on top of the packages. JPMS enforces reliable configuration at JVM startup and strong encapsulation at both compile time and runtime."
+    },
+    {
+      "type": "prose",
+      "content": "At the heart of a module is its descriptor, a file named module-info.java compiled into module-info.class at the root of the module's package hierarchy. This file explicitly declares the module's identity, its dependencies on other modules using the 'requires' directive, and the API surface it exposes to the outside world. To expose packages, developers use 'exports' for compile-time and runtime access, or 'opens' to permit runtime-only deep reflection. This granular control prevents consumers from coupling their code to unstable internal APIs, allowing library maintainers to refactor internal code safely."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Directive",
+        "Compile-Time Access",
+        "Runtime Direct Access",
+        "Runtime Deep Reflection",
+        "Typical Use Case"
+      ],
+      "rows": [
+        [
+          "requires",
+          "Allowed (only for exported packages of target)",
+          "Allowed (only for exported packages of target)",
+          "Allowed (if target package is opened/exported)",
+          "Declaring a dependency on another module."
+        ],
+        [
+          "requires transitive",
+          "Allowed (propagates readability to consumers)",
+          "Allowed (propagates readability to consumers)",
+          "Allowed",
+          "Declaring a dependency that is part of this module's public API signature."
+        ],
+        [
+          "exports",
+          "Allowed for public types",
+          "Allowed for public types",
+          "Allowed for public types (no private access)",
+          "Exposing a clean, public API package to all consumers."
+        ],
+        [
+          "exports ... to",
+          "Allowed only for specified modules",
+          "Allowed only for specified modules",
+          "Allowed only for specified modules",
+          "Exposing internal APIs to companion or friend modules within the same library."
+        ],
+        [
+          "opens",
+          "Denied",
+          "Denied",
+          "Allowed for all types (including private members)",
+          "Allowing dependency injection, serialization, or ORM frameworks to inspect private fields."
+        ],
+        [
+          "opens ... to",
+          "Denied",
+          "Denied",
+          "Allowed only for specified modules",
+          "Allowing a specific framework (e.g., Spring or Jackson) to reflectively access domain models."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Reliable Configuration (The Module Graph): At JVM startup, the runtime resolves the dependency graph defined by 'requires' directives. If any dependency is missing, or if there are cyclic dependencies, the JVM fails immediately. This eliminates runtime ClassNotFoundExceptions mid-execution.",
+        "Strong Encapsulation & Accessible Object: JPMS fundamentally changes the behavior of java.lang.reflect.AccessibleObject.setAccessible(). If a package is not 'opened' or 'exported' by its module, calling setAccessible(true) on its private members from another module will throw an InaccessibleObjectException at runtime.",
+        "Split Packages Prohibition: JPMS strictly forbids split packages. Two different modules cannot define classes within the exact same package name (e.g., both defining classes in com.example.utility). If a split package is detected on the modulepath, the JVM will refuse to start.",
+        "Implied Readability (transitive): If Module A 'requires transitive' Module B, any Module C that 'requires' Module A automatically reads Module B. This prevents consumers from having to explicitly require transitive dependencies of the APIs they use.",
+        "Static Dependencies (requires static): This directive declares a compile-time mandatory but runtime-optional dependency. It is highly useful for optional integrations, such as logging frameworks or code-generation tools that are not needed at runtime."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// File: path/to/src/com.enterprise.billing/module-info.java\nmodule com.enterprise.billing {\n    // Mandatory dependency needed at both compile and runtime\n    requires java.sql;\n\n    // Compile-time dependency only (optional at runtime)\n    requires static lombok;\n\n    // Dependency is required, and any module requiring com.enterprise.billing\n    // will automatically read com.enterprise.common\n    requires transitive com.enterprise.common;\n\n    // Expose this public API package to any module that requires us\n    exports com.enterprise.billing.api;\n\n    // Restrict access of this internal package to a specific friend module\n    exports com.enterprise.billing.internal.core to com.enterprise.billing.test;\n\n    // Prevent compile-time coupling, but allow Spring/Hibernate to perform deep reflection\n    opens com.enterprise.billing.model to spring.core, org.hibernate.orm.core;\n}"
+    },
+    {
+      "type": "note",
+      "content": "A major production pitfall when migrating legacy applications to JDK 17+ is the strict enforcement of strong encapsulation. JDK 16+ closed the '--illegal-access' loophole, meaning libraries that rely on deep reflection into JDK internals (like unsafe or internal string formatting) will crash. If you cannot upgrade the offending library, you must use command-line escape hatches like '--add-opens java.base/java.lang=ALL-UNNAMED' or '--add-exports' to manually punch holes in the module boundaries at startup. Relying on these flags should be a temporary stopgap, as they bypass the safety guarantees of the JPMS."
+    }
+  ],
+  "num": 19,
+  "title": "Modules (JPMS) — module-info.java, requires, exports, opens",
+  "category": "Core Java & Fundamentals"
+}

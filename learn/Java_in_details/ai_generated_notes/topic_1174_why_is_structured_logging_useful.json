@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In traditional enterprise Java applications, logging has historically meant dumping unstructured string concatenations into a file via SLF4J or Logback. While human-readable, these text blocks are notoriously difficult to parse automatically when scaling across distributed cloud architectures. Structured logging solves this fundamental observability problem by forcing log entries to emit as self-contained data structures, most commonly JSON, where every piece of contextual data—such as user IDs, correlation IDs, or database execution times—is stored as a distinct, typed key-value pair rather than buried inside a free-form message string.\n\nBy treating logs as structured telemetry rather than raw text, downstream log ingestion pipelines like Elasticsearch, Fluentd, and Grafana Loki can index, filter, and aggregate application events instantaneously. This eliminates the reliance on fragile, error-prone regular expressions (regex) during log aggregation. When an exception occurs, a structured log preserves the stack trace as an array or nested object alongside transactional metadata, drastically reducing Mean Time To Resolution (MTTR) during incident investigations in high-throughput production environments."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Indexability: Key-value fields are indexed natively by log search engines, enabling sub-second multi-dimensional filtering (e.g., status=500 AND tenantId='acme').",
+        "Context Propagation: Using Slf4j's MDC (Mapped Diagnostic Context) with JSON appenders allows automatic propagation of distributed tracing identifiers across asynchronous thread boundaries and thread pools.",
+        "Payload Minimization & Schema Consistency: Enforces explicit field naming conventions across microservices, preventing downstream parsing breakage caused by developers altering log message strings."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\nimport org.slf4j.MDC;\n\npublic class OrderProcessor {\n    private static final Logger log = LoggerFactory.getLogger(OrderProcessor.class);\n\n    public void processOrder(String orderId, long userId) {\n        MDC.put(\"orderId\", orderId);\n        MDC.put(\"userId\", String.valueOf(userId));\n        \n        try {\n            long startTime = System.currentTimeMillis();\n            // Business logic execution...\n            long duration = System.currentTimeMillis() - startTime;\n            \n            log.info(\"Order processed successfully durationMs={}\", duration);\n        } catch (Exception e) {\n            log.error(\"Failed to process order\", e);\n        } finally {\n            MDC.clear();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Never log high-cardinality data or personally identifiable information (PII) improperly into structured log keys. Furthermore, be careful when using MDC across reactive pipelines (like Project Reactor or Spring WebFlux); thread-local storage does not automatically cross reactive operator boundaries, meaning you must explicitly propagate context using hooks like subscriberContext or contextWrite."
+    }
+  ],
+  "num": 1175,
+  "title": "Why is structured logging useful?",
+  "category": "Core Java & Fundamentals"
+}

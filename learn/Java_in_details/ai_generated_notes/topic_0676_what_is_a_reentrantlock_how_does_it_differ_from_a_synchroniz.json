@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java concurrency, a ReentrantLock is an explicit, mutually exclusive lock implementation provided by the java.util.concurrent.locks package. The term 'reentrant' indicates that the thread currently holding the lock can repeatedly acquire it without deadlocking itself, matching the reentrant behavior of the traditional synchronized keyword. When a thread successfully acquires the lock, an internal hold count increments; each corresponding unlock operation decrements this count until it reaches zero, at which point the lock is fully released to other competing threads. This capability is foundational for recursive algorithms or nested methods that require synchronized access.\n\nThe core differentiator between a ReentrantLock and a synchronized block lies in flexibility, advanced features, and control flow. While synchronized blocks are fully managed by the JVM via monitor enters and exits tied to lexical scopes, ReentrantLocks are implemented entirely as Java classes leveraging AbstractQueuedSynchronizer (AQS). This empowers ReentrantLocks to offer features unavailable in synchronized blocks, such as timed lock acquisition attempts, interruptible lock waits, fairness configuration options, and multiple condition variables per lock instance. Understanding when to deploy ReentrantLock versus synchronized is a critical milestone for building high-throughput, low-contention concurrent systems."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Attribute",
+        "synchronized block",
+        "ReentrantLock"
+      ],
+      "rows": [
+        [
+          "Implementation Mechanism",
+          "JVM Monitor (Object headers / bytecode monitorenter/exit)",
+          "Java API (AbstractQueuedSynchronizer / CAS operations)"
+        ],
+        [
+          "Scope & Release",
+          "Strictly lexical; automatically released when block exits",
+          "Explicit; must be explicitly released in a finally block"
+        ],
+        [
+          "Fairness Policy",
+          "Non-fair only (JVM dependent queue ordering)",
+          "Configurable: Supports both Fair and Non-fair modes"
+        ],
+        [
+          "Interruptibility",
+          "Cannot be interrupted while waiting for the lock",
+          "Supports lock acquisition via lockInterruptibly()"
+        ],
+        [
+          "Timed Attempts",
+          "Not supported (blocks indefinitely)",
+          "Supported via tryLock(long timeout, TimeUnit unit)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "AbstractQueuedSynchronizer (AQS) Foundation: ReentrantLock delegates its locking and synchronization mechanics to an internal AQS subclass (Sync). The AQS state variable represents the current hold count, utilizing atomic Compare-And-Swap (CAS) operations to manipulate the synchronization state and manage a FIFO wait queue of parked threads.",
+        "Fair vs. Non-Fair Modes: By default, ReentrantLocks are non-fair, meaning a newly arriving thread can barge in and acquire the lock ahead of queued threads, maximizing throughput at the risk of thread starvation. Fair locks check hasQueuedPredecessors() to strictly enforce FIFO ordering, trading throughput for guaranteed execution fairness.",
+        "Condition Variables via Condition Object: Unlike synchronized blocks which rely on a single, implicit monitor wait set via Object.wait() and Object.notify(), a ReentrantLock can create multiple Condition instances using newCondition(). This allows developers to partition waiting threads into distinct wait-sets for fine-grained signaling control."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.locks.Lock;\nimport java.util.concurrent.locks.ReentrantLock;\nimport java.util.concurrent.TimeUnit;\n\npublic class ResourceController {\n    private final Lock lock = new ReentrantLock(true); // Fair lock\n\n    public void performCriticalTask() {\n        try {\n            // Try to acquire the lock within 3 seconds, making it interruptible\n            if (lock.tryLock(3, TimeUnit.SECONDS)) {\n                try {\n                    // Critical section execution\n                    System.out.println(Thread.currentThread().getName() + \" acquired the lock.\");\n                } finally {\n                    lock.unlock(); // Mandatory: always release in finally\n                }\n            } else {\n                System.out.println(Thread.currentThread().getName() + \" could not acquire lock.\");\n            }\n        } catch (InterruptedException e) {\n            Thread.currentThread().interrupt();\n            System.err.println(\"Thread interrupted while waiting for lock.\");\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most catastrophic production bug associated with ReentrantLock is failing to release the lock inside a try-finally block. If an exception occurs in the critical section before unlock() is called, and the lock is not wrapped in a try-finally structure, the lock will remain permanently acquired, causing an unrecoverable thread starvation deadlock across your entire application. Always place the lock() call immediately before the try block, and unlock() as the very first statement inside the finally block."
+    }
+  ],
+  "num": 677,
+  "title": "What is a ReentrantLock? How does it differ from a synchronized block?",
+  "category": "Multithreading & Java Concurrency"
+}

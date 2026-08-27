@@ -1,0 +1,50 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern Java application design, particularly when dealing with data processing pipelines, transformation layers, and I/O streams, function composition serves as a foundational paradigm for building modular and maintainable code. The java.util.function.Function interface provides two primary default methods for chaining operations: andThen and compose. These methods allow developers to glue together unary operations into complex pipelines without resorting to deep nested method calls or mutable intermediate states.\n\nThe andThen method executes the current function first, taking its output and passing it directly as the input to the subsequent function provided as an argument. Conversely, the compose method executes the argument function first, using its output as the input for the current function. When dealing with Exception Handling and I/O or NIO streams, these composition constructs enable clean separation of concerns, letting you isolate data transformation logic from side effects, buffering, or error recovery wrappers."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Method",
+        "Execution Order",
+        "Signature",
+        "Use Case"
+      ],
+      "rows": [
+        [
+          "andThen",
+          "f.andThen(g): f(x) runs first, then g(f(x))",
+          "default <V> Function<T, V> andThen(Function<? super R, ? extends V> after)",
+          "Sequential data transformations where step A naturally precedes step B."
+        ],
+        [
+          "compose",
+          "f.compose(g): g(x) runs first, then f(g(x))",
+          "default <V> Function<V, R> compose(Function<? super V, ? extends T> before)",
+          "Wrapping operations, normalization, or applying pre-processing adapters."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Function composition chains create a new composite function instance that delegates execution dynamically, preserving referential transparency as long as the underlying functions are stateless.",
+        "When chaining with andThen or compose in I/O contexts, exception propagation behaves strictly synchronously; if an exception is thrown in any link of the chain, downstream execution halts immediately."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.nio.charset.StandardCharsets;\nimport java.util.Base64;\nimport java.util.function.Function;\n\npublic class IoFunctionComposition {\n    public static void main(String[] args) {\n        Function<String, byte[]> toBytes = s -> s.getBytes(StandardCharsets.UTF_8);\n        Function<byte[], String> base64Encode = b -> Base64.getEncoder().encodeToString(b);\n        Function<String, String, String> prependHeader = header -> (String data) -> header + \": \" + data;\n\n        // Using andThen to chain transformation: String -> bytes -> Base64 string\n        Function<String, String> securePipeline = toBytes.andThen(base64Encode);\n        \n        // Using compose: applies base64 encoding before prepending the header\n        Function<String, String> finalPipeline = prependHeader.apply(\"AUTH\").compose(securePipeline);\n\n        String result = finalPipeline.apply(\"secret-payload\");\n        System.out.println(result);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha when using andThen and compose chains in high-throughput I/O or NIO pipelines is compounding memory allocations. If each composed function creates intermediate wrapper objects (like boxing primitives or allocating transient byte arrays), the garbage collector will experience high pressure under load. Ensure your composed functions operate on primitive specializations (like IntFunction or ToIntFunction) where applicable, and be wary of checked exceptions, which standard java.util.function interfaces do not support natively without boilerplate try-catch wrappers."
+    }
+  ],
+  "num": 110,
+  "title": "Function composition — andThen, compose chains",
+  "category": "Exception Handling & I/O / NIO"
+}

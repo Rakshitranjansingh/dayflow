@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java testing with Mockito, writing clean unit tests requires orchestrating dependencies cleanly without manual object-graph instantiation. When testing service layers that depend on multiple repositories or clients, developers rely on Mockito annotations to automate test-double creation and wiring. Specifically, `@Mock`, `@InjectMocks`, and `@Spy` form the cornerstone of dependency management in test classes, each serving a fundamentally distinct purpose in how real or stubbed bytecode interacts under the hood.\n\nThe `@Mock` annotation creates a bare-metal mock of a specified class or interface. A mock has no real behavior by default; all non-void methods return default values (like null, 0, or false), and method invocations are intercepted by Mockito's invocation dispatcher rather than executing original code. The `@InjectMocks` annotation tackles the inverse problem: it instantiates the target class under test and attempts to inject all declared `@Mock` or `@Spy` fields into it via constructor injection, setter injection, or field reflection. Finally, the `@Spy` annotation wraps an existing real object. Unlike a mock, a spy executes real method logic when called unless explicitly stubbed using `doReturn().when()`, allowing developers to selectively mock specific behaviors of a concrete implementation while preserving the rest of its stateful execution."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Annotation",
+        "Default Behavior",
+        "Real Methods Executed?",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "@Mock",
+          "Returns empty/null defaults",
+          "No (fully stubbed)",
+          "Isolating collaborating dependencies (e.g., Repositories, REST clients)"
+        ],
+        [
+          "@InjectMocks",
+          "Instantiates target class and wires dependencies",
+          "Depends on underlying fields",
+          "Wiring dependencies into the class under test automatically"
+        ],
+        [
+          "@Spy",
+          "Wraps real object instance",
+          "Yes (unless explicitly stubbed)",
+          "Partial mocking of legacy classes or stateful components"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "@InjectMocks relies heavily on constructor injection first. If a matching constructor is found, Mockito passes the resolved mocks into it. If no suitable constructor exists, it falls back to setter injection and finally direct field reflection.",
+        "When using @Spy, calling `when(spyInstance.method()).thenReturn(value)` can occasionally throw an exception if the real method is executed during the stubbing phase before `when()` intercepts it; always use `doReturn(value).when(spyInstance).method()` instead.",
+        "Mockito annotations require initialization hooks to function. This is typically achieved by annotating the test class with `@ExtendWith(MockitoExtension.class)` in JUnit 5 or calling `MockitoAnnotations.openMocks(this)` in a `@BeforeEach` method."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@ExtendWith(MockitoExtension.class)\nclass OrderServiceTest {\n\n    @Mock\n    private OrderRepository orderRepository;\n\n    @Spy\n    private PriceCalculator priceCalculator = new PriceCalculator();\n\n    @InjectMocks\n    private OrderService orderService;\n\n    @Test\n    void shouldCalculateTotalWithDiscount() {\n        Order order = new Order(1L, 100.0);\n        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));\n        \n        // Using doReturn for spy to avoid executing real method during stubbing\n        doReturn(10.0).when(priceCalculator).calculateTax(anyDouble());\n\n        double finalTotal = orderService.processOrder(1L);\n\n        assertEquals(110.0, finalTotal);\n        verify(orderRepository).findById(1L);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap with @InjectMocks is assuming it performs deep or transitive dependency injection. Mockito only injects mocks into the immediate fields of the class annotated with @InjectMocks; it does not recursively wire mocks into dependencies of dependencies. If your service requires a collaborative tree, you must manually construct the sub-dependencies or refactor your design."
+    }
+  ],
+  "num": 1155,
+  "title": "Mockito: @Mock vs @InjectMocks vs @Spy?",
+  "category": "Testing, Observability & Cloud Native"
+}

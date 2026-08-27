@@ -1,0 +1,65 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "As Java applications evolved from blocking, thread-per-request models to asynchronous, non-blocking architectures, the concurrency APIs underwent a massive transformation. At the foundational tier sits Future, introduced in Java 5, which offered a handle to the result of an asynchronous computation but lacked any mechanism for manual completion, chaining, or combining results without blocking the calling thread via the dreaded get() method. To bridge this gap, FutureTask was implemented as a concrete, hybrid construct that implements both Runnable and Future, encapsulating a Callable task that can be executed by an Executor or a raw Thread while managing state transitions from NEW to COMPLETING, NORMAL, EXCEPTIONAL, CANCELLED, or INTERRUPTING. However, both Future and FutureTask fall short when orchestrating complex dependency graphs of asynchronous workflows.\n\nEnter CompletableFuture, introduced in Java 8, which revolutionized asynchronous programming in the JVM by implementing both Future and CompletionStage. It allows developers to write declarative, fluent pipelines of asynchronous computations. Instead of waiting for tasks sequentially, CompletableFuture provides a rich DSL of combinators and processors. Methods like thenCompose allow for flat-mapping dependent asynchronous tasks (equivalent to a monadic flatMap), preventing nested futures like CompletableFuture<CompletableFuture<T>>. Meanwhile, thenCombine joins two independent futures once both complete, applying a BiFunction to their results. Error handling is elegantly managed via exceptionally for fallback recovery, handle for processing both normal outcomes and exceptions uniformly, and whenComplete for inspecting the outcome without mutating the resulting payload. Mastering these tools is essential for building high-throughput, latency-sensitive reactive systems on the JVM without exhausting thread pools."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Class",
+        "Future",
+        "FutureTask",
+        "CompletableFuture"
+      ],
+      "rows": [
+        [
+          "Manual Completion",
+          "No (Only via task execution)",
+          "No (Only via task execution)",
+          "Yes (complete(), completeExceptionally())"
+        ],
+        [
+          "Composition (Chaining)",
+          "No",
+          "No",
+          "Yes (thenApply, thenCompose, thenCombine)"
+        ],
+        [
+          "Exception Handling",
+          "Throws ExecutionException on get()",
+          "Throws ExecutionException on get()",
+          "Non-blocking recovery (exceptionally, handle)"
+        ],
+        [
+          "Default Executor",
+          "N/A (Interface)",
+          "Runs on calling thread or executor",
+          "ForkJoinPool.commonPool() (customizable)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "FutureTask internal state machine relies on a Treiber stack of WaitNodes to park and unpark threads efficiently via LockSupport.park() when threads call get() before computation finishes.",
+        "CompletableFuture operates on a dual-node Treiber stack structure (stack for dependent actions) where completion triggers actions either synchronously on the completing thread, asynchronously via the default ForkJoinPool, or using a custom Executor-suffixed variant (e.g., thenApplyAsync).",
+        "thenCompose is structurally identical to monadic flatMap; it takes a function returning a CompletionStage and flattens the resulting nested stage automatically into a single flat output stage.",
+        "thenCombine accepts another CompletionStage and a BiFunction, executing the combiner function only after both upstream stages complete successfully, regardless of which finishes first.",
+        "handle versus whenComplete: handle takes a BiFunction receiving both (result, exception) and returns a new transformed value, whereas whenComplete takes a BiConsumer for side-effects (logging, metrics) and passes through the original result or exception downstream."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.CompletableFuture;\nimport java.util.concurrent.ExecutorService;\nimport java.util.concurrent.Executors;\n\npublic class AsyncPipelineDemo {\n    private static final ExecutorService pool = Executors.newFixedThreadPool(4);\n\n    public static CompletableFuture<String> fetchUserData(String userId) {\n        return CompletableFuture.supplyAsync(() -> {\n            if (userId == null || userId.isBlank()) {\n                throw new IllegalArgumentException(\"Invalid User ID\");\n            }\n            return \"User:\" + userId;\n        }, pool);\n    }\n\n    public static CompletableFuture<Double> fetchUserCreditScore(String user) {\n        return CompletableFuture.supplyAsync(() -> 750.0, pool);\n    }\n\n    public static void main(String[] args) {\n        CompletableFuture<String> pipeline = fetchUserData(\"U123\")\n            .thenCompose(user -> fetchUserCreditScore(user)\n                .thenCombine(CompletableFuture.completedFuture(2.0), (score, multiplier) -> score * multiplier)\n                .thenApply(finalScore -> \"User U123 Final Score: \" + finalScore))\n            .exceptionally(ex -> \"Fallback processing due to: \" + ex.getMessage());\n\n        System.out.println(pipeline.join());\n        pool.shutdown();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production gotcha with CompletableFuture is omitting the Executor parameter in async methods (e.g., supplyAsync, thenApplyAsync). By default, these methods offload work to ForkJoinPool.commonPool(). In I/O bound applications or heavily loaded microservices, this can starve the common pool—which is shared across the entire JVM for parallel streams and completable futures—leading to cascading latency spikes and thread exhaustion. Always pass a bounded, domain-specific ThreadPoolExecutor to your asynchronous stages."
+    }
+  ],
+  "num": 139,
+  "title": "Future, FutureTask, CompletableFuture deep dive (thenCompose, thenCombine, exceptionally, handle, whenComplete)",
+  "category": "Multithreading & Java Concurrency"
+}

@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java, the distinction between the '==' operator and the '.equals()' method is a foundational concept that dictates how we handle object identity versus logical equivalence. The '==' operator is a primitive comparison tool that, when applied to reference types, performs a shallow check: it evaluates whether two references point to the exact same memory address on the JVM heap. If both variables hold the same pointer, '==' returns true. Conversely, '.equals()' is a method defined in the java.lang.Object class, intended to be overridden to provide a custom definition of 'equality' based on the internal state of an object. While the default implementation of '.equals()' in the Object class simply delegates to '==', robust production code overrides this to compare field values, ensuring that two distinct object instances containing identical data are treated as logically equivalent."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "== Operator",
+        ".equals() Method"
+      ],
+      "rows": [
+        [
+          "Target",
+          "Memory address (Reference)",
+          "Object content (State)"
+        ],
+        [
+          "Applicability",
+          "Primitives and References",
+          "References only"
+        ],
+        [
+          "Customizability",
+          "Fixed by language spec",
+          "Overridable via @Override"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The '==' operator is a compile-time instruction that maps directly to bytecode instructions like 'if_acmpeq' for references or 'if_icmpeq' for integers, making it extremely fast but strictly limited to identity.",
+        "When overriding '.equals()', you must adhere to the contract defined in the Object class: it must be reflexive, symmetric, transitive, consistent, and handle nulls by returning false.",
+        "The String pool optimization in Java causes '==' to return true for string literals that share the same interned memory address, which often leads to dangerous bugs when developers assume this behavior extends to strings created via 'new String()'.",
+        "Failing to override 'hashCode()' when overriding '.equals()' breaks the contract for hash-based collections like HashMap and HashSet, leading to silent data loss where objects cannot be retrieved despite being 'equal'."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class User {\n    private final String id;\n\n    @Override\n    public boolean equals(Object o) {\n        if (this == o) return true;\n        if (o == null || getClass() != o.getClass()) return false;\n        User user = (User) o;\n        return id.equals(user.id);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Never use '==' for String comparison unless you are explicitly performing reference checking for optimization (e.g., interning). Always prefer '.equals()' for content comparison. Furthermore, when comparing a variable against a literal, always place the literal on the left side (e.g., '\"constant\".equals(variable)') to leverage the literal's null-safety and avoid a NullPointerException if the variable is null."
+    }
+  ],
+  "num": 484,
+  "title": "What is the difference between == and .equals()?",
+  "category": "Core Java & Fundamentals"
+}

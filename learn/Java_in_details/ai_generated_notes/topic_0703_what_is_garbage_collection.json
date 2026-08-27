@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Garbage Collection (GC) is the automated memory management process within the Java Virtual Machine (JVM) that identifies and reclaims heap memory occupied by objects that are no longer reachable by the application. In languages like C++, developers manually manage memory via malloc and free, which introduces risks like dangling pointers and memory leaks. The JVM abstracts this complexity by utilizing a reachability-based model, where the GC periodically traverses the object graph starting from 'GC Roots'—such as active thread stacks, static variables, and JNI references. If an object cannot be reached through any chain of references from these roots, it is considered 'garbage' and eligible for reclamation.\n\nModern JVMs implement generational garbage collection based on the 'Weak Generational Hypothesis,' which posits that most objects die young. Consequently, the heap is partitioned into the Young Generation (Eden and Survivor spaces) and the Old Generation (Tenured space). Minor GCs focus on the Young Generation, where high turnover allows for efficient copying-based collection, while Major or Full GCs handle the Old Generation, typically involving more expensive mark-sweep-compact algorithms. The primary goal of any GC implementation is to minimize 'Stop-the-World' (STW) pauses, where application threads are suspended to ensure memory consistency during the collection cycle."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "GC Algorithm",
+        "Primary Goal",
+        "Trade-off"
+      ],
+      "rows": [
+        [
+          "G1 GC",
+          "Predictable latency",
+          "Higher memory overhead"
+        ],
+        [
+          "ZGC",
+          "Sub-millisecond pauses",
+          "Higher CPU usage"
+        ],
+        [
+          "Parallel GC",
+          "Maximum throughput",
+          "Longer STW pauses"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Mark Phase: The collector identifies all reachable objects by tracing references from GC Roots, marking them as 'live' in a bitmap or object header.",
+        "Sweep Phase: The collector scans the heap to identify memory segments not marked as live, effectively reclaiming the space for future allocations.",
+        "Compaction: To prevent memory fragmentation, the collector moves live objects to a contiguous block of memory, updating all internal references to point to the new addresses.",
+        "Write Barriers: In concurrent collectors like G1 or ZGC, the JVM uses write barriers—small snippets of code injected during object reference updates—to maintain the consistency of the object graph while the application is running."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Example of triggering a GC hint (not recommended for production)\n// The JVM decides when to collect based on heap pressure and allocation rates.\npublic void forceCollection() {\n    System.gc(); // Suggests a Full GC, but does not guarantee immediate execution\n}\n\n// Monitoring GC via JVM arguments\n// -Xlog:gc*:file=gc.log:time,uptime,level,tags"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Avoid the temptation to call System.gc() in production code. It triggers a Full GC, which is a 'Stop-the-World' event that can freeze your application for hundreds of milliseconds or even seconds. If you find yourself needing to force collection, you are likely suffering from a memory leak (e.g., static collections holding onto stale references) or your heap size is misconfigured for your allocation rate. Always profile with tools like JVisualVM or JMC before attempting to tune GC parameters."
+    }
+  ],
+  "num": 704,
+  "title": "What is garbage collection?",
+  "category": "JVM Architecture & Memory Tuning"
+}

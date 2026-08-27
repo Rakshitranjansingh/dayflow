@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise systems architecture, a transaction is an indivisible unit of work composed of one or more sequential read or write operations against a stateful resource, most commonly a relational database management system. When multiple concurrent clients execute operations that mutate shared data, protecting the consistency of the underlying storage engine becomes paramount. Without transactions, partial failures—such as a network timeout occurring midway through a multi-table balance transfer—would leave the system in a corrupted, indeterminate state. Transactions solve this by defining a strict boundary of execution where either all constituent operations successfully commit to non-volatile storage, or the entire block is entirely rolled back, reverting the state as if the execution never occurred.\n\nThe theoretical and practical foundation of reliable transaction management rests upon the ACID properties: Atomicity, Consistency, Isolation, and Durability. Atomicity dictates that a transaction is an all-or-nothing proposition; if a single statement fails, the entire transaction aborts. Consistency guarantees that any transaction will transition the database from one valid state to another, strictly adhering to all defined invariants, foreign keys, and domain constraints. Isolation ensures that concurrently executing transactions appear to run sequentially, preventing race conditions like dirty reads, non-repeatable reads, and phantom reads. Finally, Durability guarantees that once a transaction has successfully committed, its modifications survive system crashes, power outages, and kernel panics, typically achieved through write-ahead logging (WAL) mechanisms."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "ACID Property",
+        "Core Guarantee",
+        "Underlying Mechanism"
+      ],
+      "rows": [
+        [
+          "Atomicity",
+          "All operations succeed or all are rolled back",
+          "Undo Logs / Rollback Segments"
+        ],
+        [
+          "Consistency",
+          "Database invariants and constraints are never violated",
+          "Check constraints, Foreign Keys, Triggers"
+        ],
+        [
+          "Isolation",
+          "Concurrent transactions do not interfere with each other",
+          "MVCC, Shared/Exclusive Locks, Isolation Levels"
+        ],
+        [
+          "Durability",
+          "Committed data is permanently saved",
+          "Write-Ahead Logging (WAL) / Redo Logs / fsync"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Atomicity is enforced at the storage engine layer by maintaining undo logs. If a transaction rolls back, the database engine traverses the undo log in reverse order, applying inverse operations to restore original field values.",
+        "Consistency is primarily a semantic guarantee upheld by application logic and database schema definitions, though the database engine prevents constraint violations by rejecting offending statements.",
+        "Isolation is managed via Multi-Version Concurrency Control (MVCC) and locking protocols (Two-Phase Locking). Different isolation levels (Read Committed, Repeatable Read, Serializable) trade off concurrency for strictness.",
+        "Durability relies on flushing transaction logs from volatile OS page caches to non-volatile disk storage via system calls like fsync() before a commit acknowledgment is returned to the client."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Transactional(propagation = Propagation.REQUIRED, isolation = Isolation.REPEATABLE_READ, rollbackFor = Exception.class)\npublic void executeTransfer(Long sourceAccountId, Long targetAccountId, BigDecimal amount) {\n    Account source = accountRepository.findByIdForUpdate(sourceAccountId)\n        .orElseThrow(() -> new AccountNotFoundException(\"Source not found\"));\n    \n    if (source.getBalance().compareTo(amount) < 0) {\n        throw new InsufficientFundsException(\"Balance too low\");\n    }\n    \n    accountRepository.decrementBalance(sourceAccountId, amount);\n    accountRepository.incrementBalance(targetAccountId, amount);\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production pitfall when dealing with ACID transactions in enterprise Java frameworks (like Spring) is the self-invocation trap. Because Spring implements declarative transactions using dynamic proxies (JDK dynamic proxies or CGLIB), calling a @Transactional method from another method within the *same* class bypasses the proxy entirely, causing the transaction configuration—and thereby ACID guarantees—to be silently ignored."
+    }
+  ],
+  "num": 859,
+  "title": "What is a transaction? What are ACID properties? Explain each.",
+  "category": "Exception Handling & I/O / NIO"
+}

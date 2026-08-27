@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Boot Actuator is a production-ready module that exposes operational metrics, application health, system information, and execution details over HTTP or JMX. In any enterprise microservice architecture, monitoring uptime, tracking resource utilization, and querying operational states are mandatory for safe orchestration. Actuator addresses this by injecting battle-tested endpoints directly into the Spring Boot runtime application context. These endpoints include health for diagnostics and load balancer probing, metrics for monitoring heap allocations, garbage collection rates, and CPU utilization via Micrometer, and info for printing static build metadata like git commit hashes or artifact versions. Furthermore, Spring Boot allows developers to write custom endpoints using annotations like @ReadOperation, @WriteOperation, and @DeleteOperation to expose domain-specific operational controls safely.\n\nBecause Actuator endpoints reveal sensitive internal details, securing them with Spring Security is non-negotiable. Without strict protection, exposing management ports to the public internet invites catastrophic data leaks, ranging from environment variable exposure to remote execution vectors. Spring Security integrates seamlessly with the Actuator web infrastructure (supporting both Servlet and Reactive stacks) through security filter chains. By mapping precise role-based access control or OAuth2 scope requirements against endpoint IDs such as /actuator/health, /actuator/metrics, and custom management beans, platform engineers can safely compartmentalize access between internal Prometheus scrapers, external Kubernetes liveness probes, and unauthorized public traffic."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Endpoint",
+        "Primary Purpose",
+        "Default Exposure Status"
+      ],
+      "rows": [
+        [
+          "/actuator/health",
+          "Aggregates application component statuses (DB, disk, ping)",
+          "Exposed (often restricted payload)"
+        ],
+        [
+          "/actuator/metrics",
+          "Exposes time-series performance data via Micrometer",
+          "Hidden (Not exposed by default)"
+        ],
+        [
+          "/actuator/info",
+          "Displays arbitrary metadata from property sources or git.properties",
+          "Exposed"
+        ],
+        [
+          "Custom Endpoints",
+          "Executes user-defined operational logic via custom management beans",
+          "Hidden (Requires explicit configuration)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Health checks run through a HealthIndicator interface tree, supporting composite health aggregation where down states propagate upward to fail Kubernetes readiness probes.",
+        "Metrics are collected via Micrometer abstraction layers, supporting dimensional metric naming and backend tag bindings for Prometheus, Datadog, and Dynatrace.",
+        "Custom endpoints rely on @Endpoint(id = \"...\") and method-level annotations (@ReadOperation) to serialize return values directly via the Jackson ObjectMapper into JSON format.",
+        "Security integration evaluates AntPathRequestMatcher rules against the management context path, allowing decoupled port exposure (management.server.port) to isolate internal operational traffic from client-facing APIs."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@Endpoint(id = \"caches\")\npublic class CustomCacheManagementEndpoint {\n\n    private final CacheManager cacheManager;\n\n    public CustomCacheManagementEndpoint(CacheManager cacheManager) {\n        this.cacheManager = cacheManager;\n    }\n\n    @ReadOperation\n    public Map<String, Object> cacheStatistics() {\n        Map<String, Object> stats = new HashMap<>();\n        for (String cacheName : cacheManager.getCacheNames()) {\n            stats.put(cacheName, \"Active entries: \" + ((ConcurrentMapCache) cacheManager.getCache(cacheName)).getNativeCache().size());\n        }\n        return stats;\n    }\n\n    @WriteOperation\n    public void evictCache(@Selector String cacheName) {\n        var cache = cacheManager.getCache(cacheName);\n        if (cache != null) {\n            cache.clear();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap involves failing to isolate the management port (management.server.port). If you keep Actuator on the same port as your main application business logic, a single misconfigured Spring Security matcher can inadvertently expose /actuator/env or /actuator/heapdump to the public internet, resulting in severe credential leakage. Always bind Actuator to an internal management port and enforce strict mutual TLS (mTLS) or internal subnet IP whitelisting alongside Spring Security rules."
+    }
+  ],
+  "num": 245,
+  "title": "Actuator — health, metrics, info, custom endpoints, security",
+  "category": "Spring Security & Web Security"
+}

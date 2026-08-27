@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of deploying Spring Boot applications, EC2 (Elastic Compute Cloud) serves as the foundational Infrastructure-as-a-Service (IaaS) layer, providing virtualized compute capacity. However, raw compute is insufficient without robust access control. Security Groups act as a stateful, virtual firewall at the instance level, operating primarily at the network layer to filter inbound and outbound traffic based on port, protocol, and source CIDR blocks. While Security Groups manage 'where' traffic can go, IAM (Identity and Access Management) roles and policies manage 'who' or 'what' can perform actions. An IAM role is an identity with specific permissions that you can assume; attaching this role to an EC2 instance allows your Spring application to interact with other AWS services (like S3, RDS, or Secrets Manager) without ever hardcoding long-lived credentials in your application.properties or environment variables. IAM policies are the JSON-formatted documents that define these granular permissions, following the principle of least privilege to ensure your application can only perform the specific API calls it requires."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Security Groups",
+        "IAM Roles"
+      ],
+      "rows": [
+        [
+          "Layer",
+          "Network (OSI Layer 3/4)",
+          "Application/API (Control Plane)"
+        ],
+        [
+          "Scope",
+          "Instance-level traffic flow",
+          "Resource-level API access"
+        ],
+        [
+          "State",
+          "Stateful (return traffic allowed)",
+          "Stateless (permission-based)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Security Groups are stateful: if you allow an inbound request on port 8080, the return traffic is automatically permitted regardless of outbound rules.",
+        "IAM Roles utilize temporary security credentials provided via the Instance Metadata Service (IMDSv2). The AWS SDK for Java automatically discovers these credentials, eliminating the need for manual key rotation.",
+        "IAM Policies follow an 'explicit deny' override model; if any policy attached to the role contains an explicit deny, it overrides any allow, regardless of other permissions.",
+        "When securing Spring Boot, use Security Groups to restrict access to the application port (e.g., 8080) to only the Load Balancer's security group, rather than opening it to the entire internet."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "json",
+      "content": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Action\": [\"s3:GetObject\"],\n      \"Resource\": [\"arn:aws:s3:::my-app-config-bucket/*\"]\n    }\n  ]\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common production failure is the 'Metadata Service Hop' vulnerability. Always enforce IMDSv2 on your EC2 instances by requiring a session token. This prevents SSRF (Server-Side Request Forgery) attacks from easily scraping your IAM role credentials if your Spring application has an unvalidated URL redirect or file-upload vulnerability."
+    }
+  ],
+  "num": 436,
+  "title": "EC2, Security Groups, IAM roles & policies",
+  "category": "Spring Security & Web Security"
+}

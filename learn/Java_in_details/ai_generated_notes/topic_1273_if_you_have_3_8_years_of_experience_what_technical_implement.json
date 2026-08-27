@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "At 3.8 years of experience, the most impactful technical implementation involves transitioning a legacy blocking I/O (BIO) file-processing service to a non-blocking I/O (NIO) architecture using Java's Selector and Channel abstractions. The legacy system relied on one thread per connection, leading to thread starvation and excessive context switching under high concurrency. By implementing a Reactor pattern with Java NIO, I decoupled the I/O multiplexing from the business logic processing. This required a deep dive into ByteBuffer management to avoid memory fragmentation and the implementation of a custom DirectBuffer pool to minimize GC pressure. The success was measured by a 60% reduction in average latency and a 4x increase in throughput capacity under load, validated through Gatling stress tests that monitored JVM heap utilization and thread state transitions."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric",
+        "Blocking I/O (BIO)",
+        "Non-Blocking I/O (NIO)"
+      ],
+      "rows": [
+        [
+          "Thread Model",
+          "1:1 Thread-to-Connection",
+          "Event-driven (Selector)"
+        ],
+        [
+          "Scalability",
+          "Limited by Thread Stack Size",
+          "High, limited by File Descriptors"
+        ],
+        [
+          "Memory Overhead",
+          "High (Thread Stacks)",
+          "Low (Buffer reuse)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "NIO Selectors operate by registering Channels with an interest set (OP_READ, OP_WRITE), allowing a single thread to monitor multiple I/O events, effectively reducing the kernel-space to user-space context switching overhead.",
+        "DirectBuffers are allocated outside the JVM heap, allowing the OS to perform I/O operations directly on the memory, bypassing the need for an intermediate copy to the JVM heap, which is critical for high-performance I/O.",
+        "Exception handling in NIO requires meticulous management of the SelectionKey state; if an IOException occurs during a read/write, the key must be explicitly canceled to prevent the Selector from repeatedly returning the same faulty channel.",
+        "Success measurement requires monitoring the 'Selector.select()' blocking time and the 'pending tasks' queue size to ensure the event loop is not being blocked by long-running business logic."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "Selector selector = Selector.open();\nServerSocketChannel serverChannel = ServerSocketChannel.open();\nserverChannel.bind(new InetSocketAddress(8080));\nserverChannel.configureBlocking(false);\nserverChannel.register(selector, SelectionKey.OP_ACCEPT);\n\nwhile (true) {\n    selector.select();\n    Set<SelectionKey> keys = selector.selectedKeys();\n    Iterator<SelectionKey> iter = keys.iterator();\n    while (iter.hasNext()) {\n        SelectionKey key = iter.next();\n        if (key.isAcceptable()) { /* Handle connection */ }\n        if (key.isReadable()) { /* Read to ByteBuffer */ }\n        iter.remove();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common 'gotcha' for engineers at this level is the 'Selector wakeup' bug or the 'spurious wakeup' phenomenon. Always ensure your business logic is offloaded to a separate ExecutorService thread pool. If you perform heavy computation inside the Selector loop, you will effectively turn your NIO service back into a blocking one, negating all performance gains and causing the event loop to lag."
+    }
+  ],
+  "num": 1274,
+  "title": "If you have 3.8 years of experience, what technical implementation are you most proud of, and how did you measure its success?",
+  "category": "Exception Handling & I/O / NIO"
+}

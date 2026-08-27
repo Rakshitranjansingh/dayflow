@@ -1,0 +1,70 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the modern Spring IoC container, dependency injection is the cornerstone of inversion of control, allowing beans to be wired together dynamically. However, as applications scale and multiple candidate beans of the same type emerge within the application context, ambiguity arises. The Spring framework and Jakarta EE standards provide distinct annotations to resolve these injection points deterministically. Understanding the interplay between @Autowired, @Qualifier, @Primary, @Resource, and @Inject is critical for architecting robust enterprise systems without falling victim to unresolvable NoUniqueBeanDefinitionException failures.\n\n@Autowired is Spring's native annotation for performing by-type autowiring on constructors, fields, and setter methods. When multiple beans match the requested type, Spring evaluates additional modifiers to narrow down the candidate pool. By contrast, @Qualifier acts as a targeted selective filter, allowing developers to specify an explicit bean name or custom qualifier value at the injection site to resolve ambiguities. Meanwhile, @Primary offers a declarative way to designate a default bean candidate globally, telling the container which instance to inject when no specific qualifier is provided. Beyond Spring-specific APIs, Jakarta EE specifications provide standardized alternatives: @Inject, part of JSR-330, serves as a standard alternative to @Autowired with subtle differences in lifecycle and behavior, while @Resource (from JSR-250) fundamentally resolves dependencies primarily by-name first, falling back to by-type resolution.\n\nMastering these annotations requires understanding their resolution precedence. When an injection point is encountered, Spring evaluates qualifiers first, looks for primary candidates second, and inspects bean name alignments third depending on the annotation semantics. Misusing these mechanisms often leads to runtime configuration crashes or silent dependency miswirings that are notoriously difficult to debug in large-scale enterprise microservices."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Annotation",
+        "Primary Resolution Strategy",
+        "Source Specification",
+        "Bean Name Fallback"
+      ],
+      "rows": [
+        [
+          "@Autowired",
+          "By-Type",
+          "Spring Framework",
+          "Yes (uses field/parameter name)"
+        ],
+        [
+          "@Qualifier",
+          "By-Name / Metadata Filter",
+          "Spring Framework",
+          "N/A (modifies @Autowired/@Inject)"
+        ],
+        [
+          "@Primary",
+          "By-Type (Default Fallback)",
+          "Spring Framework",
+          "No"
+        ],
+        [
+          "@Inject",
+          "By-Type",
+          "Jakarta EE (JSR-330)",
+          "Yes (uses field/parameter name)"
+        ],
+        [
+          "@Resource",
+          "By-Name",
+          "Jakarta EE (JSR-250)",
+          "Yes (falls back to by-type)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The @Autowired annotation triggers theAutowiredAnnotationBeanPostProcessor, which inspects class metadata during bean initialization, resolving dependencies lazily or eagerly depending on container configuration.",
+        "@Qualifier metadata can be applied not just to standard bean names, but also to custom stereotype annotations, enabling powerful meta-annotation-driven configuration strategies.",
+        "When using JSR-330's @Inject, note that it does not support Spring's required = false attribute natively; instead, developers must inject an Optional<T> or ObjectProvider<T> wrapper.",
+        "@Resource resolution semantics dictate that if a name attribute is explicitly provided, it strictly searches for that specific bean name, bypassing type checks until the explicit lookup fails or type validation is enforced."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public interface PaymentService {\n    void processPayment();\n}\n\n@Component\n@Primary\npublic class CreditCardPaymentService implements PaymentService {\n    @Override\n    public void processPayment() { /* ... */ }\n}\n\n@Component\n@Qualifier(\"paypal\")\npublic class PayPalPaymentService implements PaymentService {\n    @Override\n    public void processPayment() { /* ... */ }\n}\n\n@Component\npublic class OrderManager {\n    // Injects PayPalPaymentService explicitly via @Qualifier\n    @Autowired\n    @Qualifier(\"paypal\")\n    private PaymentService paypalService;\n\n    // Injects CreditCardPaymentService because it is marked @Primary\n    @Inject\n    private PaymentService defaultService;\n\n    // Injects by-name using Jakarta EE standard @Resource\n    @Resource(name = \"creditCardPaymentService\")\n    private PaymentService cardService;\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic senior-level pitfall involves mixing @Autowired with field-level @Qualifier while attempting to mock dependencies in unit tests. Because field injection bypasses constructors, Mockito often struggles to inject mocks cleanly unless you use MockitoAnnotations.openMocks() or constructor-based injection. Always prefer constructor injection with @Qualifier parameters over field injection to maintain immutability and testability."
+    }
+  ],
+  "num": 219,
+  "title": "@Autowired, @Qualifier, @Primary, @Resource, @Inject",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Java Native Method Interface (JNI) acts as a foundational integration bridge allowing Java code running inside the Java Virtual Machine (JVM) to seamlessly interoperate with native applications and libraries written in languages such as C, C++, and assembly. In enterprise software architecture, developers frequently encounter scenarios where pure Java implementation falls short of stringent performance requirements, or where legacy system integration and low-level hardware communication are mandatory. JNI provides the runtime infrastructure required to bridge this execution gap, translating Java method calls into native function pointers through the invocation of specialized native libraries.\n\nAt its core, JNI centers around two fundamental concepts: declaring methods in Java using the native keyword, and implementing their corresponding signatures in native binaries loaded via System.loadLibrary(). When the JVM executes a native method, it transitions from managed memory execution—where garbage collection, reference tracking, and bytecode verification occur—into unmanaged native execution. This transition requires extreme care regarding memory management, as objects allocated or referenced across the JNI boundary do not automatically trigger JVM garbage collection cycles, presenting a high risk of native memory leaks and JVM segmentation faults if pointers are mishandled."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Metric",
+        "Managed Java Execution",
+        "JNI Native Execution"
+      ],
+      "rows": [
+        [
+          "Memory Management",
+          "Automatic via Garbage Collector",
+          "Manual allocation and explicit release"
+        ],
+        [
+          "Platform Portability",
+          "Write Once, Run Anywhere (WORA)",
+          "Platform-specific shared libraries (.dll, .so)"
+        ],
+        [
+          "Error Handling",
+          "Exceptions (NullPointerException, etc.)",
+          "Segmentation faults, native error codes"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "JNI Environment Pointer (JNIEnv*): Passed as the first argument to every native function, this pointer grants access to the JNI function table, enabling native code to inspect Java objects, throw exceptions, and manipulate field values.",
+        "Local vs. Global References: Local references created during a native method call are automatically freed when the native method returns. Global references persist across native calls until explicitly deleted, preventing premature garbage collection of Java objects still in use by native threads.",
+        "Type Signatures and Mangling: JNI maps Java types to native equivalents (e.g., int to jint, String to jstring). It uses distinct type signatures (such as Ljava/lang/String;) to resolve overloaded Java methods and link them to C/C++ symbols."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class HardwareController {\n    static {\n        System.loadLibrary(\"hw-interface\");\n    }\n\n    // Declare native method\n    public native int readSensorData(byte[] buffer);\n\n    public static void main(String[] args) {\n        HardwareController controller = new HardwareController();\n        byte[] data = new byte[1024];\n        int bytesRead = controller.readSensorData(data);\n        System.out.println(\"Read \" + bytesRead + \" bytes from hardware.\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production hazard when using JNI is failing to release local reference frames (using PushLocalFrame and PopLocalFrame) inside long-running native loops. Even if a native method completes, failing to release local references over millions of iterations will exhaust the JVM's internal local reference table, triggering a fatal 'JNI local reference table overflow' and crashing the entire JVM instance."
+    }
+  ],
+  "num": 161,
+  "title": "Native Method Interface (JNI) basics",
+  "category": "OOPs & Design Patterns"
+}

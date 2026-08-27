@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "GraalVM native image compilation transforms a standard Java application—such as a Spring Boot microservice—into a standalone binary executable using Ahead-Of-Time (AOT) compilation via the SubstrateVM framework. Unlike traditional Just-In-Time (JIT) execution where the JVM warms up, parses bytecode, and optimizes hot methods based on runtime profiling, a Native Image compiles all application classes, dependencies, and necessary portions of the JDK directly down to machine code. This eliminates the classpath scanning, class loading, and JIT compilation phases at startup, resulting in near-instantaneous startup times and a dramatically reduced memory footprint because the traditional JVM heap and metadata spaces are replaced by a lean substrate heap and specialized garbage collectors.\n\nHowever, achieving this performance requires confronting strict limitations inherent to closed-world assumptions. Java is a dynamic language deeply reliant on reflection, dynamic proxies, Resource loading, and Service Loader mechanisms. At build time, GraalVM performs static analysis (points-to analysis) to discover reachable code paths. If your Spring Boot application uses features that dynamically look up classes or invoke methods by string name at runtime—such as traditional dependency injection container wiring or data mapper frameworks—the static analysis cannot automatically trace these references. Without explicit configuration, these elements are stripped from the final binary, leading to runtime failures or ClassNotFoundExceptions. Therefore, understanding and supplying comprehensive reachability metadata configuration is mandatory for successful native deployments."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Metric",
+        "Traditional JVM (JIT)",
+        "GraalVM Native Image (AOT)"
+      ],
+      "rows": [
+        [
+          "Startup Time",
+          "Seconds to tens of seconds",
+          "Milliseconds (< 100ms typical)"
+        ],
+        [
+          "Memory Footprint",
+          "High (Requires Metaspace, JIT compiler caches)",
+          "Low (Minimal footprint, fixed heap overhead)"
+        ],
+        [
+          "Dynamic Capabilities",
+          "Fully supported out-of-the-box (Reflection, Proxies)",
+          "Requires explicit AOT configuration JSON or hints"
+        ],
+        [
+          "Peak Performance",
+          "High (Optimized dynamically via profiling JIT)",
+          "Immediate, but plateau lacks runtime profiling adaptations"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Closed-World Assumption: GraalVM assumes that all classes and methods reachable in the application can be determined at build time. Dynamic class loading from external, un-analyzed sources post-compilation is fundamentally unsupported.",
+        "Spring AOT Engine: Spring Boot leverages an AOT processing phase that runs prior to GraalVM compilation. It replaces runtime reflection-heavy bean factories with statically generated Java code, dramatically shrinking the required configuration footprint.",
+        "Reachability Metadata: JSON configuration files (reflect-config.json, resource-config.json, proxy-config.json, jni-config.json) or programmatical RuntimeHints inform the SubstrateVM static analyzer about dynamically accessed elements.",
+        "Garbage Collection Trade-offs: By default, Native Image uses the Serial GC for low-footprint single-threaded overhead, though Enterprise editions offer G1-style low-latency garbage collection tuned for enterprise throughput."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class NativeRuntimeHintsRegistrar implements RuntimeHintsRegistrar {\n    @Override\n    public void registerHints(RuntimeHints hints, ClassLoader classLoader) {\n        // Register reflection hints for domain entities instantiated dynamically\n        hints.reflection().registerType(Customer.class,\n            builder -> builder.withMembers(MemberCategory.INVOCABLE_CONSTRUCTORS,\n                                           MemberCategory.DECLARED_FIELDS));\n        \n        // Register resources loaded via classpath\n        hints.resources().registerPattern(\"templates/*.html\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Do not assume third-party libraries will automatically work out-of-the-box with Native Images. While modern Spring Boot starters ship with built-in metadata, older libraries utilizing legacy reflection or custom class loaders will cause silent failures or sudden ClassCastExceptions during execution. Always run your native executable with the agent enabled (java -agentlib:native-image-agent=config-output-dir=...) against a comprehensive integration test suite to capture all runtime reflection paths before finalizing your build configuration."
+    }
+  ],
+  "num": 251,
+  "title": "GraalVM native image with Spring Boot — configuration, limitations",
+  "category": "JVM Architecture & Memory Tuning"
+}

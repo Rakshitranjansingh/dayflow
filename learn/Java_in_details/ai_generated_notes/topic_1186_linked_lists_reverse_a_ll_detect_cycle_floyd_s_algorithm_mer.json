@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In systems programming and core Java algorithm design, Linked Lists represent a fundamental non-contiguous linear data structure composed of nodes, where each node contains a payload and a reference (pointer) to the next node in the sequence. Unlike arrays, linked lists do not guarantee memory locality, meaning traversals incur pointer-chasing overhead that can thrash the CPU cache. However, they shine in dynamic sizing scenarios where insertions and deletions do not require shifting massive blocks of memory. To master linked list manipulation, developers must internalize four classic operational patterns: reversing a linked list, detecting cycles using Floyd's Cycle-Finding Algorithm, merging two sorted lists, and finding the middle node via pointer pacing.\n\nReversing a linked list requires a delicate dance of pointer reassignments using three transient references—previous, current, and next—to avoid losing the tail of the unvisited list. Detecting a cycle involves Floyd's Tortoise and Hare algorithm, a two-pointer approach moving at different speeds (1x and 2x) that mathematically guarantees convergence if a loop exists, operating in O(N) time and O(1) space. Merging two sorted lists leverages a dummy head node to cleanly stitch together sub-sequences without writing repetitive edge-case boilerplate for the initial assignment. Finally, finding the middle node uses the fast-and-slow pointer technique, where the fast pointer reaches the end just as the slow pointer arrives at the exact center, making it essential for operations like merge sort on linked lists."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Operation",
+        "Time Complexity",
+        "Space Complexity",
+        "Core Mechanics"
+      ],
+      "rows": [
+        [
+          "Reverse LL",
+          "O(N)",
+          "O(1)",
+          "Iterative pointer inversion using prev, curr, and next references."
+        ],
+        [
+          "Detect Cycle (Floyd's)",
+          "O(N)",
+          "O(1)",
+          "Tortoise (1x) and Hare (2x) pointers intersecting inside a loop."
+        ],
+        [
+          "Merge Sorted Lists",
+          "O(N + M)",
+          "O(1)",
+          "Dummy head pointer stitching nodes based on key comparisons."
+        ],
+        [
+          "Find Middle Node",
+          "O(N)",
+          "O(1)",
+          "Fast pointer advances 2 steps while slow pointer advances 1 step."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In Floyd's cycle detection algorithm, if a cycle exists, the distance between the slow and fast pointers decreases by 1 node at every step, mathematically ensuring they collide within at most N iterations.",
+        "The fast-and-slow pointer technique for finding the middle node ensures that for an even-length list, the slow pointer lands on the second middle node (or first, depending on the loop condition initialization), which directly impacts partitioning correctness in divide-and-conquer algorithms.",
+        "When reversing a linked list, failing to cache the 'next' pointer before breaking the link will instantly orphan the rest of the list, resulting in a severe memory leak and immediate data loss.",
+        "Merging sorted lists in-place avoids allocating new Node objects on the JVM heap, preserving GC performance by reusing the existing node references from the input lists."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class LinkedListAlgorithms {\n    public static class ListNode {\n        int val;\n        ListNode next;\n        ListNode(int val) { this.val = val; }\n    }\n\n    // 1. Reverse a Linked List\n    public ListNode reverseList(ListNode head) {\n        ListNode prev = null;\n        ListNode curr = head;\n        while (curr != null) {\n            ListNode nextTemp = curr.next;\n            curr.next = prev;\n            prev = curr;\n            curr = nextTemp;\n        }\n        return prev;\n    }\n\n    // 2. Detect Cycle (Floyd's Algorithm)\n    public boolean hasCycle(ListNode head) {\n        if (head == null || head.next == null) return false;\n        ListNode slow = head;\n        ListNode fast = head;\n        while (fast != null && fast.next != null) {\n            slow = slow.next;\n            fast = fast.next.next;\n            if (slow == fast) return true;\n        }\n        return false;\n    }\n\n    // 3. Merge Two Sorted Lists\n    public ListNode mergeTwoLists(ListNode l1, ListNode l2) {\n        ListNode dummy = new ListNode(-1);\n        ListNode curr = dummy;\n        while (l1 != null && l2 != null) {\n            if (l1.val <= l2.val) {\n                curr.next = l1;\n                l1 = l1.next;\n            } else {\n                curr.next = l2;\n                l2 = l2.next;\n            }\n            curr = curr.next;\n        }\n        curr.next = (l1 != null) ? l1 : l2;\n        return dummy.next;\n    }\n\n    // 4. Find Middle Node\n    public ListNode middleNode(ListNode head) {\n        ListNode slow = head;\n        ListNode fast = head;\n        while (fast != null && fast.next != null) {\n            slow = slow.next;\n            fast = fast.next.next;\n        }\n        return slow;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when dealing with linked list algorithms in enterprise Java applications is assuming garbage collection will clean up orphaned nodes immediately. If you slice a linked list or manipulate pointers incorrectly while leaving dangling references to sub-lists, you can inadvertently pin massive node graphs in the JVM heap, leading to memory leaks or premature promotion to the Old Generation. Always null out obsolete references explicitly when implementing custom data structures."
+    }
+  ],
+  "num": 1187,
+  "title": "Linked Lists: Reverse a LL, Detect cycle (Floyd's algorithm), Merge two sorted lists, Find middle node.",
+  "category": "Core Java & Fundamentals"
+}

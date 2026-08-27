@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Introduced in Java 12 via JEP 334, Collectors.teeing is a composite reduction mechanism that bridges a long-standing functional gap in the java.util.stream API: the ability to process a single stream of elements through two distinct collection pipelines simultaneously and then merge their results using a bi-function. Before teeing, computing two independent metrics on a stream—such as finding both the minimum and maximum values, or calculating a sum and a count to derive an average—required either executing two separate passes over the data source or writing a custom, stateful mutable reduction Collector. Collectors.teeing accepts two downstream collectors and a merger function. It splits the incoming stream elements, feeds them concurrently into both downstream accumulators, and finally applies the merger to the respective terminal results. This design mimics the UNIX tee utility, allowing a single data stream to branch off into two processing paths before converging at a final aggregation point."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Performance Overhead",
+        "Code Complexity",
+        "State Mutability"
+      ],
+      "rows": [
+        [
+          "Collectors.teeing",
+          "Single pass over stream; allocates wrapper state",
+          "Low; declarative and readable",
+          "Encapsulated inside downstream collectors"
+        ],
+        [
+          "Dual Streams",
+          "Double pass over data source",
+          "Low; repetitive stream creation",
+          "Stateless per stream execution"
+        ],
+        [
+          "Custom Collector",
+          "Single pass; high manual implementation effort",
+          "High; requires custom accumulator and combiner",
+          "Managed manually via supplier/accumulator"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Internal Execution: Collectors.teeing delegates stream ingestion to both downstream suppliers. The finisher of the teeing collector captures the results of both downstream suppliers and invokes the provided BiFunction to produce the composite output.",
+        "Short-circuiting constraints: If either downstream collector is short-circuiting (e.g., using Collectors.findFirst), the teeing collector itself does not inherently short-circuit the entire stream unless handled carefully, because both branches must consume the designated stream elements independently.",
+        "Type Safety: The upstream elements of type T flow into Downstream1 (producing R1) and Downstream2 (producing R2). The merger function then bridges (R1, R2) into the final return type Z, maintaining compile-time type safety across heterogeneous reductions."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.List;\nimport java.util.Map;\nimport java.util.stream.Collectors;\n\npublic class TeeingExample {\n    public record Statistics(int min, int max, double average) {}\n\n    public static void main(String[] args) {\n        List<Integer> numbers = List.of(10, 20, 30, 40, 50);\n\n        Statistics stats = numbers.stream()\n            .collect(Collectors.teeing(\n                Collectors.summarizingInt(Integer::intValue),\n                Collectors.filtering(n -> n > 25, Collectors.counting()),\n                (summary, highCount) -> new Statistics(\n                    summary.getMin(),\n                    summary.getMax(),\n                    summary.getAverage()\n                )\n            ));\n\n        System.out.println(stats);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "When using Collectors.teeing with parallel streams, ensure that your downstream collectors are strictly commutative and associative, and watch out for hidden memory allocations. Because teeing duplicates the stream element processing into two distinct accumulators, memory overhead scales with the state requirements of both downstream collectors. Avoid heavy mutable state inside the BiFunction merger."
+    }
+  ],
+  "num": 109,
+  "title": "Collectors.teeing (Java 12+)",
+  "category": "Core Java & Fundamentals"
+}

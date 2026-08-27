@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "CQRS (Command Query Responsibility Segregation) and Event Sourcing are architectural patterns frequently deployed together in complex distributed systems to decouple read workloads from write workloads and achieve absolute auditability. CQRS fundamentally challenges the traditional CRUD model by enforcing that an application uses entirely different models to update data (Commands) versus reading data (Queries). This structural separation allows engineers to scale read replicas independently from write-side transaction processors, optimize read models for denormalized UI consumption (such as materialised views or document stores), and isolate business invariants in a highly focused write-side domain model.\n\nEvent Sourcing complements CQRS by transforming how state is persisted. Instead of mutating a relational row in place (e.g., executing an UPDATE statement on an account balance), an event-sourced system persists every state transition as an immutable fact called an Event (e.g., MoneyDeposited, MoneyWithdrawn) into an append-only Event Store. The current state of an aggregate is not stored natively; rather, it is derived by replaying its historical stream of events in chronological order. When paired with CQRS, the write side processes commands, validates business rules, and appends events to the store. A downstream asynchronous projector consumes these raw events and builds optimized, denormalized read-side projection tables tailored for fast querying. This combination provides temporal querying capabilities, effortless audit trails, and extreme resilience, though it introduces eventual consistency and complex schema evolution challenges."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "CQRS (Command Query Responsibility Segregation)",
+        "Event Sourcing"
+      ],
+      "rows": [
+        [
+          "Core Responsibility",
+          "Separates write processing models from read projection models.",
+          "Persists state changes as an immutable sequence of historical events."
+        ],
+        [
+          "Primary Benefit",
+          "Independent scalability and tailored query optimization.",
+          "Complete auditability, temporal reconstruction, and time-travel debugging."
+        ],
+        [
+          "Data Representation",
+          "Domain models on the write side, denormalized DTOs/views on the read side.",
+          "Append-only event streams (Event Store) acting as the source of truth."
+        ],
+        [
+          "Consistency Model",
+          "Strong consistency on the write side; eventual consistency on the read side.",
+          "Strongly consistent append operations per aggregate stream."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Aggregate Root State Reconstruction: Replaying millions of events for a single aggregate creates substantial CPU and memory overhead, necessitating the use of periodic snapshots to cache historical state.",
+        "Event Versioning and Schema Evolution: Because events are immutable and persist forever in the Event Store, changing an event structure requires upcasters or lazy mapping layers to deserialize legacy payloads successfully.",
+        "Asynchronous Projections and Idempotency: Read models are updated reactively via event brokers like Apache Kafka or RabbitMQ. Projectors must be strictly idempotent to handle duplicate message deliveries gracefully during network partitions.",
+        "Distributed Transactions and Sagas: Cross-aggregate consistency cannot rely on ACID transactions. Systems must utilize asynchronous choreography or orchestration via Sagas with compensating actions."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class BankAccountAggregate {\n    private String accountId;\n    private BigDecimal balance;\n    private boolean isActive;\n\n    public void deposit(BigDecimal amount) {\n        if (!isActive) {\n            throw new IllegalStateException(\"Account is inactive\");\n        }\n        if (amount.compareTo(BigDecimal.ZERO) <= 0) {\n            throw new IllegalArgumentException(\"Deposit must be positive\");\n        }\n        // Apply and emit the event instead of mutating state directly\n        raiseEvent(new MoneyDepositedEvent(accountId, amount));\n    }\n\n    public void apply(MoneyDepositedEvent event) {\n        this.accountId = event.getAccountId();\n        this.balance = (this.balance == null) ? event.getAmount() : this.balance.add(event.getAmount());\n        this.isActive = true;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap in Event-Sourced systems is failing to design robust upcasters early in the project lifecycle. When domain objects change their fields, blindly throwing deserialization exceptions breaks historical event streams. Always version your event payloads and implement upcasting logic that transparently migrates v1 event JSON payloads into v2 structures during read-time deserialization before they hit your aggregate apply methods."
+    }
+  ],
+  "num": 191,
+  "title": "CQRS & Event Sourcing",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

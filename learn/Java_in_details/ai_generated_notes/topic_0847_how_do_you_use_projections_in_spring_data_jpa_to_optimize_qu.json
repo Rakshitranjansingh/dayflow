@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Spring Data JPA, Projections are a powerful mechanism to fetch only the specific data fields required for a business use case rather than loading entire managed entities into the Persistence Context. By default, when you query an entity, Hibernate tracks the object, which incurs significant overhead in terms of memory consumption and dirty checking cycles. Projections allow you to bypass this overhead by mapping the result set directly to a DTO (Data Transfer Object) or an interface, effectively reducing the SQL SELECT clause to only the columns you explicitly need. This is critical for high-performance systems where fetching large blobs or unnecessary associations (the 'N+1' trap) can degrade database throughput and JVM heap stability."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Entity Loading",
+        "Projections"
+      ],
+      "rows": [
+        [
+          "Memory Footprint",
+          "High (Full object graph)",
+          "Low (Subset of columns)"
+        ],
+        [
+          "Persistence Context",
+          "Managed (Dirty checking active)",
+          "Unmanaged (Read-only)"
+        ],
+        [
+          "Performance",
+          "Slower (Hydration overhead)",
+          "Faster (Direct mapping)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Interface-based projections use dynamic proxies; Spring Data JPA generates an implementation at runtime that delegates getter calls to the underlying result set row.",
+        "Closed projections (where all getter names match entity fields) allow Spring to optimize the SQL query by selecting only those specific columns, whereas Open projections (using @Value) may force the fetching of the entire entity.",
+        "Class-based projections (DTOs) are preferred for type safety and constructor-based injection, allowing you to use JPQL constructor expressions (e.g., 'SELECT new com.dto.UserDTO(u.name, u.email) FROM User u').",
+        "Projections are inherently read-only; attempting to modify a projected object will not trigger an update in the database because the object is not attached to the EntityManager."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Interface Projection\npublic interface UserSummary {\n    String getUsername();\n    String getEmail();\n}\n\n// Repository usage\npublic interface UserRepository extends JpaRepository<User, Long> {\n    List<UserSummary> findByStatus(String status);\n}\n\n// DTO Projection (Constructor Expression)\npublic record UserDTO(String username, String email) {}\n\n@Query(\"SELECT new com.example.UserDTO(u.username, u.email) FROM User u WHERE u.status = :status\")\nList<UserDTO> findUserDTOsByStatus(@Param(\"status\") String status);"
+    },
+    {
+      "type": "note",
+      "content": "Beware of the 'Open Projection' performance pitfall. If you use @Value(\"#{target.firstName + ' ' + target.lastName}\") in an interface projection, Spring Data JPA cannot determine the required columns at compile time and will often fetch the entire entity from the database, negating the performance benefits of the projection. Always prefer Closed Projections or Constructor DTOs for maximum query optimization."
+    }
+  ],
+  "num": 848,
+  "title": "How do you use Projections in Spring Data JPA to optimize queries?",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

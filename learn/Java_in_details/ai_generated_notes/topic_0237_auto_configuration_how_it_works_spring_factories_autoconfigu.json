@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Boot auto-configuration fundamentally changed how enterprise Java applications are bootstrapped by automatically configuring your Spring application based on the jar dependencies you have added to your classpath. Instead of explicitly declaring infrastructural beans like a DataSource, a DispatcherServlet, or a JPA EntityManagerFactory in XML or Java configuration classes, Spring Boot inspects the classpath, bean definitions, and existing environment properties to intelligently instantiate and wire these components. At the heart of this capability lie two distinct bootstrapping evolution steps: the legacy spring.factories mechanism and the modern AutoConfiguration.imports mechanism.\n\nHistorically, Spring Boot discovered auto-configuration classes by scanning META-INF/spring.factories files packaged inside dependency jars. The SpringFactoriesLoader utility would parse these files, looking for the key org.springframework.boot.autoconfigure.EnableAutoConfiguration mapped to a comma-separated list of fully qualified configuration class names. While effective, this mechanism suffered from performance overhead and classpath pollution, as Spring had to instantiate and parse every listed class to evaluate conditional annotations (@ConditionalOnClass, @ConditionalOnMissingBean, etc.). To resolve this, Spring Boot introduced META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports. This streamlined, newline-delimited format skips the heavy property-file parsing overhead and allows the framework to directly ingest configuration candidates, drastically reducing startup times in massive enterprise codebases."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "spring.factories",
+        "AutoConfiguration.imports"
+      ],
+      "rows": [
+        [
+          "Introduction Era",
+          "Spring Boot 1.x through 2.x",
+          "Spring Boot 2.7+ (Standardized in 3.0)"
+        ],
+        [
+          "File Format",
+          "Java Properties (Key-Value pairs)",
+          "Plain text, newline-delimited list of classes"
+        ],
+        [
+          "Parsing Overhead",
+          "Higher (requires Properties loader parsing)",
+          "Lower (direct line-by-line class name ingestion)"
+        ],
+        [
+          "Ordering Support",
+          "Managed via @AutoConfigureBefore / @AutoConfigureAfter",
+          "Managed via @AutoConfigureBefore / @AutoConfigureAfter and file line order"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "During the SpringApplication.run() lifecycle, the @SpringBootApplication annotation triggers @EnableAutoConfiguration, which imports the AutoConfigurationImportSelector.",
+        "The import selector utilizes the SpringFactoriesLoader (for legacy hooks) or the CandidateComponentsIndex / ImportsLoader (for AutoConfiguration.imports) to gather all candidate configuration classes across every jar in the classpath.",
+        "Spring Boot then filters this massive list of candidates by evaluating conditional annotations. For instance, @ConditionalOnClass ensures a configuration only proceeds if specific bytecode is present on the classpath, while @ConditionalOnMissingBean prevents overwriting user-defined custom beans.",
+        "The surviving configuration classes are sorted topologically using @AutoConfigureBefore, @AutoConfigureAfter, and @AutoConfigureOrder annotations to guarantee deterministic bean instantiation sequencing before the ApplicationContext refreshes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.autoconfigure;\n\nimport org.springframework.boot.autoconfigure.AutoConfiguration;\nimport org.springframework.boot.autoconfigure.condition.ConditionalOnClass;\nimport org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;\nimport org.springframework.context.annotation.Bean;\n\n@AutoConfiguration\n@ConditionalOnClass(CustomClient.class)\npublic class CustomClientAutoConfiguration {\n\n    @Bean\n    @ConditionalOnMissingBean\n    public CustomClient customClient() {\n        return new CustomClient(\"Default-Endpoint\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when writing custom auto-configurations is defining component scanning on the auto-configuration class itself or placing your auto-config classes in a package that gets swept up by standard @ComponentScan. If Spring Boot picks up your auto-configuration classes via standard component scanning instead of the spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports file, your ordering annotations will be ignored, leading to unpredictable bean overriding failures and cyclic dependency exceptions during context startup."
+    }
+  ],
+  "num": 238,
+  "title": "Auto-configuration — how it works (spring.factories / AutoConfiguration.imports)",
+  "category": "Spring Boot & Spring Framework"
+}

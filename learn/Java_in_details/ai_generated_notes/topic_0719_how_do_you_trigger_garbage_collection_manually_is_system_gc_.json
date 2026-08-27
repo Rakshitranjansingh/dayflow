@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java Virtual Machine (JVM), Garbage Collection (GC) is an automated memory management process designed to reclaim heap space occupied by unreachable objects. Developers often ask how to trigger it manually, typically via System.gc(). However, it is critical to understand that System.gc() is merely a 'hint' to the JVM, not a command. The JVM specification explicitly grants the GC implementation the autonomy to decide whether to honor this request based on the current heap pressure, the garbage collector algorithm in use (e.g., G1, ZGC, or Parallel), and the overall system state. Calling it is almost always an anti-pattern in production environments because it forces a stop-the-world event that can cause significant latency spikes, often disrupting the very performance metrics you are trying to optimize."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Aspect",
+        "System.gc() Behavior",
+        "JVM Autonomy"
+      ],
+      "rows": [
+        [
+          "Execution Guarantee",
+          "No guarantee of execution",
+          "Full control over timing"
+        ],
+        [
+          "Performance Impact",
+          "High (Stop-the-world)",
+          "Optimized (Incremental/Concurrent)"
+        ],
+        [
+          "Use Case",
+          "Rarely (e.g., specific benchmarking)",
+          "Standard production operation"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "When System.gc() is invoked, the JVM typically triggers a Full GC, which scans both the Young and Old generations, leading to massive application pauses.",
+        "The -XX:+DisableExplicitGC flag is a common production JVM argument that effectively turns System.gc() into a no-op, preventing third-party libraries from inadvertently triggering expensive collections.",
+        "Modern collectors like ZGC or Shenandoah are designed for sub-millisecond pauses, but even with these, manual intervention disrupts the heuristic-based tuning that the JVM has learned over the application's uptime.",
+        "Calling System.gc() ignores the adaptive tuning mechanisms of the JVM, which use complex heuristics to determine the optimal threshold for collection based on allocation rates and promotion failures."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// The standard way to 'suggest' a GC\nSystem.gc();\n\n// In production, we often disable this to prevent performance degradation\n// JVM Argument: -XX:+DisableExplicitGC"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: If you find yourself needing to call System.gc() to 'fix' an OutOfMemoryError or memory leak, you are treating the symptom, not the disease. Memory leaks in Java usually stem from static collections, unclosed resources, or thread-local variables holding onto references. Use tools like JVisualVM, JProfiler, or heap dump analysis (Eclipse MAT) to identify the root cause rather than attempting to force the GC to clean up your architectural mistakes."
+    }
+  ],
+  "num": 720,
+  "title": "How do you trigger Garbage Collection manually? (Is System.gc() guaranteed?)",
+  "category": "JVM Architecture & Memory Tuning"
+}

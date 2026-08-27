@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Z Garbage Collector (ZGC) is a scalable, low-latency garbage collector designed to handle heaps ranging from a few hundred megabytes to multiple terabytes. Its primary architectural goal is to keep pause times consistently low—specifically under 1 millisecond—regardless of the heap size. Unlike traditional collectors like G1 or Parallel GC, which often see pause times scale linearly with the amount of live data, ZGC performs almost all heavy lifting, including marking, compaction, and reference processing, concurrently with the application threads. This is achieved through a combination of colored pointers and load barriers, which allow the JVM to track object state metadata directly within the pointer bits, enabling the collector to relocate objects while the application is actively mutating the heap."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric",
+        "G1 GC",
+        "ZGC"
+      ],
+      "rows": [
+        [
+          "Pause Time Target",
+          "Soft (ms to seconds)",
+          "Hard (< 1ms)"
+        ],
+        [
+          "Scalability",
+          "Medium (up to ~100GB)",
+          "High (up to 16TB)"
+        ],
+        [
+          "Primary Mechanism",
+          "Region-based copy",
+          "Colored pointers/Load barriers"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Colored Pointers: ZGC uses 42 bits of the 64-bit reference to store metadata (marked, remapped, finalizable), allowing the JVM to determine the state of an object reference during a load operation without needing a separate lookup table.",
+        "Load Barriers: Every time an application thread loads a reference from the heap, a small snippet of code (the barrier) checks the pointer's color. If the object has been relocated but the pointer is stale, the barrier triggers a 'self-healing' mechanism to update the pointer to the new location before the application continues.",
+        "Concurrent Compaction: ZGC compacts the heap by moving objects to free pages while the application is running. Because the load barrier ensures that any thread accessing a moved object is redirected to the new address, the application never perceives the relocation as a 'stop-the-world' event."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "bash",
+      "content": "# Enable ZGC in modern OpenJDK (15+)\njava -XX:+UseZGC -Xms16g -Xmx16g -Xlog:gc* MyApp.jar\n\n# Enable Generational ZGC (JDK 21+ for improved throughput)\njava -XX:+UseZGC -XX:+ZGenerational -Xmx16g MyApp.jar"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: While ZGC's sub-millisecond latency is revolutionary, it is not a 'free' performance boost. Because ZGC relies heavily on load barriers, it can introduce a slight throughput penalty (typically 5-10%) compared to Parallel GC. Furthermore, ZGC is extremely sensitive to allocation rates; if your application allocates objects faster than the concurrent GC threads can reclaim memory, you will hit an 'Allocation Stall,' which is a synchronous stop-the-world event that can be far more disruptive than a standard G1 pause. Always monitor 'ZGC Allocation Stalls' in your metrics."
+    }
+  ],
+  "num": 726,
+  "title": "What is ZGC? What are its latency promises?",
+  "category": "JVM Architecture & Memory Tuning"
+}

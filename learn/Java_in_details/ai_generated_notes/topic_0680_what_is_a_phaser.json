@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Core Java concurrency, a Phaser is a flexible synchronization construct introduced in Java 7 within the java.util.concurrent package, designed to serve as a more generalized and powerful alternative to both CountDownLatch and CyclicBarrier. While a CountDownLatch coordinates a one-shot countdown for a fixed number of threads, and a CyclicBarrier handles a repeating phase-based synchronization for a static number of threads, a Phaser dynamically accommodates a variable number of parties over multiple execution phases. Threads register with a Phaser upon starting and deregister upon completion, allowing the synchronization barrier size to expand or shrink dynamically at runtime. This makes Phaser the ultimate primitive for iterative, fork-join style parallel algorithms where tasks spawn sub-tasks that must participate in phase transitions, or where threads gracefully drop out of execution cycles as work units dry up."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "CountDownLatch",
+        "CyclicBarrier",
+        "Phaser"
+      ],
+      "rows": [
+        [
+          "Party Count",
+          "Static (fixed at construction)",
+          "Static (fixed at construction)",
+          "Dynamic (register/arrive/deregister at will)"
+        ],
+        [
+          "Reusability",
+          "One-shot (cannot be reset)",
+          "Reusable (resets automatically upon tripping)",
+          "Reusable (cycles through an infinite number of phases)"
+        ],
+        [
+          "Termination",
+          "Manually counted down to zero",
+          "Trips when parties reach zero",
+          "Explicitly terminates when phase action returns true"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Dynamic Registration: Parties can be registered explicitly using register() or bulk-registered using bulkRegister(int), as well as implicitly via constructor arguments. This allows new threads to join an ongoing computation mid-phase.",
+        "Phase Advancement: When a registered party calls arriveAndAwaitAdvance(), it blocks until all currently registered parties have arrived for that phase, automatically advancing the internal phase counter (getPhase()) once the count hits zero.",
+        "Arrive and Deregister: Threads can signal completion of their work for the current phase and simultaneously remove themselves from the barrier's coordination scope using arriveAndDeregister().",
+        "Hierarchical Phasers: For massive concurrency scales, Phasers can be structured into trees. Child phasers register with parent phasers, drastically reducing contention on a single synchronization point by localizing phase synchronization to tree nodes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.Phaser;\n\npublic class PhaserExample {\n    public static void main(String[] args) {\n        Phaser phaser = new Phaser(1); // Register self (main thread)\n        int threadCount = 3;\n\n        for (int i = 1; i <= threadCount; i++) {\n            phaser.register();\n            new Thread(new Worker(phaser, i)).start();\n        }\n\n        // Allow workers to proceed through 2 distinct phases\n        for (int phase = 0; phase < 2; phase++) {\n            System.out.println(\"Main thread waiting for phase \" + phaser.getPhase() + \" to complete.\");\n            phaser.arriveAndAwaitAdvance();\n        }\n\n        phaser.arriveAndDeregister(); // Main thread leaves\n        System.out.println(\"All phases complete. Phaser terminated: \" + phaser.isTerminated());\n    }\n\n    static class Worker implements Runnable {\n        private final Phaser phaser;\n        private final int id;\n\n        Worker(Phaser phaser, int id) {\n            this.phaser = phaser;\n            this.id = id;\n        }\n\n        @Override\n        public void run() {\n            for (int phase = 0; phase < 2; phase++) {\n                System.out.println(\"Worker \" + id + \" working on phase \" + phaser.getPhase());\n                phaser.arriveAndAwaitAdvance(); // Sync point\n            }\n            phaser.arriveAndDeregister();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: When overriding onAdvance(int phase, int registeredParties) to implement custom logic between phase transitions, returning true will immediately terminate the Phaser. Failing to account for dynamic deregistrations in your party count logic can lead to premature termination or threads hanging indefinitely in arriveAndAwaitAdvance() because the expected party count never reaches zero."
+    }
+  ],
+  "num": 681,
+  "title": "What is a Phaser?",
+  "category": "Core Java & Fundamentals"
+}

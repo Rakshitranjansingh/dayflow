@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When designing modern web architectures in Java and Spring Security, choosing between JWT (JSON Web Token) and Session-based authentication is one of the most critical architectural decisions you will make. Session-based authentication is the classic stateful paradigm where the server maintains a session state in memory or a distributed data grid (like Redis) after a user logs in, handing the client a jsessionid cookie. Every subsequent request carries this cookie, allowing the server to look up the principal and authorities directly from the session store. It provides immediate revocation capabilities and central control over user state.\n\nOn the other side of the spectrum is JSON Web Token (JWT) authentication, a stateless specification (RFC 7519) where all claims—including user identity, roles, and expiration—are cryptographically signed by the issuer using HMAC or RSA algorithms. The server issues this self-contained token to the client, which typically stores it in local storage or cookies and sends it back via the Authorization header using the Bearer schema. Because the token contains all necessary data, the validating resource server does not need to hit a database or shared cache for every request, making it exceptionally appealing for horizontally scaling microservice architectures."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architecture Dimension",
+        "Session-based Authentication",
+        "JWT (JSON Web Token) Authentication"
+      ],
+      "rows": [
+        [
+          "State Management",
+          "Stateful (Server stores session data)",
+          "Stateless (Client stores token payload)"
+        ],
+        [
+          "Scalability",
+          "Requires sticky sessions or distributed session replication (e.g., Spring Session Redis)",
+          "Highly scalable horizontally; any service with the public key can validate it"
+        ],
+        [
+          "Revocation",
+          "Trivial (invalidate session in store instantly)",
+          "Complex (requires token blacklisting, short TTLs, or OAuth2 introspection)"
+        ],
+        [
+          "Payload Size",
+          "Minimal (only sends a session ID cookie)",
+          "Larger (grows with roles, scopes, and custom claims)"
+        ],
+        [
+          "Cross-Origin (CORS) / CSRF",
+          "Vulnerable to CSRF; requires explicit SameSite and Anti-CSRF tokens",
+          "Resistant to CSRF if stored in memory/headers, but vulnerable to XSS if in localStorage"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In a standard Spring Security session implementation, SecurityContextRepository saves the SecurityContext into the HttpSession upon successful authentication, binding the request thread to a HttpSession object managed by the servlet container.",
+        "Spring Security's SessionManagementFilter constantly checks session invalidation, concurrent session control limits (preventing multiple logins by the same user), and fixation protection attacks by migrating session attributes upon authentication.",
+        "JWT validation relies on cryptographically evaluating the compact serialization format: Header.Payload.Signature. The verifying service parses the base64url-encoded JSON payload and recalculates the signature using a shared secret or public key to ensure integrity.",
+        "Stateless JWTs suffer from the revocation problem: once issued, a token remains valid until its expiration timestamp (exp claim), forcing engineers to implement Redis-backed revocation lists or rely on very short-lived access tokens coupled with opaque refresh tokens."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\npublic class SecurityConfig {\n\n    @Bean\n    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtFilter jwtFilter) throws Exception {\n        return http\n            .csrf(csrf -> csrf.disable())\n            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))\n            .authorizeHttpRequests(auth -> auth\n                .requestMatchers(\"/api/auth/**\").permitAll()\n                .anyRequest().authenticated()\n            )\n            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)\n            .build();\n    } \n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern is storing sensitive personally identifiable information (PII) or excessive roles inside a JWT payload stored in localStorage. Because JWTs are only signed, not encrypted by default, anyone with access to the client browser can base64url-decode the payload and read its contents. Furthermore, if you rely entirely on stateless JWTs without a refresh token rotation mechanism, you lose the ability to instantly lock out a compromised user account until the access token naturally expires."
+    }
+  ],
+  "num": 1005,
+  "title": "JWT vs Session-based authentication?",
+  "category": "Spring Security & Web Security"
+}

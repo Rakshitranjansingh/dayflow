@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When designing modern event-driven architectures and distributed systems, choosing the right message broker or streaming platform is critical for reliability, throughput, and state management. RabbitMQ and Apache Kafka represent two entirely different paradigms in message-oriented middleware. RabbitMQ is a traditional message broker built on the AMQP (Advanced Message Queuing Protocol) specification, optimized for complex routing, flexible message delivery semantics, and task queues. It stores messages in memory or disk and actively pushes them to consumers, deleting them upon acknowledgment.\n\nOn the other hand, Apache Kafka is a distributed event streaming platform designed around an append-only commit log. Rather than acting as a smart broker that routes individual messages to specific queues, Kafka acts as a dumb broker with smart consumers. It persists every byte of data to disk sequentially, allowing multiple consumer groups to read and re-read the same stream of events at their own pace. Understanding when to use RabbitMQ versus Apache Kafka requires analyzing your workload patterns, throughput requirements, ordering guarantees, and architectural complexity."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "RabbitMQ (AMQP Broker)",
+        "Apache Kafka (Commit Log)"
+      ],
+      "rows": [
+        [
+          "Core Architecture",
+          "Exchange-to-Queue routing model with smart broker and push-based delivery.",
+          "Append-only distributed commit log with dumb broker and pull-based consumers."
+        ],
+        [
+          "Message Persistence",
+          "Messages are transient; deleted immediately upon successful consumer acknowledgment.",
+          "Messages are immutable and retained for a configured duration (hours to forever), regardless of consumption."
+        ],
+        [
+          "Throughput & Scalability",
+          "Optimized for low latency per message; scaling requires adding queues and bindings.",
+          "Optimized for massive throughput (millions of msgs/sec) via sequential disk I/O and partitioning."
+        ],
+        [
+          "Ordering Guarantees",
+          "Guaranteed per queue, but routing complexity can easily disrupt global ordering.",
+          "Strict ordering strictly guaranteed per partition via offset tracking."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "RabbitMQ relies on exchanges (Direct, Topic, Fanout, Headers) to bind messages to queues, enabling sophisticated publish-subscribe and point-to-point routing logic natively inside the broker.",
+        "Kafka achieves its blistering speed through zero-copy data transfer, leveraging the sendfile system call to transfer data directly from the OS page cache to the network socket without copying it into JVM heap memory.",
+        "RabbitMQ consumers use explicit acknowledgements (ACK/NACK). If a consumer crashes mid-processing, the message is re-queued, protecting against data loss in task distribution scenarios.",
+        "Kafka consumers maintain their own consumer offsets (either managed automatically by the client or stored externally in ZooKeeper/KRaft or Kafka internal topics), allowing for time-travel debugging and replayability."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class KafkaOrderProducer {\n\n    private final KafkaTemplate<String, OrderEvent> kafkaTemplate;\n\n    public KafkaOrderProducer(KafkaTemplate<String, OrderEvent> kafkaTemplate) {\n        this.kafkaTemplate = kafkaTemplate;\n    }\n\n    public void publishOrder(OrderEvent event) {\n        // Keying by customerId ensures all events for the same customer land in the exact same partition, preserving order\n        CompletableFuture<SendResult<String, OrderEvent>> future = \n            kafkaTemplate.send(\"order-events-topic\", event.getCustomerId(), event);\n            \n        future.whenComplete((result, ex) -> {\n            if (ex == null) {\n                System.out.println(\"Produced event to partition: \" + result.getRecordMetadata().partition() + \", offset: \" + result.getRecordMetadata().offset());\n            } else {\n                handleFailure(ex);\n            }\n        });\n    }\n\n    private void handleFailure(Throwable ex) {\n        // Implement retry logic or write to dead-letter sink\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic senior-level architectural anti-pattern is using Apache Kafka purely as a task queue for lightweight background processing. Because Kafka retains messages by default, using it as a transient task queue without proper log compaction or short retention policies will eventually exhaust disk space. Conversely, using RabbitMQ for high-throughput event sourcing or stream analytics will cause memory bloat and performance degradation as queues back up. Choose RabbitMQ when you need complex routing, complex request-reply patterns, or reliable background task distribution. Choose Kafka when you need long-term stream storage, replayability, event sourcing, or extreme analytical throughput."
+    }
+  ],
+  "num": 931,
+  "title": "RabbitMQ vs Apache Kafka? When to use which?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

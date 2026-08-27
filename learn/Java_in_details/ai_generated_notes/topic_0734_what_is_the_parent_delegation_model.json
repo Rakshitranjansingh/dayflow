@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The parent delegation model is the foundational architectural pattern governing how the Java Virtual Machine (JVM) loads classes via `java.lang.ClassLoader`. When a class loader is requested to load a specific type, it does not immediately attempt to resolve the bytecode from its own classpath. Instead, it delegates the request upward to its parent class loader first. This hierarchical delegation chain continues all the way up to the primordial Bootstrap Class Loader. Only when the parent class loader explicitly signals its inability to locate the requested class—throwing a `ClassNotFoundException`—does the child class loader attempt to define the class using its own local repository. This mechanism guarantees that core runtime classes provided by the Java Runtime Environment (JRE), such as `java.lang.Object` or `java.lang.String`, are consistently loaded by the trusted bootstrap loader, preventing malicious actors from substituting core system behavior with rogue implementations placed further down the classpath."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Class Loader",
+        "Delegation Source / Parent",
+        "Typical Classpath / Scope"
+      ],
+      "rows": [
+        [
+          "Bootstrap Class Loader",
+          "None (Root of hierarchy)",
+          "JRE core classes ($JAVA_HOME/lib, rt.jar, modular modules)"
+        ],
+        [
+          "Platform / Extension Class Loader",
+          "Bootstrap Class Loader",
+          "Extension directories and platform modules"
+        ],
+        [
+          "Application / System Class Loader",
+          "Platform Class Loader",
+          "Classpath specified via -classpath, -cp, or MANIFEST.MF"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Every class loader instance maintains a private reference to its parent class loader, established either during instantiation via constructors or through explicit delegation patterns.",
+        "The core enforcement point of this model lives within the protected `java.lang.ClassLoader#loadClass(String name, boolean resolve)` method, which implements the recursive check-parent-first algorithm.",
+        "Visibility rules dictate that a child class loader can successfully reference and load any class visible to its parent, but a parent class loader cannot see or load classes defined exclusively within a child class loader's scope.",
+        "Modern modularity frameworks like OSGi and the Java Platform Module System (JPMS) introduce controlled deviations from strict parent delegation, enabling module-specific layers and horizontal class visibility constraints."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class CustomNetworkClassLoader extends ClassLoader {\n    private final String serverUrl;\n\n    public CustomNetworkClassLoader(ClassLoader parent, String serverUrl) {\n        super(parent);\n        this.serverUrl = serverUrl;\n    }\n\n    @Override\n    protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {\n        synchronized (getClassLoadingLock(name)) {\n            // 1. Check if the class has already been loaded\n            Class<?> c = findLoadedClass(name);\n            if (c == null) {\n                try {\n                    // 2. Delegate to parent first (Parent Delegation Model)\n                    if (getParent() != null) {\n                        c = getParent().loadClass(name, false);\n                    } else {\n                        c = findBootstrapClassOrNull(name);\n                    }\n                } catch (ClassNotFoundException e) {\n                    // Parent squashed the request; proceed to local loading\n                }\n\n                if (c == null) {\n                    // 3. Fallback to local custom loading mechanism\n                    byte[] classData = fetchClassDataFromServer(name);\n                    if (classData == null) {\n                        throw new ClassNotFoundException(name);\n                    }\n                    c = defineClass(name, classData, 0, classData.length);\n                }\n            }\n            if (resolve) {\n                resolveClass(c);\n            }\n            return c;\n        }\n    }\n\n    private byte[] fetchClassDataFromServer(String className) {\n        // Network IO implementation to fetch bytecode\n        return null;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production gotcha occurs when custom frameworks (like application servers or plugin containers) break the parent delegation model to implement hot-swapping or multi-tenant isolation. If a child loader attempts to load a class locally before checking its parent, it can trigger a LinkageError (`java.lang.LinkageError: loader constraint violation`). This happens when two different class loaders define the exact same fully qualified class name, and an object instance from one loader is cast or passed into a method expecting the type loaded by the other. Always ensure type-sharing across plugin boundaries uses shared parent interfaces or carefully managed classloader spaces."
+    }
+  ],
+  "num": 735,
+  "title": "What is the parent delegation model?",
+  "category": "Exception Handling & I/O / NIO"
+}

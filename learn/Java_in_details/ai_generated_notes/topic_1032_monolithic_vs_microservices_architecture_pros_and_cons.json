@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When designing enterprise systems, choosing the right architectural style dictates the trajectory of software delivery, operational complexity, and resource scaling. A monolithic architecture encapsulates all business capabilities—such as user management, order processing, and billing—into a single, unified codebase and deployable artifact. This traditional approach simplifies initial development, transactional consistency (via ACID databases), and end-to-end testing, as every component shares the same memory space and process lifecycle.\n\nConversely, a microservices architecture decomposes these monolithic domains into a suite of independently deployable, loosely coupled services communicating over a network via lightweight protocols like HTTP/REST, gRPC, or message brokers like Apache Kafka. Each microservice encapsulates its own data persistence layer, business logic, and domain boundaries, aligning with Conway’s Law by mapping system structure directly to organizational team topology. However, this decoupling introduces distributed systems complexities, including network latency, eventual consistency, distributed tracing challenges, and network partition faults (CAP theorem)."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Monolithic Architecture",
+        "Microservices Architecture"
+      ],
+      "rows": [
+        [
+          "Deployment Unit",
+          "Single artifact (e.g., WAR, fat JAR)",
+          "Multiple autonomous services (Containers, Kubernetes pods)"
+        ],
+        [
+          "Data Management",
+          "Shared database, single schema, ACID transactions",
+          "Database-per-service pattern, eventual consistency"
+        ],
+        [
+          "Failure Domain",
+          "Cascading failures can crash the entire application",
+          "Isolated failures; fault tolerance via circuit breakers"
+        ],
+        [
+          "Scaling",
+          "Horizontal scaling of the entire application monolith",
+          "Granular scaling of individual bottleneck services"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Monolith Pros: Zero network overhead for internal method calls, trivial local debugging, straightforward atomic transactions utilizing relational database engine locking mechanisms.",
+        "Monolith Cons: High blast radius for bugs, tight technology stack coupling, agonizingly long CI/CD pipelines as the codebase scales, and painful merge conflicts for large engineering teams.",
+        "Microservices Pros: High deployment velocity for autonomous squads, technology heterogeneity (polyglot persistence and languages), resilient fault isolation, and targeted horizontal scaling based on compute utilization.",
+        "Microservices Cons: Steep operational learning curve, complex distributed transactions (Saga pattern), severe latency penalties from network hops, and hard-to-diagnose failure modes requiring sophisticated distributed tracing."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/orders\")\npublic class OrderController {\n    \n    private final RestClient orderServiceRestClient;\n    private final KafkaTemplate<String, OrderEvent> kafkaTemplate;\n\n    public OrderController(RestClient.Builder restClientBuilder, KafkaTemplate<String, OrderEvent> kafkaTemplate) {\n        this.orderServiceRestClient = restClientBuilder.baseUrl(\"http://inventory-service\").build();\n        this.kafkaTemplate = kafkaTemplate;\n    }\n\n    @PostMapping\n    public ResponseEntity<String> createOrder(@RequestBody OrderRequest request) {\n        // Microservices inter-service communication via HTTP / Messaging\n        ResponseEntity<InventoryResponse> response = orderServiceRestClient.get()\n            .uri(\"/check/{sku}\", request.getSku())\n            .retrieve()\n            .toEntity(InventoryResponse.class);\n            \n        if (response.getBody() == null || !response.getBody().isInStock()) {\n            return ResponseEntity.badRequest().body(\"Item out of stock\");\n        }\n        \n        kafkaTemplate.send(\"order-events\", new OrderEvent(request.getOrderId(), \"CREATED\"));\n        return ResponseEntity.accepted().body(\"Order processing initiated\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The biggest architectural anti-pattern in modern engineering is the 'Distributed Monolith.' This occurs when teams adopt microservices without establishing strict bounded contexts or database-per-service paradigms, resulting in tightly coupled services that make synchronous REST calls in a circular dependency graph. If you lack the organizational maturity for automated testing, container orchestration (Kubernetes), centralized logging (ELK stack), and distributed tracing (OpenTelemetry), you should start with a modular monolith rather than prematurely distributing your system."
+    }
+  ],
+  "num": 1033,
+  "title": "Monolithic vs Microservices architecture? Pros and Cons.",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

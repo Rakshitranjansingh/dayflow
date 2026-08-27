@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a job scheduler in Java requires balancing thread management, task prioritization, and temporal accuracy. At its core, a scheduler must handle the lifecycle of a 'Job'—a unit of work—and a 'Trigger', which defines the execution cadence. To build this from scratch, you must avoid the pitfalls of simple 'Timer' objects, which are single-threaded and susceptible to task failure cascades. Instead, leverage a 'ScheduledExecutorService' or a 'PriorityBlockingQueue' combined with a dedicated worker thread pool. This architecture ensures that if one job throws an unhandled exception, it does not terminate the entire scheduling loop. You must also consider persistence; in distributed systems, a scheduler needs a backing store (like PostgreSQL or Redis) to ensure jobs survive application restarts, moving the state from volatile RAM to durable storage."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "ScheduledExecutorService",
+        "Quartz/External Scheduler"
+      ],
+      "rows": [
+        [
+          "Persistence",
+          "None (Volatile)",
+          "Database-backed"
+        ],
+        [
+          "Clustering",
+          "Not natively supported",
+          "Built-in lock mechanisms"
+        ],
+        [
+          "Complexity",
+          "Low (Standard Library)",
+          "High (Requires dependency)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Use a PriorityBlockingQueue to store tasks ordered by their next execution timestamp; the worker thread polls the head of the queue, sleeping only until the next job is due.",
+        "Implement a 'JobStore' interface to decouple the scheduling logic from the persistence layer, allowing you to swap in-memory maps for JDBC or Redis implementations.",
+        "Ensure thread safety by using 'AtomicLong' for sequence generation and 'ReentrantLock' when modifying the task queue to prevent race conditions during job rescheduling.",
+        "Incorporate a 'RejectExecutionHandler' to define behavior when the thread pool is saturated, preventing OOM errors under heavy load."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class SimpleScheduler {\n    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);\n\n    public void scheduleJob(Runnable task, long delay, TimeUnit unit) {\n        scheduler.schedule(() -> {\n            try {\n                task.run();\n            } catch (Exception e) {\n                log.error(\"Job execution failed\", e);\n            }\n        }, delay, unit);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common production failure in custom schedulers is 'drift'. If your job takes 500ms to execute but is scheduled every 1000ms, using 'fixedDelay' vs 'fixedRate' is critical. 'FixedRate' will attempt to catch up if it falls behind, potentially causing a thundering herd problem, while 'fixedDelay' ensures a consistent gap between completion and the next start, which is usually safer for database-heavy tasks."
+    }
+  ],
+  "num": 1098,
+  "title": "How would you design a job scheduler?",
+  "category": "Core Java & Fundamentals"
+}

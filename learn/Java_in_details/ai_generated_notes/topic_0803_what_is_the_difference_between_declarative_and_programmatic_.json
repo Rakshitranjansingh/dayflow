@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java ecosystem, particularly within the Spring Framework, transaction management is the mechanism that ensures ACID properties across data operations. Declarative transaction management is the idiomatic approach, leveraging AOP (Aspect-Oriented Programming) to decouple transaction logic from business code. By using the @Transactional annotation, the developer allows the framework to intercept method calls, open a transaction, and commit or rollback based on exception propagation—specifically unchecked RuntimeExceptions. This keeps the service layer clean and focused on domain logic rather than infrastructure boilerplate.\n\nConversely, programmatic transaction management requires the developer to explicitly interact with the TransactionManager or TransactionTemplate API. This approach provides granular control, allowing for conditional commits, partial rollbacks, or complex nested transaction logic that would be cumbersome or impossible to express via annotations. While declarative management is the industry standard for 95% of use cases, programmatic management is the 'escape hatch' needed when you must handle transaction boundaries that do not align with method-level boundaries or when you need to perform non-transactional operations within a transaction scope without triggering a full rollback."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Declarative",
+        "Programmatic"
+      ],
+      "rows": [
+        [
+          "Implementation",
+          "Annotations (@Transactional)",
+          "TransactionTemplate / PlatformTransactionManager"
+        ],
+        [
+          "Coupling",
+          "Low (Infrastructure-agnostic)",
+          "High (Tightly coupled to API)"
+        ],
+        [
+          "Granularity",
+          "Method-level",
+          "Line-of-code level"
+        ],
+        [
+          "Maintenance",
+          "Easy (Declarative)",
+          "Complex (Boilerplate-heavy)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Declarative transactions rely on Spring AOP proxies. If you call a @Transactional method from within the same class (self-invocation), the proxy is bypassed, and the transaction will not start, leading to silent data inconsistency.",
+        "Programmatic management using TransactionTemplate handles the 'begin', 'commit', and 'rollback' lifecycle internally, reducing the risk of forgetting to close a connection, which is a common source of connection pool exhaustion.",
+        "Declarative transactions default to rolling back only on unchecked exceptions (RuntimeException and Error). Checked exceptions do not trigger a rollback unless explicitly configured via 'rollbackFor'.",
+        "Programmatic transactions allow for 'propagation' and 'isolation' settings to be changed dynamically at runtime based on specific business logic conditions, which is impossible with static annotations."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class PaymentService {\n    // Declarative: Clean, standard, AOP-based\n    @Transactional\n    public void processOrder(Order order) { ... }\n\n    // Programmatic: Granular control for specific blocks\n    private final TransactionTemplate txTemplate;\n    public void processPartial(Order order) {\n        txTemplate.execute(status -> {\n            // Business logic here\n            if (condition) status.setRollbackOnly();\n            return null;\n        });\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never mix the two approaches within the same transaction context unless you are intimately familiar with the underlying PlatformTransactionManager implementation. A common production bug occurs when a developer assumes a programmatic block will participate in an existing declarative transaction, only to find that the programmatic manager creates a new transaction or fails to join the proxy's thread-bound connection, leading to 'Lost Updates' or 'Deadlocks' in high-concurrency environments."
+    }
+  ],
+  "num": 804,
+  "title": "What is the difference between declarative and programmatic transaction management?",
+  "category": "Exception Handling & I/O / NIO"
+}

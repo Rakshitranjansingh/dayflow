@@ -1,0 +1,67 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When the Java Virtual Machine first executes bytecode, it relies on an interpreter to translate bytecode instructions into native machine instructions on the fly. While this allows for immediate startup without an upfront translation phase, interpretation is fundamentally slow because every instruction is decoded repeatedly, bypassing hardware-level optimization opportunities. To bridge this performance gap, modern JVM architectures employ Just-In-Time (JIT) compilation, a subsystem that monitors code execution at runtime, identifies hot spots (frequently executed methods or loops), and compiles those hot spots directly into optimized native machine code. This dynamic optimization allows Java to approach the raw execution speed of statically compiled languages like C++ while maintaining platform independence."
+    },
+    {
+      "type": "prose",
+      "content": "To balance compilation latency with peak performance, the HotSpot JVM employs a tiered compilation strategy driven by two distinct JIT compilers: C1 (Client Compiler) and C2 (Server Compiler). The C1 compiler, also known as the client compiler, is engineered for speed. It quickly generates native code with basic optimizations, inserting profiling hooks that monitor runtime behavior such as branch probabilities and type feedback. Conversely, the C2 compiler (server compiler) operates when code has proven to be extremely 'hot.' C2 dedicates significantly more CPU cycles to perform aggressive, global optimizations like escape analysis, loop unrolling, and devirtualization, producing highly performant machine code tailored to the underlying CPU architecture."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Interpretation",
+        "C1 Compiler",
+        "C2 Compiler"
+      ],
+      "rows": [
+        [
+          "Startup Latency",
+          "Instant (No delay)",
+          "Low (Fast compilation)",
+          "High (Slow compilation)"
+        ],
+        [
+          "Peak Execution Speed",
+          "Lowest",
+          "Moderate",
+          "Highest"
+        ],
+        [
+          "Optimization Level",
+          "None",
+          "Basic (local optimizations)",
+          "Aggressive (global optimizations)"
+        ],
+        [
+          "Profiling Activity",
+          "None",
+          "Inserts instrumentation hooks",
+          "Consumes profiling data"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Tiered Compilation Flow: JVM starts at Level 0 (pure interpreter), transitions to Level 3 (C1 with full profiling) when a method crosses invocation thresholds, and eventually graduates to Level 4 (C2 optimized machine code) once profiling data reveals stable execution patterns.",
+        "On-Stack Replacement (OSR): If a long-running loop begins executing frequently before its enclosing method has been called enough times, the JVM can compile the loop mid-execution and swap the stack frames on the fly using OSR.",
+        "Deoptimization: If C2 makes a speculative optimization based on type profiling (e.g., assuming a polymorphic call site only ever sees one implementation) and that assumption is violated, the JVM deoptimizes the method, dropping execution back down to the interpreter or C1."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class JitDemo {\n    public static void main(String[] args) {\n        long start = System.currentTimeMillis();\n        long sum = 0;\n        // Running enough iterations to trigger C1 and C2 compilation\n        for (int i = 0; i < 500_000_000; i++) {\n            sum += compute(i);\n        }\n        System.out.println(\"Time taken: \" + (System.currentTimeMillis() - start) + \"ms, Sum: \" + sum);\n    }\n\n    private static long compute(int val) {\n        return val * 31L;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap involves premature benchmarking. Because the JIT compiler requires time and execution volume to profile and compile hot methods, microbenchmarks that do not account for warm-up phases will measure interpreted performance rather than peak JIT-compiled performance. Always use tools like JMH (Java Microbenchmark Harness) which automatically handle JVM warm-up iterations before measuring throughput."
+    }
+  ],
+  "num": 729,
+  "title": "What is JIT (Just-In-Time) compilation? Explain C1 and C2 compilers. What is the difference between interpretation and compilation?",
+  "category": "JVM Architecture & Memory Tuning"
+}

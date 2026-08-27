@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a hyper-scale e-commerce system akin to Amazon or Flipkart requires tackling complex distributed systems problems, extreme concurrency during flash sales, and strict transactional integrity for financial workflows. At its core, the architecture must transition from monolithic thinking to a modular, event-driven microservices topology. We must carefully balance the CAP theorem: trading immediate consistency for availability and partition tolerance (AP) in catalog search and recommendation pipelines, while strictly enforcing consistency (CP) in payment settlement, wallet ledgers, and inventory allocation.\n\nTo achieve this, the system relies on heavily partitioned database clusters, distributed caching with Redis to handle read-heavy spikes, and asynchronous event streaming via Apache Kafka to decouple downstream dependencies like order fulfillment, invoicing, and notification engines. Concurrency control becomes paramount when millions of users attempt to purchase limited stock items simultaneously. We rely on optimistic locking for product catalogs to prevent write skews, and database-level distributed locks or Redis Redlock patterns for flash-sale inventory decrements. Core Java and the Java Virtual Machine serve as the execution engine for our high-throughput backend services, where memory footprint optimization, garbage collection tuning (such as utilizing ZGC or G1GC for predictable low pause times), and non-blocking I/O via Netty or Spring WebFlux ensure our throughput meets strict SLA thresholds."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "System Component",
+        "Primary Technology Stack",
+        "Consistency Model & Scalability Strategy"
+      ],
+      "rows": [
+        [
+          "Catalog & Search",
+          "Elasticsearch, Java, Spring Boot",
+          "Eventual Consistency; Read-heavy horizontal scaling via document sharding."
+        ],
+        [
+          "Inventory & Order Processing",
+          "PostgreSQL/MySQL sharded, Kafka, Java",
+          "Strong Consistency (ACID) for checkout; Event-driven orchestration via Saga pattern."
+        ],
+        [
+          "Shopping Cart & Session",
+          "Redis Cluster, Java",
+          "In-memory low latency; Master-replica replication with asynchronous persistence."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Inventory Reservation and Flash Sales: Implementing a distributed atomic decrement requires moving away from heavy pessimistic database locks. Instead, we use Redis Lua scripts to execute atomic check-and-set operations on stock counts, followed by asynchronous eventual persistence to the relational database via Kafka change data capture (CDC) and outbox pattern implementations.",
+        "Distributed Transaction Management (Saga Pattern): Because cross-service transactions (Order, Payment, Inventory, Shipping) cannot rely on traditional two-phase commit (2PC) across microservices due to latency and availability penalties, we employ the Choreography or Orchestration-based Saga pattern, utilizing compensating transactions to revert state if a downstream step fails.",
+        "JVM Tuning for High-Throughput APIs: E-commerce traffic bursts stress the garbage collector. We tune the JVM using modern collectors like ZGC, minimize object allocations in the hot request paths by leveraging object pools and primitive collections (e.g., Eclipse Collections or Trove), and use off-heap memory buffers for high-performance network IO serialization."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.ecommerce.order;\n\nimport org.springframework.kafka.core.KafkaTemplate;\nimport org.springframework.stereotype.Service;\nimport org.springframework.transaction.annotation.Transactional;\n\n@Service\npublic class OrderPlacementService {\n\n    private final OrderRepository orderRepository;\n    private final KafkaTemplate<String, Object> kafkaTemplate;\n\n    public OrderPlacementService(OrderRepository orderRepository, KafkaTemplate<String, Object> kafkaTemplate) {\n        this.orderRepository = orderRepository;\n        this.kafkaTemplate = kafkaTemplate;\n    }\n\n    @Transactional\n    public OrderResponse createOrder(CreateOrderRequest request) {\n        Order order = Order.from(request);\n        order.setStatus(OrderStatus.PENDING_PAYMENT);\n        orderRepository.save(order);\n\n        // Outbox pattern or direct event publishing for Saga orchestration\n        OrderCreatedEvent event = new OrderCreatedEvent(order.getId(), order.getCustomerId(), order.getItems());\n        kafkaTemplate.send(\"order-created-topic\", order.getId().toString(), event);\n\n        return new OrderResponse(order.getId(), order.getStatus());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in large-scale e-commerce is the 'Thundering Herd' problem during flash sales. If a cache key for a high-demand item expires or is invalidated, thousands of concurrent Java threads will simultaneously query the database to rebuild the cache, instantly bringing down the relational backend. Always mitigate this using distributed locks (mutexes) or probabilistic early expiration algorithms (like XFetch) to ensure only a single thread recomputes the cache while others serve stale data or wait."
+    }
+  ],
+  "num": 1093,
+  "title": "How would you design an E-commerce system (Amazon/Flipkart)?",
+  "category": "Core Java & Fundamentals"
+}

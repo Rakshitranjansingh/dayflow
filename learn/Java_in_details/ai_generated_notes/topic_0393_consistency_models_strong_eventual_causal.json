@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed Java applications, concurrency control extends far beyond the boundaries of a single Java Virtual Machine's synchronized blocks or volatile variables. When multiple nodes coordinate across a network, consistency models—specifically strong consistency, eventual consistency, and causal consistency—define the formal guarantees regarding when a write is visible to subsequent reads. Strong consistency ensures that any read operation executed after a write returns the value of that write, effectively acting as if the distributed system were a single monolithic database instance. This model pays a heavy latency penalty due to coordination overheads like Paxos or Raft consensus algorithms.\n\nOn the opposite end of the spectrum, eventual consistency relaxes these constraints completely to achieve maximum availability and partition tolerance, as described by the PACELC theorem. If no new updates are made, all replicas will eventually converge to the same value, though intermediate reads may return stale data. Causal consistency strikes a sophisticated middle ground by capturing the happens-before relationship defined by Leslie Lamport. Operations that are causally related—such as a user posting a comment and another user replying to it—are guaranteed to be seen by every node in the same order. However, concurrent, unrelated operations can be observed in different orders across different replicas without violating correctness. Implementing these models in Java often involves leveraging distributed data structures, vector clocks, conflict-free replicated data types (CRDTs), and specialized concurrency primitives to safely reconcile state without incurring continuous global locking penalties."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Consistency Model",
+        "Latency / Performance",
+        "Coordination Required",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "Strong Consistency",
+          "High Latency (Synchronous)",
+          "Heavy (Raft, Paxos, 2PC)",
+          "Financial ledgers, inventory counts, metadata storage"
+        ],
+        [
+          "Causal Consistency",
+          "Moderate Latency",
+          "Medium (Vector Clocks, Dependency Tracking)",
+          "Chat applications, collaborative editors, social media feeds"
+        ],
+        [
+          "Eventual Consistency",
+          "Lowest Latency (Asynchronous)",
+          "Minimal (Gossip protocols, background sync)",
+          "Analytics counters, shopping carts, recommendation engines"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Strong consistency relies on synchronous replication loops where the coordinator thread blocks until a quorum of nodes acknowledges the log entry, serializing operations through a strict global timeline.",
+        "Causal consistency utilizes vector clocks or hash-linked operation DAGs to track dependent events locally within threads before transmitting state payloads over network boundaries.",
+        "Eventual consistency delegates conflict resolution to asynchronous background tasks, often implementing last-write-wins (LWW) strategies based on physical wall-clock timestamps or application-level merge functions."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class CausalMessageBuffer {\n    private final Map<String, Long> vectorClock = new ConcurrentHashMap<>();\n    private final BlockingQueue<Message> inboundQueue = new LinkedBlockingQueue<>();\n\n    public void deliverMessage(Message msg) throws InterruptedException {\n        while (!satisfiesCausality(msg)) {\n            Thread.yield(); // Wait for causal dependencies\n        }\n        applyMessage(msg);\n    }\n\n    private boolean satisfiesCausality(Message msg) {\n        // Verify sender's logical clock matches expected sequential dependency\n        long currentSenderTime = vectorClock.getOrDefault(msg.getSenderId(), 0L);\n        return msg.getSequenceNumber() == currentSenderTime + 1;\n    }\n\n    private void applyMessage(Message msg) {\n        vectorClock.put(msg.getSenderId(), msg.getSequenceNumber());\n        System.out.println(\"Applied: \" + msg.getPayload());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Beware of relying on physical wall-clock time (System.currentTimeMillis()) when attempting to implement causal or eventual consistency models. NTP drift across distributed virtual machines will inevitably cause clock skew, breaking timestamp-based last-write-wins algorithms and resulting in silently overwritten business data."
+    }
+  ],
+  "num": 394,
+  "title": "Consistency models — strong, eventual, causal",
+  "category": "Core Java & Fundamentals"
+}

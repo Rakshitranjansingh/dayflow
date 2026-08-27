@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Feature Toggles, often referred to as Feature Flags, are a powerful software development technique that allows teams to modify system behavior without changing code. By wrapping new functionality in conditional logic, you decouple the act of deploying code from the act of releasing features to users. This is critical for implementing Trunk-Based Development, as it enables developers to merge incomplete or experimental code into the main branch safely. Tools like Unleash (often self-hosted) and LaunchDarkly (a robust SaaS platform) provide the infrastructure to manage these toggles centrally, offering real-time updates, sophisticated targeting rules, and audit logs. Using these effectively means moving away from long-lived feature branches, which are notorious for merge hell, and instead moving toward a continuous integration flow where features are 'dark launched' to specific segments of users or internal testers before a full rollout."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Unleash",
+        "LaunchDarkly"
+      ],
+      "rows": [
+        [
+          "Deployment Model",
+          "Self-hosted or Cloud",
+          "SaaS Managed"
+        ],
+        [
+          "Cost Structure",
+          "Open Source / Enterprise",
+          "Tiered SaaS Subscription"
+        ],
+        [
+          "Client SDKs",
+          "Extensive / Open",
+          "High-performance / Extensive"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Toggle Lifecycle Management: Every flag should have an owner and an expiration date. Stale flags are 'technical debt' that clutter the codebase and create cognitive load.",
+        "Evaluation Context: Both Unleash and LaunchDarkly rely on a 'Context' object (user ID, organization, environment) passed from the application to determine flag state, ensuring consistent behavior across distributed microservices.",
+        "Circuit Breaking: Use toggles as a manual kill-switch for unstable features. If a new service integration causes latency spikes, toggling it off instantly mitigates the blast radius without requiring a redeployment.",
+        "Performance Overhead: SDKs use local caching and streaming connections to minimize latency. Avoid calling flag evaluation inside tight loops to prevent unnecessary SDK overhead."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void processPayment(User user, PaymentRequest request) {\n    // Unleash client evaluation\n    if (unleash.isEnabled(\"enable-new-payment-gateway\", new UnleashContext(user.getId()))) {\n        gatewayService.processViaNewProvider(request);\n    } else {\n        gatewayService.processViaLegacyProvider(request);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The biggest trap with Feature Flags is 'Flag Hell,' where conditional logic becomes so nested that the code becomes unreadable. Always treat flags as temporary. Implement a 'Flag Cleanup' task in your sprint every two weeks to remove toggles that have been permanently enabled in production. If you don't, you'll eventually find yourself debugging production issues caused by a combination of 50 active flags that no one remembers the purpose of."
+    }
+  ],
+  "num": 1148,
+  "title": "How do you use Feature Toggles (Feature Flags) effectively? (Unleash, LaunchDarkly)",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed systems and messaging middleware, delivery guarantees define the contract between a producer and a consumer regarding the reliability of message transmission. At-most-once delivery is the 'fire and forget' model; the system makes a best-effort attempt to deliver the message, but if a network partition or process crash occurs, the message is lost forever. This is ideal for telemetry or high-frequency sensor data where missing a single packet is preferable to adding latency. At-least-once delivery ensures that a message is never lost, but it accepts the risk of duplication. The producer retries until an acknowledgment is received; if the ACK is lost in transit, the producer sends the message again, forcing the consumer to handle potential duplicates via idempotency keys. Finally, Exactly-once delivery is the 'holy grail' of messaging, ensuring that even in the face of crashes, retries, or network failures, the message is processed by the consumer exactly one time. This usually requires a combination of distributed transactions, atomic commits, or stateful deduplication buffers at the storage layer."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Guarantee",
+        "Data Loss Risk",
+        "Duplicate Risk"
+      ],
+      "rows": [
+        [
+          "At-most-once",
+          "High",
+          "None"
+        ],
+        [
+          "At-least-once",
+          "None",
+          "High"
+        ],
+        [
+          "Exactly-once",
+          "None",
+          "None"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "At-most-once relies on UDP-like behavior or non-persistent queues where the offset is committed before the message is fully processed.",
+        "At-least-once requires persistent storage and a retry loop. The consumer must implement an idempotent operation (e.g., 'upsert' instead of 'insert') to mitigate the side effects of duplicate processing.",
+        "Exactly-once is typically implemented via a two-phase commit (2PC) protocol or by coupling the message offset commit with the database transaction that writes the result, ensuring the state change and the offset update are atomic.",
+        "In modern Kafka-based architectures, exactly-once is achieved using transactional producers and idempotent producers that assign sequence numbers to messages to filter out duplicates at the broker level."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Example of At-least-once processing with manual offset management\ntry {\n    ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));\n    for (ConsumerRecord<String, String> record : records) {\n        // Process business logic first\n        process(record);\n    }\n    // Commit offsets only after successful processing\n    consumer.commitSync(); \n} catch (Exception e) {\n    // On failure, the offset is not committed, causing a re-read of the batch\n    handleFailure(e);\n}"
+    },
+    {
+      "type": "note",
+      "content": "Beware the 'Exactly-once' marketing trap. In distributed systems, true exactly-once is impossible across heterogeneous systems (e.g., a message queue and an external database) without a distributed transaction coordinator. If you are writing to a database and committing a message offset separately, you are likely operating in 'at-least-once' mode. Always design your consumer logic to be idempotent—that is the only way to survive the inevitable network 'ghost' failures."
+    }
+  ],
+  "num": 940,
+  "title": "Explain Delivery Guarantees: At-most-once, At-least-once, Exactly-once.",
+  "category": "Core Java & Fundamentals"
+}

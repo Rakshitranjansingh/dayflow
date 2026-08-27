@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The divergence in behavior between 1.0 / 0.0 resulting in Infinity and 1 / 0 throwing an ArithmeticException stems directly from how the Java Virtual Machine handles floating-point arithmetic versus integer arithmetic at the hardware and bytecode levels. When you perform division using floating-point primitives (float and double), Java strictly adheres to the IEEE 754 standard for floating-point arithmetic. This standard mandates specific representations for exceptional values, including positive infinity, negative infinity, and NaN (Not-a-Number), allowing mathematical pipelines to continue executing without immediate interruption even when encountering bounds violations. Conversely, integer arithmetic in Java (using int, long, short, or byte) maps directly to processor instructions (such as idiv on x86 architectures) that lack a native native integer representation for infinity. When the JVM executes an integer division by zero, the hardware traps the invalid operation, triggering a signal that the JVM translates into a runtime ArithmeticException to preserve data integrity and prevent silent, catastrophic computational corruption."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric",
+        "Floating-Point Division (1.0 / 0.0)",
+        "Integer Division (1 / 0)"
+      ],
+      "rows": [
+        [
+          "Data Types",
+          "float, double",
+          "int, long, short, byte"
+        ],
+        [
+          "Standard Compliance",
+          "IEEE 754 Floating-Point Standard",
+          "Two's Complement Integer Math"
+        ],
+        [
+          "Execution Result",
+          "Infinity (or -Infinity / NaN)",
+          "java.lang.ArithmeticException"
+        ],
+        [
+          "Bytecode Instruction",
+          "ddiv / fdiv",
+          "idiv / ldiv"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "IEEE 754 specifies that dividing a positive finite floating-point number by positive zero yields Positive Infinity (Double.POSITIVE_INFINITY).",
+        "The JVM's integer division bytecode instructions (idiv and ldiv) explicitly inspect the divisor register; if it contains zero, the JVM preemptively throws an ArithmeticException before passing the operation down to bare-metal instructions that might cause hardware faults.",
+        "Floating-point calculations never throw ArithmeticException for division by zero; instead, operations like 0.0 / 0.0 evaluate to NaN, while non-zero numbers divided by 0.0 evaluate to signed infinities."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class DivisionAnalyzer {\n    public static void examineDivisions() {\n        // Floating-point division: adheres to IEEE 754\n        double floatResult = 1.0 / 0.0;\n        System.out.println(\"1.0 / 0.0 = \" + floatResult); // Prints: Infinity\n\n        // Integer division: violates integer math rules, triggers exception\n        try {\n            int intResult = 1 / 0;\n        } catch (ArithmeticException e) {\n            System.out.println(\"Caught expected: \" + e.getMessage()); // Prints: / by zero\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha occurs when developers migrating numerical code from Python or JavaScript (which coerce numbers or handle types dynamically) assume Java's double division behavior applies everywhere. Relying on Infinity checks instead of explicit bounds validation can propagate NaN and Infinity through complex financial or scientific algorithms, eventually corrupting database states silently because SQL or persistence frameworks may serialize these non-standard values unexpectedly."
+    }
+  ],
+  "num": 1197,
+  "title": "Why does 1.0 / 0.0 give Infinity but 1 / 0 gives ArithmeticException?",
+  "category": "Exception Handling & I/O / NIO"
+}

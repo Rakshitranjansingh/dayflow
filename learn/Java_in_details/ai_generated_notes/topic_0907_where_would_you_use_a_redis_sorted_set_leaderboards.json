@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A Redis Sorted Set (ZSET) is a specialized data structure that acts as a hybrid between a Set and a Hash. Every member in the set is associated with a floating-point 'score', which Redis uses to maintain the collection in a strictly ordered state. Unlike a standard Set, where membership is binary, a ZSET provides O(log N) time complexity for insertions, deletions, and updates, making it the industry-standard choice for real-time Leaderboards. In a distributed system, this solves the 'top-K' problem without requiring expensive full-table scans or complex sorting logic in your application layer. When you need to track user rankings, high scores, or time-series events where order matters, the ZSET allows you to perform range queries (e.g., 'get the top 10 users') with extreme efficiency, offloading the heavy lifting from your primary relational database."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Redis Sorted Set",
+        "Relational Database (SQL)"
+      ],
+      "rows": [
+        [
+          "Ranking Complexity",
+          "O(log N)",
+          "O(N log N) or O(N)"
+        ],
+        [
+          "Latency",
+          "Sub-millisecond (In-memory)",
+          "10-50ms (Disk I/O + Index scan)"
+        ],
+        [
+          "Concurrency",
+          "Atomic operations",
+          "Requires row-level locking"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Internal Mechanics: Redis implements ZSETs using a dual-data structure approach: a Hash Map for O(1) member-to-score lookups and a Skip List for O(log N) ordered range traversals.",
+        "Memory Layout: The Skip List allows for efficient range scans by maintaining multiple levels of linked lists, effectively creating a 'shortcut' mechanism that avoids traversing every node linearly.",
+        "Atomic Updates: Using ZINCRBY allows you to increment a user's score atomically, preventing race conditions that would otherwise require distributed locks in a multi-instance application environment.",
+        "Cardinality: ZSETs handle millions of members gracefully, but be mindful of memory consumption; each entry incurs overhead for the Skip List nodes and the hash table pointers."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Using Jedis to update a leaderboard and fetch top 3 players\njedis.zadd(\"game:leaderboard\", 1500.0, \"player_1\");\njedis.zadd(\"game:leaderboard\", 2200.0, \"player_2\");\njedis.zadd(\"game:leaderboard\", 1800.0, \"player_3\");\n\n// Fetch top 3 players by score descending\nSet<String> topPlayers = jedis.zrevrange(\"game:leaderboard\", 0, 2);\n\n// Get a specific player's rank (0-indexed)\nLong rank = jedis.zrevrank(\"game:leaderboard\", \"player_3\");"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Be wary of the 'Cardinality Explosion' trap. While ZSETs are fast, storing hundreds of millions of unique users in a single key can lead to massive memory pressure and blocking commands during backups or replication. If your leaderboard is global, consider sharding by time (e.g., 'leaderboard:2023:10') or using a tiered approach to prune inactive users periodically."
+    }
+  ],
+  "num": 908,
+  "title": "Where would you use a Redis Sorted Set? (Leaderboards)",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

@@ -1,0 +1,61 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Core Java concurrency, wait(), notify(), and notifyAll() are fundamental low-level synchronization methods rooted in the java.lang.Object class, rather than java.util.concurrent. These methods form the bedrock of inter-thread communication, allowing threads to coordinate their execution based on specific state conditions. When dealing with the classic producer-consumer problem—where a fixed-size buffer or queue mediates data exchange between one or more producer threads and consumer threads—these primitives prevent busy-waiting (spinning) and cleanly hand off execution control. A producer thread must wait if the buffer is completely full, while a consumer thread must wait if the buffer is empty. By invoking these methods inside a synchronized block or method, threads acquire the object's intrinsic lock (monitor), check their predicate loop, and safely transition into or out of the object's wait set."
+    },
+    {
+      "type": "prose",
+      "content": "The execution contract of wait(), notify(), and notifyAll() relies heavily on JVM monitor mechanics. The wait() method atomically releases the acquired monitor lock and suspends the calling thread, placing it into the object's internal wait set. Once another thread changes the shared state and invokes notify() or notifyAll(), one or all waiting threads are moved from the wait set to the entry set, where they must re-compete for the monitor lock. Because of spurious wakeups—where a thread wakes up without an explicit notification—wait() must always be enclosed in a while-loop evaluating the predicate. Using an 'if' statement instead of a 'while' loop is a classic concurrency bug that leads to state corruption or thread starvation."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Method",
+        "Lock Impact",
+        "Target Audience",
+        "Spurious Wakeup Vulnerability"
+      ],
+      "rows": [
+        [
+          "wait()",
+          "Releases the monitor lock and blocks",
+          "Current executing thread holding the lock",
+          "Vulnerable; requires wrapping in a while-loop predicate"
+        ],
+        [
+          "notify()",
+          "Does not release lock immediately",
+          "Arbitrarily wakes up a single thread in the wait set",
+          "Not directly protected; relies on the waiter's while-loop re-evaluation"
+        ],
+        [
+          "notifyAll()",
+          "Does not release lock immediately",
+          "Wakes up all threads currently in the wait set",
+          "Safest choice when multiple thread types share the same monitor"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Intrinsic Lock Requirement: Calling wait(), notify(), or notifyAll() without holding the target object's monitor lock throws an unchecked IllegalMonitorStateException immediately at runtime.",
+        "The Notify Trap: notify() wakes up only one arbitrary thread. In multi-producer, multi-consumer environments, using notify() can cause 'lost notifications' where a producer wakes up another producer instead of a consumer, leading to a permanent deadlock-like freeze.",
+        "State Predicate Verification: Always verify the state condition using a while-loop rather than an if-statement to guard against thread interruption and arbitrary spurious wakeups."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ProducerConsumerBuffer<T> {\n    private final java.util.Queue<T> queue = new java.util.LinkedList<>();\n    private final int capacity;\n\n    public ProducerConsumerBuffer(int capacity) {\n        this.capacity = capacity;\n    }\n\n    public synchronized void produce(T item) throws InterruptedException {\n        while (queue.size() == capacity) {\n            wait(); // Releases monitor and waits for consumer consumption\n        }\n        queue.offer(item);\n        notifyAll(); // Wake up any waiting consumers (and producers)\n    }\n\n    public synchronized T consume() throws InterruptedException {\n        while (queue.isEmpty()) {\n            wait(); // Releases monitor and waits for producer generation\n        }\n        T item = queue.poll();\n        notifyAll(); // Wake up any waiting producers\n        return item;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent senior-level pitfall is preferring notify() over notifyAll() to save CPU cycles on context switching. In complex architectures with mixed thread roles sharing a single monitor, using notify() can result in 'signal starvation' where threads indefinitely wait for a notification that was consumed by a peer of the same thread class. When in doubt, prefer notifyAll(), or transition entirely to modern java.util.concurrent.locks.Condition abstractions for explicit, safer decoupling of wait sets."
+    }
+  ],
+  "num": 120,
+  "title": "wait(), notify(), notifyAll() — producer-consumer classic",
+  "category": "Core Java & Fundamentals"
+}

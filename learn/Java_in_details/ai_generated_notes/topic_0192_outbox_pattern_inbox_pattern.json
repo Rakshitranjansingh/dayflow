@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed architectures built on event-driven principles, services frequently need to mutate local database state and publish events to a message broker (like Apache Kafka or RabbitMQ) atomically. If you execute a local database transaction and then publish an event over the network separately, network partitions, broker crashes, or application failures can leave your system in an inconsistent state—resulting in missed events or split-brain behaviors. The Outbox pattern solves the write-side atomicity problem by leveraging a database table (the outbox) within the exact same ACID transaction as the domain state updates. A separate process, such as a Transactional Tailer or Change Data Capture (CDC) engine, then reads this outbox table and reliably dispatches the messages to the broker at least once.\n\nConversely, the Inbox pattern addresses the consumption-side challenge of message idempotency and reliable delivery in event-driven architectures. Because messaging infrastructures typically guarantee at-least-once delivery, consumers frequently receive duplicate messages due to publisher retries or consumer rebalancing. The Inbox pattern intercepts incoming messages, checks a local deduplication table (the inbox) within the context of a local database transaction, and ensures that business logic execution occurs exactly once per unique message identifier. Together, the Outbox and Inbox patterns form the bedrock of reliable distributed transactions, bridging the gap between volatile network fabrics and durable relational storage engines without requiring heavy, distributed two-phase commit (2PC) protocols."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Outbox Pattern",
+        "Inbox Pattern"
+      ],
+      "rows": [
+        [
+          "Phase",
+          "Publisher / Write-side",
+          "Consumer / Read-side"
+        ],
+        [
+          "Primary Problem",
+          "Dual-write inconsistency between DB and Message Broker",
+          "Duplicate message delivery and lack of consumer idempotency"
+        ],
+        [
+          "Core Storage Mechanism",
+          "Transactional outbox table inside domain database",
+          "Deduplication inbox table inside target service database"
+        ],
+        [
+          "Resolution Strategy",
+          "CDC / Polling publisher tailing outbox table",
+          "Unique constraint / message status check before execution"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Outbox pattern guarantees atomicity by binding business mutations and event staging to a single local ACID transaction, completely eliminating the distributed dual-write dilemma.",
+        "Polling-based outbox tailers can introduce high database load and latency, which is why production systems increasingly prefer log-based CDC solutions like Debezium reading directly from the database write-ahead log (WAL).",
+        "The Inbox pattern acts as a gatekeeper at the consumer boundary, ensuring that if a message is redelivered due to a downstream failure prior to offset commitment, the duplicate payload is safely ignored via a unique constraint on the message ID.",
+        "Implementing both patterns requires careful consideration of database storage overhead, outbox row cleanup routines, and transaction isolation levels to prevent deadlocks under high-concurrency workloads."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderService {\n    private final OrderRepository orderRepository;\n    private final OutboxRepository outboxRepository;\n    private final ObjectMapper objectMapper;\n\n    @Transactional\n    public void createOrder(OrderRequest request) {\n        Order order = orderRepository.save(new Order(request));\n        \n        OrderCreatedEvent event = new OrderCreatedEvent(order.getId(), order.getTotal());\n        \n        OutboxMessage outboxMessage = new OutboxMessage(\n            UUID.randomUUID(),\n            \"OrderCreated\",\n            objectMapper.writeValueAsString(event)\n        );\n        \n        outboxRepository.save(outboxMessage);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap when deploying the Outbox pattern is failing to purge processed outbox rows, which leads to unbounded table growth and severe degradation of database query performance. Always implement a scheduled archival or deletion job for outbox records where processed_at is older than a retention threshold (e.g., 7 days). For the Inbox pattern, ensure your message IDs are cryptographically unique or deterministically hashed from the business payload; otherwise, upstream producers retrying with different internal trace IDs can bypass your deduplication checks."
+    }
+  ],
+  "num": 193,
+  "title": "Outbox pattern, Inbox pattern",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

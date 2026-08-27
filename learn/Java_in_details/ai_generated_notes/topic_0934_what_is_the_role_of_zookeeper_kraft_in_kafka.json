@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed event-driven architectures, Apache Kafka has historically relied on Apache ZooKeeper to manage cluster metadata, coordinate broker elections, and track consumer states. However, the architecture is undergoing a massive architectural shift with KIP-500, replacing ZooKeeper with Kafka Raft (KRaft). To truly understand Kafka's modern operational dynamics, one must evaluate both Apache ZooKeeper—a hierarchical, consensus-based coordination service built on Zab (ZooKeeper Atomic Broadcast)—and KRaft, which embeds consensus directly into Kafka's metadata quorum. In the legacy architecture, ZooKeeper acted as the external source of truth, storing topic configurations, access control lists (ACLs), dynamic broker configs, and managing ephemeral nodes for broker liveness. This separation of data plane (Kafka brokers) and control plane (ZooKeeper) introduced critical scaling bottlenecks, metadata synchronization lags, and long broker recovery times during rolling restarts due to ZooKeeper watch cascades and metadata reloading.\n\nKRaft solves these scaling and operational limitations by internalizing metadata management into an event-sourced metadata quorum using a consensus protocol derived from Raft. Instead of delegating cluster state to an external ensemble, designated Kafka brokers act as controller nodes, running the KRaft protocol to maintain a replicated log of metadata partitions. This eliminates the split-brain vulnerabilities, reduces controller failover times from minutes to milliseconds, and scales cluster partition limits from hundreds of thousands to millions. By merging metadata storage into Kafka's native log-structured architecture, KRaft treats metadata as just another stream of events, allowing controllers to snapshot state efficiently and enabling lightweight, deterministic metadata propagation across the cluster."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architecture Dimension",
+        "ZooKeeper Mode (Legacy)",
+        "KRaft Mode (Modern)"
+      ],
+      "rows": [
+        [
+          "Metadata Storage",
+          "External hierarchical tree (znodes)",
+          "Internal metadata topic logs (Raft quorum)"
+        ],
+        [
+          "Controller Failover Time",
+          "Slow (minutes to reload caches via watches)",
+          "Fast (milliseconds via append-only log replay)"
+        ],
+        [
+          "Cluster Scale Limit",
+          "Struggles past ~200k partitions per cluster",
+          "Scales smoothly past millions of partitions"
+        ],
+        [
+          "Operational Footprint",
+          "Requires managing a separate ZooKeeper cluster",
+          "Self-contained; managed entirely within Kafka binaries"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In ZooKeeper mode, brokers establish ephemeral sessions and watch znodes. If a network partition occurs, watch storms can overwhelm the ZooKeeper ensemble, triggering cascading disconnects and split-brain scenarios.",
+        "KRaft leverages an active-passive or active-active controller quorum. A designated active controller writes metadata changes to an internal `@metadata` topic partition using the Raft consensus algorithm, guaranteeing linearizable reads and writes.",
+        "Snapshotting in KRaft allows older log segments to be truncated safely. Controllers periodically write the current cluster state snapshot to disk, preventing infinite log growth and drastically speeding up cold-start recovery times for newly elected controllers."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "process.roles=controller,broker\nnode.id=1\ncontroller.quorum.voters=1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093\nlisteners=PLAINTEXT://:9092,CONTROLLER://:9093\ninter.broker.listener.name=PLAINTEXT\ncontroller.listener.names=CONTROLLER\nlog.dirs=/var/lib/kafka/data"
+    },
+    {
+      "type": "note",
+      "content": "When migrating an existing Kafka cluster from ZooKeeper to KRaft, you cannot perform an in-place upgrade on the fly; you must utilize Kafka's migration tooling (available since 3.5+) which runs the cluster in a dual-write bridge mode where metadata is mirrored from ZooKeeper to the KRaft controller quorum until cutover is finalized."
+    }
+  ],
+  "num": 935,
+  "title": "What is the role of Zookeeper / KRaft in Kafka?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

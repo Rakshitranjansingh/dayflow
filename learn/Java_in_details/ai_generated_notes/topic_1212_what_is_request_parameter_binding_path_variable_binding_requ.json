@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern enterprise Java applications built with Spring MVC or Spring WebFlux, handling HTTP requests requires mapping raw transport-layer data—such as query strings, URL segments, and payload bodies—into strongly-typed domain objects or primitive arguments. This mechanism is collectively known as HTTP data binding. Request parameter binding extracts values from the URL's query string (e.g., ?search=java&limit=10) or HTML form data via the @RequestParam annotation. It handles type coercion, default values, and collection parsing automatically through underlying WebDataBinder mechanisms.\n\nPath variable binding, conversely, extracts values directly from the URI path hierarchy (e.g., /users/{id}/orders/{orderId}) using the @PathVariable annotation. This is essential for RESTful architectural styles where resource locators form the primary hierarchical identity. The framework matches the URI template against the incoming request URI, destructuring the path segments and binding them to method arguments. It treats the URL structure as part of the application state rather than mere filters.\n\nRequest body binding deals with the ingestion of complex payloads—typically JSON or XML—sent in the HTTP request body. Handled via @RequestBody, this process bypasses text-based parsing in application code, relying instead on configured HttpMessageConverters (such as Jackson's MappingJackson2HttpMessageConverter) to deserialize the raw input stream directly into complex Java bean hierarchies or records. Together, these three binding strategies abstract away the low-level HttpServletRequest manipulation, allowing engineers to write clean, declarative controller layers."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Binding Type",
+        "Source Location",
+        "Primary Annotation",
+        "Typical Use Case"
+      ],
+      "rows": [
+        [
+          "Request Parameter",
+          "Query string or form data (?key=value)",
+          "@RequestParam",
+          "Filtering, pagination, sorting, search queries"
+        ],
+        [
+          "Path Variable",
+          "URI path segments (/resource/{id})",
+          "@PathVariable",
+          "Resource identification, hierarchical relationships"
+        ],
+        [
+          "Request Body",
+          "HTTP payload stream (JSON/XML)",
+          "@RequestBody",
+          "Entity creation (POST), full/partial updates (PUT/PATCH)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Request parameter binding utilizes the WebDataBinder and registered PropertyEditors or ConversionService instances to transform string inputs into target types like LocalDate, UUID, or custom enums.",
+        "Path variable binding resolves variables by matching URI templates against AntPathMatcher or PathPatternParser rules, often exposing path parameters via request attribute maps for downstream filters.",
+        "Request body binding leverages Jackson's ObjectMapper under the hood, triggering deserialization constructors, setters, or Java 14+ Record canonical constructors while enforcing validation constraints via javax.validation or jakarta.validation annotations."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/v1/users\")\npublic class UserController {\n\n    // Path Variable + Request Parameter Binding\n    @GetMapping(\"/{tenantId}/search\")\n    public ResponseEntity<List<UserDto>> searchUsers(\n            @PathVariable(\"tenantId\") UUID tenantId,\n            @RequestParam(name = \"q\", defaultValue = \"\") String query,\n            @RequestParam(name = \"limit\", defaultValue = \"20\") int limit) {\n        List<UserDto> users = userService.search(tenantId, query, limit);\n        return ResponseEntity.ok(users);\n    }\n\n    // Request Body Binding\n    @PostMapping\n    public ResponseEntity<UserDto> createUser(\n            @PathVariable(\"tenantId\") UUID tenantId,\n            @Valid @RequestBody CreateUserCommand command) {\n        UserDto created = userService.create(tenantId, command);\n        return ResponseEntity.status(HttpStatus.CREATED).body(created);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall occurs when binding request parameters or path variables without accounting for optionality or null safety. If an @RequestParam is omitted by the client and 'required = true' (the default), Spring throws a 400 Bad Request. Conversely, failing to annotate complex objects with @Valid alongside @RequestBody means bean validation annotations like @NotNull or @Size will be silently ignored, allowing malformed data to penetrate your service layer."
+    }
+  ],
+  "num": 1213,
+  "title": "What is request parameter binding? Path variable binding? Request body binding?",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

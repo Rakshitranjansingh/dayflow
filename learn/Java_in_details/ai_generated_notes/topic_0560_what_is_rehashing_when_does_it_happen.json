@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of Core Java and hash-based collections like HashMap, ConcurrentHashMap, and HashSet, rehashing is the foundational process of reconstructing the underlying hash table when its capacity is exhausted or its load factor threshold is breached. When you instantiate a standard HashMap, it allocates an array of buckets (nodes) of a default initial capacity, typically 16. As elements are inserted via their computed hash codes, they are mapped to specific bucket indices using bitwise operations (like (n - 1) & hash). Because memory is finite and hash collisions are inevitable—even with well-distributed hash codes—the data structure cannot grow indefinitely without degrading performance. \n\nWhen does rehashing happen? It is triggered deterministically when the current number of key-value mappings exceeds the product of the current capacity and the load factor (defaulting to 0.75). For instance, a map with a capacity of 16 and a load factor of 0.75 will initiate a rehashing cycle the exact moment a 13th unique key is inserted. During this intensive operation, Java allocates a brand-new internal array with double the capacity of the previous one (e.g., growing from 16 to 32, always maintaining a power-of-two size). Following the new allocation, every existing node across all old buckets must be re-evaluated, re-hashed, and relocated into the new bucket array. This is because the bucket index calculation depends directly on the capacity ($n$), meaning an element that resided in bucket 3 previously might now map to bucket 19 in the larger array. This migration prevents long linked lists or deep red-black trees from forming within a single bucket, preserving the near-constant $O(1)$ time complexity lookup guarantees expected from hash-based collections."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Phase / Property",
+        "Pre-Rehash State",
+        "Post-Rehash State"
+      ],
+      "rows": [
+        [
+          "Capacity (Table Size)",
+          "Power of two (e.g., 16)",
+          "Doubled power of two (e.g., 32)"
+        ],
+        [
+          "Threshold",
+          "Capacity * Load Factor (e.g., 12)",
+          "New Capacity * Load Factor (e.g., 24)"
+        ],
+        [
+          "Bucket Location",
+          "Calculated via (OldCapacity - 1) & Hash",
+          "Recalculated via (NewCapacity - 1) & Hash"
+        ],
+        [
+          "Performance Impact",
+          "Optimal O(1) searches until threshold",
+          "Temporary CPU spike due to O(N) migration"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Power-of-Two Optimization: Java optimizes the modulo operation required for bucket indexing by enforcing that table capacities are always powers of two. This allows the JVM to use a bitwise AND operation ((n - 1) & hash) instead of a costly integer modulo division.",
+        "The Treeify/Untreeify Transition: During rehashing, if a bucket contains a TreeBin (Red-Black tree) instead of a simple linked list (introduced in Java 8 to mitigate hash collision Denial of Service attacks), the system evaluates whether the nodes should remain as a tree or be converted back into a linear linked list (untreeified) based on size constraints.",
+        "Memory Allocation Overhead: Rehashing forces the garbage collector to handle the old, abandoned bucket array, while the JVM allocates a contiguous block of memory for the new, larger array, causing minor stop-the-world or allocation pressure in latency-sensitive systems.",
+        "Thread Safety Hazard: In legacy collections like Hashtable or non-synchronized HashMaps, concurrent rehashing can corrupt the internal linked-list pointers, leading to infinite loops (CPU spinning at 100%) during subsequent get() or put() operations."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.HashMap;\nimport java.util.Map;\n\npublic class RehashingDemo {\n    public static void main(String[] args) {\n        // Initial capacity is 4, load factor is 0.75.\n        // Threshold = 4 * 0.75 = 3 items.\n        Map<Integer, String> map = new HashMap<>(4, 0.75f);\n        \n        map.put(1, \"One\");   // Size 1: No rehash\n        map.put(2, \"Two\");   // Size 2: No rehash\n        map.put(3, \"Three\"); // Size 3: Hits threshold (3 >= 3)\n        \n        // The 4th insertion triggers rehashing! \n        // Capacity doubles from 4 to 8, and all elements are relocated.\n        map.put(4, \"Four\"); \n        \n        System.out.println(\"Rehashing complete. Map size: \" + map.size());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Production Gotcha: Never accept default capacities if you know your dataset size in advance. If you need to insert 10,000 items into a default HashMap (initial capacity 16, load factor 0.75), the JVM will violently rehash and resize the internal array roughly 10 times (16 -> 32 -> 64 -> 128 -> 256 -> 512 -> 1024 -> 2048 -> 4096 -> 8192 -> 16384). Each resize consumes CPU cycles and creates garbage. Always size your collections explicitly: new HashMap<>(expectedSize / loadFactor + 1) to eliminate rehashing overhead entirely."
+    }
+  ],
+  "num": 561,
+  "title": "What is rehashing? When does it happen?",
+  "category": "Core Java & Fundamentals"
+}

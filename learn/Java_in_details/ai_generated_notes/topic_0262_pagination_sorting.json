@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Pagination and Sorting are foundational data retrieval strategies critical for handling large-scale datasets in modern enterprise applications. Without pagination, querying unrestricted result sets leads to catastrophic memory exhaustion (OutOfMemoryError), severe network congestion, and massive database I/O saturation due to full table scans and exorbitant result-set transmission. Pagination divides a massive dataset into manageable subsets or chunks using strategies like offset-based paging (LIMIT/OFFSET) or keyset pagination (cursor-based), allowing clients to request data page by page. Sorting complements pagination by enforcing a deterministic, predictable ordering of tuples via database indexes, ensuring that users receive sequentially consistent results across multiple page fetches.\n\nIn the context of Input/Output and NIO (New I/O) architectures, large dataset pagination and sorting intersect heavily with non-blocking data streaming, buffer management, and connection handling. When high-throughput systems serve paginated results over NIO channels (such as Netty or Spring WebFlux running on Netty), database cursors or streaming result sets prevent the JVM heap from filling up with millions of domain objects. Instead, database drivers stream raw bytes into direct memory buffers (ByteBuffer), which are then asynchronously written out to TCP sockets without stalling worker threads. Combined with robust exception handling strategies—such as catching database timeouts, query syntax errors, or invalid pagination offsets (e.g., negative page numbers or excessively deep offsets that degrade performance)—enterprise systems maintain high resilience and predictable latency SLAs."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Pagination Strategy",
+        "Offset-Based (LIMIT/OFFSET)",
+        "Keyset/Cursor-Based"
+      ],
+      "rows": [
+        [
+          "Performance at Deep Pages",
+          "Degrades linearly O(N); database must read and discard N rows.",
+          "O(1) constant time; leverages indexed WHERE clauses directly."
+        ],
+        [
+          "Data Stability",
+          "Vulnerable to missing or duplicate rows if concurrent writes occur.",
+          "Highly stable; resumes navigation seamlessly from the last known cursor."
+        ],
+        [
+          "Flexibility",
+          "Allows random access (jumping directly to page 50).",
+          "Restricted to sequential access (Next/Previous/Cursor-based traversal)."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Offset pagination execution mechanics require the database engine to scan from the physical start of the table or index, materialize the rows up to the offset boundary, and then discard everything except the requested limit size, making deep paging a primary anti-pattern for performance.",
+        "Keyset pagination relies on equality or inequality predicates on indexed columns (e.g., WHERE id > last_seen_id ORDER BY id ASC LIMIT 20), which allows the database query optimizer to perform B-Tree index lookups directly without scanning intermediary rows.",
+        "NIO buffer pooling ensures that paginated collections mapped to JSON responses do not trigger excessive garbage collection pauses; pooling direct byte buffers minimizes native-to-heap memory copying overhead during socket writes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.springframework.data.domain.Pageable;\nimport org.springframework.data.domain.Slice;\nimport org.springframework.data.repository.PagingAndSortingRepository;\nimport org.springframework.stereotype.Service;\nimport org.springframework.transaction.annotation.Transactional;\n\n@Service\npublic class AuditLogService {\n    private final AuditLogRepository repository;\n\n    public AuditLogService(AuditLogRepository repository) {\n        this.repository = repository;\n    }\n\n    @Transactional(readOnly = true)\n    public Slice<AuditLog> getLogsStreaming(Pageable pageable) {\n        // Using Slice instead of Page avoids the expensive COUNT(*) query overhead\n        return repository.findAllByStatus(\"ERROR\", pageable);\n    }\n}\n\ninterface AuditLogRepository extends PagingAndSortingRepository<AuditLog, Long> {\n    Slice<AuditLog> findAllByStatus(String status, Pageable pageable);\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in enterprise systems is relying blindly on Spring Data's Page<T> implementation for large datasets. Page<T> forces the execution of an additional COUNT(*) query alongside the data query to calculate total pages. On large tables with complex joins, the COUNT(*) query can easily lock or strain the database, completely invalidating the performance gains of pagination. Always favor Slice<T> or explicit cursor-based queries when dealing with high-volume NIO streaming APIs."
+    }
+  ],
+  "num": 263,
+  "title": "Pagination & Sorting",
+  "category": "Exception Handling & I/O / NIO"
+}

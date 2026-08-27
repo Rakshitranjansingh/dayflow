@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Profiles provide a core segregation mechanism in the Spring Framework, allowing developers to map bean definitions and configuration properties to distinct runtime environments such as development, testing, staging, and production. At its core, the profile abstraction solves the universal problem of environment drift: hardcoding database URLs, connection pool sizes, or third-party API endpoints directly into application code inevitably leads to deployment failures and security vulnerabilities. By isolating infrastructure concerns into named logical groups via the @Profile annotation or profile-expression logic, Spring determines which components to instantiate within the ApplicationContext during the container refresh phase. Complementing bean segregation is the mechanism for loading profile-specific properties. Spring Boot extends this natively through naming conventions like application-{profile}.properties or application-{profile}.yml, or via programmatic activation through the Environment abstraction and PropertySource loaders."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Configuration File Name",
+        "Target Profile",
+        "Loading Behavior"
+      ],
+      "rows": [
+        [
+          "application.properties",
+          "Default (Always active)",
+          "Loaded first as baseline configuration for all environments."
+        ],
+        [
+          "application-dev.properties",
+          "dev",
+          "Loaded when 'dev' is active; overrides properties in application.properties."
+        ],
+        [
+          "application-prod.properties",
+          "prod",
+          "Loaded when 'prod' is active; overrides properties in application.properties."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "During the bootstrap phase, Spring Boot's SpringApplication instance delegates to EnvironmentPostProcessor implementations to inspect system properties, environment variables, or spring.profiles.active settings.",
+        "When a profile is activated, the PropertySourceLoader reads matching YAML or properties files, wrapping them in a ProfileSpecificPropertySource and inserting them with higher precedence into the MutablePropertySources collection.",
+        "Bean definitions annotated with @Profile are evaluated against the ActiveProfilesResolver. If a bean's profile expression (e.g., 'prod & !cloud') evaluates to true against the active Environment, the BeanDefinition is registered into the BeanFactory; otherwise, it is skipped entirely.",
+        "Since Spring Boot 2.4, the import mechanism via spring.config.import allows explicit, ordered loading of externalized profile-specific configuration files from remote config servers or local file paths."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@Profile(\"prod\")\npublic class ProductionDataSourceConfig {\n\n    @Bean\n    @ConfigurationProperties(prefix = \"app.datasource\")\n    public DataSource dataSource() {\n        return DataSourceBuilder.create().type(HikariDataSource.class).build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Production Gotcha: A common trap when loading profile-specific properties in Spring Boot is relying on default fallback behavior when merging properties. If you define a list or a map in application.properties and a profile-specific file (like application-prod.properties) attempts to override a single element, Spring Boot's property binder will often completely replace the entire collection rather than performing a merge. Always ensure that array and list properties are fully declared in the target profile file if you intend to override them."
+    }
+  ],
+  "num": 777,
+  "title": "Explain Spring Profiles. How do you load profile-specific properties?",
+  "category": "Exception Handling & I/O / NIO"
+}

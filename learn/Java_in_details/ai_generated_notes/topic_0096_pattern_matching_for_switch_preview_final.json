@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Pattern matching for switch, introduced as a preview feature in Java 17 (JEP 406) and finally made a permanent, standard language feature in Java 21 (JEP 441), fundamentally transforms how Java developers handle conditional branching, polymorphic dispatch, and data unbundling. Historically, the `switch` statement in Java was limited to integral types, strings, and enums, forcing developers to rely on long, brittle chains of `instanceof` checks followed by explicit downcasts. This introduced significant boilerplates and runtime vulnerabilities. Pattern matching elevates `switch` into a powerful syntax construct that can inspect, test, and decompose complex object graphs within a single, type-safe evaluation structure.\n\nThe evolution from a preview feature to a final specification reflects crucial refinements in compiler semantics, exhaustiveness checking, and null-handling. When pattern matching for switch was in its preview phases (such as JEP 406, 420, and 427), the syntax and compiler rules for guarded patterns and nullable references underwent continuous debate. In its final form in Java 21, it natively supports type patterns, record patterns, and guarded patterns via `when` clauses. The compiler ensures that all possible runtime values are accounted for—a property known as exhaustiveness—which eliminates entire classes of `MatchException` or unexpected fall-through errors at compile time."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature Evolution",
+        "Preview Phase (Java 17-20)",
+        "Final Specification (Java 21+)"
+      ],
+      "rows": [
+        [
+          "Syntax Flag",
+          "Requires `--enable-preview` compiler flag",
+          "Standard feature, no flags required"
+        ],
+        [
+          "Guards Syntax",
+          "Utilized `&&` or `case PATTERN if (EXPR)`",
+          "Standardized exclusively on the `when` keyword"
+        ],
+        [
+          "Null Handling",
+          "Explicit `case null` not always standard",
+          "Standardized explicit `case null` and default semantics"
+        ],
+        [
+          "Exhaustiveness",
+          "Evaluated progressively across preview cycles",
+          "Strictly enforced for sealed classes, records, and enums"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Exhaustiveness Analysis: The Java compiler builds a dominance and coverage tree for sealed hierarchies, records, and enums. If a `switch` expression fails to cover all possible runtime subtypes, the compiler halts with an exhaustiveness error.",
+        "Dominance Ordering: More specific patterns must precede broader patterns. Placing a wide type pattern (like `Object o`) before a narrow type pattern (like `String s`) results in a compilation error because the latter becomes dead code.",
+        "The 'when' Guard Clause: Type patterns alone cannot always express complex business rules. The `when` clause introduces a conditional guard that evaluates boolean expressions while preserving the scope of pattern-bound variables.",
+        "Deconstruction of Records: Record patterns allow developers to destructure a record component directly inside the switch case, recursively binding nested components without invoking getter methods."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public sealed interface Result permits Success, Failure {\n    record Success(String data, int code) implements Result {}\n    record Failure(Throwable cause, int errorCode) implements Result {}\n}\n\npublic class SwitchPatternDemo {\n    public String handleResult(Result result) {\n        return switch (result) {\n            case null -> \"Received null result\";\n            case Result.Success(String data, int code) when code == 200 -> \n                \"Success with payload: \" + data;\n            case Result.Success s -> \n                \"Success with non-standard code: \" + s.code();\n            case Result.Failure(var cause, var code) -> \n                \"Failed [\" + code + \"]: \" + cause.getMessage();\n        };\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A subtle production gotcha when migrating codebases from preview pattern matching (Java 17/18/19) to final Java 21 is the syntax shift for guarded patterns. Older preview versions experimented with boolean operators directly alongside patterns or experimental keywords, but Java 21 strictly requires the `when` keyword. Additionally, always remember that adding a new subclass to a sealed interface will instantly break compilation across all exhaustive switch statements in your codebase—which is usually a desirable safety feature for domain modeling, but requires coordination during continuous integration builds."
+    }
+  ],
+  "num": 97,
+  "title": "Pattern matching for switch (preview → final)",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

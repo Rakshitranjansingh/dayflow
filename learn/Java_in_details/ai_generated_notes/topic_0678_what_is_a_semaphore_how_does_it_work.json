@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In concurrent programming, a Semaphore is a classic synchronization primitive used to control access to a shared resource through the use of a counter. Invented by Edsger Dijkstra, a Semaphore maintains a set of internal permits. When a thread wants to access a critical section or limited resource, it must acquire a permit, which decrements the internal counter. If the counter reaches zero, subsequent acquiring threads block until another thread releases its permit, incrementing the counter. Unlike a standard Mutex or ReentrantLock, which enforces mutual exclusion by allowing only a single thread to access a resource at a time, a Semaphore permits a configurable number of concurrent threads to enter the guarded section. This makes it exceptionally useful for throttling access to database connection pools, rate-limiting API calls, or managing bounded buffer capacities in producer-consumer architectures.\n\nUnderstanding how a Semaphore works requires looking under the hood at its internal synchronization state. In Java, java.util.concurrent.Semaphore is backed by an abstract queued synchronizer (AQS) framework. The semaphore's constructor accepts an initial permit count and an optional boolean parameter for fairness. If fairness is set to true, the AQS queue grants permits in First-In-First-Out (FIFO) order, preventing thread starvation at the cost of slightly lower throughput due to extra context switching. The acquire() method invokes the AQS acquireSharedInterruptibly method, putting the calling thread into a waiting state on a FIFO wait queue if no permits are available. Conversely, release() increments the permit count and unparks the next queued thread, waking it up to attempt another acquisition. This mechanics decouples the locking thread from the releasing thread, meaning one thread can acquire a permit and a completely different thread can release it, a property that standard exclusive locks explicitly forbid."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Semaphore",
+        "ReentrantLock",
+        "CountDownLatch"
+      ],
+      "rows": [
+        [
+          "Purpose",
+          "Controls access to a pool of $N$ resources.",
+          "Mutual exclusion for a single resource.",
+          "One-time synchronization to wait for $N$ events."
+        ],
+        [
+          "Ownership",
+          "Non-exclusive; any thread can release a permit.",
+          "Exclusive; only the locking thread can unlock.",
+          "N/A; threads count down and await."
+        ],
+        [
+          "State Reset",
+          "Dynamic permits can be acquired and released repeatedly.",
+          "Locked and unlocked sequentially.",
+          "Terminal state; cannot be reset once counted down."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "AQS Integration: The Semaphore delegates its core logic to an inner Sync class extending AbstractQueuedSynchronizer, utilizing the volatile state variable in AQS to store the current count of available permits atomically via sun.misc.Unsafe compare-and-swap (CAS) operations.",
+        "Fairness vs Non-fairness: Non-fair semaphores allow barging—an incoming thread can acquire a permit immediately even if other threads are waiting in the AQS queue, yielding higher raw throughput. Fair semaphores respect the queue order, eliminating thread starvation.",
+        "Interruptibility: Methods like acquire() respond to thread interruption by throwing an InterruptedException, whereas acquireUninterruptibly() ignores interrupts and preserves the thread's interrupted status until it successfully secures a permit."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.Semaphore;\nimport java.util.concurrent.ExecutorService;\nimport java.util.concurrent.Executors;\nimport java.util.concurrent.TimeUnit;\n\npublic class DatabaseConnectionThrottler {\n    private final Semaphore semaphore;\n    private final int maxConnections;\n\n    public DatabaseConnectionThrottler(int maxConnections) {\n        this.maxConnections = maxConnections;\n        // Fair semaphore to prevent thread starvation under heavy load\n        this.semaphore = new Semaphore(maxConnections, true);\n    }\n\n    public void executeQuery(Runnable queryTask) {\n        try {\n            semaphore.acquire();\n            try {\n                // Critical section: execute database operation\n                queryTask.run();\n            } finally {\n                semaphore.release();\n            }\n        } catch (InterruptedException e) {\n            Thread.currentThread().interrupt();\n            System.err.println(\"Thread was interrupted while waiting for database connection.\");\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap with Semaphores is failing to wrap the acquire-and-release pattern in a strict try-finally block. If an unchecked exception is thrown between acquire() and your critical section execution, the permit is permanently leaked. Over time, leaked permits will drain the semaphore's capacity, causing threads to block indefinitely and hanging your application. Always call acquire() outside the try block, immediately followed by a try-finally where release() is invoked."
+    }
+  ],
+  "num": 679,
+  "title": "What is a Semaphore? How does it work?",
+  "category": "Core Java & Fundamentals"
+}

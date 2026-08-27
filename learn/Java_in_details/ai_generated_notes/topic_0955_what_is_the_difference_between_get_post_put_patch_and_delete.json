@@ -1,0 +1,70 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of RESTful architecture, HTTP methods act as the verbs that define the semantic intent of a client's request to a resource. GET is designed for idempotent, safe retrieval of data; it should never modify the server-side state. POST is the workhorse for non-idempotent operations, typically used to create new resources or trigger complex processes where the server determines the URI. PUT is strictly idempotent and intended for full resource replacement; if you send the same PUT request multiple times, the final state of the resource remains identical to the first. PATCH is the surgical alternative to PUT, designed for partial updates where only a subset of the resource's fields are modified, reducing bandwidth and avoiding the 'lost update' problem. Finally, DELETE is the mechanism for removing a resource, which, while idempotent in its final outcome (the resource is gone), is not safe since it mutates the server state."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Method",
+        "Idempotent",
+        "Safe",
+        "Payload Support"
+      ],
+      "rows": [
+        [
+          "GET",
+          "Yes",
+          "Yes",
+          "No (Query Params)"
+        ],
+        [
+          "POST",
+          "No",
+          "No",
+          "Yes"
+        ],
+        [
+          "PUT",
+          "Yes",
+          "No",
+          "Yes"
+        ],
+        [
+          "PATCH",
+          "No",
+          "No",
+          "Yes"
+        ],
+        [
+          "DELETE",
+          "Yes",
+          "No",
+          "No"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "GET requests are cached by browsers and CDNs by default; using them for state-changing operations is a critical architectural violation that leads to unpredictable cache-invalidation bugs.",
+        "PUT requires the client to send the entire representation of the resource. If a field is omitted, the server might interpret it as null, leading to accidental data destruction.",
+        "PATCH implementations often rely on JSON Patch (RFC 6902) or JSON Merge Patch (RFC 7396) to define how the partial update should be applied to the underlying entity.",
+        "POST is the only method that does not require idempotency, making it the correct choice for operations like 'process payment' or 'send email' where duplicate requests could cause side effects."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/users\")\npublic class UserController {\n    @PutMapping(\"/{id}\")\n    public ResponseEntity<User> replaceUser(@PathVariable Long id, @RequestBody User user) {\n        // PUT: Replace entire entity\n        return ResponseEntity.ok(service.updateFull(id, user));\n    }\n\n    @PatchMapping(\"/{id}\")\n    public ResponseEntity<User> patchUser(@PathVariable Long id, @RequestBody Map<String, Object> updates) {\n        // PATCH: Partial update using Map or DTO\n        return ResponseEntity.ok(service.patch(id, updates));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never use GET to trigger a database write. Beyond the obvious security risks, web crawlers and proxy servers will aggressively cache GET requests, meaning your 'delete' or 'update' operation might never actually reach your server, or worse, execute multiple times unexpectedly. Always enforce strict method semantics to ensure your API remains predictable for client-side state management libraries like React Query or SWR."
+    }
+  ],
+  "num": 956,
+  "title": "What is the difference between GET, POST, PUT, PATCH, and DELETE?",
+  "category": "Core Java & Fundamentals"
+}

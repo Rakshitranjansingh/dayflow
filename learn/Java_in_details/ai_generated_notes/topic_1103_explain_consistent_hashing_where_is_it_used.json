@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Consistent Hashing is a distributed systems technique designed to solve the 'remapping problem' inherent in traditional modulo-based load balancing. In a standard hash-based partitioning scheme (e.g., server = hash(key) % N), adding or removing a single node changes the result of the modulo operation for nearly every key in the system, triggering a massive data migration across the entire cluster. Consistent Hashing mitigates this by mapping both nodes and data keys onto a logical 'hash ring'—a circular address space typically ranging from 0 to 2^32-1. A key is assigned to the first node encountered moving clockwise along the ring. When a node is added or removed, only the keys in the immediate neighborhood of that node are affected, limiting the impact to 1/N of the total keys. This property makes it the backbone of horizontally scalable distributed caches like Memcached, distributed databases like Apache Cassandra and DynamoDB, and service discovery mechanisms where high availability and minimal churn are non-negotiable."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Traditional Modulo Hashing",
+        "Consistent Hashing"
+      ],
+      "rows": [
+        [
+          "Node Addition Impact",
+          "Massive (O(N) keys remapped)",
+          "Minimal (O(K/N) keys remapped)"
+        ],
+        [
+          "Load Distribution",
+          "Uniform (if hash is good)",
+          "Can be skewed (requires virtual nodes)"
+        ],
+        [
+          "Complexity",
+          "Low",
+          "Moderate (requires ring management)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Hash Ring: A logical continuum where the maximum hash value wraps around to zero. Nodes are hashed onto this ring based on their identifiers (IP/Port), and keys are hashed to find their 'successor' node.",
+        "Virtual Nodes (VNodes): To prevent hotspots where one node handles significantly more traffic than others, each physical node is mapped to multiple points on the ring. This ensures a more uniform distribution of data across the cluster.",
+        "Replication Strategy: In distributed storage, the system doesn't just store the key on the first successor; it traverses the ring clockwise to store replicas on the next N-1 nodes, ensuring fault tolerance if a node fails.",
+        "Lookup Complexity: Using a TreeMap in Java or a similar balanced BST, finding the successor node for a key is O(log N), where N is the number of nodes on the ring."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.SortedMap;\nimport java.util.TreeMap;\n\npublic class ConsistentHashRing<T> {\n    private final TreeMap<Integer, T> ring = new TreeMap<>();\n    private final int numberOfReplicas = 100; // Virtual nodes\n\n    public void addNode(T node) {\n        for (int i = 0; i < numberOfReplicas; i++) {\n            ring.put((node.toString() + i).hashCode(), node);\n        }\n    }\n\n    public T get(String key) {\n        if (ring.isEmpty()) return null;\n        int hash = key.hashCode();\n        if (!ring.containsKey(hash)) {\n            SortedMap<Integer, T> tailMap = ring.tailMap(hash);\n            hash = tailMap.isEmpty() ? ring.firstKey() : tailMap.firstKey();\n        }\n        return ring.get(hash);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The biggest production trap with Consistent Hashing is the 'hot key' problem. Even with virtual nodes, if a specific key (like a celebrity's profile ID) receives 90% of the traffic, the ring position doesn't matter. You must combine Consistent Hashing with application-level caching or key-salting to handle skewed traffic patterns effectively. Also, always ensure your hash function (e.g., MurmurHash or SHA-256) is well-distributed; using String.hashCode() in production is a common mistake that leads to collisions and poor ring balance."
+    }
+  ],
+  "num": 1104,
+  "title": "Explain Consistent Hashing. Where is it used?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

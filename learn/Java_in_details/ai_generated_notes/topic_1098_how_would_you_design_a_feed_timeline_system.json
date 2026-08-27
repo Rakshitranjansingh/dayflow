@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a high-throughput feed and timeline system requires careful orchestration of storage patterns, caching tiers, and asynchronous event processing. At its core, a feed system must solve the classic fan-out problem: when a user publishes a post, how do we distribute that content to thousands or millions of followers? In modern architectures, this is handled through two primary strategies: Fan-out on Write (Push) and Fan-out on Read (Pull). The Push model writes the post ID directly to every follower's timeline cache immediately upon creation, ensuring ultra-low read latency for consumers with high read-to-write ratios. Conversely, the Pull model stores only the user's own posts and queries the timelines of all followed users dynamically at read time, minimizing storage footprint and write amplification for power users.\n\nIn a production Java ecosystem, implementing this pattern involves coordinating distributed data stores, in-memory caches, and message brokers. We often leverage Redis sorted sets (ZSETs) to maintain chronologically ordered timelines where the score represents the epoch timestamp. To handle the massive ingestion of write operations without overwhelming downstream databases, asynchronous processing pipelines built with Kafka or RabbitMQ decouple the API ingestion layer from the fan-out workers. Concurrently, database sharding strategies based on user ID partitions ensure that relational stores or NoSQL databases like Cassandra scale horizontally as user bases expand into the tens of millions."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric / Dimension",
+        "Fan-out on Write (Push)",
+        "Fan-out on Read (Pull)"
+      ],
+      "rows": [
+        [
+          "Read Latency",
+          "Extremely Low (O(1) memory lookup)",
+          "Higher (O(N) merge-sort across followed users)"
+        ],
+        [
+          "Write Latency",
+          "High for users with many followers (Fan-out storm)",
+          "Low (Append-only write to user's own table)"
+        ],
+        [
+          "Storage Cost",
+          "High (Data duplication across follower timelines)",
+          "Low (Single source of truth per post)"
+        ],
+        [
+          "Ideal Use Case",
+          "Standard users with moderate follower counts",
+          "Celebrities or 'power users' with millions of followers"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Hybrid Fan-out Strategy: To prevent the 'celebrity problem' where writing a single post to 10 million follower queues causes CPU saturation and lock contention, systems use a hybrid approach. Standard users use Push, while celebrities use Pull combined with a cached hybrid timeline join.",
+        "Pagination via Cursors: Avoid offset-based pagination (LIMIT/OFFSET) in deep timelines because it degrades to O(N) database scans. Instead, utilize cursor-based pagination utilizing the post timestamp or Redis ZREVRANGEBYSCORE with exclusive bounds.",
+        "Idempotency and Deduplication: Because message brokers at scale can deliver at-least-once delivery semantics, feed workers must use deduplication keys or idempotency tokens to prevent duplicate post insertions into a user's timeline."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class TimelineService {\n    private final RedisTemplate<String, String> redisTemplate;\n    private static final String TIMELINE_KEY_PREFIX = \"timeline:\";\n\n    public TimelineService(RedisTemplate<String, String> redisTemplate) {\n        this.redisTemplate = redisTemplate;\n    }\n\n    public void publishPostToFollowers(String postId, long timestamp, List<String> followerIds) {\n        double score = (double) timestamp;\n        for (String followerId : followerIds) {\n            String key = TIMELINE_KEY_PREFIX + followerId;\n            redisTemplate.opsForZSet().add(key, postId, score);\n            // Trim timeline to maintain memory bounds (keep last 800 items)\n            redisTemplate.opsForZSet().removeRange(key, 0, -801);\n        }\n    }\n\n    public Set<String> getTimeline(String userId, int limit) {\n        String key = TIMELINE_KEY_PREFIX + userId;\n        // Fetch latest posts in reverse chronological order\n        return redisTemplate.opsForZSet().reverseRange(key, 0, limit - 1);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in push-based feed architectures is unbounded memory consumption in Redis due to inactive users. If you blindly push posts to every follower's ZSET without setting a retention limit or implementing cache eviction policies (such as keeping only the most recent 500-1000 items per user), your memory usage will grow linearly with total post volume and inactive accounts, eventually triggering OOM kills or severe swapping."
+    }
+  ],
+  "num": 1099,
+  "title": "How would you design a feed/timeline system?",
+  "category": "Core Java & Fundamentals"
+}

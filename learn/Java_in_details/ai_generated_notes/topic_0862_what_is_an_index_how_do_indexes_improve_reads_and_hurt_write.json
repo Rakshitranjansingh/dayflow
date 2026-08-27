@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In relational database management systems and data-intensive applications, an index is a specialized, persistent auxiliary data structure—most commonly implemented as a B+Tree or a Hash index—that optimizes the speed of data retrieval operations on a table at the direct expense of additional storage overhead and modified write amplification. Without an index, executing a query forces the storage engine to perform a full table scan (O(N) time complexity), sequentially reading every data block or page from disk into memory to evaluate the predicate. By maintaining a sorted, hierarchical roadmap of specific column values and their corresponding disk pointers, an index transforms search operations into logarithmic O(log N) lookups.\n\nHowever, this optimization is not free. Every time a write operation—such as an SQL INSERT, UPDATE, or DELETE—is executed, the database cannot simply modify the base data table. It must also traverse, rebalance, and update every associated index structure to reflect the new state. This introduces heavy write amplification: a single logical row insertion can easily cascade into multiple random disk I/O operations to write the new heap tuple, update the primary clustered index, and adjust multiple secondary non-clustered indexes. Consequently, read-heavy systems thrive under aggressive indexing, while write-heavy systems (like high-throughput logging or real-time event stream ingestions) suffer severely from index bloat, lock contention on index pages, and degraded transaction throughput."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Operational Dimension",
+        "How Indexes Improve Reads",
+        "How Indexes Hurt Writes"
+      ],
+      "rows": [
+        [
+          "Time Complexity",
+          "Reduces search space from linear O(N) to logarithmic O(log N) via B+Tree traversal.",
+          "Adds overhead because every insert must traverse the B+Tree to find the correct leaf insertion point."
+        ],
+        [
+          "Disk I/O Patterns",
+          "Minimizes random disk page reads by pointing directly to target data blocks or clustered keys.",
+          "Triggers write amplification, forcing synchronous or asynchronous updates to multiple index files per row change."
+        ],
+        [
+          "Lock Contention",
+          "Enables index-range locks, avoiding whole-table locks during selective queries.",
+          "Increases latch and lock contention on hot index leaf nodes and internal root pages during concurrent inserts."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "B+Tree Internal Mechanics: Data in a B+Tree index is kept sorted across balanced leaf nodes linked sequentially, which makes point lookups and range scans (e.g., WHERE age BETWEEN 20 AND 30) extremely efficient without needing to scan non-matching rows.",
+        "Clustered vs. Non-Clustered Indexes: A clustered index dictates the physical storage order of the data rows on disk (only one per table), whereas a non-clustered index is a separate structure containing the indexed column values plus pointers (or clustered keys) back to the base row.",
+        "Write Amplification and Fragmentation: As data is randomly inserted and deleted, index pages split and merge, leading to internal and external fragmentation that degrades cache locality and forces more disk reads during writes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "sql",
+      "content": "-- Creating a table with a primary key (Clustered Index by default in InnoDB)\nCREATE TABLE users (\n    id BIGINT AUTO_INCREMENT PRIMARY KEY,\n    email VARCHAR(255) NOT NULL,\n    created_at TIMESTAMP NOT NULL\n);\n\n-- Adding a non-clustered index to speed up reads on the email column\nCREATE INDEX idx_users_email ON users(email);\n\n-- A write operation (INSERT) now incurs the cost of updating both the clustered primary key tree and idx_users_email\nINSERT INTO users (email, created_at) VALUES ('alice@example.com', NOW());"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern is over-indexing a high-throughput transaction table just to make every ad-hoc query fast. Junior developers often add non-clustered indexes on every foreign key and filter column without realizing that a table with 5 indexes will execute 5 additional random write operations for every single row inserted, destroying SSD write lifespans and causing database connection pools to saturate due to thread lock wait timeouts."
+    }
+  ],
+  "num": 863,
+  "title": "What is an index? How do indexes improve reads and hurt writes?",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Text blocks, introduced as a permanent feature in Java 15 via JEP 378 after two rounds of preview in Java 13 and 14, fundamentally solve the long-standing developer friction of writing multi-line string literals. Before text blocks, embedding SQL queries, JSON documents, HTML fragments, or embedded scripts required tedious string concatenation, explicit newline characters like \\n, and escaping double quotes, which severely degraded readability and maintainability. A text block is delimited by three double-quote marks (\"\"\") followed by a line terminator, and closed by three double-quote marks. It automatically manages newline emission and indentation stripping without altering the runtime string value.\n\nThe compiler processes text blocks using a specific normalization phase. First, it isolates all lines in the text block. Second, it calculates incidental whitespace—the uniform leading white space common to all lines in the text block—and strips it away using a white-space-stripping algorithm inspired by Python's triple-quoted strings. Third, it interprets escape sequences such as \\s (a single space that prevents the compiler from stripping trailing whitespace on a line) and \\ (line continuation that suppresses the newline character). The resulting string is indistinguishable at runtime from a standard java.lang.String instantiated via normal concatenation or character arrays, meaning it integrates seamlessly with existing APIs without performance overhead."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Traditional String Literals",
+        "Java 15 Text Blocks"
+      ],
+      "rows": [
+        [
+          "Syntax Delimiter",
+          "Single double quotes (\")",
+          "Triple double quotes (\"\"\")"
+        ],
+        [
+          "Newlines",
+          "Explicitly required via \\n",
+          "Implicitly preserved from source layout"
+        ],
+        [
+          "Quote Escaping",
+          "Required (\")",
+          "Unnecessary unless matching three quotes"
+        ],
+        [
+          "Indentation Handling",
+          "Manual concatenation/trimming",
+          "Automatic incidental space stripping"
+        ],
+        [
+          "Trailing Whitespace",
+          "Preserved unless explicitly trimmed",
+          "Stripped by default (preserved via \\s)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Incidental whitespace calculation scans all non-blank lines in the text block to find the common left-margin indentation, ensuring that deeply nested code structures do not inject unwanted spaces into the final string payload.",
+        "The closing delimiter position dictates the horizontal alignment boundary; moving the closing \"\"\" further to the left forces the compiler to retain more leading whitespace across the entire text block.",
+        "Line continuation escape sequences (\\) allow splitting a single logical string value across multiple physical lines in the source code without introducing literal newline characters into the runtime output.",
+        "Newline normalization automatically translates platform-specific line endings (such as Windows CRLF \\r\\n or Unix LF \\n) into standard newline characters, guaranteeing cross-platform string consistency."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public String generateUserQuery(String tenantId) {\n    return \"\"\"\n        SELECT u.id, u.username, u.email\n        FROM users u\n        JOIN tenants t ON u.tenant_id = t.id\n        WHERE t.code = '%s'\n          AND u.status = 'ACTIVE'\n        ORDER BY u.created_at DESC;\n        \"\"\".formatted(tenantId);\n}"
+    },
+    {
+      "type": "note",
+      "content": "Be cautious when mixing text blocks with legacy string formatting methods like String.format() or format specifiers like % when dealing with SQL or JSON containing literal percent signs, as they will throw UnknownFormatConversionException unless escaped as %%. Furthermore, avoid relying on source control systems that aggressively reformat trailing whitespace automatically, as trailing spaces in text blocks dictate string layout unless protected by the \\s escape sequence."
+    }
+  ],
+  "num": 94,
+  "title": "Text blocks (Java 15)",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Apache Cassandra is a highly scalable, masterless distributed NoSQL database designed to handle massive volumes of data across commodity hardware without a single point of failure. At the core of Cassandra's architectural design is its distributed data partitioning mechanism, which leverages consistent hashing to evenly distribute rows across a cluster of nodes. When a client issues a write operation, the coordinator node takes the partition key from the insert statement and passes it through a partitioner (traditionally the Murmur3Partitioner). This partitioner hashes the key into a massive, fixed numeric token range (typically from -2^63 to 2^63-1). Because every node in the cluster is assigned a specific token ownership range via the snitch and token ring, the coordinator instantly knows which replica nodes are responsible for storing that specific partition. This ring topology ensures linear scalability and eliminates central bottlenecks, allowing reads and writes to route directly to the appropriate physical nodes.\n\nHowever, the decentralized, append-only immutable nature of Cassandra's storage engine—specifically the Log-Structured Merge-tree (LSM-tree)—introduces a unique challenge for deletions: tombstones. Because Cassandra cannot perform in-place random disk updates due to performance degradation, deleting data does not immediately remove bytes from disk. Instead, when a delete is executed, Cassandra writes a special marker called a tombstone, which includes a timestamp indicating when the deletion occurred. This tombstone acts as a historical record during reads and compactions, ensuring that stale, older data versions from other replicas do not resurrect the deleted record via hinted handoffs or read repairs. Over time, an excessive accumulation of tombstones can severely degrade read performance, forcing the coordinator to scan through thousands of disk markers, eventually triggering TombstoneOverwhelmingException errors if thresholds are crossed."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Cassandra Data Partitioning",
+        "Tombstones"
+      ],
+      "rows": [
+        [
+          "Primary Objective",
+          "Evenly distribute data and routing queries across nodes in a token ring.",
+          "Mark records as deleted to prevent resurrection in an append-only LSM-tree."
+        ],
+        [
+          "Core Mechanism",
+          "Murmur3Partitioner hashing partition keys into a 64-bit token space.",
+          "Time-stamped deletion markers persisted in SSTables until compaction."
+        ],
+        [
+          "Performance Impact",
+          "Enables O(1) or O(log N) node routing for writes and targeted reads.",
+          "High counts degrade read latency and cause JVM GC pressure and timeouts."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Consistent hashing utilizes a virtual node (vnode) architecture where a physical machine is assigned multiple non-contiguous token ranges on the ring, vastly improving cluster balancing and recovery speed after node failures.",
+        "During read operations, Cassandra must reconcile data across multiple SSTables. If a query encounters a tombstone, it must scan past it to check if a newer valid version exists, creating significant CPU overhead known as tombstone scanning.",
+        "Compaction is the background process responsible for permanently eradicating tombstones. Once a tombstone's age exceeds the gc_grace_seconds threshold, compaction purges it from the SSTable, reclaiming disk space safely."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import com.datastax.oss.driver.api.core.CqlSession;\nimport com.datastax.oss.driver.api.core.cql.BoundStatement;\nimport com.datastax.oss.driver.api.core.cql.PreparedStatement;\nimport com.datastax.oss.driver.api.core.cql.ResultSet;\n\npublic class CassandraPartitionAndTombstoneExample {\n\n    public static void deleteUserRecord(CqlSession session, String userId) {\n        // The partition key 'user_id' determines which token range on the ring owns this row.\n        // Executing this delete writes a tombstone into the commitlog and memtable.\n        PreparedStatement pstmt = session.prepare(\n            \"DELETE FROM app.users WHERE user_id = ?\"\n        );\n        \n        BoundStatement bound = pstmt.bind(userId);\n        ResultSet rs = session.execute(bound);\n        \n        System.out.println(\"Tombstone successfully written for partition: \" + userId);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Never use high TTLs (Time-To-Live) combined with frequent updates or client-side deletions as an alternative to explicit table design, as expired cells also generate tombstones under the hood. If your application throws TombstoneOverwhelmingException, do not just blindly increase cluster thresholds; investigate bad anti-patterns like wide rows containing thousands of frequently deleted dynamic columns."
+    }
+  ],
+  "num": 889,
+  "title": "Cassandra: How does data partitioning work? (Consistent hashing). What are Tombstones?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Synchronization in Java is the mechanism used to enforce thread safety by controlling access to shared resources, preventing data races and ensuring memory visibility across multiple threads. At its core, synchronization relies on the concept of mutual exclusion, ensuring that only one thread can execute a critical section of code at any given time. The intrinsic lock, often referred to as a monitor lock or monitor, is the fundamental synchronization primitive built into every Java object. Every object in the JVM has an associated monitor that acts as a gatekeeper; when a thread enters a 'synchronized' block or method, it must acquire the monitor associated with the target object. If another thread already holds that monitor, the requesting thread is blocked and placed into a wait set until the lock is released.\n\nThe purpose of the monitor is twofold: it provides atomicity for operations that are not inherently thread-safe, and it establishes a 'happens-before' relationship in the Java Memory Model (JMM). Without this, the CPU cache or compiler optimizations might cause one thread to see stale data written by another. By using intrinsic locks, the JVM forces a flush of the local thread cache to main memory upon lock release and a refresh upon lock acquisition, effectively synchronizing the thread's view of the heap."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Intrinsic Lock (Monitor)",
+        "Explicit Lock (ReentrantLock)"
+      ],
+      "rows": [
+        [
+          "Implementation",
+          "Language keyword (synchronized)",
+          "java.util.concurrent.locks API"
+        ],
+        [
+          "Scope",
+          "Block-structured (must end in same method)",
+          "Flexible (can span multiple methods)"
+        ],
+        [
+          "Fairness",
+          "Not guaranteed",
+          "Optional fairness policy"
+        ],
+        [
+          "Interruptibility",
+          "No",
+          "Yes (lockInterruptibly)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The monitor is implemented via the Object Header in the JVM; specifically, the Mark Word contains a pointer to a heavy-weight monitor or a biased lock state depending on the contention level.",
+        "When a thread enters a synchronized block, the JVM performs a 'monitorenter' instruction, and upon exit, a 'monitorexit'. If the lock is contested, the thread transitions to a BLOCKED state managed by the OS scheduler.",
+        "Intrinsic locks are reentrant, meaning the same thread can acquire the same lock multiple times without deadlocking itself, as the monitor maintains an entry count that increments on acquisition and decrements on release.",
+        "The monitor also facilitates inter-thread communication via wait(), notify(), and notifyAll(), which allow threads to suspend execution until a specific condition is met, effectively managing resource availability."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class SharedResource {\n    private int counter = 0;\n\n    // Intrinsic lock on the 'this' instance\n    public synchronized void increment() {\n        counter++;\n    }\n\n    // Intrinsic lock on a private monitor object\n    private final Object lock = new Object();\n    public void safeUpdate() {\n        synchronized (lock) {\n            // Critical section\n            counter += 1;\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is using 'synchronized(this)' or 'synchronized(someString)' as a lock. Since strings are interned, locking on a string literal can lead to global contention across unrelated parts of the application. Always use a private final Object instance as a dedicated monitor to prevent external classes from acquiring your lock and causing a deadlock."
+    }
+  ],
+  "num": 652,
+  "title": "What is synchronization? What is the purpose of the intrinsic lock / monitor?",
+  "category": "Exception Handling & I/O / NIO"
+}

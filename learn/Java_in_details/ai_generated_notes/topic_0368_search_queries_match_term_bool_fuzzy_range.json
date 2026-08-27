@@ -1,0 +1,71 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the modern ecosystem of enterprise search and data retrieval systems, constructing precise and expressive queries is paramount. Whether you are dealing with full-text search engines like Elasticsearch or Apache Lucene underneath a Java application, understanding the mechanics of core query types is essential. A term query operates at the lowest level, performing exact-match lookups against inverted indices without applying any linguistic analysis or stemming. This makes it ideal for keyword fields, IDs, and enumerations. Conversely, the match query is the go-to tool for full-text search, taking a human-readable phrase, passing it through an analyzer to handle tokenization, lowercase normalization, and stop-word removal, and scoring the resulting terms against the document corpus.\n\nAs requirements grow more complex, single-condition lookups fall short, requiring the bool query to combine multiple criteria using logical clauses: must (hard requirement, affects score), filter (hard requirement, optimized for caching without scoring), should (optional boost, increases score), and must_not (exclusion clause). To account for user typos and noisy input data, the fuzzy query introduces Levenshtein distance calculations to find terms within a specified edit distance. Finally, the range query allows for bounded numerical, date, or lexicographical filtering via operators like gte, gt, lte, and lt, ensuring scalable pagination and data slicing across massive datasets."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Query Type",
+        "Analysis Applied?",
+        "Scoring Impact",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "term",
+          "No (exact match)",
+          "Yes (TF-IDF / BM25)",
+          "Exact identifiers, status flags, keywords"
+        ],
+        [
+          "match",
+          "Yes (Standard analyzer)",
+          "Yes (TF-IDF / BM25)",
+          "Full-text search, user query strings"
+        ],
+        [
+          "bool",
+          "Depends on nested queries",
+          "Composite score",
+          "Combining complex multi-field criteria"
+        ],
+        [
+          "fuzzy",
+          "No (applied to raw term)",
+          "Yes (adjusted by edit distance)",
+          "Handling spelling mistakes and typos"
+        ],
+        [
+          "range",
+          "No",
+          "None (usually constant_score)",
+          "Filtering dates, prices, or version numbers"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Term queries bypass the analyzer entirely and look up exact terms in the inverted index dictionary, making them extremely fast but unforgiving of case mismatches or stemming differences.",
+        "Match queries decompose input text into tokens based on the field's configured analyzer, calculating term frequency (TF) and inverse document frequency (IDF) for relevance ranking.",
+        "Bool queries execute optimizations where filter clauses bypass scoring altogether, leveraging bitsets that can be cached aggressively in JVM heap memory by the search engine.",
+        "Fuzzy queries compute string distance metrics on-the-fly, which can severely degrade performance if applied to high-cardinality text fields without prefix length constraints.",
+        "Range queries utilize B-tree-like index structures (or Points in newer Lucene versions) to quickly jump to posting list segments matching numeric or temporal boundaries."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.elasticsearch.index.query.QueryBuilders;\nimport org.elasticsearch.index.query.BoolQueryBuilder;\n\npublic class SearchQueryBuilderExample {\n    public BoolQueryBuilder buildComplexSearchQuery(String searchTerm, String category, double maxPrice) {\n        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();\n\n        // Match query for full-text description with fuzzy tolerance\n        boolQuery.must(QueryBuilders.matchQuery(\"description\", searchTerm).fuzziness(\"AUTO\"));\n\n        // Term query for exact category match\n        boolQuery.filter(QueryBuilders.termQuery(\"category.keyword\", category));\n\n        // Range query for price filtering\n        boolQuery.filter(QueryBuilders.rangeQuery(\"price\").lte(maxPrice));\n\n        // Should query to boost items that are currently in stock\n        boolQuery.should(QueryBuilders.termQuery(\"inStock\", true).boost(2.0f));\n\n        return boolQuery;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in search engineering is wrapping structural exact-match checks (like status codes or foreign keys) inside standard match or fuzzy queries instead of term queries or filters. This causes the search engine to needlessly analyze the input, potentially altering the term or triggering expensive fuzzy edit distance algorithms against high-cardinality fields. Always use filter contexts for exact matches to maximize query caching and protect your cluster's JVM heap."
+    }
+  ],
+  "num": 369,
+  "title": "Search queries — match, term, bool, fuzzy, range",
+  "category": "Core Java & Fundamentals"
+}

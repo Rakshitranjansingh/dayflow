@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Boot testing ecosystem, @Mock and @MockBean serve distinct architectural purposes, often leading to confusion for developers transitioning from pure JUnit to Spring-integrated tests. @Mock is a Mockito annotation that creates a standalone mock object. It is entirely agnostic of the Spring Framework; it simply instructs Mockito to initialize a field as a mock, typically via the MockitoJUnitRunner or the MockitoAnnotations.openMocks(this) lifecycle hook. It is lightweight, fast, and ideal for unit testing logic that has no dependency on the ApplicationContext.\n\nConversely, @MockBean is a Spring Boot Test annotation designed for integration testing. When you annotate a field with @MockBean, Spring Boot performs a 'bean replacement' strategy. It searches the ApplicationContext for a bean of the same type; if found, it replaces the original bean definition with the mock. If no such bean exists, it registers a new mock bean. This is crucial for integration tests where you need to mock a service or repository that is injected into other beans via @Autowired. Using @MockBean triggers a context refresh, which is significantly more expensive in terms of CPU and memory than a simple @Mock, but it is the only way to influence the behavior of beans already managed by the Spring container."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "@Mock",
+        "@MockBean"
+      ],
+      "rows": [
+        [
+          "Context Awareness",
+          "None (POJO level)",
+          "Spring ApplicationContext"
+        ],
+        [
+          "Performance",
+          "Extremely fast (ms)",
+          "Slower (Context refresh)"
+        ],
+        [
+          "Primary Use Case",
+          "Unit testing logic",
+          "Integration testing with dependencies"
+        ],
+        [
+          "Lifecycle",
+          "Mockito-managed",
+          "Spring-managed"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "@Mock relies on the Mockito framework's reflection-based initialization to instantiate a proxy object. It does not interact with the BeanFactory, meaning any class using this mock must have its dependencies manually injected via constructor or setter injection in the test class.",
+        "@MockBean forces the Spring TestContext framework to replace the existing bean definition in the singleton registry. This effectively 'mutes' the real implementation and injects the mock into every other bean in the context that requires that type, ensuring consistent behavior across the entire dependency graph.",
+        "Using @MockBean repeatedly in a test suite can lead to 'Context Caching' misses. If different tests define different @MockBean configurations, Spring cannot reuse the ApplicationContext, forcing a full reload for every test class, which can balloon test suite execution time from seconds to minutes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@ExtendWith(SpringExtension.class)\n@SpringBootTest\nclass OrderServiceIntegrationTest {\n\n    // Replaces the real PaymentGateway bean in the Spring context\n    @MockBean\n    private PaymentGateway paymentGateway;\n\n    @Autowired\n    private OrderService orderService;\n\n    @Test\n    void testOrderProcessing() {\n        given(paymentGateway.charge(any())).willReturn(true);\n        orderService.process(new Order());\n        verify(paymentGateway).charge(any());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common production 'gotcha' is using @MockBean when you actually need @Mock. Developers often default to @MockBean because it feels 'safer' in a Spring project, but this leads to bloated test suites that take forever to run. If your class under test has no @Autowired dependencies, always prefer @Mock. Furthermore, be wary of @MockBean with @SpyBean; if you accidentally mock a bean that is required for the application's internal security or transaction management, you will trigger cryptic NullPointerExceptions or BeanCreationExceptions that are notoriously difficult to debug."
+    }
+  ],
+  "num": 1160,
+  "title": "What is the difference between @MockBean and @Mock?",
+  "category": "Core Java & Fundamentals"
+}

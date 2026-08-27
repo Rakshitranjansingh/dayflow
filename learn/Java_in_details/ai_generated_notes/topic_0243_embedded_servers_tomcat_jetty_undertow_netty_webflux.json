@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern Java microservices architecture, the shift from traditional external application servers (like standalone WildFly, WebLogic, or Tomcat instances) to embedded servers has revolutionized how we package, deploy, and scale web applications. An embedded server is essentially a software library packaged directly inside your deployment artifact—typically an executable Uber-JAR or Fat-JAR—which programmatically instantiates, configures, and boots up a servlet container or non-blocking I/O engine inside the application's own JVM process lifecycle.\n\nApache Tomcat has long been the gold standard for traditional synchronous, thread-per-request servlet containers (serving as the default embedded engine in Spring Boot). It manages a thread pool where each incoming HTTP connection is handed off to a dedicated worker thread, making it robust, deterministic, and highly compatible with legacy enterprise Java EE standards. Jetty, another mature servlet container, is celebrated for its highly modular, asynchronous design and remarkably small memory footprint, making it a favorite for embedded testing and lightweight microservices. Undertow, developed by Red Hat, steps up the performance game with a flexible, highly optimized non-blocking architecture using XNIO, allowing it to handle massive concurrent connection counts with low thread overhead.\n\nMoving away from the Servlet API entirely, Netty represents an entirely different class of technology: an asynchronous, event-driven network application framework. Netty forms the underlying transport layer for Spring WebFlux and reactive microservices, using a reactor pattern built around selector threads (Boss and Worker EventLoops) and zero-copy byte buffers. Understanding the trade-offs between Tomcat's thread-per-request model and Netty's event-loop concurrency model is critical for architecting resilient REST APIs and high-throughput microservices."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Embedded Engine",
+        "Concurrency Model",
+        "Servlet Support",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "Tomcat",
+          "Thread-per-request (Blocking I/O)",
+          "Full (Servlet 4.0/5.0+)",
+          "Default Spring MVC enterprise apps, legacy migration"
+        ],
+        [
+          "Jetty",
+          "Asynchronous / Blocking I/O hybrid",
+          "Full",
+          "Embedded testing, lightweight servlet-based microservices"
+        ],
+        [
+          "Undertow",
+          "NIO-based XNIO workers",
+          "Full",
+          "High-performance enterprise microservices needing low latency"
+        ],
+        [
+          "Netty",
+          "Reactor pattern (Non-blocking EventLoop)",
+          "None (Reactive)",
+          "Spring WebFlux, high-throughput real-time streaming APIs"
+        ]
+      ]
+    },
+    {
+      "bullet_list": [
+        "Tomcat's thread pool architecture relies heavily on maxThreads and minSpareThreads tuning. If client requests block on downstream database queries or external REST calls, threads are quickly exhausted, leading to thread starvation and connection timeouts.",
+        "Jetty provides exceptional handling of WebSocket and HTTP/2 connections via continuous asynchronous processing, leveraging its Continuations API and Selector managers to reduce idle thread overhead.",
+        "Undertow uses XNIO buffers pooled in direct memory buffers, reducing garbage collection pressure by reusing byte buffers across multiple channel reads and writes.",
+        "Netty operates on a Reactor pattern where a small number of EventLoop threads (typically scaled to CPU cores) handle thousands of concurrent channels. Blocking operations inside a Netty handler will catastrophically stall the EventLoop, halting throughput for all concurrent requests on that thread."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.springframework.boot.SpringApplication;\nimport org.springframework.boot.autoconfigure.SpringBootApplication;\nimport org.springframework.boot.web.embedded.netty.NettyReactiveWebServerFactory;\nimport org.springframework.boot.web.server.WebServerFactoryCustomizer;\nimport org.springframework.context.annotation.Bean;\n\n@SpringBootApplication\npublic class ReactiveMicroserviceApplication {\n\n    public static void main(String[] args) {\n        SpringApplication.run(ReactiveMicroserviceApplication.class, args);\n    }\n\n    @Bean\n    public WebServerFactoryCustomizer<NettyReactiveWebServerFactory> nettyCustomizer() {\n        return factory -> factory.addServerCustomizers(httpServer -> \n            httpServer.compress(true)\n                      .idleTimeout(java.time.Duration.ofSeconds(60))\n        );\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: When migrating a legacy Spring MVC application running on embedded Tomcat to Spring WebFlux running on Netty, developers frequently make the fatal mistake of calling blocking libraries (like standard JDBC or blocking HTTP clients) inside reactive chains (e.g., inside flatMap or map). Because Netty uses a fixed pool of EventLoop threads matching CPU core counts, blocking a Netty thread halts the entire event pipeline for hundreds of concurrent requests. Always isolate blocking I/O onto a dedicated Schedulers.boundedElastic() thread pool when mixing imperative blocking libraries with reactive embedded servers like Netty."
+    }
+  ],
+  "num": 244,
+  "title": "Embedded servers — Tomcat, Jetty, Undertow, Netty (WebFlux)",
+  "category": "REST APIs, WebFlux & Microservices"
+}

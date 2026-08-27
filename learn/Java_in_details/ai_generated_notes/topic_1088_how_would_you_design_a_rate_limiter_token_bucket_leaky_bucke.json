@@ -1,0 +1,56 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a rate limiter in a distributed system requires balancing strict traffic regulation, low latency, and horizontal scalability. When designing this infrastructure component, we must evaluate three primary algorithmic paradigms: Token Bucket, Leaky Bucket, and Sliding Window. The Token Bucket algorithm allows bursty traffic by accumulating tokens in a bucket up to a maximum capacity, consuming a token for every incoming request. This fits APIs where brief traffic spikes are legitimate. Conversely, the Leaky Bucket algorithm smooths out bursts entirely by queuing requests and processing them at a strictly constant, FIFO (First-In, First-Out) rate, preventing downstream saturation at the cost of increased tail latency. The Sliding Window algorithm—combining the memory efficiency of counters with the accuracy of sliding logs—prevents the boundary-burst exploit of fixed windows by tracking request timestamps across overlapping rolling time frames."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Algorithm",
+        "Burst Handling",
+        "Memory Complexity",
+        "Throughput Smoothness"
+      ],
+      "rows": [
+        [
+          "Token Bucket",
+          "Supports bursts up to capacity",
+          "O(1) per key",
+          "Variable (depends on burstiness)"
+        ],
+        [
+          "Leaky Bucket",
+          "No bursts (strictly metered)",
+          "O(N) queue capacity",
+          "Constant output rate"
+        ],
+        [
+          "Sliding Window Counter",
+          "Controlled via window sizing",
+          "O(W) per key (W = windows)",
+          "Smoothed across boundaries"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Distributed synchronization typically relies on Redis backed by Lua scripts. Running Lua guarantees atomicity for read-modify-write operations on token counts or window tallies without distributed locking bottlenecks.",
+        "In high-scale systems, relying purely on Redis for every request introduces network hops. Implementing a local in-memory cache with an eventually-consistent sliding window sync reduces network overhead while tolerating minor telemetry inaccuracies."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class TokenBucketRateLimiter {\n    private final long capacity;\n    private final long refillRatePerSecond;\n    private long tokens;\n    private long lastRefillTimestamp;\n\n    public TokenBucketRateLimiter(long capacity, long refillRatePerSecond) {\n        this.capacity = capacity;\n        this.refillRatePerSecond = refillRatePerSecond;\n        this.tokens = capacity;\n        this.lastRefillTimestamp = System.currentTimeMillis();\n    }\n\n    public synchronized boolean allowRequest(long tokensRequested) {\n        refill();\n        if (tokens >= tokensRequested) {\n            tokens -= tokensRequested;\n            return true;\n        }\n        return false;\n    }\n\n    private void refill() {\n        long now = System.currentTimeMillis();\n        long elapsedSeconds = (now - lastRefillTimestamp) / 1000;\n        if (elapsedSeconds > 0) {\n            long newTokens = elapsedSeconds * refillRatePerSecond;\n            tokens = Math.min(capacity, tokens + newTokens);\n            lastRefillTimestamp = now;\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Never rely on system clocks (System.currentTimeMillis()) across multiple nodes in a distributed cluster for sliding window or token refill calculations. Clock drift will cause inconsistent rate limiting. Always use Redis server time via EVALSHA with Redis TIME commands, or rely strictly on monotonic clocks (System.nanoTime()) for local thread-safe state."
+    }
+  ],
+  "num": 1089,
+  "title": "How would you design a Rate Limiter? (Token Bucket, Leaky Bucket, Sliding Window algorithms)",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

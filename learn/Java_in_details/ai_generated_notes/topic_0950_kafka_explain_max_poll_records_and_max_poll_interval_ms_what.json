@@ -1,0 +1,52 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Apache Kafka event-driven architectures, consumer group stability and throughput rely heavily on managing how records are pulled and processed from the cluster. Two of the most critical consumer configuration properties governing this lifecycle are max.poll.records and max.poll.interval.ms. Misconfiguring them is one of the leading causes of unintended consumer rebalances, message processing duplication, and consumer storm scenarios in production enterprise environments.\n\nThe property max.poll.records defines the maximum number of individual messages returned in a single batch when a consumer application calls the poll() method on the KafkaConsumer instance. This acts as a primary lever for throughput tuning and memory footprint control. By default, it is set to 500 records. If an application pulls a batch of 500 records, the consumer thread is expected to iterate through, process, and acknowledge or commit offsets for all of them before it invokes poll() again. \n\nConversely, max.poll.interval.ms dictates the maximum allowable time window between consecutive poll() invocations by the consumer thread. The default is 300,000 milliseconds (5 minutes). This property exists to prevent deadlocked, hung, or infinitely looping consumer threads from silently holding onto partition assignments without making forward processing progress. If your application logic takes longer to process a batch of records than the duration specified by max.poll.interval.ms, Kafka's group coordinator assumes the consumer is dead or unresponsive. Consequently, the consumer proactively leaves the consumer group, triggers a costly global group rebalance, and revokes its partition assignments."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Configuration Property",
+        "Default Value",
+        "Primary Purpose",
+        "Failure Mode on Misconfiguration"
+      ],
+      "rows": [
+        [
+          "max.poll.records",
+          "500",
+          "Controls the maximum batch size fetched per poll() call for memory and throughput tuning.",
+          "OutOfMemoryError if record payloads are too large, or low CPU utilization if set too small."
+        ],
+        [
+          "max.poll.interval.ms",
+          "300000 (5 min)",
+          "Defines the heartbeat/liveness timeout threshold for consecutive poll() executions.",
+          "Frequent consumer rebalance storms, duplicate message processing, and consumer eviction."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "When processing takes longer than max.poll.interval.ms, the consumer background thread stops sending heartbeats or fails to call poll(). The Kafka broker's group coordinator marks the consumer instance as failed.",
+        "The coordinator initiates a stop-the-world group rebalance, revoking partitions from all members in the consumer group and reassigning them, which completely halts message consumption across the entire group.",
+        "Records that were partially processed or unprocessed are re-fetched by a new or surviving consumer instance, often leading to duplicate processing if offsets were not explicitly committed transactionally.",
+        "To mitigate this, you can either decrease max.poll.records to shrink the batch size processed per iteration or increase max.poll.interval.ms to accommodate heavier business logic workloads."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "Properties props = new Properties();\nprops.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, \"localhost:9092\");\nprops.put(ConsumerConfig.GROUP_ID_CONFIG, \"order-processing-group\");\n// Fetch smaller batches to ensure processing completes quickly\nprops.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100);\n// Increase the timeout window if business logic involves heavy I/O or external API calls\nprops.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 600000); \nprops.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, \"false\");\n\nKafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);\nconsumer.subscribe(Collections.singletonList(\"orders-topic\"));\n\ntry {\n    while (true) {\n        ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));\n        for (ConsumerRecord<String, String> record : records) {\n            processBusinessLogic(record);\n        }\n        consumer.commitSync();\n    }\n} finally {\n    consumer.close();\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern is performing slow, blocking database operations, remote gRPC calls, or thread sleeps inside the poll loop while max.poll.records is set too high. If a single external dependency slows down, max.poll.interval.ms is breached, causing a rebalance. The worst part? The newly assigned consumer will pick up the exact same problematic batch, fail again, and cause an infinite rebalance loop (a rebalance storm) that brings down your event-driven pipeline. Always offload heavy processing to an internal thread pool or executor service while keeping the main consumer thread dedicated to polling and heartbeating."
+    }
+  ],
+  "num": 951,
+  "title": "Kafka: Explain max.poll.records and max.poll.interval.ms. What happens if processing takes too long?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

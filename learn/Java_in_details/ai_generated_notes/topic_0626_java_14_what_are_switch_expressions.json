@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Java 14 brought a permanent and transformative change to how conditional branching is written with the official finalization of Switch Expressions. Prior to Java 12 (when preview features first introduced them), the traditional switch statement was burdened by syntactic baggage inherited directly from C. It forced developers into tedious patterns: mandatory break statements prone to insidious fall-through bugs, statement-only semantics that made assigning conditional results to local variables clumsy (requiring mutable state outside the block), and scoping issues where every case shared the exact same switch-block namespace. Switch Expressions solve these historical pain points by recasting switch from a control flow statement into a true expression that evaluates to a single value.\n\nAt the structural heart of Java 14 Switch Expressions is the novel arrow syntax (`->`). This replaces the archaic colon (`:`) syntax and completely eliminates the need for `break` statements. When using the arrow operator, the code on the right-hand side is evaluated exclusively for the matching case, with no implicit fall-through. Furthermore, Java 14 introduced the `yield` keyword to handle multi-line code blocks within switch expressions. While the arrow syntax handles single expressions or throw statements cleanly, blocks enclosed in curly braces require `yield` to explicitly return a value, distinguishing block evaluation from standard block scoping. This separation of concerns allows developers to write immutable, functional-style code, drastically reducing boilerplate and eliminating entire classes of bugs associated with unhandled states or accidental fall-throughs."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature Aspect",
+        "Traditional Switch Statement",
+        "Java 14 Switch Expression"
+      ],
+      "rows": [
+        [
+          "Nature",
+          "Statement (performs side effects, cannot evaluate to a value directly)",
+          "Expression (evaluates to a single value, can be assigned directly)"
+        ],
+        [
+          "Fall-Through",
+          "Enabled by default (requires explicit break to prevent)",
+          "Disabled by default (uses arrow syntax or yield)"
+        ],
+        [
+          "Exhaustiveness",
+          "Not required for primitive or enum types by the compiler",
+          "Strictly enforced by the compiler for all known inputs"
+        ],
+        [
+          "Syntax",
+          "Colon (case X: ... break;)",
+          "Arrow (case X -> ...) and yield"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Exhaustiveness Checking: The compiler acts as a static analysis guardrail. When switching over enums or sealed types, every possible value must be accounted for. If a new enum constant is added later, the compiler will instantly flag unhandled branches, forcing the developer to address them.",
+        "Bytecode Generation: Under the hood, modern JVMs often compile switch expressions into optimized `tableswitch` or `lookupswitch` bytecode instructions, or occasionally invokedynamic-based bootstrap methods depending on string complexity, matching the high-performance footprint of legacy switches.",
+        "Variable Scoping Isolation: Each case block in a switch expression possesses its own local scope. This means you can declare variables with identical names across different case blocks without triggering compilation errors regarding variable redeclaration."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public enum Day { MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY }\n\npublic class SwitchDemo {\n    public static int calculateWorkingHours(Day day) {\n        return switch (day) {\n            case MONDAY, TUESDAY, WEDNESDAY, THURSDAY -> 8;\n            case FRIDAY -> 6;\n            case SATURDAY, SUNDAY -> {\n                System.out.println(\"Weekend detected!\");\n                yield 0;\n            }\n        };\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha with Java 14 switch expressions is dealing with null values. Unlike traditional switch statements that throw an immediate NullPointerException when evaluating a null reference, switch expressions do not automatically handle null unless you explicitly provide a `case null ->` branch (introduced later as a preview and finalized in Java 21). In Java 14 specifically, passing a null reference will still throw a NullPointerException at runtime, so always validate inputs before passing them into the switch expression."
+    }
+  ],
+  "num": 627,
+  "title": "(Java 14) What are Switch Expressions?",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

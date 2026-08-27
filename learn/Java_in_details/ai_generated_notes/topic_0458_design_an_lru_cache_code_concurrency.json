@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a Least Recently Used (LRU) Cache in a multithreaded environment requires marrying data structure design with robust concurrency control. At its core, an LRU cache maintains a fixed capacity, evicting the oldest accessed item when bounds are exceeded. Structurally, this is achieved by combining a Hash Map for O(1) lookups with a Doubly Linked List for O(1) insertions, deletions, and tracking of recency. When moving into concurrent systems, standard thread-unsafe implementations (like a naive LinkedHashMap subclass) fail due to structural modifications during pointer re-wiring.\n\nConcurrency introduces critical synchronization challenges. Multiple threads reading and writing simultaneously will corrupt the doubly linked list pointers, leading to infinite loops, lost updates, or NullPointerExceptions. While using a global ReadWriteLock or synchronized block guarantees thread safety, it heavily serializes operations, destroying throughput under high contention. A production-grade concurrent LRU cache balances lock granularity, memory visibility, and eviction overhead. This is often achieved using lock striping, concurrent maps for storage combined with atomic reference updates, or specialized thread-safe wrappers that ensure fine-grained synchronization exclusively around the node manipulation logic."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Read Performance",
+        "Write Performance",
+        "Contention Bottleneck"
+      ],
+      "rows": [
+        [
+          "Synchronized LinkedHashMap",
+          "O(1) (with lock)",
+          "O(1) (with lock)",
+          "High (Global monitor lock)"
+        ],
+        [
+          "ReadWriteLock + HashMap/List",
+          "O(1) (shared lock)",
+          "O(1) (exclusive lock)",
+          "Medium (Writer starvation risk)"
+        ],
+        [
+          "ConcurrentHashMap + Atomic/Striped",
+          "O(1) (lock-free read)",
+          "O(1) (striped locks)",
+          "Low (Scales with cores)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The doubly linked list acts as a recency queue where the head represents the most recently used node and the tail represents the least recently used candidate for eviction.",
+        "To prevent race conditions during concurrent node promotion (moving an accessed node to the head), pointer updates (next and prev) must be executed atomically relative to the specific node references.",
+        "Eviction policies must handle edge cases where two concurrent threads insert items simultaneously when the cache is at capacity, requiring synchronized eviction checks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.ConcurrentHashMap;\nimport java.util.concurrent.locks.ReentrantLock;\n\npublic class ConcurrentLRUCache<K, V> {\n    private final int capacity;\n    private final ConcurrentHashMap<K, Node<K, V>> map;\n    private final Node<K, V> head;\n    private final Node<K, V> tail;\n    private final ReentrantLock lock = new ReentrantLock();\n\n    private static class Node<K, V> {\n        K key;\n        V value;\n        Node<K, V> prev;\n        Node<K, V> next;\n        Node(K k, V v) { key = k; value = v; }\n    }\n\n    public ConcurrentLRUCache(int capacity) {\n        this.capacity = capacity;\n        this.map = new ConcurrentHashMap<>();\n        this.head = new Node<>(null, null);\n        this.tail = new Node<>(null, null);\n        head.next = tail;\n        tail.prev = head;\n    }\n\n    public V get(K key) {\n        Node<K, V> node = map.get(key);\n        if (node == null) return null;\n        moveToHead(node);\n        return node.value;\n    }\n\n    public void put(K key, V value) {\n        lock.lock();\n        try {\n            Node<K, V> node = map.get(key);\n            if (node != null) {\n                node.value = value;\n                moveToHead(node);\n            } else {\n                if (map.size() >= capacity) {\n                    Node<K, V> lru = popTail();\n                    if (lru != null) map.remove(lru.key);\n                }\n                Node<K, V> newNode = new Node<>(key, value);\n                map.put(key, newNode);\n                addToHead(newNode);\n            }\n        } finally {\n            lock.unlock();\n        }\n    }\n\n    private void moveToHead(Node<K, V> node) {\n        lock.lock();\n        try {\n            removeNode(node);\n            addToHead(node);\n        } finally {\n            lock.unlock();\n        }\n    }\n\n    private void removeNode(Node<K, V> node) {\n        node.prev.next = node.next;\n        node.next.prev = node.prev;\n    }\n\n    private void addToHead(Node<K, V> node) {\n        node.prev = head;\n        node.next = head.next;\n        head.next.prev = node;\n        head.next = node;\n    }\n\n    private Node<K, V> popTail() {\n        Node<K, V> lru = tail.prev;\n        if (lru == head) return null;\n        removeNode(lru);\n        return lru;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in concurrent LRU caches is relying solely on ConcurrentHashMap for storage while executing uncoordinated mutations on the linked list. Even if the map is thread-safe, the structural integrity of the doubly linked list will fracture under concurrent read-promotions because get() operations mutate recency pointers. Always protect the pointer re-wiring phase with explicit locks, or leverage lock-free algorithms (like ConcurrentLinkedDeque) with atomic CAS operations, though the latter introduces complex ABA problems during pointer updates."
+    }
+  ],
+  "num": 459,
+  "title": "Design an LRU Cache (code + concurrency)",
+  "category": "Multithreading & Java Concurrency"
+}

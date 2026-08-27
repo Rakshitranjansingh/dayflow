@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When designing high-throughput, low-latency microservices architectures, choosing the right inter-process communication protocol is critical. Traditional REST APIs, predominantly built on HTTP/1.1 and JSON, suffer from severe performance bottlenecks due to text-based payload serialization, head-of-line blocking, and redundant metadata transmission over multiple discrete TCP connections. In contrast, gRPC—an open-source remote procedure call framework initially developed by Google—leverages HTTP/2 transport and Protocol Buffers (protobuf) to achieve dramatically higher throughput, smaller wire sizes, and lower CPU overhead. By compiling schema definitions into strongly typed binary stubs across multiple languages, gRPC eliminates runtime schema parsing overhead, optimizes network utilization via multiplexing, and natively supports bidirectional streaming out of the box."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Performance Dimension",
+        "REST (HTTP/1.1 + JSON)",
+        "gRPC (HTTP/2 + Protobuf)"
+      ],
+      "rows": [
+        [
+          "Payload Serialization",
+          "Verbose text (JSON); slow parsing",
+          "Compact binary; highly optimized"
+        ],
+        [
+          "Transport Layer",
+          "HTTP/1.1 (often new TCP handshake per request)",
+          "HTTP/2 (single persistent multiplexed connection)"
+        ],
+        [
+          "Contract Definition",
+          "Optional (OpenAPI/Swagger); prone to drift",
+          "Mandatory (.proto schema files; strict types)"
+        ],
+        [
+          "Streaming Support",
+          "Complex (Server-Sent Events, WebSockets)",
+          "Native unary, client, server, and bidirectional streams"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Protocol Buffers serialize data into dense binary formats using tag-length-value (TLV) encodings, skipping field names entirely on the wire and storing only numeric field tags and encoded values.",
+        "HTTP/2 multiplexing allows multiple concurrent request-response streams to travel over a single TCP connection, completely eliminating HTTP/1.1 head-of-line blocking.",
+        "HPACK header compression drastically reduces network overhead by tracking previously sent headers in a shared dynamic state table and referencing them via indexing.",
+        "Code generation yields highly optimized, zero-reflection marshalling routines that bypass the heavy runtime metadata introspection required by Jackson or Gson in JSON-based REST frameworks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "syntax = \"proto3\";\n\npackage com.example.grpc;\n\noption java_multiple_files = true;\noption java_package = \"com.example.grpc.generated\";\n\nservice UserService {\n  rpc GetUserById (UserRequest) returns (UserResponse);\n  rpc StreamUserUpdates (UserRequest) returns (stream UserResponse);\n}\n\nmessage UserRequest {\n  int64 user_id = 1;\n}\n\nmessage UserResponse {\n  int64 user_id = 1;\n  string username = 2;\n  string email = 3;\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior production gotcha: While gRPC significantly outperforms REST for internal microservice communication, it is rarely a drop-in replacement for public-facing web applications. Standard browsers do not currently expose the low-level HTTP/2 framing required to invoke gRPC channels directly without an intermediary proxy like Envoy running gRPC-Web. Furthermore, debugging gRPC payloads requires specialized tooling (such as grpcurl or BloomRPC) because binary protobuf data is entirely unreadable in standard network inspection tabs."
+    }
+  ],
+  "num": 467,
+  "title": "How does gRPC achieve better performance than REST?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

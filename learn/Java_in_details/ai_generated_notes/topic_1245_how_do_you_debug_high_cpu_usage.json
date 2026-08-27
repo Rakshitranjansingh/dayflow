@@ -1,0 +1,55 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "High CPU usage in a JVM-based application is rarely a symptom of the language itself, but rather an indicator of inefficient algorithmic complexity, excessive garbage collection, or thread contention. When the CPU spikes, the first step is to identify whether the load is coming from the application threads (user space) or the JVM's internal management (GC overhead). A classic 'hot loop'—where a thread is stuck in an infinite `while` loop without yielding—will pin a single core at 100%. Conversely, high GC overhead occurs when the heap is nearly full, forcing the JVM to spend more time in 'Stop-the-World' cycles trying to reclaim memory than executing business logic. Debugging this requires a systematic approach: correlating OS-level thread IDs with JVM thread dumps to isolate the offending stack trace."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Symptom",
+        "Primary Culprit",
+        "Diagnostic Tool"
+      ],
+      "rows": [
+        [
+          "High User CPU",
+          "Infinite loops, regex backtracking, heavy math",
+          "jstack / VisualVM"
+        ],
+        [
+          "High System CPU",
+          "Context switching, excessive I/O, lock contention",
+          "perf / top -H"
+        ],
+        [
+          "High GC CPU",
+          "Memory leaks, allocation churn",
+          "jstat / JFR"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Identify the PID of the process using 'top', then use 'top -H -p <pid>' to find the specific thread ID (TID) consuming the most CPU.",
+        "Convert the decimal TID to hexadecimal (e.g., 1234 -> 0x4d2) to match the thread identifier found in a JVM thread dump.",
+        "Execute 'jstack <pid>' to capture a snapshot of all threads; search for the hex TID to pinpoint the exact line of code executing the hot loop.",
+        "Analyze GC logs or use 'jstat -gcutil <pid> 1000' to check if the 'GCT' (total GC time) is rapidly increasing, indicating a memory pressure issue.",
+        "Use Java Flight Recorder (JFR) for production environments to capture 'Method Profiling' events, which provide a low-overhead view of which methods are consuming the most CPU cycles over time."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Example of a common CPU-intensive trap: Regex catastrophic backtracking\n// This pattern can cause exponential execution time on specific inputs\nString input = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaab\";\nif (input.matches(\"(a+)+b\")) { \n    System.out.println(\"Match found\"); \n}\n\n// Debugging tip: Use thread dumps to find threads in 'RUNNABLE' state\n// that never change their stack trace across multiple dumps."
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never rely solely on 'jstack' for intermittent spikes. If the CPU spike is transient, the thread might have finished its work by the time you run the command. Always enable Java Flight Recorder (JFR) in production with a circular buffer. It is extremely low-overhead and allows you to perform 'post-mortem' analysis on CPU spikes that occurred minutes or hours ago, which is impossible with manual thread dumps."
+    }
+  ],
+  "num": 1246,
+  "title": "How do you debug high CPU usage?",
+  "category": "Core Java & Fundamentals"
+}

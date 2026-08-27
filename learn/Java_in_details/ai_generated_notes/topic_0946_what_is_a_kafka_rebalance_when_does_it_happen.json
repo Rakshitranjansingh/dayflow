@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Apache Kafka, a consumer group is a set of independent consumer instances that work together to consume data from a topic's partitions. To guarantee that every message in a partition is processed by exactly one consumer in the group at any given time, Kafka must execute a coordination protocol known as a Kafka Rebalance. A rebalance is the dynamic process during which the ownership of partitions is reassigned among the active members of a consumer group. This ensures high availability and horizontal scalability, allowing the system to seamlessly absorb changes in cluster topology or processing capacity.\n\nThe rebalance protocol operates under the orchestration of a designated broker known as the Group Coordinator. Each consumer group is mapped to a specific internal topic partition (__consumer_offsets) based on the hash of its group ID, and the broker hosting that offset partition becomes the Group Coordinator. When a rebalance is triggered, all consumers temporarily pause their message-fetching loops and rejoin the group by sending JoinGroup requests to the coordinator. Once all members have checked in, the coordinator selects a group leader—typically the first consumer to join—which is then responsible for computing the new partition assignment strategy using a configured PartitionAssignor (e.g., Range, RoundRobin, or CooperativeSticky). The leader transmits this assignment back to the coordinator via a SyncGroup request, and the coordinator subsequently distributes the final assignments to all group members, allowing them to resume consumption from their newly allocated partitions."
+    },
+    {
+      "type": "prose",
+      "content": "Understanding when a rebalance happens is critical for maintaining low-latency event-driven pipelines, as traditional rebalances cause a 'Stop-The-World' effect across the entire consumer group where zero message processing occurs. A rebalance is triggered under several distinct operational scenarios: first, when a new consumer instance joins the group, scaling out the processing capacity. Second, when an existing consumer gracefully shuts down or ungracefully crashes, leaving its partitions orphaned. Third, when a consumer fails to send a periodic heartbeat to the Group Coordinator within the configured max.poll.interval.ms or session.timeout.ms thresholds, indicating a processing stall or network partition. Finally, administrative changes such as adding new partitions to a subscribed topic will also invalidate the current assignment map and force the coordinator to initiate a group-wide rebalance."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Rebalance Protocol",
+        "Eager Rebalance",
+        "Cooperative Sticky Rebalance"
+      ],
+      "rows": [
+        [
+          "Stop-The-World Impact",
+          "High. All consumers revoke all partitions simultaneously before reassignment.",
+          "Minimal. Only partitions moving between consumers are revoked; others keep running."
+        ],
+        [
+          "Assignment Strategy",
+          "Recomputes entire assignment from scratch across all members.",
+          "Incremental and iterative; preserves existing assignments to minimize movement."
+        ],
+        [
+          "Default in Version",
+          "Older Kafka versions (prior to 2.4).",
+          "Modern Kafka standard (2.4+)."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Group Coordinator manages consumer states using two primary timeouts: session.timeout.ms (the threshold for detecting total connection loss via missed heartbeats) and max.poll.interval.ms (the maximum allowable time between consecutive poll() calls, protecting against infinite processing loops).",
+        "During an Eager rebalance, consumers invoke their ConsumerRebalanceListener callbacks—first executing onPartitionsRevoked to commit offsets and flush states, then pausing until onPartitionsAssigned populates the fresh map.",
+        "Cooperative Sticky assignment mitigates the catastrophic latency spikes of Eager rebalances by executing multiple smaller, non-blocking rebalance phases until the cluster converges on the optimal partition topology without dropping unaffected message streams."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "Properties props = new Properties();\nprops.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, \"localhost:9092\");\nprops.put(ConsumerConfig.GROUP_ID_CONFIG, \"order-processing-group\");\nprops.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, CooperativeStickyAssignor.class.getName());\nprops.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 300000);\nprops.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 45000);\nprops.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());\nprops.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());\n\nKafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);\nconsumer.subscribe(Collections.singletonList(\"orders-topic\"));\n\ntry {\n    while (true) {\n        ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));\n        for (ConsumerRecord<String, String> record : records) {\n            processOrder(record.value());\n        }\n        consumer.commitSync();\n    }\n} finally {\n    consumer.close();\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap leading to 'rebalance storms' is setting max.poll.interval.ms too low while executing heavy database operations or external API calls inside the poll loop. If a single batch takes longer than the interval to process, the consumer drops out of the group, triggers a rebalance, rejoins, pulls another batch, times out again, and repeats infinitely. Always tune your max.poll.records to ensure processing completes safely within max.poll.interval.ms, or offload heavy business logic to a separate thread pool while pausing partition consumption."
+    }
+  ],
+  "num": 947,
+  "title": "What is a Kafka Rebalance? When does it happen?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

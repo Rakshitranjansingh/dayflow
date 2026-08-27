@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The jlink tool, introduced in JDK 9 as part of the Java Platform Module System (JPMS), is a command-line utility designed to assemble and optimize a set of modules—and their dependencies—into a custom, executable runtime image. Before jlink, developers were forced to ship the entire monolithic JRE, which included hundreds of megabytes of legacy libraries, internationalization data, and tools that most applications never touched. By leveraging the module-info.java descriptors, jlink performs static analysis to identify exactly which modules your application requires, effectively pruning the runtime to the bare essentials.\n\nA custom minimal JRE is a stripped-down, application-specific distribution of the Java runtime. It solves the 'bloat' problem by excluding unnecessary modules like java.desktop (Swing/AWT) or java.sql if your microservice only performs REST operations. This not only reduces the disk footprint—often shrinking a 200MB+ JRE down to 30-40MB—but also improves cold-start times and reduces the attack surface of your containerized application, as there are fewer binaries and libraries available for potential exploitation."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Standard JRE",
+        "Custom JRE (jlink)"
+      ],
+      "rows": [
+        [
+          "Size",
+          "Large (~200MB+)",
+          "Minimal (20MB - 60MB)"
+        ],
+        [
+          "Content",
+          "Full JDK/JRE modules",
+          "Only required modules"
+        ],
+        [
+          "Performance",
+          "Standard startup",
+          "Faster startup (optimized)"
+        ],
+        [
+          "Security",
+          "Full attack surface",
+          "Reduced attack surface"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Dependency Resolution: jlink traverses the module graph starting from your application's root module, recursively including all transitive 'requires' dependencies found in module-info.class files.",
+        "Resource Stripping: The tool removes non-essential files such as man pages, header files, and debug symbols from the native binaries, further compressing the image.",
+        "Link-time Optimization: jlink can be configured to use the --strip-debug and --compress=2 flags to perform bytecode-level optimizations and aggressive compression of the internal JMOD files.",
+        "Native Launcher Generation: It creates a custom 'java' launcher executable that is hard-coded to point to the specific module path and class path of your custom image, eliminating the need to set JAVA_HOME in the environment."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "bash",
+      "content": "# Example of creating a custom runtime image\njlink --module-path $JAVA_HOME/jmods:target/classes \\\n      --add-modules com.myapp.service \\\n      --launcher myapp=com.myapp.service/com.myapp.Main \\\n      --strip-debug \\\n      --compress 2 \\\n      --no-header-files \\\n      --no-man-pages \\\n      --output custom-jre"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: The biggest 'gotcha' with jlink is reflection. If your application or a third-party library uses reflection to access classes in a module that you didn't explicitly include in your jlink command, the JVM will throw a NoClassDefFoundError at runtime. Always run your application with the '--dry-run' or test it thoroughly in an integration environment before shipping, as static analysis cannot always predict dynamic reflective access patterns."
+    }
+  ],
+  "num": 1284,
+  "title": "What is the jlink tool? How do you create a custom minimal JRE?",
+  "category": "Core Java & Fundamentals"
+}

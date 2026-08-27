@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A Content Delivery Network (CDN) is a globally distributed system of proxy servers designed to cache and deliver static and dynamic web content closer to end-users, drastically minimizing network latency, reducing origin server load, and mitigating distributed denial-of-service (DDoS) attacks. When a user requests a resource, anycast routing directs them to the geographically nearest Edge Server (also known as a Point of Presence, or PoP). If the edge server has a fresh copy of the asset in its cache, it serves it immediately—a cache hit. If it is a cache miss, the edge server fetches the content from the origin server, caches it according to specified rules, and forwards it to the client.\n\nCache invalidation at the edge represents one of the most notoriously difficult problems in distributed systems due to the trade-off described by the CAP theorem and the inherent latency of propagating state changes globally. Once an asset is cached at hundreds of PoPs worldwide, updating or deleting that asset before its time-to-live (TTL) expires requires explicit cache invalidation mechanisms such as cache purging, surrogate keys, or versioned asset URLs. Without a robust invalidation strategy, users across different regions may experience stale data, broken UI layouts, or mismatched API responses, leading to synchronization bugs and data inconsistency."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Invalidation Strategy",
+        "Mechanism",
+        "Latency / Propagation",
+        "Use Case"
+      ],
+      "rows": [
+        [
+          "Time-To-Live (TTL)",
+          "Self-expiring cache duration based on HTTP headers",
+          "Dependent on TTL expiration",
+          "Static assets (images, fonts, CSS)"
+        ],
+        [
+          "Cache Purging",
+          "Explicit API call to invalidate specific URLs or file paths",
+          "Seconds to minutes global propagation",
+          "Emergency fixes, critical hotfixes"
+        ],
+        [
+          "Surrogate Keys / Tagging",
+          "Tagging assets with custom headers and purging by tag",
+          "Immediate tag-based invalidation",
+          "Modular UI components, category feeds"
+        ],
+        [
+          "Versioning / Fingerprinting",
+          "Embedding content hashes into filenames (e.g., app.v2.js)",
+          "Instant (new URL fetches from origin)",
+          "Modern frontend build pipelines"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Edge servers leverage Anycast DNS routing to advertise a single IP address from multiple data centers globally, ensuring the BGP (Border Gateway Protocol) path selects the topologically shortest route to the nearest PoP.",
+        "When handling dynamic content or personalized responses, CDNs rely on Vary headers and Edge Side Includes (ESI) to fragment pages, caching static fragments while dynamically stitching personalized user tokens at the edge.",
+        "Hard purging explicitly removes the cached object from the edge storage layer, whereas soft purging marks the object as stale while serving it conditionally (stale-while-revalidate) to prevent origin stampedes during high-traffic updates.",
+        "Origin shield architectures introduce an intermediate caching layer between edge PoPs and the origin server, preventing the 'thundering herd' problem where thousands of edge nodes simultaneously request an expired resource upon cache invalidation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/v1/products\")\npublic class ProductController {\n\n    private final ProductService productService;\n\n    public ProductController(ProductService productService) {\n        this.productService = productService;\n    }\n\n    @GetMapping(\"/{id}\")\n    public ResponseEntity<ProductDTO> getProduct(@PathVariable Long id) {\n        ProductDTO product = productService.findById(id);\n        \n        // Configuring cache control headers and surrogate keys for edge invalidation\n        return ResponseEntity.ok()\n                .cacheControl(CacheControl.maxAge(Duration.ofHours(24)).cachePublic())\n                .header(\"Surrogate-Key\", \"product-\" + id + \" category-\" + product.getCategoryId())\n                .body(product);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production failure mode during cache invalidation is the 'cache stampede' or 'dog-piling' effect. When a high-traffic object is purged or expires, concurrent requests from millions of edge nodes hit the origin server simultaneously, instantly overwhelming CPU or database connections. Always couple edge invalidation with request coalescing (lock-based single-flight execution at the origin) and stale-while-revalidate caching directives to keep downstream systems resilient."
+    }
+  ],
+  "num": 401,
+  "title": "CDNs — how they work, cache invalidation at edge",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

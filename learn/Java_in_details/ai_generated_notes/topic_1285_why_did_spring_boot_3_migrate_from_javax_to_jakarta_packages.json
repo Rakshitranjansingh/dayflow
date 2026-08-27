@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The migration from javax.* to jakarta.* in Spring Boot 3 was not merely a cosmetic refactoring; it was the direct consequence of the transfer of Java EE from Oracle to the Eclipse Foundation. When Oracle moved Java EE to the Eclipse Foundation, they were legally prohibited from using the 'javax' namespace, which remained trademarked by Oracle. This necessitated the creation of the Jakarta EE specification. Consequently, all core enterprise APIs—such as Servlet, Persistence (JPA), Validation, and JSON-B—were rebranded under the 'jakarta' namespace. Spring Boot 3, which aligns with Jakarta EE 9 and 10, had to adopt these new package names to maintain compatibility with modern application servers like Tomcat 10, Jetty 11, and Undertow 2.3+, which no longer support the legacy javax.* namespaces."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "javax.* (Java EE 8)",
+        "jakarta.* (Jakarta EE 9+)"
+      ],
+      "rows": [
+        [
+          "Servlet API",
+          "javax.servlet.*",
+          "jakarta.servlet.*"
+        ],
+        [
+          "Persistence",
+          "javax.persistence.*",
+          "jakarta.persistence.*"
+        ],
+        [
+          "Validation",
+          "javax.validation.*",
+          "jakarta.validation.*"
+        ],
+        [
+          "WebSocket",
+          "javax.websocket.*",
+          "jakarta.websocket.*"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The transition represents a breaking change because the package names are part of the fully qualified class names; therefore, binary compatibility is completely broken, requiring a full recompilation of the codebase.",
+        "Spring Boot 3 utilizes the 'jakarta' namespace to leverage the latest features of Servlet 6.0 and JPA 3.1, which include improved security defaults and better integration with modern Java language features like Records.",
+        "The migration forces a clean break from legacy Oracle-controlled specifications, allowing the Eclipse Foundation to evolve the APIs independently without trademark litigation risks.",
+        "Internal dependency management in Spring Boot 3 uses the 'jakarta.*' artifacts, meaning that any third-party library still relying on 'javax.*' will cause a ClassNotFoundException or NoClassDefFoundError at runtime."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Before Spring Boot 3 (Java EE 8)\nimport javax.persistence.Entity;\nimport javax.servlet.http.HttpServletRequest;\n\n// After Spring Boot 3 (Jakarta EE 10)\nimport jakarta.persistence.Entity;\nimport jakarta.servlet.http.HttpServletRequest;"
+    },
+    {
+      "type": "note",
+      "content": "Pro-tip: If you are migrating a large legacy project, do not attempt to manually rename imports. Use the Eclipse Transformer tool or the OpenRewrite 'migrate-to-jakarta-ee' recipe. A common production pitfall is 'dependency hell' where a transitive dependency (like an old version of Hibernate or a legacy utility library) still pulls in javax.* artifacts, causing runtime conflicts. Always audit your dependency tree using 'mvn dependency:tree' or 'gradle dependencies' to ensure no javax.* artifacts remain in your classpath."
+    }
+  ],
+  "num": 1286,
+  "title": "Why did Spring Boot 3 migrate from javax.* to jakarta.* packages?",
+  "category": "Spring Boot & Spring Framework"
+}

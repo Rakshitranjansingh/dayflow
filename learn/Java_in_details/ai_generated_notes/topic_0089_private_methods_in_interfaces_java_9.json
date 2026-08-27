@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When Java 8 introduced default methods and static methods in interfaces, it revolutionized API design by enabling developers to evolve existing interfaces without breaking implementing classes, effectively paving the way for functional-style streams and lambdas. However, as developers began writing complex default methods, they quickly hit a major architectural limitation: code duplication. Because default and static methods were forced to be public, any shared helper logic extracted from them had to either be exposed as a public method—cluttering the interface's public contract—or dumped into a separate utility class, breaking encapsulation.\n\nJava 9 solved this precise pain point by introducing private methods in interfaces. This language enhancement allows developers to declare private, non-static helper methods and private static helper methods directly within an interface body. Private methods in interfaces exist to share common code between multiple default methods or between static and default methods, without leaking implementation details to the public API boundary. They allow interface design to be modular, clean, and properly encapsulated, ensuring that the interface exposes only what clients need to see while hiding the complex plumbing under the hood."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Private Instance Methods: These act as common helpers for default methods in the same interface. They have full access to default methods and other private methods, and they operate on the `this` reference of the implementing class instance.",
+        "Private Static Methods: These can be called by both static methods and default methods within the interface. Since they are static, they do not have access to `this` and cannot access instance state or non-static methods directly.",
+        "Encapsulation and API Design: By hiding helper logic, interface authors ensure backward compatibility and prevent clients from overriding or depending on internal helper routines that are subject to change in future releases."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public interface LoggingProcessor {\n\n    default void processInfo(String message) {\n        logMessage(\"INFO\", message);\n    }\n\n    default void processError(String message) {\n        logMessage(\"ERROR\", message);\n    }\n\n    // Private instance method sharing common behavior between default methods\n    private void logMessage(String level, String message) {\n        validateMessage(message);\n        System.out.println(\"[\" + level + \"] \" + java.time.Instant.now() + \" - \" + message);\n    }\n\n    // Private static method usable by both static and default methods\n    private static void validateMessage(String message) {\n        if (message == null || message.isBlank()) {\n            throw new IllegalArgumentException(\"Message cannot be blank\");\n        }\n    }\n}\n"
+    },
+    {
+      "type": "note",
+      "content": "A common interview misconception is that private methods in interfaces can be abstract. They cannot; just like in classes, a private method must have a body, otherwise the compiler throws a compilation error because an abstract method cannot be hidden or kept private from its inheritors. Furthermore, remember that private interface methods are strictly compiled to private methods in the resulting bytecode (using invokespecial), meaning reflection looking for public API methods will completely ignore them unless explicitly accessed with setAccessible(true), though doing so breaks encapsulation guarantees."
+    }
+  ],
+  "num": 90,
+  "title": "Private methods in interfaces (Java 9)",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

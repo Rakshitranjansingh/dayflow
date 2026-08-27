@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java concurrency, managing thread safety requires rigorous control over shared mutable state. The synchronized keyword is the foundational building block for providing mutual exclusion and visibility guarantees. Understanding the nuances between a synchronized method and a synchronized block is critical for minimizing lock contention and avoiding deadlocks. When a thread enters a synchronized region, it must acquire an intrinsic lock—often called a monitor lock—associated with the specified target object or class. This synchronization mechanism relies on the underlying JVM implementation of monitors, which are integrated directly into every object header through the object mark word.\n\nIntrinsic locks in Java are inherently reentrant. This means that if a thread currently holds the monitor lock for a given object, it can re-enter that synchronized method or block without blocking itself. Reentrancy is vital for preventing self-deadlocks in recursive calls or when delegating execution across multiple synchronized methods within the same call stack. The JVM tracks this via an internal lock acquisition count and the owning thread identifier within the object's header. Only when the outermost synchronized block exits and the recursion unwinds completely does the acquisition count drop to zero, releasing the monitor for waiting threads."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Synchronized Method",
+        "Synchronized Block"
+      ],
+      "rows": [
+        [
+          "Lock Scope",
+          "Entire method body is locked",
+          "Explicitly defined block of statements"
+        ],
+        [
+          "Lock Target",
+          "this (instance) or MyClass.class (static)",
+          "Any arbitrary non-null object reference"
+        ],
+        [
+          "Granularity",
+          "Coarse-grained; often increases contention",
+          "Fine-grained; limits critical section to minimal lines"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Intrinsic locks operate via object monitors. In modern JVMs, these progress through biased locking, lightweight locking (using compare-and-swap operations on the stack frame), and heavy heavyweight locking (utilizing operating system mutexes via object wait-sets) depending on contention levels.",
+        "A synchronized method on an instance acquires the monitor of the current instance (this). A static synchronized method acquires the java.lang.Class instance lock for that class, which is distinct from any instance-level locks.",
+        "Reentrancy relies on a thread-specific recursion counter stored in the monitor metadata. If Thread A holds the monitor, subsequent acquisition requests by Thread A increment the counter, while requests by Thread B suspend execution and park the thread."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class CounterService {\n    private int sharedCount = 0;\n    private final Object lock = new Object();\n\n    // Synchronized method locking on 'this'\n    public synchronized void incrementMethod() {\n        sharedCount++;\n    }\n\n    // Synchronized block locking on a dedicated monitor object\n    public void incrementBlock() {\n        synchronized (lock) {\n            sharedCount++;\n            // Demonstrating reentrancy safely within the same thread\n            recursiveHelper(3);\n        }\n    }\n\n    private synchronized void recursiveHelper(int depth) {\n        if (depth <= 0) return;\n        sharedCount++;\n        recursiveHelper(depth - 1);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production antipattern is synchronizing on 'this' or on a public class instance inside methods while performing external calls, I/O, or invoking callbacks. Because intrinsic locks are visible externally, any calling code can obtain the same monitor lock by calling synchronized(serviceInstance), leading to hidden deadlocks or starvation. Always prefer private, dedicated lock objects for synchronized blocks to encapsulate monitor ownership."
+    }
+  ],
+  "num": 119,
+  "title": "synchronized — method vs block, intrinsic locks, reentrancy",
+  "category": "Multithreading & Java Concurrency"
+}

@@ -1,0 +1,68 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java multithreading and concurrency, understanding the thread lifecycle states is fundamental to writing responsive, deterministic, and scalable applications. A thread in Java is not merely a piece of execution logic; it is a managed entity whose transitions are strictly governed by the java.lang.Thread.State enumeration. When we construct a Thread instance, it sits outside the active JVM scheduler orchestration until started. Once running, it transitions through various states depending on lock acquisition, IO blocking, yielding, or cooperative interruption.\n\nThe life of a thread moves from creation to termination while frequently dipping into pausing, waiting, or blocking phases. Grasping these states is critical for diagnosing deadlocks, thread starvations, and CPU utilization spikes. When dealing with modern concurrent constructs like ExecutorService, ForkJoinPool, or explicit locks (java.util.concurrent.locks), monitoring these underlying states via thread dumps or JMX allows senior engineers to pinpoint bottlenecks in production environments."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Thread State",
+        "Triggering Condition",
+        "Transition Out Condition"
+      ],
+      "rows": [
+        [
+          "NEW",
+          "Thread instantiation (new Thread())",
+          "invocation of the start() method"
+        ],
+        [
+          "RUNNABLE",
+          "After start(), or returning from waiting/blocking",
+          "JVM thread scheduler assigns CPU time or blocks on IO/Lock"
+        ],
+        [
+          "BLOCKED",
+          "Attempting to enter a synchronized block/method held by another thread",
+          "The lock monitor becomes available and is acquired"
+        ],
+        [
+          "WAITING",
+          "Calling Object.wait(), Thread.join(), or LockSupport.park() without timeout",
+          "Object.notify(), notifyAll(), or unpark() is invoked"
+        ],
+        [
+          "TIMED_WAITING",
+          "Calling sleep(long), wait(long), join(long), or parkNanos()",
+          "Timeout expires or wakeup signal is received"
+        ],
+        [
+          "TERMINATED",
+          "Run method completes normally or throws an uncaught exception",
+          "Terminal state; cannot be restarted"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The RUNNABLE state in Java actually encompasses two states in the underlying OS scheduler: ready to run and running. The JVM does not differentiate whether a thread is actively executing on a CPU core or sitting in the OS run queue waiting for a time slice.",
+        "The BLOCKED state is strictly exclusive to monitor locks used by the synchronized keyword. Threads waiting on explicit java.util.concurrent.locks.Lock implementations transition into the WAITING or TIMED_WAITING state via LockSupport.park().",
+        "Transitioning into TERMINATED does not immediately reclaim the thread's native memory allocations and stack frame resources; garbage collection of the Thread object occurs once references to it are dropped, provided the OS thread has fully exited."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ThreadStateInspector {\n    public static void main(String[] args) throws InterruptedException {\n        Object lock = new Object();\n        \n        Thread worker = new Thread(() -> {\n            synchronized (lock) {\n                try {\n                    lock.wait();\n                } catch (InterruptedException e) {\n                    Thread.currentThread().interrupt();\n                }\n            }\n        }, \"Worker-Thread\");\n\n        System.out.println(\"State after creation: \" + worker.getState()); // NEW\n        worker.start();\n        System.out.println(\"State after start(): \" + worker.getState()); // RUNNABLE\n        \n        Thread.sleep(100); // Give worker time to acquire lock and wait()\n        System.out.println(\"State during wait(): \" + worker.getState()); // WAITING\n\n        synchronized (lock) {\n            lock.notify();\n        }\n        \n        worker.join();\n        System.out.println(\"State after completion: \" + worker.getState()); // TERMINATED\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production misconception is assuming that a thread in the WAITING or TIMED_WAITING state consumes CPU cycles. It does not; the OS scheduler removes it from the active run queues, parking it until an interrupt, signal, or timeout occurs. However, excessive thread creation leading to thousands of threads stuck in BLOCKED or WAITING causes severe heap pressure due to native thread stack allocations (typically 512KB to 1MB per thread), frequently triggering OutOfMemoryError exceptions or catastrophic JVM pause times during garbage collection."
+    }
+  ],
+  "num": 117,
+  "title": "Thread lifecycle states",
+  "category": "Multithreading & Java Concurrency"
+}

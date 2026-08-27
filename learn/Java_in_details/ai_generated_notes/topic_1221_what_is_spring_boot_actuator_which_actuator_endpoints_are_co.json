@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Boot Actuator is a sub-project of the Spring Boot framework designed to provide production-ready features for monitoring and managing your application. In a distributed microservices architecture, you cannot rely on local logs alone; you need a way to inspect the internal state of a running JVM process. Actuator solves this by exposing operational data via HTTP endpoints or JMX beans, allowing you to see metrics, health status, thread dumps, and configuration properties without needing to restart or debug the application. It effectively bridges the gap between a 'black box' application and an observable system, providing the telemetry necessary for SRE teams to perform health checks, traffic routing, and capacity planning."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Endpoint",
+        "Purpose",
+        "Production Sensitivity"
+      ],
+      "rows": [
+        [
+          "/health",
+          "Reports application availability/liveness",
+          "Low"
+        ],
+        [
+          "/metrics",
+          "Exposes JVM and custom business metrics",
+          "Medium"
+        ],
+        [
+          "/env",
+          "Exposes environment properties and config",
+          "High"
+        ],
+        [
+          "/threaddump",
+          "Provides a snapshot of all JVM threads",
+          "High"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Actuator leverages the Spring MVC or WebFlux infrastructure to register its own DispatcherServlet mappings, which are isolated from your business logic controllers to ensure security and performance separation.",
+        "The HealthIndicator interface is the core mechanism for custom health checks; you can implement this to verify database connectivity, disk space, or external API availability, which are then aggregated into the global /health endpoint.",
+        "Metrics are powered by Micrometer, which acts as a facade between your application code and monitoring backends like Prometheus, Datadog, or InfluxDB, abstracting away the underlying registry implementation.",
+        "Security is handled via Spring Security integration; by default, most sensitive endpoints are disabled or restricted to prevent unauthorized access to environment variables or heap dumps."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "management:\n  endpoints:\n    web:\n      exposure:\n        include: health,info,metrics\n  endpoint:\n    health:\n      show-details: when_authorized\n  metrics:\n    tags:\n      application: ${spring.application.name}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is exposing the /env or /heapdump endpoints to the public internet without strict authentication. The /env endpoint can reveal sensitive credentials, API keys, or database connection strings if they are injected via environment variables. Always use a dedicated management port (management.server.port) and secure it with Spring Security or a firewall rule that restricts access to internal network ranges only."
+    }
+  ],
+  "num": 1222,
+  "title": "What is Spring Boot actuator? Which actuator endpoints are commonly used?",
+  "category": "Spring Boot & Spring Framework"
+}

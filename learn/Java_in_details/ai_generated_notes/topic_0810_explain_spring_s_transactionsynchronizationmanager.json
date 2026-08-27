@@ -1,0 +1,48 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring's TransactionSynchronizationManager is a central, albeit low-level, orchestration component within the Spring Framework's transaction abstraction layer. It acts as the core registry for resource bindings and transaction synchronization callbacks associated with the current thread of execution. When building complex enterprise systems, developers often need to execute side effects—such as clearing internal caches, publishing domain events, or closing specialized I/O handles—only after an active database transaction has definitively committed or rolled back. TransactionSynchronizationManager solves this exact problem by utilizing thread-local storage to bind transactional resources (like JDBC Connections or JPA EntityManagers) and register synchronization callbacks that hook into the lifecycle phases of the underlying transaction manager."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Mechanism",
+        "Thread Binding",
+        "Lifecycle Triggers"
+      ],
+      "rows": [
+        [
+          "TransactionSynchronizationManager",
+          "ThreadLocal resource maps",
+          "beforeCommit, afterCommit, afterCompletion"
+        ],
+        [
+          "TransactionalEventListener",
+          "ApplicationEventPublisher integration",
+          "AFTER_COMMIT, AFTER_ROLLBACK, BEFORE_COMMIT"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Thread-Local Storage Isolation: TransactionSynchronizationManager relies heavily on ThreadLocal maps to decouple resource management from business code. It isolates connections and synchronization lists per thread, preventing cross-talk in multi-threaded application servers.",
+        "Resource Binding Invariants: When a DataSourceTransactionManager opens a connection, it binds that resource to the current thread via TransactionSynchronizationManager. This allows downstream components like MyBatis or JdbcTemplate to retrieve the exact same connection without explicit parameter passing.",
+        "Synchronization Phase Execution: Registered TransactionSynchronization instances receive callbacks at critical boundaries: beforeCommit(boolean readOnly), beforeCompletion(), afterCommit(), and afterCompletion(int status). The status parameter explicitly flags whether the transaction committed (STATUS_COMMITTED) or rolled back (STATUS_ROLLED_BACK)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class AuditLogService {\n\n    @Transactional\n    public void performCriticalUpdate(AuditData data) {\n        // Business logic interacting with database\n        \n        if (TransactionSynchronizationManager.isSynchronizationActive()) {\n            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {\n                @Override\n                public void afterCommit() {\n                    // Safe to publish external event or write to secondary store\n                    externalMessageQueue.publish(data);\n                }\n            });\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap when using TransactionSynchronizationManager is forgetting to check whether synchronization is actually active. If a method executes outside of a transactional boundary, calling registerSynchronization() throws an IllegalStateException. Furthermore, because ThreadLocal storage persists across thread pool executions in application servers like Tomcat, failing to clear or unbind resources in a finally block can lead to severe memory leaks or connection contamination."
+    }
+  ],
+  "num": 811,
+  "title": "Explain Spring's TransactionSynchronizationManager.",
+  "category": "Exception Handling & I/O / NIO"
+}

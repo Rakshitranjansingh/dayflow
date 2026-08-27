@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In a distributed microservices architecture, Exception Wrapping and Exception Translation are critical defensive programming patterns used to maintain system boundaries and prevent leaking implementation details across service boundaries. Exception Wrapping involves catching a low-level, technology-specific exception (like a SQLException or a library-specific timeout) and nesting it inside a higher-level, domain-specific exception. This preserves the original stack trace for debugging while shielding the caller from the underlying infrastructure. Exception Translation, by contrast, involves mapping an internal exception to a standardized, protocol-aware response—such as converting a 'UserNotFoundException' into a 404 Not Found HTTP status code or a specific gRPC error code. Together, these patterns ensure that your API contract remains stable even if your persistence layer or internal libraries undergo significant refactoring."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Exception Wrapping",
+        "Exception Translation"
+      ],
+      "rows": [
+        [
+          "Primary Goal",
+          "Context preservation",
+          "Protocol normalization"
+        ],
+        [
+          "Scope",
+          "Internal service logic",
+          "API/Gateway boundary"
+        ],
+        [
+          "Data Retention",
+          "Preserves original cause",
+          "Abstracts internal details"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Exception Wrapping utilizes the 'cause' constructor in Java's Throwable hierarchy to maintain the root cause chain, which is essential for post-mortem analysis in distributed tracing tools like Zipkin or Jaeger.",
+        "Translation layers act as an anti-corruption layer, preventing internal database schema exceptions or third-party API errors from becoming part of your public-facing API contract.",
+        "When using reactive streams (Project Reactor/WebFlux), wrapping must be handled via the 'onErrorMap' or 'onErrorResume' operators to ensure the reactive pipeline remains consistent.",
+        "Global Exception Handlers (e.g., @ControllerAdvice in Spring) serve as the centralized engine for translation, ensuring consistent error payloads across all endpoints."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class OrderService {\n    public Order getOrder(String id) {\n        try {\n            return repository.findById(id);\n        } catch (DataAccessException e) {\n            // Wrapping: Preserve root cause for logs\n            throw new OrderNotFoundException(\"Order lookup failed\", e);\n        }\n    }\n}\n\n@ControllerAdvice\npublic class GlobalExceptionHandler {\n    @ExceptionHandler(OrderNotFoundException.class)\n    public ResponseEntity<ErrorResponse> handle(OrderNotFoundException ex) {\n        // Translation: Map to public API contract\n        return ResponseEntity.status(HttpStatus.NOT_FOUND)\n            .body(new ErrorResponse(\"ERR_001\", \"Order not found\"));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Be extremely careful not to leak sensitive internal information (like database table names, SQL snippets, or hostnames) during translation. A common production vulnerability is passing the 'e.getMessage()' of a wrapped exception directly to the client. Always sanitize your error messages before sending them over the wire, and use unique correlation IDs to link the client-side error to your internal logs."
+    }
+  ],
+  "num": 590,
+  "title": "Exception wrapping / translation pattern for microservices",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a payment flow safely in a high-concurrency, distributed environment requires an uncompromising architectural focus on idempotency, transactional integrity, and fault tolerance. In modern financial systems, network partitions, client-side retries, and database timeouts are not edge cases—they are expected realities. If a client submits a charge request and experiences a connection reset before receiving an HTTP 200 OK response, they will inevitably retry the operation. Without strict safeguards, this results in double-charging, ledger discrepancies, and severe compliance violations. To guarantee safety, every payment mutation must leverage cryptographic or deterministic idempotency keys that survive upstream retries, ensuring that the underlying state machine processes a given financial intent precisely once.\n\nAt the core of a safe payment processing pipeline is the separation of concerns between state persistence, state machine transitions, and external gateway integrations. Financial engines cannot rely on transient application memory; instead, they must implement distributed locking schemes and pessimistic or optimistic concurrency control via database constraints. Furthermore, because calls to third-party payment gateways (such as Stripe, Adyen, or banking rails) are inherently non-atomic, systems must employ asynchronous outbox patterns, sagas, or two-phase processing states (e.g., AUTHORIZED, CAPTURED, SETTLED, FAILED, REFUNDED) to reconcile internal ledger balances with external ledger states safely."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Design Dimension",
+        "Naive Implementation",
+        "Production-Safe Implementation"
+      ],
+      "rows": [
+        [
+          "Idempotency",
+          "Relies on client-generated random IDs checked via non-unique columns, leading to race conditions under concurrent retries.",
+          "Enforces unique database constraints on composite keys (merchant_id + idempotency_key) with atomic check-and-insert semantics."
+        ],
+        [
+          "Gateway Communication",
+          "Executes blocking HTTP calls inside the main database transaction, holding locks and risking connection pool exhaustion on timeouts.",
+          "Separates network IO from database transactions using the Transactional Outbox pattern and asynchronous event pollers."
+        ],
+        [
+          "Failure Recovery",
+          "Leaves records in 'PENDING' indefinitely if the service crashes mid-flight, requiring manual data patch scripts.",
+          "Employs automated reconciliation workers and background cron jobs querying gateway APIs to sync missing terminal states."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Idempotency Key Architecture: The idempotency key must be extracted at the API gateway layer and propagated through every downstream service. When a request arrives, the system queries a dedicated idempotency table wrapped in a serializable or read-committed transaction with explicit locking. If the key exists and its payload matches, the previously cached response is returned immediately. If the key exists with a 'PROCESSING' status, the request is rejected with a 409 Conflict or forced to wait via backoff polling.",
+        "State Machine Enforcement: Payment entities must transition through strict state invariants. A state transition from AUTHORIZED to REFUNDED is invalid if the intermediate CAPTURED state was skipped. Database CHECK constraints or application-level finite state machines (FSM) must reject illegal transitions to protect the double-entry bookkeeping ledger from corruption.",
+        "The Transactional Outbox Pattern: To prevent split-brain issues where a payment is captured at the gateway but the local database transaction fails to commit, domain events must be written to an outbox table within the exact same ACID transaction as the payment state update. A separate relay process reads the outbox table and publishes events to the message broker guaranteeing at-least-once delivery."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class PaymentService {\n\n    @Autowired\n    private PaymentRepository paymentRepository;\n    \n    @Autowired\n    private IdempotencyRepository idempotencyRepository;\n    \n    @Autowired\n    private PaymentGatewayClient gatewayClient;\n\n    @Transactional\n    public PaymentResponse processPayment(PaymentRequest request, String idempotencyKey) {\n        // 1. Enforce Idempotency via Unique Constraint\n        Optional<IdempotencyRecord> existing = idempotencyRepository.findByKey(idempotencyKey);\n        if (existing.isPresent()) {\n            if (existing.get().getStatus() == Status.COMPLETED) {\n                return existing.get().getCachedResponse();\n            }\n            throw new DuplicateRequestException(\"Payment request is currently being processed\");\n        }\n\n        IdempotencyRecord record = new IdempotencyRecord(idempotencyKey, Status.PROCESSING);\n        idempotencyRepository.saveAndFlush(record);\n\n        try {\n            // 2. Persist initial PENDING state\n            Payment payment = paymentRepository.save(new Payment(request, PaymentState.PENDING));\n\n            // 3. Call external gateway (outside heavy DB locks if possible)\n            GatewayResponse gatewayResponse = gatewayClient.charge(request);\n            \n            if (gatewayResponse.isSuccessful()) {\n                payment.transitionTo(PaymentState.CAPTURED);\n                payment.setGatewayTransactionId(gatewayResponse.getTransactionId());\n            } else {\n                payment.transitionTo(PaymentState.FAILED);\n            }\n            \n            paymentRepository.save(payment);\n            \n            PaymentResponse response = PaymentResponse.from(payment);\n            record.complete(response);\n            idempotencyRepository.save(record);\n            \n            return response;\n        } catch (Exception eheiten) {\n            record.fail();\n            idempotencyRepository.save(record);\n            throw new PaymentProcessingException(\"Failed to process payment safely\", e);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic senior-level pitfall in payment flows is holding an active database connection and transaction open while making a synchronous HTTP call to a third-party payment gateway. If the gateway experiences latency or a network timeout, your application thread pool and database connection pool will rapidly exhaust, causing cascading failures across your entire microservice architecture. Always decouple external API calls from database transactions using asynchronous workers or outbox patterns, and enforce aggressive, bounded connection and read timeouts on your HTTP clients."
+    }
+  ],
+  "num": 1101,
+  "title": "How would you design a payment flow safely?",
+  "category": "Core Java & Fundamentals"
+}

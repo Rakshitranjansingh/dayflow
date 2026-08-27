@@ -1,0 +1,76 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Bean Scopes govern the lifecycle, visibility, and creation frequency of bean instances managed by the Spring IoC container. By default, Spring operates on the Singleton scope, ensuring a single shared instance per Spring IoC container. However, enterprise web applications require varied object lifecycles depending on concurrency, state management, and HTTP context boundaries. The Prototype scope forces the container to create a fresh bean instance every time it is requested, making it ideal for stateful components. When moving into web-aware application contexts, Spring introduces request-scoped beans (bound to the lifecycle of a single HTTP ServletRequest), session-scoped beans (persisting across HTTP requests for the duration of an HTTP HttpSession), application-scoped beans (tied to the lifecycle of a ServletContext across the entire web application), and WebSocket-scoped beans (synchronized with the lifecycle of a STOMP WebSocket session). Understanding these scopes is critical to prevent thread-safety issues, memory leaks from leaking scoped proxies, and unintended state sharing in multi-threaded environments."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Bean Scope",
+        "Lifecycle Boundary",
+        "Thread Safety",
+        "Default Web Aware"
+      ],
+      "rows": [
+        [
+          "Singleton",
+          "Spring IoC Container",
+          "Not Thread-Safe by default",
+          "Yes"
+        ],
+        [
+          "Prototype",
+          "Per-request from container",
+          "Generally Thread-Safe (isolated)",
+          "Yes"
+        ],
+        [
+          "Request",
+          "HTTP ServletRequest",
+          "Thread-Safe per request",
+          "Requires Web Context"
+        ],
+        [
+          "Session",
+          "HTTP HttpSession",
+          "Not Thread-Safe (concurrent requests share session)",
+          "Requires Web Context"
+        ],
+        [
+          "Application",
+          "ServletContext",
+          "Not Thread-Safe",
+          "Requires Web Context"
+        ],
+        [
+          "WebSocket",
+          "WebSocket Session",
+          "Thread-Safe per session",
+          "Requires WebSocket Context"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Singleton beans are eagerly instantiated during container startup (unless lazy-init is enabled) and stored in a primary concurrent map within the DefaultListableBeanFactory.",
+        "Prototype beans are never fully managed by the container regarding destruction; Spring constructs and hands over the object to the caller, relinquishing any obligation to run cleanup or destroy methods.",
+        "Request, Session, Application, and WebSocket scopes require a Web-aware ApplicationContext (like XmlWebApplicationContext or AnnotationConfigServletWebServerApplicationContext) and utilize Spring's RequestContextHolder backed by thread-local storage.",
+        "Injecting a short-lived scope (e.g., Request) into a long-lived scope (e.g., Singleton) requires a Scoped Proxy (scopedProxy = ScopedMode.TARGET_CLASS) to generate a CGLIB proxy that dynamically resolves the target bean on every method invocation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/cart\")\npublic class ShoppingCartController {\n\n    private final ShoppingCart shoppingCart;\n\n    // Constructor injection of a Session-scoped bean utilizing a scoped proxy\n    public ShoppingCartController(ShoppingCart shoppingCart) {\n        this.shoppingCart = shoppingCart;\n    }\n\n    @PostMapping(\"/item\")\n    public ResponseEntity<String> addItem(@RequestBody Item item) {\n        shoppingCart.addItem(item);\n        return ResponseEntity.ok(\"Item added to session-scoped cart\");\n    }\n}\n\n@Component\n@Scope(value = WebApplicationContext.SCOPE_SESSION, proxyMode = ScopedMode.TARGET_CLASS)\nclass ShoppingCart {\n    private final List<Item> items = new ArrayList<>();\n    \n    public void addItem(Item item) {\n        this.items.add(item);\n    }\n    \n    public List<Item> getItems() {\n        return Collections.unmodifiableList(items);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap occurs when a Singleton service injects a Prototype-scoped bean directly. Because the Singleton is instantiated only once at startup, the Prototype bean is injected once and effectively behaves like a Singleton, causing subtle state bugs. To fix this, use javax.inject.Provider<T> or ObjectProvider<T> to dynamically fetch a fresh prototype instance on demand, or configure the prototype bean with a lookup method injection."
+    }
+  ],
+  "num": 763,
+  "title": "What are the Spring Bean Scopes? (Singleton, Prototype, Request, Session, Application, WebSocket)",
+  "category": "Spring Boot & Spring Framework"
+}

@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Boot Actuator brings production-grade monitoring and management capabilities to applications through HTTP endpoints or JMX. However, exposing these operational insights carelessly introduces severe security vulnerabilities, potentially leaking database credentials, environment variables, thread dumps, and internal heap memory profiles to malicious actors. Understanding what should and should not be exposed by Actuator is a critical architectural responsibility for any Java engineer operating microservices in production. By default, Spring Boot secures these endpoints, but misconfigurations in management property files frequently leave sensitive endpoints like heapdump, env, and configprops exposed over public ports.\n\nThe core challenge lies in balancing operational observability with strict zero-trust security principles. Metrics and health checks provide vital telemetry for Kubernetes liveness and readiness probes, but endpoints detailing application internals must be segregated, authenticated, and bound to internal management ports. A robust hardening strategy requires an explicit allow-list approach rather than relying on default framework behaviors, ensuring that sensitive information domains remain shielded behind stringent network policies and role-based access control (RBAC)."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Endpoint Category",
+        "Safe to Expose (Public/Monitoring)",
+        "Dangerous to Expose (Internal Only)"
+      ],
+      "rows": [
+        [
+          "Telemetry & Health",
+          "health, info, metrics, prometheus",
+          "httptrace, loggers (unauthenticated)"
+        ],
+        [
+          "Inspection & Configuration",
+          "auditevents (filtered)",
+          "env, configprops, beans, mappings"
+        ],
+        [
+          "Diagnostics & Control",
+          "threaddump (internal network)",
+          "heapdump, shutdown, restart"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The /env and /configprops endpoints dump all resolved property sources, which automatically unmasks sensitive values like database passwords, API secrets, and OAuth keys unless explicit sanitization rules are configured via management.endpoint.env.keys-to-sanitize.",
+        "The /heapdump endpoint forces the JVM to execute a full Garbage Collection and stream a binary hprof file containing the entire heap memory space, making it a goldmine for attackers seeking cleartext user session tokens or cached security credentials.",
+        "Management-specific HTTP ports (management.server.port) should always be isolated from user-facing traffic, binding Actuator to an internal loopback or dedicated VLAN interface accessible only by scraping infrastructure like Prometheus.",
+        "Health indicators can unintentionally leak backing service states (e.g., internal database connection strings or disk layouts), requiring careful control over health group detail visibility using management.endpoint.health.show-details."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "management:\n  server:\n    port: 8081\n  endpoints:\n    web:\n      exposure:\n        include: \"health, info, prometheus\"\n        exclude: \"env, heapdump, threaddump, shutdown, configprops\"\n  endpoint:\n    health:\n      show-details: \"when_authorized\"\n      roles: \"ACTUATOR_ADMIN\"\n  security:\n    enabled: true"
+    },
+    {
+      "type": "note",
+      "content": "A classic production outage and security breach occurs when developers enable management.endpoints.web.exposure.include=* to quickly debug microservices locally and forget to override it in the production deployment pipeline. Always enforce strict exclusions in your base enterprise Spring Boot starter configurations."
+    }
+  ],
+  "num": 1223,
+  "title": "What should and should not be exposed by actuator?",
+  "category": "Core Java & Fundamentals"
+}

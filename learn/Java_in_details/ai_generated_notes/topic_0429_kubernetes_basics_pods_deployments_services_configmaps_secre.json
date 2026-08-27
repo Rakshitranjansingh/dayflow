@@ -1,0 +1,60 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Kubernetes acts as the orchestration layer for containerized workloads, abstracting the underlying infrastructure into a unified cluster. At the atomic level, a Pod is the smallest deployable unit, encapsulating one or more containers that share network namespaces and storage volumes. While Pods are ephemeral, Deployments provide the declarative management layer, ensuring the desired state of your application is maintained through ReplicaSets, handling rolling updates and rollbacks seamlessly. To expose these workloads, Services provide a stable network abstraction, acting as an internal load balancer that decouples the Pod's volatile IP from the consumer. For configuration management, ConfigMaps store non-sensitive key-value pairs, while Secrets handle sensitive data like API keys or TLS certificates, both of which are injected into Pods as environment variables or mounted files. Ingress serves as the API gateway for the cluster, managing external access to services via HTTP/HTTPS routes based on hostnames or paths. Finally, the Horizontal Pod Autoscaler (HPA) provides the elasticity required for production environments by automatically scaling the number of Pods in a Deployment based on observed CPU utilization or custom metrics."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component",
+        "Primary Responsibility",
+        "Lifecycle Scope"
+      ],
+      "rows": [
+        [
+          "Pod",
+          "Execution unit",
+          "Ephemeral/Short-lived"
+        ],
+        [
+          "Deployment",
+          "State management",
+          "Long-lived/Versioned"
+        ],
+        [
+          "Service",
+          "Network abstraction",
+          "Stable/Cluster-wide"
+        ],
+        [
+          "Ingress",
+          "Traffic routing",
+          "Edge/External-facing"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Pods share the 'localhost' network namespace, allowing containers within the same Pod to communicate via ports efficiently, though they must manage port collisions.",
+        "Deployments utilize a two-phase commit strategy during rolling updates, where the 'maxSurge' and 'maxUnavailable' parameters dictate the velocity of the transition between replica sets.",
+        "Services leverage kube-proxy to program iptables or IPVS rules on every node, ensuring that traffic directed to a ClusterIP is distributed across the healthy backends registered in the associated Endpoints object.",
+        "ConfigMaps and Secrets are mounted as tmpfs filesystems in the Pod, meaning updates to these resources in the API server may take time to propagate to the container due to kubelet synchronization intervals.",
+        "HPA operates on a control loop that polls the Metrics Server; it is critical to define resource requests and limits, as HPA cannot scale based on metrics if the Pod lacks defined resource constraints."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api-deployment\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: backend\n  template:\n    metadata:\n      labels:\n        app: backend\n    spec:\n      containers:\n      - name: app\n        image: my-app:v1\n        envFrom:\n        - configMapRef:\n            name: app-config\n        - secretRef:\n            name: db-creds\n        resources:\n          requests:\n            cpu: \"100m\""
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is assuming that updating a ConfigMap or Secret automatically triggers a rolling restart of your Deployment. It does not. Kubernetes only updates the mounted files in the Pod; your application code must implement a file-watcher or a signal handler (SIGHUP) to reload the configuration dynamically, otherwise, you will need to manually trigger a rollout restart to pick up the changes."
+    }
+  ],
+  "num": 430,
+  "title": "Kubernetes basics — Pods, Deployments, Services, ConfigMaps, Secrets, Ingress, HPA",
+  "category": "Testing, Observability & Cloud Native"
+}

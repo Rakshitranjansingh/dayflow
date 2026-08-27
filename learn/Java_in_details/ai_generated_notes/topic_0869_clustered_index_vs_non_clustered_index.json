@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In relational database systems, indexing is the primary mechanism for optimizing data retrieval, functioning similarly to a book's index but implemented via B-Tree or B+Tree data structures. A Clustered Index determines the physical order of data rows in the table. Because the physical storage can only be sorted in one way, a table can have exactly one clustered index, which is typically the Primary Key. When you query a table using a clustered index, the database engine navigates the tree directly to the leaf nodes, which contain the actual data pages, making it exceptionally fast for range scans and point lookups.\n\nConversely, a Non-Clustered Index is a separate structure from the data rows. It contains a copy of the indexed column values and a pointer (a 'row locator') to the actual data row. If the table has a clustered index, the row locator is the clustered index key; if not, it is a physical RID (Row ID). This separation allows you to create multiple non-clustered indexes per table, enabling diverse query optimization paths. However, non-clustered indexes introduce a 'Key Lookup' or 'Bookmark Lookup' overhead: if the query selects columns not present in the index, the engine must traverse the non-clustered index to find the pointer, then perform an additional I/O operation to fetch the full row from the data pages."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Clustered Index",
+        "Non-Clustered Index"
+      ],
+      "rows": [
+        [
+          "Physical Order",
+          "Matches index order",
+          "Independent of data order"
+        ],
+        [
+          "Quantity",
+          "Only one per table",
+          "Multiple allowed"
+        ],
+        [
+          "Storage Cost",
+          "Low (data is the index)",
+          "Higher (extra storage for pointers)"
+        ],
+        [
+          "Lookup Speed",
+          "Fastest (direct data access)",
+          "Slower (requires extra lookup)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Clustered Index leaf nodes store the actual data pages (the table itself), while Non-Clustered Index leaf nodes store the index key and a pointer to the clustered index key.",
+        "When a non-clustered index is used, the engine performs a 'Covering Index' optimization if all requested columns are present in the index leaf nodes, avoiding the expensive bookmark lookup.",
+        "Frequent updates to a clustered index key are highly expensive because they trigger physical row movement (page splits) to maintain the sorted order on disk.",
+        "Non-clustered indexes are ideal for columns frequently used in WHERE clauses, JOIN conditions, or ORDER BY statements that are not the primary key."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "sql",
+      "content": "-- Clustered Index (usually created by PRIMARY KEY)\nCREATE TABLE Users (\n    user_id INT PRIMARY KEY, -- Clustered Index created here\n    email VARCHAR(255)\n);\n\n-- Non-Clustered Index\nCREATE INDEX idx_user_email ON Users(email); -- Non-Clustered Index"
+    },
+    {
+      "type": "note",
+      "content": "A common performance trap is the 'Key Lookup' penalty. If you have a non-clustered index on 'email' and run 'SELECT * FROM Users WHERE email = ?', the database performs an index seek, then a bookmark lookup for every row to get the non-indexed columns. If your table is large, this is often slower than a full table scan. Always prefer 'Covering Indexes' by including frequently accessed columns in your non-clustered index definition (using the INCLUDE clause in SQL Server or similar) to keep the data within the index leaf nodes."
+    }
+  ],
+  "num": 870,
+  "title": "Clustered Index vs Non-Clustered Index?",
+  "category": "Core Java & Fundamentals"
+}

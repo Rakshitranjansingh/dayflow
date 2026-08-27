@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Handling webhooks safely in a production environment requires addressing two critical pillars: signature verification and idempotent, resilient retry policies. A webhook is effectively an asynchronous callback over HTTP where a third-party service pushes state updates to your application. Because these requests originate from the open internet, your system immediately faces security threats such as payload tampering, replay attacks, and spoofed requests. Signature verification solves this by requiring the sender to sign the payload using a shared secret-based cryptographic hash (such as HMAC-SHA256). Your ingress layer must recompute this hash locally and execute a constant-time comparison against the incoming signature before processing a single byte of application logic. Without rigorous signature verification, bad actors can forge fake events, manipulate order states, or drain user balances.\n\nSimultaneously, distributed network architectures guarantee failure, meaning third-party webhook providers will inevitably retry failed or timed-out deliveries. If your service experiences a temporary database outage, the provider's retry policy will flood your endpoint with duplicate requests. Safely handling webhooks requires implementing robust retry policies on both ends: exponential backoff with jitter on the client-side provider to prevent stampeding herds, coupled with strict idempotency keys and distributed locking on your inbound server. By storing processed event identifiers in a high-speed data store like Redis with a sliding TTL, you ensure that duplicate webhook deliveries return a successful 2xx acknowledgement without re-executing business logic."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Security & Reliability Vector",
+        "Vulnerable Implementation",
+        "Production-Grade Implementation"
+      ],
+      "rows": [
+        [
+          "Signature Validation",
+          "Direct String.equals() on header tokens",
+          "MessageDigest.isEqual() using constant-time HMAC-SHA256"
+        ],
+        [
+          "Replay Prevention",
+          "Trusting body content blindly",
+          "Validating Unix timestamp headers within a tight drift window (e.g., +/- 5 mins)"
+        ],
+        [
+          "Duplicate Handling",
+          "Processing every incoming HTTP POST",
+          "Enforcing idempotency via atomic database unique constraints on Event-ID"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Cryptographic Side-Channel Vulnerabilities: Always use MessageDigest.isEqual() instead of standard string equality checks for signatures to prevent timing attacks where malicious actors deduce the secret byte-by-byte.",
+        "Buffer Exhaustion and DoS: Webhook payloads can be maliciously large. Configure strict InputStream limits at the servlet or Netty filter layer before reading the entire body into memory to compute the HMAC hash.",
+        "Idempotency Window Management: Relying solely on a database primary key for idempotency can fail if events arrive out of order or retry loops persist past your record retention horizon. Combine unique constraints with a distributed lock (e.g., Redisson) around state-changing blocks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/webhooks\")\npublic class WebhookController {\n\n    private static final String SIGNATURE_HEADER = \"X-Signature-256\";\n    private static final String SECRET = System.getenv(\"WEBHOOK_SECRET\");\n\n    @PostMapping(\"/stripe\")\n    public ResponseEntity<String> handleWebhook(\n            @RequestHeader(value = SIGNATURE_HEADER, required = false) String signature,\n            @RequestBody byte[] rawPayload) {\n        \n        if (signature == null || !verifySignature(rawPayload, signature)) {\n            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(\"Invalid Signature\");\n        }\n        \n        // Proceed to process idempotent event downstream\n        return ResponseEntity.ok(\"Received\");\n    }\n\n    private boolean verifySignature(byte[] payload, String receivedSignature) {\n        try {\n            Mac mac = Mac.getInstance(\"HmacSHA256\");\n            SecretKeySpec secretKey = new SecretKeySpec(SECRET.getBytes(StandardCharsets.UTF_8), \"HmacSHA256\");\n            mac.init(secretKey);\n            byte[] computedHash = mac.doFinal(payload);\n            \n            String computedHex = HexFormat.of().formatHex(computedHash);\n            return MessageDigest.isEqual(\n                computedHex.getBytes(StandardCharsets.UTF_8),\n                receivedSignature.getBytes(StandardCharsets.UTF_8)\n            );\n        } catch (Exception e) {\n            return false;\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production failure mode occurs when developers parse JSON payloads into Java objects before verifying the signature. Many JSON libraries (like Jackson) reorder keys, normalize whitespace, or strip formatting during deserialization. If you compute the HMAC against the re-serialized Java object instead of the raw, untouched InputStream bytes supplied by the servlet container, your signature verification will intermittently fail due to byte-level discrepancies."
+    }
+  ],
+  "num": 1183,
+  "title": "How do you handle Webhooks safely? (Signature verification, retry policies)",
+  "category": "Exception Handling & I/O / NIO"
+}

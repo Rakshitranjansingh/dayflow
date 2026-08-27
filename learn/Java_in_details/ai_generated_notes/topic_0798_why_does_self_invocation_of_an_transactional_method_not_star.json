@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Framework, the @Transactional annotation is the cornerstone of declarative transaction management, allowing developers to demarcate transaction boundaries cleanly using metadata. However, a notorious pitfall that catches even seasoned Java engineers off guard is the self-invocation problem: invoking a @Transactional-annotated method from another method within the same class results in the transaction failing to start. To understand why this occurs, one must look past the clean syntax and examine the underlying mechanics of Spring's AOP (Aspect-Oriented Programming) proxy architecture.\n\nSpring implements declarative transaction management by dynamically wrapping your service beans in proxies—either JDK dynamic proxies or CGLIB proxies. When an external client (such as a REST controller) calls a method on a transactional service bean, the call actually hits the proxy first. The proxy intercepts the call, consults the PlatformTransactionManager, acquires a database connection, binds it to the thread via TransactionSynchronizationManager, and finally delegates execution to the actual target instance. However, when a method inside the same target class calls another method on 'this', it bypasses the proxy entirely. The execution happens directly on the raw, unadvised target object, rendering the @Transactional metadata on the inner method completely invisible to Spring's transaction interceptor."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Proxy Bypass: Intra-class method calls use the Java 'this' reference, pointing directly to the target object instance rather than the surrounding AOP proxy, neutralizing the transaction interceptor.",
+        "Infrastructure Dependency: Spring's TransactionInterceptor relies entirely on the proxy lifecycle to execute transaction begin, commit, and rollback advice.",
+        "Runtime Impact: Because no transaction is initiated during self-invocation, any underlying persistence operations execute without an active transaction, potentially triggering LazyInitializationException or unexpected commit behaviors depending on flush modes."
+      ]
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Invocation Type",
+        "Target Reached First",
+        "Transaction Status"
+      ],
+      "rows": [
+        [
+          "External Client -> Service Method",
+          "AOP Proxy",
+          "Transaction Starts Successfully"
+        ],
+        [
+          "Internal Method -> @Transactional Method ('this')",
+          "Raw Target Object",
+          "No Transaction Started"
+        ],
+        [
+          "Injected Self-Dependency -> Method",
+          "AOP Proxy",
+          "Transaction Starts Successfully"
+        ]
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderService {\n\n    @Autowired\n    private OrderRepository orderRepository;\n\n    // Self-injection workaround to access the proxy\n    @Autowired\n    private OrderService self;\n\n    public void processOrder(Order order) {\n        // BAD: This will NOT start a transaction\n        // this.doTransactionalWork(order);\n\n        // GOOD: Calling via the self-proxy routes through the interceptor\n        self.doTransactionalWork(order);\n    }\n\n    @Transactional\n    public void doTransactionalWork(Order order) {\n        orderRepository.save(order);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common anti-pattern to fix self-invocation is injecting the bean into itself via @Autowired or ApplicationContextAware. While self-injection forces calls through the proxy, it can introduce circular dependency complications or signal a deeper architectural smell. A cleaner design is to extract the transactional logic into a separate service class, adhering to single responsibility principles and naturally avoiding proxy-bypass issues."
+    }
+  ],
+  "num": 799,
+  "title": "Why does self-invocation of an @Transactional method not start a transaction?",
+  "category": "Spring Boot & Spring Framework"
+}

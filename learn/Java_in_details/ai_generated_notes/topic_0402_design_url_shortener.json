@@ -1,0 +1,52 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a URL shortener requires balancing high-throughput read operations (redirects) with scalable write operations (generating unique short aliases), all while maintaining low latency and minimal storage footprints. At its core, the system must ingest a long URL, allocate a unique identifier, map that identifier to the destination URL, and persist it across a distributed storage tier. The primary engineering challenge lies in generating short, collision-resistant keys without incurring the performance penalty of heavy database lookups or distributed coordination locks."
+    },
+    {
+      "type": "prose",
+      "content": "To solve the key generation problem efficiently, engineers typically rely on two approaches: hashing algorithms like MD5/SHA-256 combined with Base62 encoding, or pre-computed counter-based systems (such as a centralized ID generator or Snowflake IDs). Hashing introduces collision risks that require fallback mitigation strategies, whereas counter-based approaches yield monotonically increasing numeric IDs that can be cleanly converted to alphanumeric strings using a custom radix-62 alphabet (a-z, A-Z, 0-9). This guarantees zero collisions and predictable O(1) space complexity per record."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Pros",
+        "Cons"
+      ],
+      "rows": [
+        [
+          "Hash + Base62 (MD5/SHA)",
+          "No central coordinator needed; distributed generation is trivial.",
+          "Collisions can occur, requiring database checks and retries."
+        ],
+        [
+          "Counter / Distributed ID",
+          "Guaranteed zero collisions; highly compact sequential keys.",
+          "Single point of failure or bottleneck if the ID generator is not properly scaled."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Base62 Encoding mechanics: Converts a base-10 integer ID into a base-62 string by successively dividing the number by 62 and mapping the remainders to the character set [0-9a-zA-Z]. A 7-character string allows for over 3.5 trillion unique combinations.",
+        "Redirect Handling Strategy: HTTP 301 (Moved Permanently) vs HTTP 302 (Found). 301 reduces server load by enabling browser caching, but prevents analytics tracking of click counts. 302 ensures every click hits the shortener service, enabling accurate telemetry at the cost of higher latency and traffic.",
+        "Caching Layer: Placing an in-memory cache like Redis in front of the primary datastore handles the hot-key problem common in URL shorteners, where a tiny fraction of links account for 90% of redirection traffic."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class UrlEncoder {\n    private static final String ALPHABET = \"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\";\n    private static final int BASE = ALPHABET.length();\n\n    public static String encode(long id) {\n        if (id == 0) {\n            return String.valueOf(ALPHABET.charAt(0));\n        }\n        StringBuilder sb = new StringBuilder();\n        while (id > 0) {\n            sb.append(ALPHABET.charAt((int) (id % BASE)));\n            id /= BASE;\n        }\n        return sb.reverse().toString();\n    }\n\n    public static long decode(String str) {\n        long id = 0;\n        for (int i = 0; i < str.length(); i++) {\n            id = (id * BASE) + ALPHABET.indexOf(str.charAt(i));\n        }\n        return id;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "When designing high-scale URL shorteners, beware of the 'thundering herd' problem. If a viral link expires or is evicted from the Redis cache, a sudden spike of concurrent redirect requests will bypass the cache simultaneously and slam the relational database. Always implement cache locking (single-flight pattern) or probabilistic early expiration to protect your downstream storage."
+    }
+  ],
+  "num": 403,
+  "title": "Design URL Shortener",
+  "category": "Core Java & Fundamentals"
+}

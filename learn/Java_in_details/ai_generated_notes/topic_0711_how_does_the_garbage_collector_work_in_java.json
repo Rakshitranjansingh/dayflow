@@ -1,0 +1,49 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Java Garbage Collector (GC) is an automated memory management process within the JVM that identifies and reclaims unreachable objects, preventing memory leaks and manual deallocation errors. At its core, the GC operates on the 'Weak Generational Hypothesis,' which posits that most objects die young. Consequently, the JVM heap is divided into the Young Generation (Eden and Survivor spaces) and the Old Generation (Tenured). When Eden fills up, a Minor GC triggers, moving surviving objects to Survivor spaces and eventually promoting them to the Old Generation. Major or Full GCs handle the Old Generation, which is significantly more expensive due to the larger object graph and potential for longer stop-the-world (STW) pauses."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "GC Type",
+        "Scope",
+        "Performance Impact"
+      ],
+      "rows": [
+        [
+          "Minor GC",
+          "Young Generation",
+          "Low (Short STW)"
+        ],
+        [
+          "Major/Full GC",
+          "Old Generation/Heap",
+          "High (Long STW)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Mark-and-Sweep: The collector traverses the object graph starting from GC Roots (thread stacks, static variables, JNI references) to mark reachable objects, then sweeps away the unmarked memory.",
+        "Compaction: To prevent heap fragmentation, collectors like G1 or Parallel GC move surviving objects to contiguous memory blocks, allowing for simple pointer-bump allocation.",
+        "Write Barriers: Modern concurrent collectors (ZGC, Shenandoah) use write barriers to track object reference changes while the application threads are running, ensuring consistency without requiring massive STW pauses.",
+        "Promotion Threshold: Objects that survive a specific number of GC cycles in the Survivor space are promoted to the Old Generation, reducing the frequency of scanning long-lived objects."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Example of triggering GC manually (not recommended in production)\n// System.gc() is merely a hint to the JVM, not a command.\npublic void clearCache() {\n    this.largeDataMap = null;\n    System.gc(); \n}\n\n// Recommended JVM flags for tuning\n// -XX:+UseG1GC -Xms4g -Xmx4g -XX:MaxGCPauseMillis=200"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is 'GC Thrashing,' where the JVM spends more time collecting garbage than executing application code. This often happens when the heap is too small relative to the allocation rate. Always monitor your 'Allocation Failure' events via GC logs; if you see constant Full GCs, you are likely suffering from memory leaks (e.g., static collections holding references) or an undersized Old Generation."
+    }
+  ],
+  "num": 712,
+  "title": "How does the Garbage Collector work in Java?",
+  "category": "JVM Architecture & Memory Tuning"
+}

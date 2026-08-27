@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "String manipulation is a foundational pillar of software engineering, frequently appearing in systems engineering, text parsing pipelines, and core algorithmic assessments. When dealing with high-throughput I/O streams or large-scale string transformations, understanding the underlying memory representation of characters in Java is critical. A string in Java is backed by a char array (or byte array since Java 9's Compact Strings), making immutability a core safety and optimization guarantee. Let us break down three quintessential string manipulation problems: reversing a string, checking for anagrams, and finding the longest palindromic substring.\n\nReversing a string requires mutating or re-indexing a sequence of characters. In Java, because Strings are immutable, naive concatenations create a cascading series of intermediate String objects in the heap, leading to severe garbage collection pressure and O(N^2) time complexity. Using a StringBuilder or operating directly on a char array reduces this to O(N) time and O(N) space. Anagram verification checks whether two strings contain the exact same character frequencies, which can be efficiently solved by sorting or utilizing fixed-size frequency arrays for ASCII/Unicode subsets. Finally, the Longest Palindromic Substring problem tests our ability to expand around potential centers (both single characters for odd-length palindromes and adjacent spaces for even-length palindromes) to achieve an optimal O(N^2) time and O(1) auxiliary space complexity, avoiding the exponential trap of evaluating all possible substrings."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Algorithm",
+        "Time Complexity",
+        "Space Complexity",
+        "Primary Pitfall"
+      ],
+      "rows": [
+        [
+          "Reverse String",
+          "O(N)",
+          "O(N)",
+          "Using String concatenation (+) inside a loop instead of StringBuilder."
+        ],
+        [
+          "Anagrams",
+          "O(N log N) or O(N)",
+          "O(1) or O(N)",
+          "Ignoring character encoding, case sensitivity, or whitespace."
+        ],
+        [
+          "Longest Palindromic Substring",
+          "O(N^2)",
+          "O(1)",
+          "Failing to account for even-length palindrome centers."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "String immutability means every modification operation allocates a new char array in the JVM heap unless backed by a mutable builder like StringBuilder or StringBuffer.",
+        "For Anagram detection, a fixed-size integer array of length 256 or 65536 can replace a HashMap, eliminating boxing overhead and pointer-chasing cache misses.",
+        "The expansion-around-center approach for Longest Palindromic Substring avoids unnecessary dynamic programming table allocations, keeping the working memory footprint constant."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class StringManipulationMasterclass {\n\n    public static String reverse(String input) {\n        if (input == null) return null;\n        char[] chars = input.toCharArray();\n        int left = 0, right = chars.length - 1;\n        while (left < right) {\n            char temp = chars[left];\n            chars[left++] = chars[right];\n            chars[right--] = temp;\n        }\n        return new String(chars);\n    }\n\n    public static boolean areAnagrams(String s1, String s2) {\n        if (s1 == null || s2 == null || s1.length() != s2.length()) return false;\n        int[] counts = new int[256];\n        for (int i = 0; i < s1.length(); i++) {\n            counts[s1.charAt(i)]++;\n            counts[s2.charAt(i)]--;\n        }\n        for (int count : counts) {\n            if (count != 0) return false;\n        }\n        return true;\n    }\n\n    public static String longestPalindrome(String s) {\n        if (s == null || s.length() < 1) return \"\";\n        int start = 0, end = 0;\n        for (int i = 0; i < s.length(); i++) {\n            int len1 = expandAroundCenter(s, i, i);\n            int len2 = expandAroundCenter(s, i, i + 1);\n            int len = Math.max(len1, len2);\n            if (len > end - start) {\n                start = i - (len - 1) / 2;\n                end = i + len / 2;\n            }\n        }\n        return s.substring(start, end + 1);\n    }\n\n    private static int expandAroundCenter(String s, int left, int right) {\n        while (left >= 0 && right < s.length() && s.charAt(left) == s.charAt(right)) {\n            left--;\n            right++;\n        }\n        return right - left - 1;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Gotcha: When working with multi-byte characters or Unicode surrogates (e.g., emojis or extended non-Latin scripts), simple char-at indexing or char[] manipulation can split surrogate pairs, leading to corrupted text or IndexOutOfBounds exceptions. Always use codePointAt() and related Character API methods when dealing with internationalized text processing in enterprise I/O boundaries."
+    }
+  ],
+  "num": 1185,
+  "title": "String Manipulation: Reverse string, Anagrams, Longest Palindromic Substring.",
+  "category": "Exception Handling & I/O / NIO"
+}

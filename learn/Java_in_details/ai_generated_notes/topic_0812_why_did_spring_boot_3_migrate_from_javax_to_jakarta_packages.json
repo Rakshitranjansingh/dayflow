@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The migration from javax.* to jakarta.* packages in Spring Boot 3 marks one of the most significant shifts in the Java ecosystem's recent history. This architectural pivot was not driven by Spring or Pivotal, but by Jakarta EE (formerly Java EE), which transitioned from Oracle's stewardship to the Eclipse Foundation. Due to trademark restrictions and legal agreements tied to the transfer, the Eclipse Foundation could no longer use the proprietary javax namespace for specifications like Servlet, Persistence (JPA), Validation, and JSON Binding. Instead, the specifications were moved to the jakarta namespace.\n\nFor Spring Boot 3, which is built on top of Spring Framework 6 and requires Java 17 as a baseline, supporting this namespace change meant rewriting imports across thousands of classes. When enterprise applications upgrade to Spring Boot 3, every single reference to javax.servlet.*, javax.persistence.*, and javax.validation.* must be refactored to jakarta.servlet.*, jakarta.persistence.*, and jakarta.validation.* respectively. Failing to do so results in instant ClassNotFoundException or NoClassDefFoundError exceptions at runtime, as the underlying application servers (like Apache Tomcat 10+ or Jetty 11+) and persistence providers (like Hibernate 6) natively expect the Jakarta EE 9+ APIs."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Specification",
+        "Legacy Namespace (Java EE / Spring Boot 2)",
+        "Modern Namespace (Jakarta EE / Spring Boot 3)"
+      ],
+      "rows": [
+        [
+          "Servlets",
+          "javax.servlet.*",
+          "jakarta.servlet.*"
+        ],
+        [
+          "JPA / Persistence",
+          "javax.persistence.*",
+          "jakarta.persistence.*"
+        ],
+        [
+          "Bean Validation",
+          "javax.validation.*",
+          "jakarta.validation.*"
+        ],
+        [
+          "Annotations (@PostConstruct)",
+          "javax.annotation.*",
+          "jakarta.annotation.*"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Bytecode Incompatibility: The fully qualified class names changed completely, meaning compiled bytecode referencing javax types cannot link against Jakarta EE 9+ runtime libraries without decompilation and recompilation.",
+        "Third-Party Dependency Alignment: Every starter, library, and framework consumed by a Spring Boot 3 application (such as security filters, database drivers, and serialization libraries) must also be compiled against the jakarta.* namespace.",
+        "Server Runtime Enforcement: Modern embedded servlet containers like Tomcat 10.1+ enforce the jakarta.servlet namespace strictly and will reject legacy web applications that bundle or reference javax packages."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.demo;\n\nimport jakarta.persistence.Entity;\nimport jakarta.persistence.GeneratedValue;\nimport jakarta.persistence.GenerationType;\nimport jakarta.persistence.Id;\nimport jakarta.validation.constraints.NotBlank;\n\n@Entity\npublic class UserEntity {\n\n    @Id\n    @GeneratedValue(strategy = GenerationType.IDENTITY)\n    Long id;\n\n    @NotBlank(message = \"Username must not be blank\")\n    String username;\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha during the upgrade to Spring Boot 3 is overlooking transitive dependencies. Even if your direct codebase is updated to use jakarta.* imports, a legacy third-party library buried deep in your dependency tree might still compile against javax.*. This manifests as obscure runtime linkage errors during application startup. Use the Maven dependency tree plugin or Gradle dependency insight to hunt down and update or replace these non-compliant artifacts."
+    }
+  ],
+  "num": 813,
+  "title": "Why did Spring Boot 3 migrate from javax.* to jakarta.* packages?",
+  "category": "Spring Boot & Spring Framework"
+}

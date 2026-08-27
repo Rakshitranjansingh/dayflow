@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "@ResponseStatus is a declarative annotation used in Spring MVC to map a specific exception or a controller method to a fixed HTTP status code and an optional reason string. It is essentially a static mechanism for defining the 'what' of an HTTP response when the outcome is predictable and invariant. When applied to an exception class, it forces the DispatcherServlet to return that status code whenever the exception propagates to the controller layer, effectively decoupling your business logic from the HTTP protocol layer.\n\nResponseEntity, by contrast, is a programmatic wrapper that represents the entire HTTP response—including the status code, headers, and the response body. Unlike @ResponseStatus, which is static, ResponseEntity provides full control over the response lifecycle at runtime. It is the preferred choice when you need to conditionally set headers, manipulate the payload dynamically, or return different status codes based on the result of a service call, such as returning a 201 Created with a Location header after a successful JPA entity persistence."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "@ResponseStatus",
+        "ResponseEntity"
+      ],
+      "rows": [
+        [
+          "Flexibility",
+          "Static/Declarative",
+          "Dynamic/Programmatic"
+        ],
+        [
+          "Scope",
+          "Exception or Method",
+          "Return Type of Method"
+        ],
+        [
+          "Control",
+          "Limited to Status/Reason",
+          "Full (Headers, Body, Status)"
+        ],
+        [
+          "Use Case",
+          "Standardized Error Mapping",
+          "Complex REST Responses"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "@ResponseStatus triggers a ResponseStatusExceptionResolver during the Spring MVC request lifecycle, which performs a sendError call on the HttpServletResponse, effectively bypassing the standard view resolution if not handled by an @ExceptionHandler.",
+        "ResponseEntity is processed by the HttpEntityMethodProcessor, which inspects the generic type of the entity to determine the appropriate HttpMessageConverter to serialize the body into JSON or XML.",
+        "When using ResponseEntity, the status code is set via the builder pattern (e.g., ResponseEntity.ok().body(...)), allowing for fluent API construction that is highly readable and testable.",
+        "Mixing both: If a method returns a ResponseEntity, the @ResponseStatus annotation on that method is ignored because the ResponseEntity takes precedence in defining the HTTP contract."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@PostMapping(\"/users\")\npublic ResponseEntity<User> createUser(@RequestBody User user) {\n    User savedUser = userRepository.save(user);\n    return ResponseEntity\n            .status(HttpStatus.CREATED)\n            .header(\"X-Resource-ID\", savedUser.getId().toString())\n            .body(savedUser);\n}\n\n@ResponseStatus(HttpStatus.NOT_FOUND)\npublic class UserNotFoundException extends RuntimeException {\n    public UserNotFoundException(String message) { super(message); }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is using @ResponseStatus on an exception class while also having a @ControllerAdvice that handles the same exception. The @ControllerAdvice will intercept the exception before the ResponseStatusExceptionResolver can process the annotation, effectively rendering the @ResponseStatus useless. Always prefer @ControllerAdvice for centralized error handling in production-grade systems to maintain consistent API error schemas."
+    }
+  ],
+  "num": 1214,
+  "title": "What is @ResponseStatus? What is ResponseEntity?",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

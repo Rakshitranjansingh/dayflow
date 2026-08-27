@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Virtual threads, introduced as part of Project Loom and standardized in Java 21, represent a paradigm shift in how we handle concurrent workloads on the Java Virtual Machine. Traditional platform threads map 1:1 to operating system threads, making them a scarce, expensive resource bound by kernel stack allocations (typically 1MB of memory) and expensive context switches. Virtual threads break this constraint by decoupling the application-level thread abstraction from the underlying OS thread, implementing an N:M scheduling model where millions of virtual threads (the N) are multiplexed across a much smaller pool of operating system threads known as carrier threads (the M). \n\nAt the core of this runtime architecture is the concept of mounting and unmounting. A virtual thread does not own a dedicated carrier thread for its entire lifecycle. Instead, when a virtual thread is runnable and scheduled to execute, it is 'mounted' onto a carrier thread—meaning its stack chunk is associated with the carrier thread's stack, and execution proceeds on the CPU. Crucially, when a virtual thread encounters a blocking operation (such as I/O reads, waiting on a lock via java.util.concurrent.locks, or invoking Thread.sleep), it is 'unmounted'. The JVM intercepts the blocking action, detaches the virtual thread's stack chunk from the carrier thread, and saves its state. The carrier thread is then immediately freed to mount and execute another runnable virtual thread. Once the blocking condition resolves, the virtual thread becomes eligible for scheduling again and is mounted onto an available carrier thread, potentially a completely different OS thread than the one it started on."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Platform Threads (OS Threads)",
+        "Virtual Threads"
+      ],
+      "rows": [
+        [
+          "Mapping Model",
+          "1:1 mapping to OS kernel threads",
+          "N:M mapping over a pool of carrier threads"
+        ],
+        [
+          "Memory Footprint",
+          "Fixed, large stack size (~1MB initial allocation)",
+          "Dynamic, starts small (a few hundred bytes) and grows/shrinks"
+        ],
+        [
+          "Creation Cost",
+          "Expensive, involves OS system calls and kernel allocation",
+          "Extremely cheap, created purely in user-space memory"
+        ],
+        [
+          "Blocking Behavior",
+          "Blocks the underlying OS thread; idle CPU core waste",
+          "Unmounts from carrier thread; carrier executes other work"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The underlying scheduler for virtual threads is a specialized ForkJoinPool operating in FIFO mode, configured by default to match the number of available processors (Runtime.getRuntime().availableProcessors()).",
+        "Stack chunks for virtual threads are allocated on the JVM's garbage-collected heap as internal objects (implementation-specific structures), allowing them to grow and shrink dynamically as call depth fluctuates.",
+        "Monitors and synchronized blocks can 'pin' a virtual thread to its carrier thread. When a virtual thread executes inside a synchronized block or native method and performs a blocking operation, the JVM cannot unmount it because the carrier thread's stack holds native monitor ownership or native frames, forcing the OS thread to block alongside the virtual thread.",
+        "ReentrantLock and other java.util.concurrent synchronizers are fully virtual-thread-aware and will trigger an unmount safely without pinning the carrier thread."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.time.Duration;\nimport java.util.concurrent.Executors;\nimport java.util.stream.IntStream;\n\npublic class VirtualThreadDemo {\n    public static void main(String[] args) throws InterruptedException {\n        // Create an executor that spawns a new virtual thread for each submitted task\n        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {\n            IntStream.range(0, 10_000).forEach(i -> {\n                executor.submit(() -> {\n                    // Simulate blocking I/O; causes the virtual thread to unmount\n                    Thread.sleep(Duration.ofMillis(1000));\n                    return i;\n                });\n            });\n        } // executor.close() awaits completion automatically\n        System.out.println(\"All 10,000 tasks completed using minimal OS threads.\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Beware of 'pinning' when migrating legacy codebases to virtual threads. If your application heavily relies on synchronized blocks, native methods, or JNI calls during blocking I/O, the virtual thread will pin its carrier thread, defeating the purpose of M:N scheduling and potentially starving the ForkJoinPool. Always refactor legacy blocking code to use java.util.concurrent.locks.ReentrantLock instead of synchronized keywords before adopting virtual thread pools."
+    }
+  ],
+  "num": 145,
+  "title": "How virtual threads work — carrier threads, mounting/unmounting",
+  "category": "Virtual Threads & Concurrency"
+}

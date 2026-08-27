@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Garbage-First (G1) Garbage Collector is a server-style, region-based, low-pause garbage collector engineered for multi-processor machines with large memory heaps. Historically, earlier collectors like Parallel GC prioritized maximum throughput while risking catastrophic stop-the-world (STW) pauses on heaps exceeding several gigabytes, whereas CMS attempted concurrent collection but suffered from fragmented tenured spaces and expensive concurrent phases. G1 addresses these shortcomings by dividing the Java heap into a contiguous set of equal-sized memory regions, ranging from 1MB to 32MB depending on heap size, which decouple logical generation boundaries from physical memory layout.\n\nG1 became the default garbage collector in newer Java versions (starting with Java 9) because modern cloud infrastructure and microservices demand predictable latency SLAs over raw batch throughput. Rather than sweeping an entire generation at once, G1 utilizes a pause-prediction model to dynamically appraise garbage density across all regions. It targets a user-defined maximum pause time (via MaxGCPauseMillis) by prioritizing the collection of regions containing the highest volume of reclaimable garbage first—hence the name Garbage-First. This region-based generational architecture eliminates external fragmentation, scales gracefully up to hundreds of gigabytes without linear degradation in pause times, and provides the consistent predictability necessary for high-throughput enterprise systems."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Parallel GC",
+        "G1 Garbage Collector"
+      ],
+      "rows": [
+        [
+          "Heap Layout",
+          "Contiguous monolithic blocks (Eden, Survivor, Tenured)",
+          "Non-contiguous logical regions (Eden, Survivor, Old, Humongous)"
+        ],
+        [
+          "Pause Time Behavior",
+          "Unpredictable, scales linearly with heap size",
+          "Bounded, user-configurable target via Pause Prediction Model"
+        ],
+        [
+          "Fragmentation Management",
+          "Compacts Young always; Full GC compacts Old (expensive)",
+          "Evacuation-based compaction continuously copies live objects"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Region Roles: Every region dynamically assumes the role of Eden, Survivor, or Old generation. Humongous regions are allocated for objects exceeding 50% of a standard region size, stored as contiguous chains of humongous blocks.",
+        "Remembered Sets (RSets): To enable independent collection of individual regions without scanning the entire heap, G1 maintains an RSets per region. RSets track cross-region references (e.g., Old-to-Young pointers) using card tables and write barriers.",
+        "Collection Set (CSet): The CSet represents the set of regions selected for reclamation during a mixed or young collection. G1 computes this set based on garbage yield heuristics to satisfy the target pause time.",
+        "Phase Execution Flow: G1 progresses through Initial Mark (piggybacks on Young GC), Concurrent Marking, Remark (brief STW), and Cleanup, culminating in Mixed Collections where both young and high-garbage old regions are evacuated."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class G1TuningConfig {\n    // Recommended production flags for G1GC tuning in modern JVMs\n    // -XX:+UseG1GC\n    // -XX:MaxGCPauseMillis=200\n    // -XX:InitiatingHeapOccupancyPercent=45\n    // -XX:G1ReservePercent=15\n\n    public void simulateWorkload() {\n        byte[] allocation = null;\n        for (int i = 0; i < 1000; i++) {\n            // Allocating transient objects to populate Eden regions\n            allocation = new byte[1024 * 1024]; // 1MB chunks\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap with G1 GC is over-tuning MaxGCPauseMillis to an unrealistically low value (e.g., 20ms). If the target is too aggressive, G1 will continually shrink the Young generation size to meet the deadline, causing frequent minor collections, premature promotion of objects into the Old generation, and ultimately triggering an expensive Full GC (Concurrent Mode Failure). Always allow G1 enough breathing room to process regions efficiently."
+    }
+  ],
+  "num": 725,
+  "title": "How does G1 GC work? Why is it default in newer Java versions?",
+  "category": "JVM Architecture & Memory Tuning"
+}

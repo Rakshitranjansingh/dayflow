@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Cross-Site Request Forgery (CSRF) is an attack vector that forces an end user to execute unwanted actions on a web application in which they are currently authenticated. Unlike Cross-Site Scripting (XSS), which exploits a victim's trust in a vulnerable application by executing malicious scripts, CSRF exploits the application's blind trust in an authenticated session. When a user authenticates via a browser session cookie, the browser automatically attaches that cookie to every subsequent cross-origin or same-origin HTTP request directed at the domain. If a malicious site tricks the victim's browser into submitting a state-changing POST, PUT, or DELETE request to a vulnerable backend, the application accepts the request and processes it, assuming it was intentionally dispatched by the user.\n\nTo prevent CSRF, modern web applications employ the Synchronizer Token Pattern (or Double Submit Cookie pattern), where a cryptographically secure, unpredictable, and unguessable random value—the CSRF token—is bound to the user's active server-side HTTP session. Every state-changing form submission or AJAX request must include this token in a custom header (such as X-XSRF-TOKEN) or request body parameter. When the request arrives at the Spring Security filter chain, the CsrfFilter intercepts it, compares the incoming request token against the token stored in the HttpSession, and rejects the transaction with an HTTP 403 Forbidden status if a mismatch occurs.\n\nThe reason CSRF is largely a non-issue with stateless JSON Web Tokens (JWTs) stems entirely from how credentials are fundamentally stored and transmitted. In a traditional stateful session architecture, browsers automatically manage and attach session identifiers (like JSESSIONID) to every request. In contrast, stateless JWT architectures typically store the token inside local storage, session storage, or as a custom-header value manipulated explicitly by modern single-page application (SPA) client code. Because browsers do not automatically append authorization headers (such as Authorization: Bearer <token>) to cross-origin requests, a malicious third-party site cannot forge a request that automatically includes the valid JWT. Unless the JWT is stored inside a vulnerable, non-HttpOnly cookie without proper SameSite configurations, malicious cross-site scripts cannot inspect or exfiltrate local storage tokens due to the Same-Origin Policy, completely neutralizing the attack vector."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Security Metric",
+        "Stateful Session Cookie",
+        "Stateless JWT (Bearer Header)"
+      ],
+      "rows": [
+        [
+          "Browser Behavior",
+          "Automatically attaches cookies to cross-site requests",
+          "Requires explicit JavaScript handling; never auto-attached"
+        ],
+        [
+          "CSRF Vulnerability",
+          "High risk unless explicit anti-CSRF tokens are enforced",
+          "Inherent immunity when stored in memory/local storage and sent via headers"
+        ],
+        [
+          "XSS Vulnerability",
+          "Mitigated if cookies use HttpOnly and Secure flags",
+          "High risk if stored in localStorage, as scripts can read it"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring Security's CsrfFilter sits early in the security filter chain, leveraging a CsrfTokenRepository (HttpSessionCsrfTokenRepository by default) to generate and validate tokens.",
+        "The SameSite attribute on cookies (Strict or Lax) serves as a modern defense-in-depth layer against CSRF by instructing browsers to withhold cookies on cross-site subrequests.",
+        "Stateless architectures lose their CSRF immunity the moment developers store JWTs inside standard cookies rather than Authorization headers, as browsers will once again blindly attach those cookies across domains."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\npublic class SecurityConfig {\n\n    @Bean\n    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {\n        http\n            // Enabling CSRF for stateful cookie-based sessions\n            .csrf(csrf -> csrf\n                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())\n            )\n            .authorizeHttpRequests(auth -> auth\n                .requestMatchers(\"/api/public/**\").permitAll()\n                .anyRequest().authenticated()\n            );\n        return http.build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common architectural anti-pattern is disabling CSRF globally in Spring Security simply because an application uses 'REST APIs'. If your API relies on browser-stored cookies for authentication (even if it issues JWTs stored in cookies), you are fully vulnerable to CSRF. Never disable CSRF protection unless your authentication is strictly stateless, relies entirely on explicit custom headers (like Authorization: Bearer), and your cookies are strictly configured with SameSite=Strict."
+    }
+  ],
+  "num": 1011,
+  "title": "What is CSRF (Cross-Site Request Forgery)? How to prevent it? Why is CSRF not a big issue with stateless JWTs?",
+  "category": "Spring Security & Web Security"
+}

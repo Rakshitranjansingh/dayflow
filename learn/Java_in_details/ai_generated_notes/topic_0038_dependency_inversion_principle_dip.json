@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Dependency Inversion Principle (DIP), the 'D' in the SOLID design principles, dictates that high-level modules should not depend upon low-level modules; both should depend upon abstractions. Furthermore, abstractions should not depend upon details; details should depend upon abstractions. In enterprise Java architecture, especially when constructing complex Exception Handling & I/O / NIO pipelines, violating DIP leads to tightly coupled code bases where business logic is inextricably bound to specific network protocols, blocking socket implementations, or concrete runtime exception hierarchies. By introducing well-defined Java interfaces (abstractions) at the boundary layer, we invert the traditional dependency direction. Instead of a service knowing about a concrete FileChannel, SocketChannel, or custom SQLException parser, the low-level I/O mechanics conform to interfaces defined by the domain, allowing seamless swapping of implementations—such as shifting from blocking I/O to non-blocking AsynchronousFileChannel mechanics—without touching high-level business code."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Invert control of object creation and dependency resolution by leveraging Dependency Injection frameworks like Spring to wire abstractions into high-level service constructors.",
+        "Isolate low-level I/O exceptions, such as AsynchronousCloseException or ClosedByInterruptException, behind domain-specific exception translation layers to prevent infrastructure leaks.",
+        "Leverage Java NIO's Selector and Channel abstractions to decouple network event loops from business protocol handlers, enforcing strict architectural separation of concerns."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public interface DataSink {\n    void writeData(ByteBuffer src) throws DataTransferException;\n}\n\npublic class NioFileSink implements DataSink {\n    private final FileChannel fileChannel;\n\n    public NioFileSink(Path path) throws IOException {\n        this.fileChannel = FileChannel.open(path, StandardOpenOption.WRITE, StandardOpenOption.CREATE);\n    }\n\n    @Override\n    public void writeData(ByteBuffer src) throws DataTransferException {\n        try {\n            while (src.hasRemaining()) {\n                fileChannel.write(src);\n            }\n        } catch (IOException e) {\n            throw new DataTransferException(\"Failed to write buffer to disk via NIO\", e);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap in NIO architectures is allowing low-level structural exceptions like ClosedChannelException to bubble up through domain services. Always wrap and translate technical I/O exceptions at the boundary interface implementation to satisfy DIP and maintain pure domain exception semantics."
+    }
+  ],
+  "num": 39,
+  "title": "Dependency Inversion Principle (DIP)",
+  "category": "Exception Handling & I/O / NIO"
+}

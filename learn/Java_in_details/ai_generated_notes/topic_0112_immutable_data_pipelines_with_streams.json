@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern Java engineering, building robust, predictable, and concurrent systems requires minimizing shared mutable state. The combination of immutable data and the Stream API provides a functional paradigm shift for Java applications. Immutable data pipelines ensure that collections and objects flowing through a stream processing graph cannot be modified concurrently or accidentally downstream, effectively eliminating entire classes of race conditions, side-effect bugs, and defensive-copy overhead. By leveraging Stream operations alongside Java's unmodifiable collection utilities or records, developers can design transformation workflows that are inherently thread-safe, side-effect free, and vastly easier to reason about during debugging and profiling."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Pipeline Characteristic",
+        "Mutable Collections & Streams",
+        "Immutable Data Pipelines"
+      ],
+      "rows": [
+        [
+          "Thread Safety",
+          "Requires external synchronization; vulnerable to ConcurrentModificationException.",
+          "Inherently thread-safe due to frozen object states and thread-confines."
+        ],
+        [
+          "Side Effects",
+          "Prone to updating external state or mutating elements inside intermediate operations.",
+          "Enforces pure functions and stateless transformations, prohibiting in-place mutation."
+        ],
+        [
+          "Collection Collectors",
+          "Collectors.toCollection(ArrayList::new)",
+          "Collectors.toUnmodifiableList() / Collectors.toUnmodifiableSet()"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Stateful vs Stateless Operations: Stream intermediate operations like map, filter, and flatMap must remain stateless to ensure parallel execution correctness and prevent hidden coupling between stream elements.",
+        "Terminal Immutability Collectors: Introduced in Java 10, collectors such as Collectors.toUnmodifiableList(), toUnmodifiableSet(), and toUnmodifiableMap() construct frozen, read-only collection instances directly, throwing UnsupportedOperationException on any subsequent mutation attempt.",
+        "Pass-by-Value Reference Semantics: While the container collection becomes immutable via the pipeline, ensure that the domain objects contained within the stream are also immutable (e.g., using Java Records) to prevent deep mutability leaks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.List;\nimport java.util.stream.Collectors;\n\npublic record Order(String id, double amount, String status) {}\n\npublic class ImmutablePipelineService {\n    public List<String> processActiveOrders(List<Order> rawOrders) {\n        if (rawOrders == null) {\n            return List.of();\n        }\n        return rawOrders.stream()\n            .filter(order -> \"ACTIVE\".equalsIgnoreCase(order.status()))\n            .map(order -> order.id().toUpperCase())\n            .sorted()\n            .collect(Collectors.toUnmodifiableList());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is assuming that Collectors.toList() returns an immutable list—it does not, and the resulting list implementation is mutable and unsynchronized. Always use Collectors.toUnmodifiableList() for API boundaries. Furthermore, beware of intermediate map operations that mutate state within an object graph; always map to new immutable record instances rather than updating fields in place."
+    }
+  ],
+  "num": 113,
+  "title": "Immutable data pipelines with Streams",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A deadlock in Java multithreading occurs when two or more threads are blocked forever, waiting for each other to release mutually exclusive locks. This typically happens when multiple threads acquire locks in inconsistent orders across different execution paths. To debug a deadlock effectively, you must first diagnose its presence by capturing thread dumps or leveraging runtime monitoring tools, and then systematically trace lock acquisition dependency graphs to identify the circular wait condition. Production environments require deliberate strategies, ranging from programmatic thread dumps using the JDK diagnostic tools to integration with modern APM platforms that flag thread states as BLOCKED alongside their lock owner metadata."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Diagnostic Technique",
+        "Primary Tool",
+        "Production Overhead"
+      ],
+      "rows": [
+        [
+          "Thread Dump Analysis",
+          "jstack / kill -3",
+          "Low (Instantaneous snapshot)"
+        ],
+        [
+          "Programmatic Monitoring",
+          "ThreadMXBean API",
+          "Low-Medium (Polling frequency dependent)"
+        ],
+        [
+          "Visual Profiling",
+          "JVisualVM / Java Mission Control",
+          "Medium (JMX overhead)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Use `jstack <pid>` to extract a text-based snapshot of all thread stacks, searching explicitly for the 'Found one Java-level deadlock' block which modern JVM diagnostic mechanisms automatically generate.",
+        "Inspect the thread states: deadlocked threads will universally display a `BLOCKED` state on a specific monitor object (`waiting to lock <0x...> (a java.lang.Object)`) while holding another monitor.",
+        "Programmatically query thread deadlocks at runtime using `java.lang.management.ManagementFactory.getThreadMXBean().findDeadlockedThreads()`, which returns an array of thread IDs caught in a cycle."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class DeadlockDetector {\n    private final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();\n\n    public void checkForDeadlocks() {\n        long[] deadlockedThreadIds = threadMXBean.findDeadlockedThreads();\n        if (deadlockedThreadIds != null) {\n            ThreadInfo[] threadInfos = threadMXBean.getThreadInfo(deadlockedThreadIds, true, true);\n            System.err.println(\"CRITICAL: Deadlock detected!\");\n            for (ThreadInfo threadInfo : threadInfos) {\n                System.err.println(threadInfo.toString());\n            }\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha is confusing a thread deadlock with thread starvation or lock contention. While a deadlocked thread remains permanently in the BLOCKED state holding a resource, a starved thread is waiting indefinitely for CPU time or an unfair lock under heavy contention. Always inspect the lock graph to prove circular dependency before attempting a remediation rollback."
+    }
+  ],
+  "num": 1245,
+  "title": "How do you debug a deadlock?",
+  "category": "Multithreading & Java Concurrency"
+}

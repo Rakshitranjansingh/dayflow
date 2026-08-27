@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Spring Security 5.7 and onwards (culminating in the robust paradigms of Spring Security 6.x), the traditional extension of `WebSecurityConfigurerAdapter` was officially deprecated and entirely removed in favor of component-based security configuration. At the heart of this modern architecture sits the SecurityFilterChain. Rather than relying on inheritance and global method overrides, developers now define security rules as beans returning a SecurityFilterChain instance. This architectural shift leverages standard Spring dependency injection and allows multiple independent filter chains to coexist in a single application, evaluated sequentially using request matchers."
+    },
+    {
+      "type": "prose",
+      "content": "A SecurityFilterChain is essentially a customized wrapper around a ordered list of Servlet filters managed by Spring's FilterChainProxy. When an HTTP request enters the web application, the DelegatingFilterProxy delegates execution to the FilterChainProxy. This central proxy inspects the incoming request URL, HTTP method, and headers against the configured requestMatchers of each registered SecurityFilterChain. The first chain whose matcher evaluates to true assumes responsibility for executing its internal pipeline of filters—ranging from UsernamePasswordAuthenticationFilter to CsrfFilter and AuthorizationFilter—before permitting the request to reach the DispatcherServlet."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "WebSecurityConfigurerAdapter (Legacy)",
+        "SecurityFilterChain (Modern 5.7+/6.x)"
+      ],
+      "rows": [
+        [
+          "Configuration Style",
+          "Class inheritance and method overrides",
+          "Component-based lambda DSL and bean definition"
+        ],
+        [
+          "Multiple Chains",
+          "Cumbersome overloading of configure(HttpSecurity)",
+          "Declarative registration of multiple SecurityFilterChain beans"
+        ],
+        [
+          "State Management",
+          "Often relied on stateful configurations and global overrides",
+          "Stateless-first alignment with modern REST and JWT architectures"
+        ],
+        [
+          "Extensibility",
+          "Tightly coupled to Spring Security internal lifecycle",
+          "Decoupled functional beans leveraging standard Spring IoC"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "FilterChainProxy evaluates registered SecurityFilterChain beans in the exact order determined by their @Order annotation or PriorityOrdered implementation.",
+        "The HttpSecurity builder DSL provides a fluent API to customize specific cross-cutting concerns like CORS, CSRF, session management, and exception handling for that specific chain.",
+        "Authorization rules are evaluated at the tail end of the chain via the AuthorizationFilter, shifting away from the deprecated antMatchers/mvcMatchers syntax to the unified requestMatchers API.",
+        "Stateless APIs can completely bypass HttpSession creation by configuring sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) directly within the lambda."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\npublic class SecurityConfig {\n\n    @Bean\n    @Order(1)\n    public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {\n        http\n            .securityMatcher(\"/api/**\")\n            .csrf(csrf -> csrf.disable())\n            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))\n            .authorizeHttpRequests(auth -> auth\n                .requestMatchers(\"/api/public/**\").permitAll()\n                .anyRequest().authenticated()\n            )\n            .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));\n        return http.build();\n    }\n\n    @Bean\n    @Order(2)\n    public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {\n        http\n            .authorizeHttpRequests(auth -> auth\n                .anyRequest().authenticated()\n            )\n            .formLogin(Customizer.withDefaults());\n        return http.build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A critical production gotcha when migrating or building modern filter chains is the ordering of multiple SecurityFilterChain beans. If you fail to specify an explicit @Order annotation, Spring Security's FilterChainProxy may evaluate a broad catch-all chain (like /** with formLogin) before a specialized API chain (like /api/**). Always place your most specific security matchers first with a higher precedence order (lower integer value) and ensure a fallback chain handles the remaining traffic."
+    }
+  ],
+  "num": 270,
+  "title": "SecurityFilterChain (Spring Security 5.7+ / 6.x style)",
+  "category": "Spring Security & Web Security"
+}

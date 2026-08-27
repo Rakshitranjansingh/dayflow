@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Pattern Matching for switch (finalized in Java 21 via JEP 441) represents a monumental leap in how Java developers handle conditional logic, polymorphic data transformation, and data-oriented programming. Historically, the switch statement was restricted to primitive types, strings, and enums, forcing developers to rely on verbose if-else chains full of type casts and instanceof checks when working with polymorphic hierarchies or unknown types. Pattern matching for switch eliminates this boilerplate by allowing switch expressions and statements to test values against a variety of patterns, enabling concise, type-safe, and readable conditional routing.\n\nThe 'final' realization of this feature brings robust capabilities including type patterns, guarded patterns, null-handling integration, and exhaustive checks for sealed classes. When evaluating a target against a switch block, the compiler translates these high-level patterns into highly optimized bytecode—often leveraging invokedynamic and optimized jump tables or type-test dispatch sequences. This removes the performance penalty and cognitive overhead of manual casting, while ensuring safety through compile-time exhaustiveness guarantees, particularly when switching over sealed interfaces or records."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature Aspect",
+        "Legacy switch / if-else",
+        "Pattern Matching for switch (Java 21)"
+      ],
+      "rows": [
+        [
+          "Type Checking",
+          "Manual instanceof check followed by explicit cast.",
+          "Integrated directly into case labels (e.g., case String s)."
+        ],
+        [
+          "Null Safety",
+          "Throws NullPointerException unless explicitly checked beforehand.",
+          "Allows explicit null case labels (case null) without throwing exceptions unexpectedly."
+        ],
+        [
+          "Exhaustiveness",
+          "Compiler does not enforce complete coverage for custom types.",
+          "Enforced at compile-time for sealed classes and enums."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Guarded Patterns: Using the 'when' keyword within a case label allows developers to specify boolean refinements alongside type matching (e.g., case String s when s.length() > 5), bridging structural patterns with dynamic runtime conditions.",
+        "Exhaustiveness and Dominance: The Java compiler enforces that switch blocks over sealed hierarchies or enums must be exhaustive. Furthermore, pattern dominance rules dictate that specific patterns must precede broader patterns (e.g., a subtype pattern must come before its supertype pattern) to prevent unreachable code errors.",
+        "Null Handling Mechanics: Traditionally, passing null to a switch statement triggered an immediate NullPointerException. Pattern matching introduces the dedicated 'case null' label, allowing clean handling of null references natively within the switch construct."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public sealed interface Shape permits Circle, Rectangle, Triangle {}\npublic record Circle(double radius) implements Shape {}\npublic record Rectangle(double length, double width) implements Shape {}\npublic record Triangle(double base, double height) implements Shape {}\n\npublic class ShapeAnalyzer {\n    public static double calculateArea(Shape shape) {\n        return switch (shape) {\n            case null -> 0.0;\n            case Circle c -> Math.PI * c.radius() * c.radius();\n            case Rectangle r when r.length() == r.width() -> r.length() * r.width(); // Guarded pattern\n            case Rectangle r -> r.length() * r.width();\n            case Triangle t -> 0.5 * t.base() * t.height();\n            // No default needed because Shape is a sealed interface and all cases are covered\n        };\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha when using pattern matching for switch involves future-proofing sealed hierarchies. If you add a new permit type to a sealed interface in a library, any exhaustive switch statement in downstream consumer code that lacks a default branch will fail to compile during their next build. Always weigh whether you want strict compile-time exhaustiveness or the flexibility to add subtypes without breaking downstream consumers by selectively including a default branch."
+    }
+  ],
+  "num": 100,
+  "title": "Pattern Matching for switch (final)",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

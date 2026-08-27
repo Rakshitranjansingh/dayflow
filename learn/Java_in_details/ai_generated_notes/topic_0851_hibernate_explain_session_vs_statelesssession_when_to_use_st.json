@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Hibernate, the Session is the primary interface for persistence, acting as a transactional unit of work that maintains a first-level cache (Persistence Context). When you load an entity via Session, Hibernate tracks its state, performs dirty checking upon flush, and manages object identity, ensuring that multiple references to the same database row point to the same Java object instance. This is ideal for standard CRUD operations where you need the full power of the ORM, including lazy loading, change tracking, and transparent persistence. Conversely, StatelessSession is a command-oriented interface that bypasses the first-level cache and dirty checking entirely. It does not maintain a persistence context, meaning it does not track entity state, nor does it support lazy loading or cascading operations. It acts as a thin wrapper over direct JDBC calls, providing a high-performance alternative for bulk data processing where the overhead of maintaining a complex object graph would lead to memory exhaustion or unnecessary performance degradation."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Session",
+        "StatelessSession"
+      ],
+      "rows": [
+        [
+          "First-level Cache",
+          "Enabled",
+          "Disabled"
+        ],
+        [
+          "Dirty Checking",
+          "Automatic",
+          "None"
+        ],
+        [
+          "Lazy Loading",
+          "Supported",
+          "Not Supported"
+        ],
+        [
+          "Memory Footprint",
+          "High (due to tracking)",
+          "Low (constant)"
+        ],
+        [
+          "Lifecycle Events",
+          "Full support (Interceptors/Listeners)",
+          "Limited/None"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Session uses a persistence context to manage entity identity; if you load the same ID twice, you get the same object reference, which is critical for maintaining consistency in complex business logic.",
+        "StatelessSession operates in a 'fire-and-forget' manner; every operation is immediately translated into a SQL statement, making it significantly faster for batch inserts or updates as it avoids the overhead of snapshotting entity state.",
+        "Use StatelessSession for ETL jobs, large-scale data migrations, or reporting queries where you process millions of rows and do not need the entity to remain attached to a session for further modification.",
+        "StatelessSession does not support cascading; you must manually manage the persistence of related entities, which shifts the burden of graph management from the ORM back to the developer."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "SessionFactory sessionFactory = ...;\n// Efficient bulk processing\ntry (StatelessSession statelessSession = sessionFactory.openStatelessSession()) {\n    Transaction tx = statelessSession.beginTransaction();\n    ScrollableResults<User> users = statelessSession.createQuery(\"from User\", User.class).scroll();\n    while (users.next()) {\n        User user = users.get();\n        user.setLastLogin(LocalDateTime.now());\n        statelessSession.update(user);\n    }\n    tx.commit();\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is attempting to use lazy-loaded collections with a StatelessSession. Because the session is stateless, it lacks the 'Session' context required to trigger the proxy initialization, resulting in a LazyInitializationException or simply null values. Always ensure your queries in a StatelessSession are fully 'JOIN FETCHED' or explicitly mapped to DTOs to avoid runtime failures."
+    }
+  ],
+  "num": 852,
+  "title": "Hibernate: Explain Session vs StatelessSession. When to use StatelessSession?",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

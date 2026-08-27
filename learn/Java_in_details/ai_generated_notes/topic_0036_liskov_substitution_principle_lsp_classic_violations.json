@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Liskov Substitution Principle (LSP), coined by Barbara Liskov, is a cornerstone of object-oriented design stating that objects of a superclass should be replaceable with objects of its subclasses without breaking the application's correctness. When intersecting this architectural principle with Exception Handling and I/O / NIO operations, classic violations frequently surface around contract tightening, unhandled checked exceptions, and behavioral mutations within streaming abstractions. In classical Java I/O and modern java.nio (Non-blocking I/O) architectures, subtyping is heavily relied upon—from `java.io.InputStream` to `java.nio.channels.Channel`. When a subclass narrows the domain, tightens postconditions, or introduces unexpected `IOException` or `AsynchronousCloseException` subtypes not present in the base contract, callers fail silently or throw cascading runtime errors. Understanding these violations requires analyzing how signature compatibility does not equal behavioral substitutability."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Violation Type",
+        "Core Mechanism",
+        "I/O / NIO Consequence"
+      ],
+      "rows": [
+        [
+          "Exception Contravariance Violation",
+          "Subclass method throws checked exceptions not declared in the supertype method signature.",
+          "Caller catching `IOException` fails to handle unexpected subtypes like `ClosedByInterruptException`, breaking robust failure recovery."
+        ],
+        [
+          "Strengthening Preconditions",
+          "Subclass imposes stricter input validation or state requirements than the base class.",
+          "Passing a `ByteBuffer` in read-only mode to a method expecting a general writable channel causes unexpected `ReadOnlyBufferException`."
+        ],
+        [
+          "Weakening Postconditions",
+          "Subclass fails to guarantee state transformations promised by the interface or superclass.",
+          "A non-blocking selector operation returns zero ready keys unexpectedly, violating the contract of expected block-until-ready behavior."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Java's type system enforces checked exception rules at compile time: overriding methods cannot throw *broader* checked exceptions than the overridden method. However, throwing *new* unchecked exceptions (subclasses of `RuntimeException`) or narrowing input domains violates LSP behaviorally.",
+        "In NIO, mixing blocking and non-blocking abstractions via class hierarchies often leads to LSP violations. For instance, treating a `SocketChannel` configured in non-blocking mode as a generic blocking stream wrapper breaks methods expecting immediate data availability.",
+        "Resource lifecycle contracts (e.g., `AutoCloseable`) often suffer from LSP violations where a subclass implementation throws an exception during `close()` that was never anticipated by resource-management facades or try-with-resources blocks masking primary exceptions."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.io.IOException;\nimport java.nio.ByteBuffer;\nimport java.nio.channels.ReadableByteChannel;\n\npublic class LspViolationDemo {\n\n    public static class BaseChannelProcessor {\n        public void process(ReadableByteChannel channel, ByteBuffer buffer) throws IOException {\n            // Contract: Reads data into the buffer; blocks until at least one byte is read.\n            channel.read(buffer);\n        }\n    }\n\n    public static class NonBlockingFaultyProcessor extends BaseChannelProcessor {\n        @Override\n        public void process(ReadableByteChannel channel, ByteBuffer buffer) throws IOException {\n            // LSP Violation: Weakens postcondition and violates expected blocking behavior.\n            // If the channel is non-blocking, it might read 0 bytes immediately, \n            // breaking callers who assume 'process' guarantees data consumption.\n            int bytesRead = channel.read(buffer);\n            if (bytesRead == 0) {\n                throw new IllegalStateException(\"Zero bytes read unexpectedly for synchronous caller\");\n            }\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic 7+ YOE production gotcha in NIO asynchronous programming occurs when wrapping standard `InputStream` around channels using `Channels.newInputStream(ReadableByteChannel)`. If the underlying channel is closed asynchronously by another thread, it throws an `AsynchronousCloseException` (a subclass of `IOException`). However, naive legacy exception handlers catching only base `IOException` might misinterpret this as a standard network timeout rather than an explicit channel tear-down, leading to incorrect retry storms. Always inspect exception hierarchies to ensure subclass substitutions do not invalidate upper-layer failure recovery logic."
+    }
+  ],
+  "num": 37,
+  "title": "Liskov Substitution Principle (LSP) — classic violations",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Security architecture is fundamentally built around Servlet filters and a robust, decoupled authentication and authorization lifecycle. When an HTTP request enters a Java EE web container, it flows through a pipeline of servlet filters. Because Spring Security is implemented as a framework running inside a standard servlet container, it bridges the gap between the servlet container lifecycle and the Spring ApplicationContext via the DelegatingFilterProxy. This special filter acts as a bridge, delegating filter invocation to a Spring-managed bean known as the SecurityFilterChain.\n\nThe DelegatingFilterProxy does not contain any actual security logic itself; instead, it looks up a bean named springSecurityFilterChain in the root WebApplicationContext and delegates incoming doFilter calls to it. This mechanism allows Spring beans to leverage the servlet container's filter lifecycle even though those beans are managed entirely by Spring's IoC container. Once the request reaches the SecurityFilterChain, it traverses a ordered list of SecurityFilters—such as UsernamePasswordAuthenticationFilter, BasicAuthenticationFilter, and ExceptionTranslationFilter—each responsible for a specific slice of security infrastructure, such as CSRF protection, session management, or exception translation.\n\nWhen an authentication-seeking request hits an authentication filter, the filter extracts credentials (like a username and password) and packages them into an Authentication object. This object is then handed off to the AuthenticationManager interface, which serves as the central API for authentication. The standard and most widely used implementation of AuthenticationManager is the ProviderManager. The ProviderManager delegates authentication duties to an ordered chain of AuthenticationProvider instances. Each AuthenticationProvider checks whether it supports the specific type of Authentication token (e.g., DaoAuthenticationProvider handling UsernamePasswordAuthenticationToken) and attempts to authenticate it against a user store using a UserDetailsService and PasswordEncoder, ultimately returning a fully populated, authenticated token or throwing an AuthenticationException."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component",
+        "Primary Responsibility",
+        "Key Implementation"
+      ],
+      "rows": [
+        [
+          "DelegatingFilterProxy",
+          "Bridges Servlet Container and Spring IoC container",
+          "org.springframework.web.filter.DelegatingFilterProxy"
+        ],
+        [
+          "FilterChain (SecurityFilterChain)",
+          "Coordinates a chain of security filters for a matching URL pattern",
+          "org.springframework.security.web.DefaultSecurityFilterChain"
+        ],
+        [
+          "AuthenticationManager",
+          "Defines the API for processing authentication requests",
+          "org.springframework.security.authentication.ProviderManager"
+        ],
+        [
+          "ProviderManager",
+          "Iterates through a list of AuthenticationProviders to authenticate a token",
+          "org.springframework.security.authentication.ProviderManager"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "DelegatingFilterProxy performs a lazy lookup of the target bean during the first filter execution (or initialization phase), ensuring that the Spring container has fully started before wiring dependencies.",
+        "SecurityFilterChain contains multiple filter instances configured via HttpSecurity DSL, dynamically matched against incoming requests using RequestMatcher strategies.",
+        "ProviderManager maintains a parent-child hierarchy; if a ProviderManager cannot authenticate a token, it delegates the request to its parent AuthenticationManager, enabling shared global user directories across decoupled sub-contexts.",
+        "AuthenticationProvider implementations (like DaoAuthenticationProvider) utilize a PasswordEncoder to securely compare hash digests, mitigating rainbow table and brute-force attacks via salted hashing algorithms like BCrypt or Argon2."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\npublic class SecurityConfig {\n\n    @Bean\n    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {\n        http\n            .csrf(csrf -> csrf.disable())\n            .authorizeHttpRequests(auth -> auth\n                .requestMatchers(\"/public/**\").permitAll()\n                .anyRequest().authenticated()\n            )\n            .authenticationManager(authenticationManager());\n            \n        return http.build();\n    }\n\n    @Bean\n    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {\n        return config.getAuthenticationManager();\n    }\n}\n"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production trap involves filter ordering and declaring DelegatingFilterProxy manually in web.xml when using modern Spring Boot applications. Spring Boot auto-registers the DelegatingFilterProxy under the name springSecurityFilterChain via the SecurityFilterAutoConfiguration. If you manually override filters or mix Spring Security with custom servlet filters, ensure your filter priorities are strictly managed using @Order or FilterRegistrationBean to prevent security bypasses caused by executing business logic filters before authentication filters."
+    }
+  ],
+  "num": 997,
+  "title": "Explain Spring Security Architecture. (DelegatingFilterProxy, FilterChain, AuthenticationManager, ProviderManager)",
+  "category": "Spring Security & Web Security"
+}

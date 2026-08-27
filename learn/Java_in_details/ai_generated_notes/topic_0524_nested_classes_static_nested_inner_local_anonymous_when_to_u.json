@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java, nested classes provide a way to logically group classes that are used in only one place, encapsulate helper logic, and write more maintainable, readable code. The Java Language Specification broadly categorizes nested classes into two main buckets: static nested classes and inner classes (which further include member inner classes, local classes, and anonymous classes). Understanding the behavioral semantics, lifecycle, and memory implications of each variant is crucial for systems engineering, particularly when dealing with garbage collection and memory leaks.\n\nA static nested class behaves like a top-level class packaged inside another class for namespace management. It does not hold an implicit reference to an instance of its enclosing class, meaning it cannot access instance variables or methods directly without an explicit object reference. Conversely, an inner class (non-static) maintains a synthetic reference—commonly notated as `EnclosingClass.this`—to the specific instance of the outer class that instantiated it. This hidden pointer allows inner classes seamless access to all enclosing instance fields, even private ones, but introduces hidden memory overhead.\n\nLocal classes are defined within a block of code, typically a method body or a `for` loop. They have limited scope and can access local variables of the enclosing block, provided those variables are effectively final. Finally, anonymous classes are local classes without a name, declared and instantiated simultaneously in a single expression using `new SuperType() { ... }`. They are traditionally used for one-off interface implementations or event listeners, though modern Java largely supersedes them with lambda expressions and method references."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Nested Class Type",
+        "Associated Outer Instance?",
+        "Can Have Static Members?",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "Static Nested",
+          "No",
+          "Yes",
+          "Helper classes logically owned by the outer class (e.g., Builder pattern)"
+        ],
+        [
+          "Inner (Member)",
+          "Yes",
+          "No (except static final constants)",
+          "Adapters or components tightly bound to an outer instance state"
+        ],
+        [
+          "Local",
+          "Yes (if in an instance method)",
+          "No",
+          "Complex logic encapsulation inside a single method"
+        ],
+        [
+          "Anonymous",
+          "Yes (if in an instance method)",
+          "No",
+          "Quick, inline overrides or functional-style callbacks (pre-Java 8)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Inner classes hold a hidden synthetic reference to their enclosing instance. If an inner class instance escapes the scope of the outer class (e.g., passed to an asynchronous thread pool), the entire outer class instance cannot be garbage collected, creating a severe memory leak.",
+        "Static nested classes avoid this memory overhead because they do not capture the outer `this` pointer, making them the preferred choice for nested builders or internal data structures.",
+        "Local and anonymous classes capturing local variables rely on 'variable capture,' where the compiler copies effectively final primitives or references into synthetic constructor parameters behind the scenes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class OuterService {\n    private final String serviceName = \"PaymentProcessor\";\n\n    // 1. Static Nested Class (Ideal for Builders or independent helpers)\n    public static class ServiceConfig {\n        private int timeoutMs = 5000;\n        public ServiceConfig timeout(int timeoutMs) {\n            this.timeoutMs = timeoutMs;\n            return this;\n        }\n    }\n\n    // 2. Inner Class (Has access to OuterService.this)\n    public class InternalWorker {\n        public void execute() {\n            System.out.println(\"Running worker for: \" + serviceName);\n        }\n    }\n\n    public void process() {\n        // 3. Local Class (Defined inside a method block)\n        final String transactionId = \"TXN-9988\";\n        class LocalValidator {\n            boolean validate() {\n                return transactionId != null && !transactionId.isEmpty();\n            }\n        }\n        \n        LocalValidator validator = new LocalValidator();\n        if (validator.validate()) {\n            // 4. Anonymous Class (Inline implementation)\n            Runnable task = new Runnable() {\n                @Override\n                public void run() {\n                    System.out.println(\"Executing task for transaction: \" + transactionId);\n                }\n            };\n            new Thread(task).start();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in Android and long-running backend Java applications involves returning an anonymous or non-static inner class (like a custom Thread, Handler, or Listener) from a method or registering it with a global singleton. Because the inner class maintains a strong reference to the outer class instance, garbage collection is blocked, leading to OutOfMemoryErrors. Always prefer static nested classes unless you explicitly require bidirectional communication tied to the outer object's lifecycle."
+    }
+  ],
+  "num": 525,
+  "title": "Nested classes — static nested, inner, local, anonymous — when to use each?",
+  "category": "Core Java & Fundamentals"
+}

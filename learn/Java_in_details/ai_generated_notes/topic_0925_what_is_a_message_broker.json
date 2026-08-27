@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A message broker is an architectural middleware component that enables decoupled, asynchronous communication between distributed services. In a monolithic Java application, components often communicate via direct method calls, which creates tight coupling and synchronous blocking. In a distributed system, this approach fails due to network latency, partial failures, and scaling bottlenecks. The message broker acts as an intermediary, receiving messages from 'producers' and routing them to 'consumers' via queues or topics. By acting as a buffer, the broker allows the producer to fire-and-forget, ensuring that even if the consumer is temporarily offline or overwhelmed, the message is persisted and processed eventually. This pattern is essential for implementing event-driven architectures, where services react to state changes without needing to know the internal implementation details of the upstream service."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Point-to-Point (Queue)",
+        "Publish/Subscribe (Topic)"
+      ],
+      "rows": [
+        [
+          "Delivery",
+          "One-to-one",
+          "One-to-many"
+        ],
+        [
+          "Persistence",
+          "Message deleted after ack",
+          "Message persists for all subscribers"
+        ],
+        [
+          "Coupling",
+          "Low",
+          "Very Low"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Backpressure Management: Brokers prevent cascading failures by allowing consumers to pull messages at their own pace, preventing the 'thundering herd' problem where a sudden spike in traffic crashes downstream services.",
+        "Message Persistence: Brokers typically write incoming messages to a write-ahead log (WAL) on disk, ensuring that messages survive JVM crashes or broker restarts.",
+        "Acknowledgement Protocols: The broker tracks the lifecycle of a message via acknowledgements (ACKs). If a consumer fails to send an ACK before a timeout, the broker re-queues the message for another consumer, ensuring at-least-once delivery semantics.",
+        "Serialization Overhead: Since messages must be transmitted over the wire, Java objects must be serialized (e.g., JSON, Avro, or Protobuf). This introduces CPU overhead and requires careful schema management to avoid breaking downstream consumers during deployments."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderProducer {\n    private final JmsTemplate jmsTemplate;\n\n    public void sendOrder(Order order) {\n        // The broker decouples the order creation from the inventory update\n        jmsTemplate.convertAndSend(\"order.queue\", order);\n    }\n}\n\n@Component\npublic class InventoryConsumer {\n    @JmsListener(destination = \"order.queue\")\n    public void processInventory(Order order) {\n        // Logic runs independently of the producer's availability\n        inventoryService.reserve(order.getItems());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common production trap is the 'poison pill' message. If a message is malformed and causes the consumer to throw an unhandled exception, the broker will re-queue it, the consumer will try again, and the system enters an infinite loop of failure. Always implement a Dead Letter Queue (DLQ) strategy where messages that fail after N retries are moved to a separate queue for manual inspection, rather than blocking the main pipeline indefinitely."
+    }
+  ],
+  "num": 926,
+  "title": "What is a message broker?",
+  "category": "Core Java & Fundamentals"
+}

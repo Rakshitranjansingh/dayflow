@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java Virtual Machine, memory management is automated via Garbage Collection (GC), which operates across distinct regions of the heap to reclaim memory and mitigate out-of-memory errors. Understanding the operational boundaries of Minor GC, Major GC, and Full GC is critical for maintaining predictable tail latencies and high throughput in enterprise applications. The JVM heap is physically or logically segmented into generations—primarily the Young Generation (divided into Eden, Survivor 0, and Survivor 1 spaces) and the Old (or Tenured) Generation. Minor GC targets the Young Generation exclusively. It triggers when the Eden space fills up, utilizing high-performance copying collectors like Parallel GC, G1 GC, or ZGC to move surviving objects into an empty survivor space or promote them to the Old Generation based on their age threshold (tenuring threshold).\n\nMajor GC, conversely, historically refers to the cleaning of the Old Generation. However, in modern GC terminology, a pure Major GC is rare; it is frequently intertwined with or used interchangeably with Full GC depending on the underlying garbage collector algorithm. For instance, in CMS (Concurrent Mark Sweep), a major collection occurred concurrently in the tenured space. Finally, a Full GC is a sweeping, stop-the-world operation that compacts and cleans the entire heap—spanning both the Young Generation, the Old Generation, and often the metaspace (class metadata). Full GCs are triggered when the Old Generation experiences high fragmentation or lacks sufficient contiguous memory to accept promoted objects from a Minor GC (often manifesting as an allocation failure), or when explicitly requested via System.gc(). Because Full GC pauses all application mutator threads for extended durations, tuning application parameters like heap size (-Xms, -Xmx), survivor ratios, and selecting low-latency collectors (such as ZGC or Shenandoah) are paramount to minimizing its frequency."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "GC Type",
+        "Target Heap Region",
+        "Stop-The-World (STW) Impact",
+        "Common Trigger Condition"
+      ],
+      "rows": [
+        [
+          "Minor GC",
+          "Young Generation (Eden + Survivor spaces)",
+          "Short pause, typically low latency (milliseconds)",
+          "Eden space exhaustion / inability to allocate new object"
+        ],
+        [
+          "Major GC",
+          "Old (Tenured) Generation",
+          "Variable; can be concurrent (CMS) or STW (Parallel)",
+          "Old Generation occupancy threshold reached"
+        ],
+        [
+          "Full GC",
+          "Entire Heap (Young + Old + Metaspace)",
+          "Long pause; scales linearly with live data set size",
+          "Promotion failure, concurrent mode failure, System.gc()"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Minor GC leverages the weak generational hypothesis—the empirical observation that the vast majority of objects die young—allowing collectors to scan only a fraction of the heap using Card Tables to track inter-generational references from Old to Young without scanning the entire Old Generation.",
+        "Promotion Failure occurs during a Minor GC when the Old Generation lacks a contiguous block of memory large enough to accommodate objects being promoted from the Young Generation, instantly forcing a JVM fallback to a catastrophic Full GC.",
+        "Metaspace expansion can trigger a Full GC if native memory allocation limits are reached or if class unloading thresholds are crossed, necessitating the sweep of class loaders and class metadata structures."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class GCMonitoringService {\n    public static void logGarbageCollectionMetrics() {\n        List<GarbageCollectorMXBean> gcBeans = ManagementFactory.getGarbageCollectorMXBeans();\n        for (GarbageCollectorMXBean bean : gcBeans) {\n            System.out.println(\"GC Name: \" + bean.getName());\n            System.out.println(\"Collection Count: \" + bean.getCollectionCount());\n            System.out.println(\"Collection Time (ms): \" + bean.getCollectionTime());\n            System.out.println(\"--- Notification/Pool info available via JVM MXBeans ---\");\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Never rely on explicit calls to System.gc() in production code hoping to preemptively clear memory. Modern JVMs often ignore these calls unless explicitly enabled via -XX:+ExplicitGCInvokesConcurrent, and invoking them forces expensive Full GC cycles that disrupt application throughput and spike latency."
+    }
+  ],
+  "num": 715,
+  "title": "Minor GC vs Major GC vs Full GC?",
+  "category": "JVM Architecture & Memory Tuning"
+}

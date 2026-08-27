@@ -1,0 +1,70 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Graph theory forms the bedrock of modern systems architecture, underpinning everything from dependency injection resolution engines to social network connection graphs, shortest-path routing, and distributed deadlock detection. Traversing and manipulating these vertex-edge topologies efficiently requires a deep understanding of several core algorithms. Breadth-First Search (BFS) explores graphs level by level, utilizing a Queue to guarantee the shortest path in unweighted networks, making it ideal for peer-to-peer network discovery and shortest-hop routing. Depth-First Search (DFS) aggressively explores down individual branches using a Stack or recursion, tracking visited nodes to avoid cycles, which powers cycle detection and maze solving. When edge weights are introduced, Dijkstra's algorithm steps in, employing a PriorityQueue (min-heap) with a greedy approach to compute single-source shortest paths across non-negative weighted edges, heavily relied upon in IP packet routing and mapping software. Topological sort provides a linear ordering of vertices for directed acyclic graphs (DAGs) such that for every directed edge from vertex u to v, u comes before v; this is the exact algorithm modern build systems and dependency injection containers like Spring use to resolve bean initialization orders. Finally, Union-Find (Disjoint Set Union, or DSU) manages a partition of a set into disjoint elements, offering near-constant time complexity operations—find and union—optimized via path compression and union by rank, which is heavily utilized in Kruskal's minimum spanning tree algorithm and cycle detection in undirected graphs."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Algorithm / Structure",
+        "Time Complexity",
+        "Primary Data Structure",
+        "Core Use Case"
+      ],
+      "rows": [
+        [
+          "BFS",
+          "O(V + E)",
+          "Queue",
+          "Shortest path in unweighted graphs"
+        ],
+        [
+          "DFS",
+          "O(V + E)",
+          "Stack / Recursion",
+          "Cycle detection, topological ordering"
+        ],
+        [
+          "Dijkstra",
+          "O((V + E) log V)",
+          "PriorityQueue (Min-Heap)",
+          "Shortest path in weighted graphs"
+        ],
+        [
+          "Topological Sort",
+          "O(V + E)",
+          "Queue / Stack + In-degree array",
+          "Task scheduling, compilation dependency resolution"
+        ],
+        [
+          "Union-Find",
+          "O(alpha(N))",
+          "Parent Pointer Array",
+          "Dynamic connectivity, Kruskal's MST"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "BFS guarantees the shortest path in unweighted graphs because it explores all neighbor nodes at the present depth prior to moving on to the nodes at the next depth level, using a FIFO queue.",
+        "Dijkstra fails when negative edge weights are present because its greedy choice property assumes that once a node is popped from the priority queue, its shortest distance is permanently locked; negative edges break this invariant, necessitating algorithms like Bellman-Ford.",
+        "Topological sorting relies strictly on Directed Acyclic Graphs (DAGs). If a cycle exists, the in-degree count of the nodes in the cycle will never drop to zero, leaving remaining nodes unprocessed and signaling a cyclic dependency error.",
+        "Union-Find achieves near-O(1) time complexity (specifically inverse Ackermann time, alpha(n)) through two crucial optimizations: Path Compression during the find operation, which flattens the tree structure, and Union by Rank (or Size), which attaches smaller trees under the roots of deeper trees."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.*;\n\npublic class GraphAlgorithms {\n    // Topological Sort using Kahn's Algorithm (BFS-based)\n    public static List<Integer> topologicalSort(int numVertices, List<List<Integer>> adjList) {\n        int[] inDegree = new int[numVertices];\n        for (int u = 0; u < numVertices; u++) {\n            for (int v : adjList.get(u)) {\n                inDegree[v]++;\n            }\n        }\n\n        Queue<Integer> queue = new LinkedList<>();\n        for (int i = 0; i < numVertices; i++) {\n            if (inDegree[i] == 0) {\n                queue.offer(i);\n            }\n        }\n\n        List<Integer> topologicalOrder = new ArrayList<>();\n        while (!queue.isEmpty()) {\n            int curr = queue.poll();\n            topologicalOrder.add(curr);\n\n            for (int neighbor : adjList.get(curr)) {\n                inDegree[neighbor]--;\n                if (inDegree[neighbor] == 0) {\n                    queue.offer(neighbor);\n                }\n            }\n        }\n\n        if (topologicalOrder.size() != numVertices) {\n            throw new IllegalStateException(\"Graph contains a cycle; topological sort impossible.\");\n        }\n\n        return topologicalOrder;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production bug when implementing Dijkstra's algorithm or BFS on large graph networks in Java is memory bloat caused by unchecked object allocations inside tight loops, or failing to guard against cyclic graphs which triggers an OutOfMemoryError via the recursion stack in DFS. Always maintain an explicit boolean visited array or set, and when using PriorityQueues for Dijkstra, be aware that updating a node's distance without removing the old entry can lead to duplicate entries in the heap unless you use an indexed priority queue or handle stale entries gracefully."
+    }
+  ],
+  "num": 200,
+  "title": "Graphs — BFS, DFS, Dijkstra, Topological sort, Union-Find",
+  "category": "Exception Handling & I/O / NIO"
+}

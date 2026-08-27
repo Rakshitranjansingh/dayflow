@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Contract testing is a methodology that ensures compatibility between decoupled services by validating that the provider and consumer adhere to a shared agreement, or 'contract'. In microservices architectures, traditional integration tests often suffer from 'distributed monolith' symptoms—they are slow, fragile, and require the entire ecosystem to be deployed. Contract testing solves this by decoupling the testing phase from the deployment phase. Spring Cloud Contract and Pact are the two industry-standard implementations of this pattern. Spring Cloud Contract is deeply integrated into the Spring ecosystem, utilizing Groovy or YAML DSLs to generate WireMock stubs automatically from the provider's codebase, ensuring the provider never breaks its API. Pact, by contrast, is language-agnostic and focuses on the 'consumer-driven' approach, where the consumer defines the contract as a JSON file, which is then verified against the provider. Both tools shift the burden of integration testing 'left', catching breaking changes at build time rather than runtime."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Spring Cloud Contract",
+        "Pact"
+      ],
+      "rows": [
+        [
+          "Primary Philosophy",
+          "Provider-driven (usually)",
+          "Consumer-driven"
+        ],
+        [
+          "Ecosystem",
+          "Spring-centric",
+          "Language-agnostic"
+        ],
+        [
+          "Artifact Storage",
+          "Maven/Gradle Repository",
+          "Pact Broker"
+        ],
+        [
+          "Stub Generation",
+          "Automatic via WireMock",
+          "Manual/Tool-based"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring Cloud Contract utilizes the 'Contract DSL' to generate both a test case for the provider and a WireMock stub for the consumer, ensuring the stub is always a perfect reflection of the provider's actual implementation.",
+        "Pact relies on a 'Pact Broker' to act as a source of truth, allowing teams to verify if a specific version of a consumer is compatible with a specific version of a provider without needing to run both services simultaneously.",
+        "In both frameworks, the 'Verification' phase is critical: the provider must replay the consumer's captured requests against its own controller layer to ensure the actual implementation matches the agreed-upon contract.",
+        "These tests are strictly isolated from network latency and database state, focusing purely on the request/response schema and headers, which makes them significantly faster than end-to-end integration tests."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Spring Cloud Contract DSL example (contracts/shouldReturnUser.groovy)\norg.springframework.cloud.contract.spec.Contract.make {\n    request {\n        method GET()\n        url '/users/1'\n    }\n    response {\n        status OK()\n        body(id: 1, name: 'John Doe')\n        headers {\n            contentType('application/json')\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The biggest trap in contract testing is 'over-specification'. If you include too many fields or strict header requirements in your contract, you create a brittle build pipeline where minor, non-breaking changes cause test failures. Always aim for 'Consumer-Driven' contracts that only specify the fields the consumer actually uses, allowing the provider to evolve its API without breaking downstream dependencies."
+    }
+  ],
+  "num": 1170,
+  "title": "Explain contract testing (Spring Cloud Contract / Pact).",
+  "category": "Core Java & Fundamentals"
+}

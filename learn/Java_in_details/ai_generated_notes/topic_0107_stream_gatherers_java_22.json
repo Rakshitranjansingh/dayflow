@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Java 22 introduced Stream Gatherers as a preview feature under JEP 461, profoundly transforming the java.util.stream API by lifting a historical limitation: the inability to write custom intermediate operations. Before Stream Gatherers, developers were constrained by a fixed set of built-in intermediate operations like map, filter, flatMap, and reduce. If your data processing pipeline required stateful, multi-element transformations—such as sliding windows, distinct-by predicates, or batching—you had to either prematurely collect the stream into a collection or resort to complex, unsafe imperative hacks outside the stream paradigm. Stream Gatherers solve this by adding the intermediate operation `gather(Gatherer)`, making the stream pipeline fully extensible with custom upstream-to-downstream translation logic.\n\nA Stream Gatherer is fundamentally defined by the `java.util.stream.Gatherer` interface, which encapsulates four core components: an optional initializer that supplies state, an integrator that processes upstream elements and pushes downstream, an optional combiner for parallel execution, and an optional finisher executed when the upstream is exhausted. By encapsulating state and control flow—such as the ability to short-circuit via `Downstream.isStopped()`—Gatherers integrate seamlessly into sequential and parallel execution pipelines while preserving lazy evaluation semantics. This bridges the gap between simple element-by-element mapping and complex windowing operations, allowing developers to express sophisticated data transformations declaratively and efficiently."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Operation",
+        "Legacy Custom Approach",
+        "Stream Gatherers (Java 22+)"
+      ],
+      "rows": [
+        [
+          "Extensibility",
+          "Limited to custom Spliterators or Collectors",
+          "First-class intermediate operations via `gather()`"
+        ],
+        [
+          "State Management",
+          "Requires external mutable state or complex Spliterators",
+          "Encouraged via initializer supplying thread-safe or confined state objects"
+        ],
+        [
+          "Short-circuiting",
+          "Difficult or impossible mid-stream without breaking semantics",
+          "Native support via `Downstream.isStopped()` and early termination"
+        ],
+        [
+          "Parallelization",
+          "Requires custom parallel Spliterator implementation",
+          "Supported via combiner logic in the Gatherer definition"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Initializer: Creates a mutable state container per-thread or per-pipeline segment. For parallel streams, the initializer is invoked independently for each parallel partition.",
+        "Integrator: The workhorse method `integrate(state, element, downstream)` processes each incoming element. It can push zero, one, or many elements downstream and can signal early termination.",
+        "Combiner: Merges the state of two parallel partitions if the stream executes in parallel, essential for reduction-like gatherers.",
+        "Finisher: Invoked when no more upstream elements remain, allowing state-accumulating gatherers (like groupers or windowing operators) to flush their final buffers downstream."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.ArrayList;\nimport java.util.List;\nimport java.util.stream.Gatherer;\nimport java.util.stream.Stream;\n\npublic class GathererDemo {\n    public static <T> Gatherer<T, ?, List<T>> windowFixed(int windowSize) {\n        if (windowSize <= 0) throw new IllegalArgumentException(\"Window size must be positive\");\n        \n        return Gatherer.ofSequential(\n            ArrayList::new,\n            (state, element, downstream) -> {\n                state.add(element);\n                if (state.size() == windowSize) {\n                    List<T> window = List.copyOf(state);\n                    state.clear();\n                    return downstream.push(window);\n                }\n                return !downstream.isStopped();\n            },\n            (state, downstream) -> {\n                if (!state.isEmpty()) {\n                    downstream.push(List.copyOf(state));\n                }\n            }\n        );\n    }\n\n    public static void main(String[] args) {\n        List<Integer> numbers = List.of(1, 2, 3, 4, 5, 6, 7);\n        \n        List<List<Integer>> windows = numbers.stream()\n            .gather(windowFixed(3))\n            .toList();\n            \n        System.out.println(windows); // [[1, 2, 3], [4, 5, 6], [7]]\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "When writing parallel-compatible custom Gatherers, be extremely careful with the combiner and state confinement. If your Gatherer is stateful and relies on ordered sequence across splits, forcing parallel execution without a proper combiner will corrupt output windows. Always default to `Gatherer.ofSequential(...)` unless you have verified parallel reduction semantics, as debugging thread-race issues inside custom intermediate stream operations is notoriously difficult in production environments."
+    }
+  ],
+  "num": 108,
+  "title": "Stream gatherers (Java 22+)",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

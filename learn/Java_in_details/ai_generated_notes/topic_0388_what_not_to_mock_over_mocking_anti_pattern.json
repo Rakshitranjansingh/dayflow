@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Over-mocking is a pervasive and insidious anti-pattern in modern Java testing where developers isolate the unit under test to an extreme degree by mocking every single collaborator, dependency, and value object. Instead of validating behavioral contracts against real implementations, the test suite becomes an intricate web of Mockito or EasyMock stubbing (`when().thenReturn()`) and verification (`verify().someMethod()`). This practice directly violates the core tenets of integration and unit testing, transforming tests into fragile, tightly-coupled artifacts that break whenever internal implementation details change, even if the public-facing API and business logic remain completely correct."
+    },
+    {
+      "type": "prose",
+      "content": "The root cause of over-mocking often stems from a misunderstanding of what a unit actually is, or a knee-jerk reaction to slow database or network IO. When developers treat every class as an isolated island, they end up writing tests that mock value objects, domain models, utility classes, and immutable data structures. This results in testing mock frameworks rather than actual business logic. A test suite heavily plagued by over-mocking will pass with flying colors even if the underlying production code contains broken mappings, invalid state transitions, or misconfigured framework annotations, simply because the tests only assert that the mocks were called in a specific sequence rather than verifying actual state mutations."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Evaluation Metric",
+        "Proper Testing Strategy",
+        "Over-Mocking Anti-Pattern"
+      ],
+      "rows": [
+        [
+          "Value Objects & DTOs",
+          "Use real instances; verify constructors and getters directly.",
+          "Mocking getters/setters on data transfer objects."
+        ],
+        [
+          "Pure Functions & Utils",
+          "Execute real static or instance methods.",
+          "Mocking utility libraries (e.g., Apache Commons, java.time)."
+        ],
+        [
+          "Test Resilience",
+          "Survives refactoring of internal private/package-private helpers.",
+          "Breaks completely upon minor internal method renaming."
+        ],
+        [
+          "Confidence Level",
+          "High confidence that components integrate correctly.",
+          "False sense of security; high code coverage, low correctness."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Never mock Value Objects, Records, or Entities: These types carry state and data. Mocking them strips away their intrinsic properties, turning your assertions into tautologies where you assert that a mock returns what you explicitly told it to return.",
+        "Avoid mocking third-party libraries or internal utility classes: If a class is side-effect-free, deterministic, and fast, execute the real code. Mocking things like String manipulators, mathematical calculators, or JSON parsers only adds maintenance overhead.",
+        "Beware of Test Fragility and Verification Overload: Over-mocked tests rely heavily on `verify(mock, times(1)).doSomething()`. This couples your test directly to the call graph and execution path of the implementation, making refactoring painfully expensive.",
+        "The Law of Demeter Violations: When you see chains of mocks like `when(service.getRepo().getData().get(0).getId()).thenReturn(1L)`, your design is screaming that you are coupling your test to deep structural navigation instead of behavior."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class OrderProcessorTest {\n    // ANTI-PATTERN: Over-mocking value objects, domain logic, and collaborators\n    @Test\n    public void testProcessOrder_OverMocked() {\n        OrderRepository orderRepo = mock(OrderRepository.class);\n        Order order = mock(Order.class);\n        TaxCalculator taxCalc = mock(TaxCalculator.class);\n        DiscountPolicy discountPolicy = mock(DiscountPolicy.class);\n        \n        when(orderRepo.findById(1L)).thenReturn(order);\n        when(order.getSubtotal()).thenReturn(BigDecimal.valueOf(100.00));\n        when(taxCalc.calculate(any())).thenReturn(BigDecimal.valueOf(10.00));\n        when(discountPolicy.apply(any())).thenReturn(BigDecimal.valueOf(5.00));\n        \n        OrderProcessor processor = new OrderProcessor(orderRepo, taxCalc, discountPolicy);\n        BigDecimal finalTotal = processor.process(1L);\n        \n        assertEquals(BigDecimal.valueOf(105.00), finalTotal);\n        verify(orderRepo).findById(1L);\n        verify(order).getSubtotal();\n    }\n\n    // CORRECT: Real value objects and pure collaborators; mock only boundary IO\n    @Test\n    public void testProcessOrder_Proper() {\n        OrderRepository orderRepo = mock(OrderRepository.class);\n        Order realOrder = new Order(1L, BigDecimal.valueOf(100.00), CustomerType.REGULAR);\n        \n        when(orderRepo.findById(1L)).thenReturn(realOrder);\n        \n        // Using real TaxCalculator and DiscountPolicy implementations\n        OrderProcessor processor = new OrderProcessor(orderRepo, new StandardTaxCalculator(), new StandardDiscountPolicy());\n        BigDecimal finalTotal = processor.process(1L);\n        \n        assertEquals(BigDecimal.valueOf(105.00), finalTotal);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "In senior-level code reviews, high line coverage combined with over-mocking is often referred to as 'vanity coverage.' Engineers write mocks because it feels fast and avoids setting up test databases or configuration contexts. However, the technical debt compounds rapidly: when you refactor your domain model, you spend more time fixing broken Mockito stubbing syntax and verification sequences than you do writing actual features. Always draw a strict line at system boundaries—mock your databases, external HTTP clients, and system clocks, but let your domain models, value objects, and pure business logic run natively."
+    }
+  ],
+  "num": 389,
+  "title": "What not to mock — over-mocking anti-pattern",
+  "category": "Core Java & Fundamentals"
+}

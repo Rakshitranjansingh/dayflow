@@ -1,0 +1,70 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When designing real-time, event-driven web applications in Java, choosing the correct transport mechanism between the client and the server is a foundational architecture decision. Long Polling, Server-Sent Events (SSE), and WebSockets each solve the HTTP request-response cycle limitation differently, shifting the paradigm from client-driven pull architectures to server-driven push models. Long Polling achieves the illusion of real-time communication by having the client issue an HTTP GET request, which the server holds open until new data is available or a timeout occurs, forcing the client to immediately issue a subsequent request upon receiving the payload. While easy to implement over standard HTTP/1.1 without special protocol handshakes, it introduces massive header overhead, latency spikes, and thread starvation on blocking servlet containers due to the constant churn of TCP connections and thread allocations.\n\nServer-Sent Events (SSE) streamline this by leveraging a single, long-lived HTTP connection where the server streams text-based event data using the 'text/event-stream' MIME type. Built natively on HTTP, SSE benefits from built-in browser re-connection logic, proxy compatibility, and straightforward integration with standard web security filters. However, SSE is strictly unidirectional—data flows exclusively from server to client. For bi-directional, low-latency applications like collaborative editors, financial trading platforms, or multiplayer gaming backends, WebSockets provide the ultimate abstraction. WebSockets execute an HTTP-based upgrade handshake before transitioning the underlying TCP socket into a persistent, full-duplex framing protocol. This eliminates HTTP header overhead per message, allowing millions of frames to zip back and forth with minimal latency across both client and server."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Long Polling",
+        "Server-Sent Events (SSE)",
+        "WebSockets"
+      ],
+      "rows": [
+        [
+          "Communication Direction",
+          "Half-Duplex (Simulated)",
+          "Unidirectional (Server to Client)",
+          "Full-Duplex (Bi-directional)"
+        ],
+        [
+          "Protocol Foundation",
+          "Standard HTTP/1.1 or HTTP/2",
+          "Standard HTTP/1.1 or HTTP/2",
+          "TCP via HTTP Upgrade Handshake"
+        ],
+        [
+          "Built-in Reconnection",
+          "Requires Custom JS Logic",
+          "Native Browser Support",
+          "Requires Custom JS Logic"
+        ],
+        [
+          "Binary Data Support",
+          "Via Base64 Encoding",
+          "Not Native (Text Only)",
+          "Native Binary Frames (Blob/ArrayBuffer)"
+        ],
+        [
+          "Firewall & Proxy Traversal",
+          "Extremely High Compatibility",
+          "High Compatibility",
+          "Can be blocked by older corporate proxies"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Long Polling ties up a worker thread per open connection on traditional servlet containers like Tomcat 8/9 unless asynchronous request processing (AsyncContext) is explicitly utilized, quickly exhausting the thread pool under high concurrency.",
+        "SSE relies on a continuous UTF-8 encoded text stream framed by double newlines (\\n\\n), where messages are prefixed with fields like 'data:', 'event:', and 'id:' for tracking event sequence integrity.",
+        "WebSockets operate via custom framing over TCP, using minimal overhead (2 to 14 bytes per frame) and masking keys for client-to-server frames to prevent cache poisoning attacks.",
+        "Spring Framework abstracts these paradigms neatly: Spring MVC and Spring WebFlux support Long Polling via DeferredResult, SSE via Flux<ServerSentEvent<T>>, and WebSockets via Spring's STOMP-over-WebSocket messaging broker architecture."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/notifications\")\npublic class NotificationController {\n\n    @GetMapping(path = \"/stream\", produces = MediaType.TEXT_EVENT_STREAM_VALUE)\n    public Flux<ServerSentEvent<String>> streamEvents() {\n        return Flux.interval(Duration.ofSeconds(2))\n                .map(sequence -> ServerSentEvent.<String>builder()\n                        .id(String.valueOf(sequence))\n                        .event(\"periodic-update\")\n                        .data(\"Server time: \" + LocalTime.now())\n                        .build());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap when deploying WebSockets or SSE behind reverse proxies like Nginx or AWS API Gateway is idle timeout disconnection. Proxies often drop connections if no data is transmitted for 60 seconds. To prevent this, your Java backend must implement a scheduled heartbeat mechanism (ping/pong frames for WebSockets, or comment-line keep-alives like ':ping\\n\\n' for SSE) to keep intermediate networking equipment from prematurely terminating the connection socket."
+    }
+  ],
+  "num": 989,
+  "title": "WebSockets vs Server-Sent Events (SSE) vs Long Polling?",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Consumer lag in Apache Kafka is the delta between the latest offset produced to a partition and the last offset committed by a consumer group. It is the primary indicator of system health in event-driven architectures, signaling that the consumer throughput is insufficient to keep pace with the producer's ingestion rate. When lag grows, it increases end-to-end latency, which can breach SLAs or cause stale data processing. Handling lag requires a multi-layered strategy: first, by optimizing consumer performance through batching and parallelization; second, by scaling the consumer group horizontally to match the partition count; and finally, by tuning Kafka-specific configurations like fetch.min.bytes and max.poll.records to balance throughput against memory pressure."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Mechanism",
+        "Trade-off"
+      ],
+      "rows": [
+        [
+          "Horizontal Scaling",
+          "Add instances to group",
+          "Limited by partition count"
+        ],
+        [
+          "Batch Processing",
+          "Increase fetch.min.bytes",
+          "Higher latency per record"
+        ],
+        [
+          "Concurrency",
+          "Multi-threading within consumer",
+          "Complex offset management"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Partition Rebalancing: Adding consumers triggers a rebalance. Use Static Membership (group.instance.id) to avoid unnecessary rebalances during rolling restarts, which otherwise spikes lag.",
+        "Consumer Throughput Tuning: Adjust max.poll.records to ensure the processing time per batch stays well below the max.poll.interval.ms threshold to prevent the group coordinator from triggering a rebalance due to a perceived 'stuck' consumer.",
+        "Backpressure and Throttling: If the downstream sink (e.g., a database) is the bottleneck, implement a circuit breaker or rate-limiting to prevent the consumer from crashing due to OOM errors while trying to buffer records.",
+        "Monitoring: Use tools like Burrow or Prometheus/Grafana to track 'Consumer Lag' metrics via JMX. Alerts should be based on time-based lag (how many seconds behind) rather than just offset-based lag."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "Properties props = new Properties();\nprops.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);\nprops.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1024 * 1024); // 1MB\nprops.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 300000); // 5 minutes\n\nKafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);\n// Ensure processing logic is idempotent to handle potential re-processing during rebalances"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is assuming that adding more consumers than partitions will solve lag. It will not; the extra consumers will simply sit idle. If you are truly bottlenecked at the partition level, you must perform a partition expansion (re-keying or adding partitions), which is a high-risk operation that can disrupt message ordering guarantees. Always ensure your partition key strategy allows for sufficient parallelism before going live."
+    }
+  ],
+  "num": 946,
+  "title": "How do you handle Consumer Lag in Kafka?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

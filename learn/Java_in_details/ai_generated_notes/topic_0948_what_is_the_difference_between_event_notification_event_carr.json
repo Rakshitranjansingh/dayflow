@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern distributed systems and reactive architectures, managing state changes across microservices requires moving away from tightly coupled remote procedure calls toward asynchronous event-driven paradigms. However, not all events are created equal. When designing an event-driven architecture, architects must choose between distinct messaging patterns: Event Notification, Event-Carried State Transfer (ECST), and Event Sourcing. Each pattern solves a fundamentally different problem regarding data distribution, consistency boundaries, and system decoupling.\n\nEvent Notification is the lightest weight pattern among the three. In this approach, a producer emits an event simply stating that something notable happened, such as OrderCreated or UserRegistered. Crucially, the payload contains minimal data—typically just an entity identifier and a resource URI. The consumer receives the notification, realizes an action is required, and must actively call back to the producer's API to fetch the current state. This minimizes network overhead for the message broker but introduces tight coupling via synchronous REST queries and potential thundering herd problems if thousands of consumers query the producer simultaneously.\n\nEvent-Carried State Transfer (ECST) flips this paradigm by embedding the complete state of the domain entity directly inside the event payload. When an Order is created or updated, the event includes not just the ID, but the entire snapshot of line items, shipping addresses, and pricing details. Downstream consumers persist this state into their own local read-models or databases. This completely eliminates synchronous callback queries, granting consumers absolute autonomy and high availability during network partitions or producer outages. The trade-off is significantly higher network bandwidth consumption and eventual consistency synchronization challenges.\n\nEvent Sourcing is the most sophisticated and structurally rigorous pattern of the trio. Instead of recording the current state or broadcasting a mere notification, Event Sourced systems capture every single state-mutating business transaction as an immutable event (an Event Stream) stored sequentially in an append-only event store. Current state is never explicitly saved in a traditional database table; rather, state is materialized on-the-fly by replaying these historical events from the beginning of time or from a recent snapshot. This guarantees an immutable audit log, facilitates temporal querying (time travel debugging), and simplifies complex domain modeling using CQRS (Command Query Responsibility Segregation)."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Event Notification",
+        "Event-Carried State Transfer",
+        "Event Sourcing"
+      ],
+      "rows": [
+        [
+          "Payload Content",
+          "Minimal (Entity ID, Action, URI)",
+          "Full Entity Snapshot",
+          "Immutable Domain Mutation Events"
+        ],
+        [
+          "Consumer Autonomy",
+          "Low (Requires synchronous REST calls back to source)",
+          "High (All required data is self-contained in event)",
+          "Absolute (Consumer replays events to build custom models)"
+        ],
+        [
+          "State Persistence",
+          "Producer maintains state; consumer queries it",
+          "Consumer duplicates/caches state locally",
+          "State is derived dynamically by replaying the event stream"
+        ],
+        [
+          "Network & Storage Overhead",
+          "Low network, low storage",
+          "High network payload, moderate storage",
+          "High storage (append-only log), high CPU on replay"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In Event Notification, ensure idempotent consumer design because retries from dead-letter queues can trigger duplicate out-of-band REST calls.",
+        "In Event-Carried State Transfer, schema evolution is a primary pain point; when a producer alters the structure of the entity snapshot, all downstream consumers must handle backward-compatible deserialization using schema registries like Avro or Protobuf.",
+        "Event Sourcing requires strict immutability of historical events. If a business logic bug corrupts an event, you cannot simply update the database row; you must write a compensating event or implement event upcasting during the deserialization phase.",
+        "Combining Event Sourcing with CQRS allows writing commands to an optimized event store while publishing denormalized projection models asynchronously for high-performance reads."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public sealed interface OrderEvent permits OrderCreatedNotification, OrderStateTransferEvent, OrderDomainEvent {\n    String orderId();\n}\n\n// 1. Event Notification: Minimal payload\npublic record OrderCreatedNotification(String orderId, String resourceUri) implements OrderEvent {}\n\n// 2. Event-Carried State Transfer: Full snapshot\npublic record OrderStateTransferEvent(String orderId, BigDecimal totalAmount, List<String> itemSkus) implements OrderEvent {}\n\n// 3. Event Sourcing: Intent/Mutation based append-only event\npublic record OrderItemAddedEvent(String orderId, int sequenceNumber, String sku, BigDecimal price) implements OrderEvent {}"
+    },
+    {
+      "type": "note",
+      "content": "A classic architect trap is choosing Event Sourcing for transactional throughput when simple CRUD with Event Notification would suffice. Event Sourcing introduces massive operational complexity, including snapshot strategies, event schema migration, and eventual consistency debugging. Only use Event Sourcing if your domain genuinely requires complex audit trails, temporal queries, or sophisticated state-machine replay."
+    }
+  ],
+  "num": 949,
+  "title": "What is the difference between Event Notification, Event-Carried State Transfer, and Event Sourcing?",
+  "category": "Exception Handling & I/O / NIO"
+}

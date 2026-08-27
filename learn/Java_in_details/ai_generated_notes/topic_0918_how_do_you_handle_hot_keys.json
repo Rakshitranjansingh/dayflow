@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Handling hot keys—frequently accessed database rows, cache keys, or partition keys that receive an overwhelmingly disproportionate amount of read or write traffic—is one of the most critical challenges in high-throughput distributed systems. When millions of concurrent threads or distributed microservices attempt to read or mutate the exact same logical key simultaneously, standard caching or sharding strategies break down. In caching layers like Redis or Memcached, a single hot key can overwhelm a specific cluster node's CPU, saturating its network interface card (NIC) even if the rest of the cluster is severely underutilized. In database engines, hot keys cause severe row-level lock contention, latch contention, and transaction serialization delays, dragging down global throughput and spiking tail latency (p99/p999).\n\nTo mitigate hot keys effectively in Java-based architectures, engineers must employ a multi-layered defense strategy. At the application tier, local in-memory caching via Caffeine or Guava prevents repeated network round-trips to distributed caches. However, local caches introduce the challenge of staleness, necessitating short-lived Time-To-Live (TTL) configurations and reactive invalidation protocols. At the data tier, techniques like key-salting (appending a random suffix to distribute writes across multiple physical partitions) and localized read-replicas transform a single point of failure into a distributed, scalable access pattern. Understanding how to detect, isolate, and neutralize hot keys separates resilient, enterprise-grade distributed systems from fragile applications that fail under sudden traffic spikes."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Primary Mechanism",
+        "Trade-offs & Limitations"
+      ],
+      "rows": [
+        [
+          "Local In-Memory Cache",
+          "Stores hot values inside the JVM heap using libraries like Caffeine to bypass distributed cache round-trips.",
+          "Consumes heap memory, increases GC pressure, and introduces data staleness across multiple JVM instances."
+        ],
+        [
+          "Key Salting",
+          "Appends a random suffix (e.g., key_1, key_2) to writes, merging results on reads to distribute partition load.",
+          "Multiplies storage requirements and significantly complicates read logic by requiring scatter-gather operations."
+        ],
+        [
+          "Request Coalescing",
+          "Deduplicates concurrent identical downstream requests so only a single thread fetches the data while others await the result.",
+          "Ineffective if the bottleneck is write contention or network-level NIC saturation rather than backend computation."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Local Heap Cache Layer: Implement a bounded Caffeine cache with explicit maximum size and short-duration variable expiration (expireAfterWrite) to absorb sudden read spikes before they hit remote infrastructure.",
+        "Single-Flight Pattern (Request Coalescing): Use Java's CompletableFuture or resilience libraries to ensure that if 10,000 threads request a hot key simultaneously, only one actual database or remote cache call is executed while the remaining 9,999 threads attach callbacks to the same future.",
+        "Read-Through and Write-Behind: Decouple synchronous mutations from hot cache updates, using asynchronous queues to batch updates and prevent thread-pool exhaustion during heavy write surges."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import com.github.benmanes.caffeine.cache.Cache;\nimport com.github.benmanes.caffeine.cache.Caffeine;\nimport java.util.concurrent.CompletableFuture;\nimport java.util.concurrent.ConcurrentHashMap;\nimport java.util.concurrent.ConcurrentMap;\nimport java.util.concurrent.TimeUnit;\nimport java.util.function.Supplier;\n\npublic class HotKeyHandler<K, V> {\n    private final Cache<K, V> localCache;\n    private final ConcurrentMap<K, CompletableFuture<V>> inFlightRequests = new ConcurrentHashMap<>();\n\n    public HotKeyHandler() {\n        this.localCache = Caffeine.newBuilder()\n            .maximumSize(10_000)\n            .expireAfterWrite(5, TimeUnit.SECONDS)\n            .recordStats()\n            .build();\n    }\n\n    public CompletableFuture<V> getAsync(K key, Supplier<V> loader) {\n        V cachedValue = localCache.getIfPresent(key);\n        if (cachedValue != null) {\n            return CompletableFuture.completedFuture(cachedValue);\n        }\n\n        return inFlightRequests.computeIfAbsent(key, k -> \n            CompletableFuture.supplyAsync(loader)\n                .whenComplete((val, ex) -> {\n                    if (ex == null && val != null) {\n                        localCache.put(k, val);\n                    }\n                    inFlightRequests.remove(k);\n                })\n        );\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern when dealing with hot keys is implementing an unbounded local cache in an attempt to completely eliminate remote calls. This inevitably leads to JVM OutOfMemoryError (OOM) exceptions due to heap exhaustion, or causes long Garbage Collection stop-the-world pauses that cascade into connection timeouts across your entire microservice mesh. Always bind your local caches and pair them with short TTLs."
+    }
+  ],
+  "num": 919,
+  "title": "How do you handle hot keys?",
+  "category": "Core Java & Fundamentals"
+}

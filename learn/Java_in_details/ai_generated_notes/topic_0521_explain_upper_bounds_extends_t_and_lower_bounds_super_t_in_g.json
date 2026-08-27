@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Java Generics are a compile-time construct designed to enforce type safety and eliminate explicit casting. However, the rigid nature of invariant types—where List<String> is not a subtype of List<Object>—necessitates the use of wildcards to achieve polymorphic flexibility. Upper bounds (? extends T) and lower bounds (? super T) are the mechanisms that allow us to relax these constraints, governed by the PECS (Producer Extends, Consumer Super) principle. An upper bound (? extends T) restricts the wildcard to T or any of its subclasses, effectively making the collection read-only because the compiler cannot guarantee the specific subtype being inserted. Conversely, a lower bound (? super T) restricts the wildcard to T or any of its superclasses, allowing us to safely add objects of type T to the collection, as the underlying structure is guaranteed to be a container capable of holding T."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Upper Bound (? extends T)",
+        "Lower Bound (? super T)"
+      ],
+      "rows": [
+        [
+          "Primary Use",
+          "Producer (Reading)",
+          "Consumer (Writing)"
+        ],
+        [
+          "Read Access",
+          "Returns T or subclasses",
+          "Returns only Object"
+        ],
+        [
+          "Write Access",
+          "Forbidden (except null)",
+          "Allows T and subclasses"
+        ],
+        [
+          "Common Example",
+          "List<? extends Number>",
+          "List<? super Integer>"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "PECS stands for Producer Extends, Consumer Super: use 'extends' when you only pull data out of a structure, and 'super' when you only put data into it.",
+        "Upper bounds (? extends T) create a 'covariant' effect, allowing the collection to be treated as a source of T, but preventing mutation because the exact type (e.g., Integer vs Double) is unknown.",
+        "Lower bounds (? super T) create a 'contravariant' effect, ensuring that the collection is a valid sink for T, as any collection capable of holding a supertype of T can safely hold T itself.",
+        "The compiler enforces these rules by preventing any method call that would violate type safety, such as passing a String into a List<? extends Number>."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class CollectionsUtils {\n    // Producer: We only read from the list\n    public static double sum(List<? extends Number> numbers) {\n        return numbers.stream().mapToDouble(Number::doubleValue).sum();\n    }\n\n    // Consumer: We only write to the list\n    public static void addIntegers(List<? super Integer> list) {\n        list.add(10);\n        list.add(20);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is attempting to use a wildcard in a class definition (e.g., class Box<? extends T>). Wildcards are strictly for use-site variance (method signatures, variable declarations). If you find yourself needing an upper bound on a class definition, you are looking for bounded type parameters (e.g., <T extends Number>), which allow you to use T as a concrete type throughout the class body, unlike wildcards which hide the specific type."
+    }
+  ],
+  "num": 522,
+  "title": "Explain upper bounds (? extends T) and lower bounds (? super T) in Generics (PECS principle).",
+  "category": "Generics & Type System"
+}

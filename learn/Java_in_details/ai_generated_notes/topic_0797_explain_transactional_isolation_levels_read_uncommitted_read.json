@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Framework, @Transactional isolation levels define the boundary of data visibility between concurrent database transactions. These levels are a direct abstraction of the SQL standard, designed to mitigate three primary concurrency anomalies: Dirty Reads, Non-repeatable Reads, and Phantoms. READ_UNCOMMITTED is the lowest isolation level, allowing a transaction to see uncommitted changes from others; while it offers maximum performance, it is rarely used in production due to the risk of reading data that might be rolled back. READ_COMMITTED, the default for most RDBMS like PostgreSQL and SQL Server, prevents dirty reads by ensuring only committed data is visible. REPEATABLE_READ ensures that if you read a row twice, the data remains consistent, blocking other transactions from modifying it, though it may still allow phantom reads. Finally, SERIALIZABLE is the strictest level; it forces transactions to execute as if they were running sequentially, usually through range-locking or optimistic concurrency control, effectively eliminating all anomalies at the cost of significant throughput degradation."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Isolation Level",
+        "Dirty Read",
+        "Non-repeatable Read",
+        "Phantom Read"
+      ],
+      "rows": [
+        [
+          "READ_UNCOMMITTED",
+          "Possible",
+          "Possible",
+          "Possible"
+        ],
+        [
+          "READ_COMMITTED",
+          "Prevented",
+          "Possible",
+          "Possible"
+        ],
+        [
+          "REPEATABLE_READ",
+          "Prevented",
+          "Prevented",
+          "Possible"
+        ],
+        [
+          "SERIALIZABLE",
+          "Prevented",
+          "Prevented",
+          "Prevented"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring's @Transactional annotation delegates isolation to the underlying DataSource's connection object. When a method is invoked, the TransactionManager retrieves a connection and explicitly sets the isolation level via Connection.setTransactionIsolation(int).",
+        "REPEATABLE_READ in MySQL (InnoDB) uses Multi-Version Concurrency Control (MVCC) to provide a consistent snapshot of the database at the start of the transaction, which is why it inherently avoids phantom reads in InnoDB, even though the SQL standard technically allows them.",
+        "SERIALIZABLE often triggers deadlocks in high-concurrency environments because the database engine must acquire range locks on index gaps to prevent phantom inserts, leading to contention that can bring a microservice to a crawl.",
+        "Changing isolation levels at the method level via @Transactional(isolation = Isolation.SERIALIZABLE) overrides the default global configuration of the connection pool, which can lead to unexpected performance bottlenecks if applied to high-traffic read operations."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class InventoryService {\n\n    @Transactional(isolation = Isolation.REPEATABLE_READ)\n    public void updateStock(Long productId, int quantity) {\n        // The database guarantees that the row read here will not change\n        // until this transaction completes, preventing lost updates.\n        Product product = repository.findById(productId);\n        product.setStock(product.getStock() - quantity);\n        repository.save(product);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never assume the database driver supports all levels. For example, some cloud-native databases or specific configurations of NoSQL-backed SQL interfaces may silently ignore certain isolation settings. Always verify the actual transaction isolation level in your logs using 'SELECT @@transaction_isolation' or equivalent if you experience non-deterministic behavior in high-load scenarios."
+    }
+  ],
+  "num": 798,
+  "title": "Explain @Transactional Isolation levels (READ_UNCOMMITTED, READ_COMMITTED, REPEATABLE_READ, SERIALIZABLE).",
+  "category": "Spring Boot & Spring Framework"
+}

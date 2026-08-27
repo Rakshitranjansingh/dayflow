@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When designing modern Java applications involving temporal logic, developers frequently stumble over the distinction between Period and Duration. Introduced in Java 8 as part of the `java.time` package (JSR-310), these two classes address fundamentally different representations of time-based amounts. While both measure the elapsed time between two points, they operate on completely separate temporal scales and follow distinct arithmetic models.\n\nA Period models an amount of time in terms of calendar-based units—specifically years, months, and days. It is inherently tied to human-centric calendar systems and handles variable-length time segments like leap years, daylight saving time shifts, and varying month lengths (e.g., February versus March). Conversely, a Duration measures time in exact, machine-readable units—specifically seconds and nanoseconds. It represents an absolute physical length of time devoid of calendar anomalies, making it ideal for high-precision performance logging, thread timeouts, and asynchronous execution tracking. Confusing these two often leads to subtle bugs, such as calculating financial interest using strict nano-second durations instead of calendar-bound periods, or vice versa."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Period",
+        "Duration"
+      ],
+      "rows": [
+        [
+          "Temporal Scale",
+          "Years, Months, Days (Calendar-based)",
+          "Seconds, Nanoseconds (Exact physical time)"
+        ],
+        [
+          "Handling of Daylight Saving",
+          "Adjusts based on calendar rules and local dates",
+          "Absolute elapsed time (e.g., strictly 86,400 seconds per day)"
+        ],
+        [
+          "Primary Use Case",
+          "Business logic, billing cycles, birthdays",
+          "Performance metrics, timeouts, thread sleeping"
+        ],
+        [
+          "Underlying Interface",
+          "TemporalAmount",
+          "TemporalAmount"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Period calculations are heavily dependent on the underlying Chronology. Adding a Period of 1 month to January 31st yields February 28th (or 29th) due to calendar clamping rules.",
+        "Duration instances are immutable and thread-safe. They store time as a combination of seconds (long) and nanoseconds (int), making them optimal for low-latency calculations.",
+        "Attempting to obtain a Duration between two LocalDate instances will throw an UnsupportedTemporalTypeException because LocalDate lacks time-of-day precision required for nanosecond accuracy; you must use ChronoUnit.DAYS or Period instead."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.time.Duration;\nimport java.time.LocalDate;\nimport java.time.Period;\nimport java.time.LocalDateTime;\n\npublic class TemporalDemo {\n    public static void main(String[] args) {\n        // Period for calendar-based calculations\n        LocalDate birthDate = LocalDate.of(1990, 5, 15);\n        LocalDate currentDate = LocalDate.now();\n        Period age = Period.between(birthDate, currentDate);\n        System.out.printf(\"Age: %d years, %d months, %d days\\n\", \n            age.getYears(), age.getMonths(), age.getDays());\n\n        // Duration for exact time-based calculations\n        LocalDateTime start = LocalDateTime.now();\n        // simulate task\n        LocalDateTime end = start.plusHours(2).plusMinutes(30);\n        Duration elapsed = Duration.between(start, end);\n        System.out.printf(\"Elapsed seconds: %d\\n\", elapsed.getSeconds());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap occurs when developers use Duration to compute time spans across daylight saving time boundaries for scheduling tasks. Because a Duration measures fixed 24-hour days as 86,400 seconds, scheduling an event 'Duration.ofDays(1)' ahead across a DST transition will trigger the job an hour early or late relative to local wall-clock time. Always use Period for calendar-aligned operations and Duration strictly for physical machine-time measurements."
+    }
+  ],
+  "num": 597,
+  "title": "What is the difference between Period and Duration?",
+  "category": "Exception Handling & I/O / NIO"
+}

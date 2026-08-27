@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The PACELC theorem is an extension of the classic CAP theorem, formulated by Daniel Abadi to provide a more complete classification and evaluation of distributed data stores. While the traditional CAP theorem restricts its analysis strictly to scenarios where a network partition occurs, modern distributed systems operate under normal conditions most of the time. PACELC bridges this critical gap by explicitly addressing trade-offs made during both partition states and normal, latency-sensitive operation.\n\nThe acronym is divided into two distinct parts: PAC/ELC. The first part, PAC, dictates that if there is a Partition (P), how does the system choose between Availability (A) and Consistency (C)? The second part, ELC, dictates that Else (E), when the system is running normally without partitions, how does it choose between Latency (L) and Consistency (C)? This framework forces distributed systems architects to recognize that even when the network is healthy, achieving strong consistency inherently requires sacrificing performance by forcing synchronous replication or coordination barriers across nodes."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "System",
+        "Partition State (PAC)",
+        "Normal State (ELC)"
+      ],
+      "rows": [
+        [
+          "MongoDB",
+          "Available (AP)",
+          "Consistent (C) - Primary/Secondary reads"
+        ],
+        [
+          "Cassandra",
+          "Available (AP)",
+          "Latency (L) - Tunable consistency levels"
+        ],
+        [
+          "DynamoDB",
+          "Available (AP)",
+          "Latency (L) - Eventual consistency by default"
+        ],
+        [
+          "HBase",
+          "Consistent (CP)",
+          "Consistent (C) - Single region master bottleneck"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In a PA/EL system (like DynamoDB or Cassandra), the system favors Availability during a network partition and favors Latency during normal operations by executing asynchronous or loosely-coordinated writes.",
+        "In a PC/EC system (like Google Spanner or HBase), the system prioritizes Consistency both during partitions and under normal health, utilizing synchronous multi-phase commits and consensus algorithms like Paxos or Raft.",
+        "The ELC trade-off demonstrates that strong consistency is never free; even without network failures, waiting for a quorum acknowledgment adds round-trip time (RTT) overhead, driving up write latency.",
+        "Engineers often misconfigure databases by assuming tunable consistency isolates them from the fundamental ELC physics: reading from local replicas (Low Latency) guarantees stale data reads (loss of Consistency)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import com.datastax.oss.driver.api.core.CqlSession;\nimport com.datastax.oss.driver.api.core.cql.SimpleStatement;\nimport com.datastax.oss.driver.api.core.ConsistencyLevel;\n\npublic class PacelcCassandraClient {\n    public void writeWithLowLatency(CqlSession session, String userId, String payload) {\n        // Demonstrates the 'L' (Latency) choice in the ELC part of PACELC.\n        // We sacrifice consistency (C) by writing with LOCAL_QUORUM instead of ALL.\n        SimpleStatement statement = SimpleStatement.builder(\n                \"INSERT INTO user_events (user_id, event_payload) VALUES (?, ?)\")\n                .addPositionalValues(userId, payload)\n                .setConsistencyLevel(ConsistencyLevel.LOCAL_QUORUM)\n                .build();\n        \n        session.execute(statement);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap in distributed architectures is assuming that an AP system during partitions magically converts to a CP system during normal operation. As dictated by the ELC half, an AP system typically remains latency-optimized (AL) even when healthy, meaning your application code must handle eventual consistency anomalies, read-after-write inconsistencies, and stale cache synchronization patterns regardless of network health."
+    }
+  ],
+  "num": 885,
+  "title": "What is PACELC theorem?",
+  "category": "Core Java & Fundamentals"
+}

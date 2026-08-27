@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Handling GDPR-like deletion requirements—specifically the 'Right to Erasure' or 'Right to be Forgotten'—requires a robust architecture that transcends simple database DELETE statements. In a distributed system, data is rarely confined to a single row; it propagates through application logs, distributed caches like Redis, event-driven message brokers like Kafka, and long-term cold storage like S3. Implementing this requires a 'Delete Orchestrator' pattern that treats deletion as a first-class transactional event. You must ensure atomicity across heterogeneous storage engines, often involving a 'soft-delete' phase to handle eventual consistency, followed by a hard-purge process that scrubs PII (Personally Identifiable Information) from immutable logs and backups. The primary challenge is maintaining referential integrity while ensuring that orphaned data is not left behind in downstream analytical warehouses or materialized views."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Consistency",
+        "Performance Impact"
+      ],
+      "rows": [
+        [
+          "Hard Delete",
+          "Strong",
+          "High (Locking overhead)"
+        ],
+        [
+          "Soft Delete + Purge",
+          "Eventual",
+          "Low (Asynchronous)"
+        ],
+        [
+          "Crypto-shredding",
+          "Instant",
+          "Negligible (Key management overhead)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Crypto-shredding: Instead of physically deleting data from immutable backups, encrypt each user's PII with a unique per-user key. Deletion is achieved by destroying the key, rendering the data cryptographically inaccessible.",
+        "Event Sourcing Challenges: In append-only logs like Kafka, you cannot delete individual messages. Use a 'Tombstone' event pattern where a deletion event is published, and downstream consumers are responsible for filtering out the user ID.",
+        "NIO and File System Cleanup: When handling file-based storage, use java.nio.file.Files.deleteIfExists() within a try-with-resources block to ensure file handles are closed, preventing memory leaks or file-locking issues on Windows environments.",
+        "Distributed Transaction Coordination: Use the Saga pattern to orchestrate deletions across microservices, ensuring that if a deletion fails in one service, the system can either retry or flag the inconsistency for manual audit."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void processErasureRequest(UUID userId) {\n    // 1. Mark as inactive in RDBMS\n    userRepository.markAsDeleted(userId);\n    // 2. Publish deletion event to Kafka for downstream consumers\n    eventPublisher.publish(new UserErasureEvent(userId));\n    // 3. Crypto-shred: Delete the user's encryption key from Vault\n    keyVault.deleteKeyForUser(userId);\n    // 4. Cleanup local NIO cache files\n    Path userCache = Paths.get(\"/data/cache/\" + userId.toString());\n    try {\n        Files.walkFileTree(userCache, new SimpleFileVisitor<Path>() {\n            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {\n                Files.delete(file);\n                return FileVisitResult.CONTINUE;\n            }\n        });\n    } catch (IOException e) {\n        log.error(\"Failed to purge local cache for user: {}\", userId, e);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common failure point is the 'Backup Paradox'. Regulations often require backups to be immutable, yet GDPR demands deletion. Regulators generally accept that data in backups is 'effectively deleted' if it is rendered unrecoverable via crypto-shredding (deleting the key) or if the backup cycle is short enough that the data will be overwritten naturally. Never attempt to modify production backups directly; it is an anti-pattern that risks corruption and violates data integrity standards."
+    }
+  ],
+  "num": 1110,
+  "title": "How do you handle GDPR-like deletion requirements?",
+  "category": "Exception Handling & I/O / NIO"
+}

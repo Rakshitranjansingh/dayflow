@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Dirty checking is the core mechanism Hibernate uses to synchronize the state of managed entities with the underlying database without requiring explicit save or update calls. When an entity is loaded into a Persistence Context (the Session), Hibernate takes a 'snapshot' of its initial state. Upon transaction commit or session flush, Hibernate performs a deep comparison between the current state of the object and this original snapshot. If any field has changed, Hibernate automatically generates and executes the necessary SQL UPDATE statement to reconcile the database with the JVM memory state. This abstraction allows developers to treat POJOs as live data structures, significantly reducing boilerplate code and preventing unnecessary database round-trips for unmodified objects."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Dirty Checking",
+        "Manual Update"
+      ],
+      "rows": [
+        [
+          "Developer Effort",
+          "Zero (Automatic)",
+          "High (Explicit calls)"
+        ],
+        [
+          "Performance",
+          "Optimized (Only changed columns)",
+          "Often full row updates"
+        ],
+        [
+          "Transaction Scope",
+          "Bound to Session Flush",
+          "Bound to method invocation"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Hibernate utilizes bytecode instrumentation or reflection-based snapshotting to track changes. When an entity is attached, the Session stores the initial values in an array within the EntityEntry.",
+        "During the flush cycle, the ActionQueue iterates through all managed entities, comparing current field values against the snapshot. If the entity is marked as 'dirty', Hibernate queues an UpdateAction.",
+        "Dynamic Update: If the @DynamicUpdate annotation is present, Hibernate generates a custom SQL string at runtime that only includes the columns that actually changed, rather than updating every column in the table.",
+        "The process is strictly tied to the Persistence Context lifecycle. If an entity is detached (e.g., after session.close() or clear()), dirty checking ceases to function for that object until it is re-attached via merge()."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Transactional\npublic void updateUsername(Long userId, String newName) {\n    // Entity is now managed by the Persistence Context\n    User user = userRepository.findById(userId).orElseThrow();\n    \n    // Hibernate detects this change automatically at transaction commit\n    user.setUsername(newName);\n    \n    // No userRepository.save(user) required here!\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is the 'N+1 update' or excessive dirty checking overhead in large sessions. If you load thousands of entities into a single session and modify them, Hibernate must perform a snapshot comparison for every single one during flush. For batch processing, always use stateless sessions or clear the persistence context periodically to prevent memory bloat and performance degradation."
+    }
+  ],
+  "num": 832,
+  "title": "What is dirty checking in Hibernate?",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

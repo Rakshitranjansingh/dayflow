@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Redis, while primarily an in-memory data structure store, provides durability guarantees through two distinct mechanisms: Redis Database Backup (RDB) and Append Only File (AOF). RDB functions as a point-in-time snapshot of your entire dataset, serialized into a compact binary file. It is triggered based on configured intervals (e.g., every 5 minutes if 100 keys changed) or via the SAVE/BGSAVE commands. Because it uses a fork-based copy-on-write mechanism, it is highly efficient for backups and fast restarts, though it risks losing data accumulated since the last snapshot. In contrast, AOF acts as a write-ahead log, recording every write operation received by the server. These logs are replayed upon startup to reconstruct the state. AOF offers superior durability—often configured to fsync every second—but results in larger files and potentially slower recovery times compared to RDB."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "RDB (Snapshotting)",
+        "AOF (Append Only File)"
+      ],
+      "rows": [
+        [
+          "Data Integrity",
+          "Potential loss since last snapshot",
+          "Near-zero loss (fsync every second)"
+        ],
+        [
+          "File Size",
+          "Compact binary",
+          "Larger text-based log"
+        ],
+        [
+          "Performance",
+          "Lower (periodic forks)",
+          "Higher (continuous I/O overhead)"
+        ],
+        [
+          "Recovery Speed",
+          "Very fast",
+          "Slower (requires log replay)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "RDB uses the fork() system call to create a child process that writes the dataset to disk, leveraging the OS copy-on-write mechanism to ensure the parent process remains responsive to incoming requests.",
+        "AOF implements a background rewriting process (BGREWRITEAOF) that creates a new, optimized log file by analyzing the current in-memory state, effectively discarding redundant commands like multiple SETs on the same key.",
+        "When both persistence modes are enabled, Redis prioritizes AOF during the startup sequence because it is statistically more likely to contain the most recent data.",
+        "The 'appendfsync' configuration in AOF is critical: 'always' is safest but kills throughput, 'everysec' is the industry standard balance, and 'no' delegates flushing to the OS kernel."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "# redis.conf configuration snippet\n# RDB: Save every 60 seconds if at least 1000 keys changed\nsave 60 1000\n\n# AOF: Enable and set sync policy\nappendonly yes\nappendfsync everysec\n\n# Auto-rewrite AOF when it grows by 100% since last rewrite\nauto-aof-rewrite-percentage 100\nauto-aof-rewrite-min-size 64mb"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never rely solely on RDB in production if your RPO (Recovery Point Objective) is less than the snapshot interval. Conversely, if you enable AOF, ensure your disk I/O latency is low; a slow disk can cause the Redis event loop to block during fsync operations, leading to latency spikes that manifest as 'ghost' timeouts in your application layer."
+    }
+  ],
+  "num": 910,
+  "title": "How does Redis handle persistence? (RDB vs AOF)",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

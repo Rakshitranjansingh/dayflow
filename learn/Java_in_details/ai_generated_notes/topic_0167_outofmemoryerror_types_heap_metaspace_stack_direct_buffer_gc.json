@@ -1,0 +1,70 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When a Java Virtual Machine runs out of memory, it throws an java.lang.OutOfMemoryError (OOM), but not all OOMs are created equal. The underlying root cause dictates entirely different troubleshooting methodologies, diagnostic flags, and memory tuning strategies. Understanding the distinct failure modes of Heap, Metaspace, Stack, Direct buffer, and GC overhead limit exceeded is vital for any production-grade Java engineer maintaining high-throughput systems.\n\nThe Java Heap OutOfMemoryError occurs when object allocations cannot be satisfied because the Young and Old generations are completely exhausted and cannot be reclaimed even after a major Garbage Collection cycle. Metaspace OOM happens when the native memory region used by the JVM to store class metadata—such as bytecode, method annotations, and constant pools—reaches its maximum configured limit (or consumes all available physical RAM). StackOverflowError and its native cousin Stack OutOfMemoryError manifest when thread execution contexts consume all allocated space on the call stack, typically due to deep or infinite recursion. Direct buffer memory OOM arises when java.nio.ByteBuffer.allocateDirect() requests native memory allocations that surpass the -XX:MaxDirectMemorySize ceiling, which does not automatically trigger standard heap GC collections. Finally, GC overhead limit exceeded is a preemptive protection mechanism thrown when the JVM spends more than 98% of its total CPU time executing garbage collection while recovering less than 2% of the heap during successive cycles."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "OOM Type",
+        "Memory Area",
+        "Primary Root Cause",
+        "Key Tuning Flag"
+      ],
+      "rows": [
+        [
+          "Java Heap Space",
+          "Heap (JVM Managed)",
+          "Object leak, caching unbounded lists, undersized heap",
+          "-Xmx, -Xms"
+        ],
+        [
+          "Metaspace",
+          "Native Memory",
+          "Dynamic class generation, classloader leaks (OSGi, frameworks)",
+          "-XX:MaxMetaspaceSize"
+        ],
+        [
+          "Direct Buffer",
+          "Native Memory (Off-Heap)",
+          "High-frequency NIO/Netty allocations without recycling",
+          "-XX:MaxDirectMemorySize"
+        ],
+        [
+          "GC Overhead Limit",
+          "Heap",
+          "JVM thrashing in GC cycles, reclaiming negligible memory",
+          "-XX:-UseGCOverheadLimit"
+        ],
+        [
+          "Stack",
+          "Thread Stack",
+          "Infinite recursion, massive local variable arrays",
+          "-Xss"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Java Heap OOMs require analyzing heap dumps via tools like Eclipse MAT or jbr-analyzer to inspect dominator trees and retain sizes of collections or long-lived service instances.",
+        "Metaspace leaks are notoriously difficult to track because standard heap profiling tools ignore classloader hierarchies. Tracking them requires native profiling tools like async-profiler or jcmd VM.metaspace.",
+        "Direct ByteBuffer allocations bypass the garbage collector heap entirely. They are tracked by the native allocator, and GC only frees the small Java wrapper object, meaning native memory accumulates until a full GC happens or explicit Unsafe/Cleaner cleanup executes.",
+        "The GC overhead limit check is performed by the parallel and G1 collectors to prevent applications from locking up completely while processing data structures too large for the active heap configuration."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.nio.ByteBuffer;\n\npublic class MemoryDemonstrator {\n    // Simulating a Direct Buffer memory leak pattern\n    public static void leakDirectBuffer() {\n        while (true) {\n            // Allocates off-heap memory; ignores -Xmx limits\n            ByteBuffer.allocateDirect(1024 * 1024 * 50); // 50MB chunks\n        }\n    }\n\n    public static void main(String[] args) {\n        try {\n            leakDirectBuffer();\n        } catch (OutOfMemoryError e) {\n            System.err.println(\"Caught native OOM: \" + e.getMessage());\n            // System.exit or emergency cleanup routine\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is assuming that increasing -Xmx solves all OutOfMemoryErrors. If your application suffers from a Metaspace leak caused by dynamic proxy generation (e.g., heavy Spring AOP or Hibernate query translation without caching), throwing more heap at the JVM will only accelerate the inevitable crash while increasing GC pause times. Always check the exact error message in the hs_err_pid log or stdout before altering JVM flags."
+    }
+  ],
+  "num": 168,
+  "title": "OutOfMemoryError types — Heap, Metaspace, Stack, Direct buffer, GC overhead",
+  "category": "JVM Architecture & Memory Tuning"
+}

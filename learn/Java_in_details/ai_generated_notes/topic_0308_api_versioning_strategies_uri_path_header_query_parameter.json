@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "API versioning strategies—specifically URI path, header, and query parameter approaches—are architectural design patterns implemented in distributed systems and microservices to manage breaking changes in contracts over time without disrupting existing clients. As backend systems evolve, changes to domain entities, JSON payloads, or validation rules are inevitable. Without a deliberate versioning strategy, these modifications risk catastrophic client-side failures.\n\nThe URI path versioning strategy embeds the version identifier directly into the endpoint route, such as /api/v1/users versus /api/v2/users. This approach is exceptionally explicit, highly cacheable at the reverse-proxy or API Gateway layer, and easily debuggable via standard browser tools or log files. However, it violates pure RESTful purism by altering the resource identifier based on its temporal iteration.\n\nThe header versioning strategy, conversely, decouples versioning from the resource URI entirely by utilizing custom HTTP request headers, such as Accept: application/vnd.company.v2+json or a dedicated X-API-Version header. This keeps URIs clean and adheres strictly to hypermedia and REST principles, but it complicates caching semantics, makes manual testing in web browsers cumbersome, and often requires complex API gateway routing rules to inspect payload headers.\n\nThe query parameter versioning strategy appends the version as a standard URL query string, such as /api/users?version=2. While this is simple to implement and allows easy fallback defaults in client configurations, it pollutes the query namespace, complicates standard HTTP caching mechanisms (as caches frequently ignore or vary inconsistently on query strings), and lacks the semantic clarity of path or header routing."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Cacheability",
+        "REST Compliance",
+        "Client Usability"
+      ],
+      "rows": [
+        [
+          "URI Path",
+          "High (standard URL caching)",
+          "Low (URI changes per version)",
+          "Very High (easily testable in browser)"
+        ],
+        [
+          "Header",
+          "Low (requires Vary header setup)",
+          "High (URI represents the resource)",
+          "Medium (requires HTTP client config)"
+        ],
+        [
+          "Query Parameter",
+          "Poor (cache fragmentation)",
+          "Medium (resource path remains static)",
+          "High (simple parameter appending)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "When utilizing URI path versioning within a Spring Web MVC or Spring Boot application, request mapping can be cleanly decoupled using custom RequestMappingHandlerMapping abstractions or standard @RequestMapping annotations applied at the controller class level.",
+        "Header-based versioning heavily relies on Content Negotiation, where the DispatcherServlet inspects the Accept header and delegates execution to the appropriate HttpMessageConverter or method handler based on media type parameters.",
+        "Query parameter versioning can be effortlessly captured in Spring controllers using the @RequestParam annotation with a default value, ensuring legacy clients default to v1 if no explicit version is passed."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/v1/users\")\npublic class UserV1Controller {\n    @GetMapping\n    public ResponseEntity<UserResponseV1> getUser(@RequestParam(required = false, defaultValue = \"false\") boolean includeDetails) {\n        // Handle v1 logic\n        return ResponseEntity.ok(new UserResponseV1(\"John Doe\"));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha when implementing header-based versioning is failing to configure the CDN or API Gateway's 'Vary' HTTP response header. If your edge cache caches responses based solely on the URI path, a v2 request may be mistakenly served to a v1 client if the cache key omitted the Accept or custom version header, leading to sporadic client-side deserialization crashes."
+    }
+  ],
+  "num": 309,
+  "title": "API versioning strategies — URI path, header, query parameter",
+  "category": "Exception Handling & I/O / NIO"
+}

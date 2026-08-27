@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The try-with-resources statement, introduced in Java 7, is a specialized try-statement that declares one or more resources, ensuring that each resource is automatically closed at the end of the statement's execution block. Before this language feature existed, developers were forced to rely on cumbersome and deeply nested try-finally blocks to manually invoke the close() method on streams, sockets, and database connections. Failing to do so reliably led to catastrophic resource leaks, exhausted file descriptors, and memory pressure in high-throughput enterprise applications. Underpinning this entire mechanism is the AutoCloseable interface (and its legacy sibling, Closeable), which dictates a contract for any object that holds native system resources, file handles, or network sockets.\n\nAt the compiler level, try-with-resources is syntactic sugar that translates into robust boilerplate code utilizing bytecode-level exception suppression. When a resource is declared in the header of the try block, the Java compiler generates code that guarantees the close() method is invoked, even if an exception is thrown within the primary try block. Furthermore, if both the main block and the subsequent implicit close() call throw exceptions, the resource-closing exception is automatically suppressed and attached to the primary exception using Throwable.addSuppressed(). This preserves the original stack trace of the business logic error, completely eliminating the historical debugging nightmare where a cleanup failure silently masks the root cause of an application crash."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Behavior",
+        "Legacy try-finally",
+        "try-with-resources (AutoCloseable)"
+      ],
+      "rows": [
+        [
+          "Boilerplate Code",
+          "High; requires null checks inside finally blocks.",
+          "Minimal; resources declared directly in statement header."
+        ],
+        [
+          "Exception Masking",
+          "Exceptions thrown in finally swallow primary block exceptions.",
+          "Exceptions thrown in close() are safely suppressed."
+        ],
+        [
+          "Resource Scope",
+          "Scoped to enclosing method; prone to scoping bugs.",
+          "Strictly scoped to the block of the try-statement."
+        ],
+        [
+          "Interface Requirement",
+          "None; works with any manual resource handle.",
+          "Target type must implement java.lang.AutoCloseable."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The compiler enforces that any resource declared within a try-with-resources header is implicitly treated as final or effectively final, preventing accidental reassignment of the handle mid-block.",
+        "When multiple resources are declared, they are closed in the exact reverse order of their creation, preventing dependency inversion issues where a parent resource (like a database connection) is torn down before its child resource (like a statement or result set).",
+        "The AutoCloseable interface defines a single throwing method: void close() throws Exception. Implementors are encouraged to throw specific, granular exceptions rather than generic throwables, though the compiler handles any declared checked exceptions natively."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void processSecureData(Path filePath) throws IOException {\n    // Multiple resources: BufferedReader and BufferedWriter will be closed in reverse order\n    try (BufferedReader reader = Files.newBufferedReader(filePath, StandardCharsets.UTF_8);\n         BufferedWriter writer = Files.newBufferedWriter(filePath.resolveSibling(\"out.tmp\"), StandardCharsets.UTF_8)) {\n        \n        String line;\n        while ((line = reader.readLine()) != null) {\n            writer.write(transform(line));\n            writer.newLine();\n        }\n    } // Both reader.close() and writer.close() are implicitly and safely called here\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha involves wrapping custom resource classes that manage native memory or pooled connections. If your custom AutoCloseable implementation throws an exception during close(), ensure it doesn't violate idempotency. Calling close() multiple times should ideally be a safe, no-op operation, but if it fails, verify whether your calling code expects suppressed exceptions. Additionally, remember that lambda expressions or anonymous inner classes cannot easily utilize try-with-resources unless the resource allocation occurs strictly within the scoped block of execution."
+    }
+  ],
+  "num": 74,
+  "title": "try-with-resources (AutoCloseable)",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed event-driven architectures, Apache Kafka serves as the backbone for high-throughput, fault-tolerant streaming data. At the core of Kafka's storage layer are immutable append-only logs partitioned across brokers. Because disk space is finite, Kafka must manage how long data persists, making Kafka Log Retention and Log Compaction two critical, complementary data lifecycle mechanisms. Kafka Log Retention (often referred to as time-based or size-based retention) dictates when old segments of a partition are eligible for deletion based on age (e.g., retention.ms) or total partition size (e.g., retention.bytes). This policy ensures that a topic does not infinitely consume storage, dropping historical data once the threshold is crossed.\n\nConversely, Log Compaction solves a fundamentally different data retention problem: maintaining the latest state for every unique key within a topic, rather than a chronological history of all events. Instead of deleting old messages based on time or size, a compacted topic retains at least the last known value for each message key. This transforms a Kafka topic from a temporary event queue into a durable, replayable state store or changelog, which is heavily utilized in Kafka Streams for materializing KTables and synchronizing database states via Change Data Capture (CDC)."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Kafka Log Retention (Delete Policy)",
+        "Log Compaction"
+      ],
+      "rows": [
+        [
+          "Primary Goal",
+          "Remove historical data based on time or partition size limits.",
+          "Retain the latest state (most recent value) for every unique key."
+        ],
+        [
+          "Trigger Mechanism",
+          "Log cleaner checks active/closed segments against retention.ms or retention.bytes.",
+          "Background log cleaner threads rebuild tail segments to remove obsolete keys."
+        ],
+        [
+          "Use Case",
+          "Traditional messaging queues, audit logs, transient event processing.",
+          "State stores, database changelogs, configuration topics, KTables."
+        ],
+        [
+          "Tombstone Handling",
+          "Tombstones (null values) are eventually deleted after delete.retention.ms.",
+          "Tombstones are preserved temporarily to propagate deletions downstream before final purging."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Kafka topics are broken down into discrete physical files called segments, consisting of an index file (.index), a time index file (.timeindex), and the actual log data file (.log). Log retention operates at the segment level; an entire segment is eligible for deletion only when all records within it fall outside the retention window or when the cumulative size of non-active segments exceeds retention.bytes.",
+        "The Kafka log cleaner runs background threads that scan compacted topics. It utilizes an in-memory offset map (often backed by a digest/hash structure) to track the latest offset for each key in the clean section of the log, subsequently rewriting log segments to drop older offsets possessing duplicate keys.",
+        "Compacted logs use tombstone messages—events where the key is present but the payload is null. These act as explicit deletion markers. The cleaner retains these tombstones for a configurable window (deleter.retention.ms) to ensure downstream consumers reading from older offsets can successfully register that the key was deleted."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "Properties props = new Properties();\nprops.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, \"localhost:9092\");\nprops.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());\nprops.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class.getName());\n\n// Creating a KafkaProducer sending state updates for compacted logs\nKafkaProducer<String, UserState> producer = new KafkaProducer<>(props);\n\n// Sending a valid state update\nproducer.send(new ProducerRecord<>(\"user-state-topic\", \"user_123\", new UserState(\"Active\", 30)));\n\n// Sending a tombstone marker to delete the key's state during log compaction\nproducer.send(new ProducerRecord<>(\"user-state-topic\", \"user_123\", null));\nproducer.close();"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when dealing with log compaction is failing to set a proper `min.cleanable.dirty.ratio`. If set too high, partitions with low write volume may never compact because the ratio of dirty (un-compacted) data to clean data never triggers the background cleaner thread. Furthermore, never use log compaction on a topic where message keys are null, as Kafka cannot index or deduplicate messages without a valid key, effectively turning your compacted topic into an unmanaged grow-only log that ignores compaction rules."
+    }
+  ],
+  "num": 945,
+  "title": "What is Kafka Log Retention? What is Log Compaction?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

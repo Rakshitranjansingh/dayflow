@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of modern JVM-based microservices, deployment strategies are the primary mechanism for mitigating the risk of production instability. Blue-Green deployment involves maintaining two identical production environments: 'Blue' (the current live version) and 'Green' (the next version). By shifting traffic at the load balancer or ingress controller level, you achieve near-zero downtime and an instantaneous rollback capability, though it requires doubling your infrastructure footprint. Rolling deployments, conversely, update instances incrementally, replacing nodes in the cluster one by one. This is the default behavior for orchestrators like Kubernetes, ensuring that the service remains available while the new version gradually replaces the old, though it requires careful handling of backward compatibility in your database schema and API contracts. Canary deployments take a more surgical approach by routing a small, statistically significant subset of traffic to the new version while the majority remains on the stable baseline. This allows for real-time monitoring of error rates and latency metrics before a full-scale rollout, effectively treating production as a testing ground for high-risk changes."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Risk Profile",
+        "Resource Overhead"
+      ],
+      "rows": [
+        [
+          "Blue-Green",
+          "Low (Instant Rollback)",
+          "High (2x Infrastructure)"
+        ],
+        [
+          "Rolling",
+          "Medium (Gradual)",
+          "Low (Incremental)"
+        ],
+        [
+          "Canary",
+          "Very Low (Controlled)",
+          "Medium (Traffic Shaping)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Blue-Green deployments rely on atomic DNS or load balancer switches, which can be problematic if your JVM application maintains long-lived stateful connections (like WebSockets or gRPC streams) that do not gracefully terminate.",
+        "Rolling deployments require strict adherence to 'N-1' compatibility; if your new code introduces a breaking change to a shared database schema, the old nodes still running in the cluster will crash or corrupt data.",
+        "Canary releases necessitate robust observability stacks (Prometheus/Grafana/ELK) to automate the 'promotion' or 'rollback' logic based on success thresholds, effectively moving deployment logic into the CI/CD pipeline.",
+        "In JVM environments, cold-start latency during rolling updates can cause a temporary spike in p99 latency as the JIT compiler warms up the new nodes, often requiring readiness probes to delay traffic until the code cache is sufficiently populated."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "strategy:\n  type: RollingUpdate\n  rollingUpdate:\n    maxUnavailable: 25%\n    maxSurge: 1\n# Example of a Canary configuration using Istio VirtualService\nhttp:\n- route:\n  - destination:\n      host: my-service\n      subset: v1\n    weight: 90\n  - destination:\n      host: my-service\n      subset: v2\n    weight: 10"
+    },
+    {
+      "type": "note",
+      "content": "The biggest trap in Blue-Green or Canary deployments is 'Database Coupling.' If your application code expects a schema change that is not backwards compatible, you cannot simply switch traffic back and forth. Always follow the 'Expand/Contract' pattern: first deploy the database change (additive only), then deploy the code, then clean up the old schema. Never assume you can roll back a database migration as easily as you can roll back a JAR file."
+    }
+  ],
+  "num": 1142,
+  "title": "Blue-Green, Canary, Rolling deployments.",
+  "category": "Core Java & Fundamentals"
+}

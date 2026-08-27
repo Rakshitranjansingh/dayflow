@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Client-side load balancing is a distributed systems architectural pattern where the service consumer is entirely responsible for deciding which backend service instance receives an outgoing network request. In traditional server-side load balancing, an intermediary hardware appliance or software proxy—such as an NGINX reverse proxy or an AWS Application Load Balancer—sits between the client and the cluster, intercepting traffic and routing it transparently. Client-side load balancing, by contrast, removes this centralized hop. The client application queries a service registry, fetches the live list of healthy node addresses, and applies an algorithmic strategy (like Round Robin or Random) to pick a target IP and port combination directly.\n\nSpring Cloud LoadBalancer is the modern, reactive, and non-blocking framework implementation that powers this pattern in the Spring ecosystem. Following the deprecation of Netflix Ribbon, Spring Cloud LoadBalancer emerged as a lightweight, highly extensible abstraction layer native to Spring Boot. It integrates seamlessly with Spring Cloud Commons, WebClient, and RestTemplate to intercept outbound HTTP calls, resolve logical service IDs into concrete physical instances, and distribute load efficiently across microservice replicas without requiring an external proxy infrastructure."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Client-Side Load Balancing (Spring Cloud LoadBalancer)",
+        "Server-Side Load Balancing (NGINX / ALB)"
+      ],
+      "rows": [
+        [
+          "Network Hops",
+          "Direct point-to-point connection from client to chosen instance (fewer hops).",
+          "Extra network hop through the proxy intermediary."
+        ],
+        [
+          "Infrastructure Complexity",
+          "Requires client logic or library integration; no proxy cluster to maintain.",
+          "Requires managing, scaling, and monitoring proxy clusters."
+        ],
+        [
+          "Load Balancing Logic",
+          "Executed locally inside the client JVM using local registry caches.",
+          "Executed centrally on a dedicated routing tier."
+        ],
+        [
+          "Technology Stack Coupling",
+          "Tied to application libraries (e.g., Java/Spring ecosystem).",
+          "Polyglot infrastructure-level routing transparent to the application."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring Cloud LoadBalancer relies heavily on the `ServiceInstanceListSupplier` interface to fetch available instances, utilizing caching decorators like `CachingServiceInstanceListSupplier` to minimize heavy round-trips to service discovery engines like Eureka or Consul.",
+        "The default load-balancing algorithm is `RoundRobinLoadBalancer`, which leverages an atomic integer to cycle deterministically through the list of active `ServiceInstance` objects.",
+        "Integration with Spring WebClient is achieved via the `@LoadBalanced` modifier or exchange filters, which intercept the URI, extract the logical service name, query the load balancer client, and mutate the request URI to target the physical host and port.",
+        "Customization is fully supported through Spring's Java configuration model, allowing developers to supply custom implementations of `ReactorLoadBalancer<ServiceInstance>` to implement advanced routing logic, such as zone-awareness or weighted response-time strategies."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class LoadBalancerConfiguration {\n\n    @Bean\n    @LoadBalanced\n    public WebClient.Builder loadBalancedWebClientBuilder() {\n        return WebClient.builder();\n    }\n\n    @Bean\n    public ReactorLoadBalancer<ServiceInstance> randomLoadBalancer(\n            Environment environment,\n            LoadBalancerClientFactory loadBalancerClientFactory) {\n        String name = environment.getProperty(LoadBalancerClientFactory.PROPERTY_NAME);\n        return new RandomLoadBalancer(\n                loadBalancerClientFactory.getLazyProvider(name, ServiceInstanceListSupplier.class),\n                name);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A critical production gotcha when using Spring Cloud LoadBalancer is stale instance caching. By default, caching is enabled on the client side to protect service registries from being hammered by frequent polling. If a backend pod crashes or scales down, the client's local cache might still route traffic to the dead IP address for a short window, resulting in connection timeouts. Always configure appropriate cache TTLs and ensure your downstream HTTP clients have aggressive connection timeouts and robust retry mechanisms configured."
+    }
+  ],
+  "num": 334,
+  "title": "Client-side load balancing — Spring Cloud LoadBalancer",
+  "category": "Core Java & Fundamentals"
+}

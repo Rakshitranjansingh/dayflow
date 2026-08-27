@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "An LRU (Least Recently Used) cache is a bounded-capacity data structure designed to maximize memory efficiency by evicting the items that have not been accessed for the longest duration whenever the cache reaches capacity. In enterprise Java applications, high-throughput systems frequently require caching layers to avoid expensive database roundtrips, disk I/O, or remote service calls. When memory is finite, retaining every historical object causes OutOfMemoryError conditions. The LRU eviction policy leverages the principle of temporal locality—the observation that data accessed recently is likely to be accessed again soon. \n\nAt its core, a production-grade LRU cache must achieve $O(1)$ constant time complexity for both read (get) and write (put) operations. Achieving this performance profile requires combining a hash table for instantaneous key-based lookups with a doubly linked list that maintains the strict chronological order of accesses. While Java's standard Collections Framework provides a ready-made implementation via LinkedHashMap, understanding its internals is critical for avoiding memory leaks, thread-safety violations, and incorrect eviction behaviors in concurrent environments."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Metric",
+        "Standard HashMap",
+        "LinkedHashMap (Access-Order)",
+        "ConcurrentHashMap"
+      ],
+      "rows": [
+        [
+          "Time Complexity",
+          "O(1) average",
+          "O(1) average",
+          "O(1) average"
+        ],
+        [
+          "Eviction Policy",
+          "None (grows infinitely)",
+          "Customizable via removeEldestEntry()",
+          "None (requires custom eviction wrapper)"
+        ],
+        [
+          "Thread Safety",
+          "Not thread-safe",
+          "Not thread-safe",
+          "Thread-safe (lock striping / CAS)"
+        ],
+        [
+          "Memory Overhead",
+          "Low (Node array)",
+          "High (Node + 2 pointers per entry)",
+          "High (Segment/Node structure)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "LinkedHashMap internal mechanics: It extends HashMap and overrides the Node class to include 'before' and 'after' pointers, forming a parallel doubly linked list that tracks insertion or access sequence independently of the hash buckets.",
+        "Access-order vs Insertion-order: Passing 'true' to the 3-argument LinkedHashMap constructor (initialCapacity, loadFactor, accessOrder) instructs the map to re-link nodes to the tail of the doubly linked list upon every successful get() or put() operation.",
+        "The removeEldestEntry hook: This protected method is evaluated after every insertion. When it returns true, the map automatically unlinks the head of the linked list (the least recently used entry) and removes its key from the hash table index in $O(1)$ time."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.LinkedHashMap;\nimport java.util.Map;\n\npublic class ThreadSafeLruCache<K, V> {\n    private final Map<K, V> cache;\n    private final int capacity;\n\n    public ThreadSafeLruCache(int capacity) {\n        this.capacity = capacity;\n        // Initial capacity, load factor, and accessOrder = true\n        this.cache = new LinkedHashMap<K, V>(16, 0.75f, true) {\n            @Override\n            protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {\n                return size() > ThreadSafeLruCache.this.capacity;\n            }\n        };\n    }\n\n    public synchronized V get(K key) {\n        return cache.get(key);\n    }\n\n    public synchronized void put(K key, V value) {\n        cache.put(key, value);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production gotcha when building custom LRU caches with LinkedHashMap is concurrency. LinkedHashMap is structurally non-thread-safe. Wrapping standard get/put methods with synchronized blocks prevents race conditions, but high-concurrency systems will experience lock contention. If you attempt to use ConcurrentHashMap for thread safety, remember that it does not maintain access order; you will need to implement a concurrent LRU using explicit striped locks combined with a concurrent queue or a custom concurrent doubly linked list, or fall back to mature caching libraries like Caffeine."
+    }
+  ],
+  "num": 903,
+  "title": "What is LRU cache?",
+  "category": "Collections Framework & Internals"
+}

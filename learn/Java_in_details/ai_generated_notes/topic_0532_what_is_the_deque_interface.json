@@ -1,0 +1,61 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Deque interface, standing for Double Ended Queue and pronounced \"deck\", is a linear collection that supports element insertion and removal at both ends. Extending the java.util.Queue interface, Deque supersedes the traditional Stack class by providing a richer, more consistent set of operations for working with both LIFO (Last-In-First-Out) and FIFO (First-In-First-Out) data structures. In enterprise-grade Java applications, utilizing a Deque avoids the concurrency and legacy pitfalls of Stack (which is a synchronized Vector underneath) and provides predictable $O(1)$ time complexity for insertions and removals at both the head and the tail.\n\nThe Deque interface solves the architectural limitation of standard queues where data can only enter at the tail and exit from the head. By allowing bidirectional manipulation, data structures like sliding window maximum solvers, work-stealing thread pools, and complex undo-redo stacks can be implemented cleanly using unified semantics. Implementations such as ArrayDeque (backed by a dynamic, resizable circular array) and LinkedList (backed by doubly-linked nodes) offer distinct memory layouts and performance trade-offs, enabling developers to tune their solutions based on cache locality versus dynamic allocation overhead."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Operation",
+        "First Element (Head) - Throws Exception",
+        "First Element (Head) - Special Value",
+        "Last Element (Tail) - Throws Exception",
+        "Last Element (Tail) - Special Value"
+      ],
+      "rows": [
+        [
+          "Insert",
+          "addFirst(e)",
+          "offerFirst(e)",
+          "addLast(e)",
+          "offerLast(e)"
+        ],
+        [
+          "Remove",
+          "removeFirst()",
+          "pollFirst()",
+          "removeLast()",
+          "pollLast()"
+        ],
+        [
+          "Examine",
+          "element()",
+          "peekFirst()",
+          "getLast()",
+          "peekLast()"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "ArrayDeque does not permit null elements, throwing a NullPointerException if null is inserted, which acts as an explicit safeguard against ambiguous return values from poll operations.",
+        "ArrayDeque memory layout uses a contiguous circular buffer with head and tail indices wrapping around the array bounds. When capacity is exceeded, it doubles its array size and copies elements efficiently via System.arraycopy.",
+        "LinkedList implementation of Deque wraps every inserted element in a node object containing pointers to previous and next nodes, introducing significant memory overhead and garbage collection pressure due to object fragmentation compared to ArrayDeque."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.ArrayDeque;\nimport java.util.Deque;\n\npublic class SlidingWindowMaximum {\n    public static int[] maxSlidingWindow(int[] nums, int k) {\n        if (nums == null || k <= 0) return new int[0];\n        int n = nums.length;\n        int[] result = new int[n - k + 1];\n        Deque<Integer> deque = new ArrayDeque<>();\n        \n        for (int i = 0; i < n; i++) {\n            // Remove indices that are out of the current sliding window\n            if (!deque.isEmpty() && deque.peekFirst() < i - k + 1) {\n                deque.pollFirst();\n            }\n            // Remove elements smaller than the current element from the tail\n            while (!deque.isEmpty() && nums[deque.peekLast()] < nums[i]) {\n                deque.pollLast();\n            }\n            deque.offerLast(i);\n            // Record the maximum for the window once the first window is reached\n            if (i >= k - 1) {\n                result[i - k + 1] = nums[deque.peekFirst()];\n            }\n        }\n        return result;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Never use java.util.Stack in modern production Java code; always use Deque backed by ArrayDeque for LIFO operations. Stack extends Vector, meaning every method call is synchronized via a monitor lock, introducing severe lock contention in multithreaded environments. Furthermore, Stack violates the principle of least astonishment by allowing random access via Vector methods like elementAt(), breaking the strict boundary of a LIFO contract."
+    }
+  ],
+  "num": 533,
+  "title": "What is the Deque interface?",
+  "category": "OOPs & Design Patterns"
+}

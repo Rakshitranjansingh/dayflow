@@ -1,0 +1,70 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java web applications, whether you are building a monolithic servlet container or a distributed Spring Boot microservice architecture, understanding HTTP methods—along with their specific contracts regarding safety and idempotency—is non-negotiable. HTTP methods define the semantic intention of a client request directed toward a uniform resource identifier (URI). When designing RESTful APIs, improper method mapping leads to state corruption, cache poisoning, and transaction rollbacks under network retries.\n\nA method is considered 'safe' if its execution is strictly read-only; it does not alter the state of the server, mutate database records, or trigger side effects beyond logging, analytics, or caching. A method is 'idempotent' if making multiple identical requests produces the exact same state transition on the server as making a single request, even though the responses might differ (e.g., a resource timestamp updating). Safety mathematically implies idempotency, but idempotency does not imply safety. For instance, a DELETE request modifies server state by removing a resource, making it unsafe, yet it is idempotent because deleting an already-deleted resource yields the same resulting server state (typically a 404 Not Found or 204 No Content)."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "HTTP Method",
+        "Safe?",
+        "Idempotent?",
+        "Semantic Purpose"
+      ],
+      "rows": [
+        [
+          "GET",
+          "Yes",
+          "Yes",
+          "Retrieve resource representation without side effects"
+        ],
+        [
+          "POST",
+          "No",
+          "No",
+          "Create a new subordinate resource or trigger a non-idempotent process"
+        ],
+        [
+          "PUT",
+          "No",
+          "Yes",
+          "Replace or upsert a complete resource representation at a specific URI"
+        ],
+        [
+          "DELETE",
+          "No",
+          "Yes",
+          "Remove a resource representation from the target URI"
+        ],
+        [
+          "PATCH",
+          "No",
+          "No",
+          "Apply partial modifications to a resource representation"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "GET requests are aggressively cached by intermediate proxies, CDNs, and browser caches. Because they are safe, clients assume zero side-effects, allowing safe pre-fetching and parallel execution.",
+        "PUT semantics require complete resource replacement. If a client omits fields during a PUT operation, those fields can inadvertently be set to null or default values in the persistence layer, which is why PATCH is often preferred for partial updates.",
+        "POST is neither safe nor idempotent. Submitting a POST request twice can result in duplicate database entries (e.g., two identical orders being placed), which requires idempotency keys in distributed systems to prevent double-charging.",
+        "DELETE is idempotent from a state perspective: deleting entity ID 101 removes it. Subsequent identical DELETE requests will return 404, but the underlying database state remains unchanged (entity 101 remains absent)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/orders\")\npublic class OrderController {\n\n    // Safe and Idempotent\n    @GetMapping(\"/{id}\")\n    public ResponseEntity<Order> getOrder(@PathVariable Long id) {\n        return orderService.findById(id)\n            .map(ResponseEntity::ok)\n            .orElse(ResponseEntity.notFound().build());\n    }\n\n    // Unsafe and Non-Idempotent\n    @PostMapping\n    public ResponseEntity<Order> createOrder(@RequestBody OrderDto dto) {\n        Order created = orderService.create(dto);\n        return ResponseEntity.status(HttpStatus.CREATED).body(created);\n    }\n\n    // Unsafe and Idempotent (Upsert)\n    @PutMapping(\"/{id}\")\n    public ResponseEntity<Order> upsertOrder(@PathVariable Long id, @RequestBody OrderDto dto) {\n        Order saved = orderService.saveOrUpdate(id, dto);\n        return ResponseEntity.ok(saved);\n    }\n\n    // Unsafe and Idempotent\n    @DeleteMapping(\"/{id}\")\n    public ResponseEntity<Void> deleteOrder(@PathVariable Long id) {\n        orderService.delete(id);\n        return ResponseEntity.noContent().build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production bug in distributed systems involves API gateways or load balancers automatically retrying failed HTTP requests. If a retry policy is applied blindly to a non-idempotent method like POST, it can trigger duplicate financial transactions or record creation. Always ensure that non-idempotent operations implement idempotency tokens (such as a UUID header passed from the client) checked against a distributed cache like Redis before executing domain logic."
+    }
+  ],
+  "num": 955,
+  "title": "What are common HTTP methods? Which are safe? Which are idempotent?",
+  "category": "Core Java & Fundamentals"
+}

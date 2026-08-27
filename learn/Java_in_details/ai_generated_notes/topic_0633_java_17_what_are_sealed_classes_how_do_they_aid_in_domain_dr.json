@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Sealed classes, introduced as a preview in Java 15 and finalized in Java 17, represent a paradigm shift in how we define class hierarchies. By using the 'sealed' modifier, a developer explicitly restricts which other classes or interfaces may extend or implement them. This is achieved through the 'permits' clause, which acts as a compile-time whitelist for subtyping. In Domain-Driven Design (DDD), this is a powerful tool for modeling 'Sum Types' or 'Algebraic Data Types' (ADTs). Instead of relying on open inheritance where any developer can extend your domain entities—potentially breaking invariants—sealed classes allow you to define a closed, exhaustive set of states. This ensures that your domain model remains consistent and predictable, as you can guarantee that no unexpected subclasses will ever exist in your system."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Open Class Hierarchy",
+        "Sealed Class Hierarchy"
+      ],
+      "rows": [
+        [
+          "Extensibility",
+          "Unrestricted (Public)",
+          "Restricted (Permits list)"
+        ],
+        [
+          "Exhaustiveness",
+          "Requires 'default' in switch",
+          "Enables exhaustive pattern matching"
+        ],
+        [
+          "DDD Modeling",
+          "Anemic/Open-ended",
+          "Bounded Context/Strict Domain"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The compiler enforces the 'permits' list by ensuring that every permitted subclass is defined within the same module or package, effectively preventing external leakage of domain logic.",
+        "Sealed classes enable exhaustive pattern matching in switch expressions; if you cover all permitted subclasses, the compiler will error if you add a new subclass without updating your switch logic.",
+        "They provide a safe alternative to the 'instanceof' chain, as the compiler knows the full set of possible types, allowing for cleaner, more robust domain event handling.",
+        "When combined with Records, sealed classes create immutable, data-centric domain models that are inherently thread-safe and easy to reason about."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public sealed interface PaymentStatus permits Pending, Completed, Failed {}\n\npublic record Pending(String transactionId) implements PaymentStatus {}\npublic record Completed(String transactionId, Instant timestamp) implements PaymentStatus {}\npublic record Failed(String reason) implements PaymentStatus {}\n\n// Exhaustive pattern matching in action\npublic String process(PaymentStatus status) {\n    return switch (status) {\n        case Pending p -> \"Waiting for \" + p.transactionId();\n        case Completed c -> \"Finished at \" + c.timestamp();\n        case Failed f -> \"Error: \" + f.reason();\n    };\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Be wary of the 'leaky abstraction' trap. While sealed classes are excellent for internal domain logic, they can complicate serialization (e.g., Jackson or Hibernate). If you are using these for entities in JPA, ensure your persistence layer is configured to handle the specific subtypes, as Hibernate's proxying mechanism can sometimes conflict with the strict hierarchy enforced by the JVM at runtime."
+    }
+  ],
+  "num": 634,
+  "title": "(Java 17) What are Sealed Classes? How do they aid in Domain-Driven Design?",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

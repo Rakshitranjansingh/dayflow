@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A composite index is a database index structure built upon multiple columns of a single table. While single-column indexes optimize queries targeting one specific field, real-world analytical and transactional queries frequently filter and sort by combinations of attributes—such as querying an orders table by customer_id and order_date simultaneously. By grouping multiple columns into a single B-Tree data structure, the database engine can evaluate predicates across all indexed columns concurrently without performing multiple index intersections or full table scans. However, constructing this multi-column index introduces strict structural constraints regarding traversal and lookup efficiency.\n\nYes, the order of columns in a composite index matters immensely. This is governed by the Leftmost Prefix Rule, a fundamental mechanic of B-Tree indexing. When a composite index is defined as (col1, col2, col3), the underlying B-Tree sorts the entries lexicographically: it orders primarily by col1, secondarily by col2 for identical col1 values, and tertiarily by col3 for identical col1 and col2 values. Consequently, the database query optimizer can only leverage the composite index if the query predicates utilize the columns in a contiguous sequence starting from the leftmost column. If a query skips the leading column (e.g., searching exclusively on col2 or col3), the index becomes practically useless for range lookups on those trailing columns, forcing the storage engine to degrade to an expensive sequential table scan."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Query Predicate",
+        "Index: (status, created_at, customer_id)",
+        "Can Index Be Used?"
+      ],
+      "rows": [
+        [
+          "WHERE status = 'ACTIVE'",
+          "Yes (Utilizes leftmost prefix segment)",
+          "Yes"
+        ],
+        [
+          "WHERE status = 'ACTIVE' AND created_at > '2023-01-01'",
+          "Yes (Utilizes first two columns contiguously)",
+          "Yes"
+        ],
+        [
+          "WHERE created_at > '2023-01-01'",
+          "No (Skips leading column 'status')",
+          "No (Full Table Scan)"
+        ],
+        [
+          "WHERE status = 'ACTIVE' AND customer_id = 42",
+          "Partial (Uses 'status' for lookup; 'customer_id' filters post-index)",
+          "Partial"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Lexicographical Ordering: The B-Tree leaf and internal nodes sort data hierarchically. If the index is defined as (last_name, first_name), all records are ordered alphabetically by last_name first. Only when last names match does the tree sort by first_name.",
+        "The Leftmost Prefix Rule Mechanics: The query engine traverses the B-Tree from root to leaf by matching query predicates against the index columns sequentially. If the leftmost column is omitted from the WHERE clause, the engine cannot determine which branch of the root node to descend, rendering the entire index structure unnavigable for that query.",
+        "Index Skip Scans: Modern database optimizers (such as MySQL InnoDB or Oracle) can occasionally simulate index usage when the leading column has very low cardinality by executing a 'skip scan', effectively splitting the B-Tree search space into sub-trees for each distinct value of the leading column, though this remains less efficient than a proper leftmost prefix match."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "sql",
+      "content": "-- Creating a composite index respecting the leftmost prefix rule\nCREATE INDEX idx_status_date_cust ON orders (status, created_at, customer_id);\n\n-- OPTIMAL QUERY: Fully leverages the composite index (Leftmost prefix hit)\nSELECT order_id, total_amount \nFROM orders \nWHERE status = 'PENDING' \n  AND created_at >= '2023-10-01'\n  AND customer_id = 1048;\n\n-- SUB-OPTIMAL QUERY: Breaks the leftmost prefix rule (Skips 'status')\nSELECT order_id, total_amount \nFROM orders \nWHERE created_at >= '2023-10-01'; -- Index ignored; full table scan executed"
+    },
+    {
+      "type": "note",
+      "content": "Senior Production Gotcha: Do not blindly add columns to a composite index just because queries use them together. Every additional column increases the physical footprint of the index in the buffer pool, reducing the cache hit ratio for data pages. Furthermore, place columns with high equality selectivity (e.g., tenant_id, status) at the absolute left, and range-filter columns (e.g., created_at) at the right, because a range condition terminates the index engine's ability to use subsequent columns for exact tree navigation."
+    }
+  ],
+  "num": 871,
+  "title": "What is a Composite Index? Does the order of columns matter? (Leftmost prefix rule)",
+  "category": "Core Java & Fundamentals"
+}

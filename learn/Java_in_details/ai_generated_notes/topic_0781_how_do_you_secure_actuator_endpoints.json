@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Boot Actuator endpoints provide critical operational insights into a running application, such as health checks, metrics, thread dumps, and environment properties. Because these endpoints expose sensitive internal state, they are high-value targets for attackers. Securing them is not merely a configuration step but a fundamental requirement for production-grade deployments. The primary mechanism for securing these endpoints is integrating Spring Security to enforce authentication and authorization. By default, Actuator endpoints are often restricted to local access or require specific roles, but in a microservices architecture, you must explicitly configure HTTP security rules to ensure that only authorized administrative users or monitoring systems (like Prometheus or Grafana) can access them. Failure to secure these endpoints can lead to information disclosure, such as leaking database credentials via the /env endpoint or exposing internal class paths and bean configurations."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Endpoint",
+        "Risk Level",
+        "Typical Access Requirement"
+      ],
+      "rows": [
+        [
+          "/health",
+          "Low",
+          "Public or Anonymous (with limited info)"
+        ],
+        [
+          "/env",
+          "Critical",
+          "Admin Role Only"
+        ],
+        [
+          "/heapdump",
+          "Critical",
+          "Admin Role Only (Restricted)"
+        ],
+        [
+          "/metrics",
+          "Medium",
+          "Monitoring Service Account"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Use 'management.endpoints.web.exposure.include' to strictly whitelist only the endpoints you actually need, rather than using the wildcard '*' which exposes everything.",
+        "Implement a dedicated 'ManagementServerProperties' configuration to run Actuator on a separate port (e.g., 8081) from the main application port, allowing you to isolate the management traffic via firewall rules.",
+        "Apply 'HttpSecurity' filters to the management context path to enforce basic authentication or OAuth2/JWT validation specifically for the management port.",
+        "Ensure 'management.endpoint.health.show-details' is set to 'never' or 'when-authorized' in production to prevent leaking sensitive infrastructure details to unauthenticated users."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class ActuatorSecurityConfig {\n    @Bean\n    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {\n        http.requestMatcher(EndpointRequest.toAnyEndpoint())\n            .authorizeRequests((requests) -> requests\n                .requestMatchers(EndpointRequest.to(\"health\", \"info\")).permitAll()\n                .requestMatchers(EndpointRequest.toAnyEndpoint()).hasRole(\"ACTUATOR_ADMIN\")\n            )\n            .httpBasic();\n        return http.build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never rely solely on 'management.server.port' as a security boundary. While moving Actuator to a different port helps, it is not a substitute for authentication. If your application is deployed in a cloud environment like Kubernetes, ensure your Ingress or Service Mesh (e.g., Istio) policies explicitly block external traffic to the management port, restricting it strictly to internal cluster traffic or your monitoring stack's CIDR range."
+    }
+  ],
+  "num": 782,
+  "title": "How do you secure Actuator endpoints?",
+  "category": "Core Java & Fundamentals"
+}

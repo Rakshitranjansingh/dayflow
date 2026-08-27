@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing high-performance Java applications requires navigating the perennial trade-offs between Availability, Latency, and Throughput. In distributed systems and concurrent multi-threaded runtime environments, these three metrics constantly pull in opposite directions. Availability measures the proportion of time a system remains operational and accessible, typically expressed in 'nines' (e.g., 99.99%). Latency evaluates the time elapsed from the initiation of a request to the delivery of its response, usually monitored via percentiles (p50, p99, p99.9). Throughput defines the rate of successful request processing per unit of time, such as transactions per second (TPS) or operations per second.\n\nIn Java systems, optimizing for low latency often compromises throughput and availability if not handled carefully. For instance, aggressive garbage collection tuning using low-latency collectors like ZGC or Shenandoah reduces stop-the-world pauses at the expense of overall CPU overhead, which can subtly lower peak throughput. Conversely, batching requests to maximize throughput inherently increases the latency of individual requests sitting inside the batch buffer. Furthermore, achieving high availability mandates redundancy, circuit breakers, and failover mechanisms. However, network partitions and synchronous replication to ensure availability across zones inevitably inflate tail latencies (p99+), forcing architects to embrace eventual consistency models."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric",
+        "Primary Optimization Target",
+        "Common Bottleneck in Java",
+        "Failure Mode Impact"
+      ],
+      "rows": [
+        [
+          "Availability",
+          "Redundancy, Circuit Breakers, Fault Tolerance",
+          "Single Points of Failure (SPOF), Cascading Failures",
+          "Total or partial system blackout"
+        ],
+        [
+          "Latency",
+          "Low-pause GC, Lock-free data structures, JIT tuning",
+          "Stop-the-world GC pauses, Contended synchronization blocks",
+          "Timeouts, degraded user experience"
+        ],
+        [
+          "Throughput",
+          "Batching, Connection pooling, Non-blocking I/O (NIO)",
+          "Thread pool exhaustion, I/O blocking, Excessive context switching",
+          "Resource saturation, queuing delay escalation"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "JMH (Java Microbenchmark Harness) reveals that reducing thread contention via lock-free primitives (e.g., AtomicReference, StampedLock) improves p99 latency under high concurrency, but increases CPU cache-coherency traffic which can cap maximum raw throughput.",
+        "Garbage collection strategies enforce hard trade-offs: ParallelGC maximizes throughput by utilizing full CPU capacity during collections at the cost of massive latency spikes, whereas ZGC minimizes latency pauses to sub-milliseconds by trading away a portion of total system throughput.",
+        "Little's Law ($L = \\lambda W$) fundamentally binds these metrics: the average number of concurrent requests in the system ($L$) equals the arrival rate (throughput, $\\lambda$) multiplied by the average wait time (latency, $W$). Increasing throughput without bounds while keeping latency low is mathematically impossible once system saturation is reached."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.*;\nimport java.util.concurrent.atomic.AtomicInteger;\n\npublic class TradeOffDemonstrator {\n    private final ExecutorService executor = new ThreadPoolExecutor(\n        4, 200, 60L, TimeUnit.SECONDS,\n        new ArrayBlockingQueue<>(1000),\n        new ThreadPoolExecutor.CallerRunsPolicy()\n    );\n    private final AtomicInteger activeRequests = new AtomicInteger(0);\n\n    public CompletableFuture<String> processRequest(String payload) {\n        int currentLoad = activeRequests.incrementAndGet();\n        // Graceful degradation / Availability trade-off: Shed load if queue/concurrency is too high\n        if (currentLoad > 150) {\n            activeRequests.decrementAndGet();\n            return CompletableFuture.completedFuture(\"Service Unavailable - Shedding Load\");\n        }\n\n        return CompletableFuture.supplyAsync(() -> {\n            try {\n                // Simulate processing latency vs throughput work\n                Thread.sleep(10);\n                return \"Processed: \" + payload;\n            } catch (InterruptedException e) {\n                Thread.currentThread().interrupt();\n                throw new CompletionException(e);\n            } finally {\n                activeRequests.decrementAndGet();\n            }\n        }, executor);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic senior-level pitfall is chasing average latency (p50) while ignoring tail latency (p99.9). In high-throughput Java services, an unmonitored thread pool starvation or a rogue Full GC can easily send p99 latency skyrocketing while p50 looks pristine. Always configure load tests to evaluate tail latencies under peak concurrency thresholds, and leverage bounded queues paired with explicit rejection policies (like CallerRunsPolicy or Fast Fail) to protect system availability."
+    }
+  ],
+  "num": 396,
+  "title": "Availability, Latency, Throughput trade-offs",
+  "category": "Core Java & Fundamentals"
+}

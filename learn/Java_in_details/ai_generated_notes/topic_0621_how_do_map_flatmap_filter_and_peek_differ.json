@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of the Java Stream API, these four operations represent the core functional transformations used to process collections. 'map' is a one-to-one transformation; it applies a function to each element, producing exactly one output element per input element, effectively changing the type or value of the stream. 'flatMap' is a one-to-many transformation; it maps each element to a stream of values and then flattens those streams into a single, continuous stream, which is critical for handling nested structures like List<List<T>>. 'filter' acts as a predicate-based gatekeeper, retaining only elements that satisfy a boolean condition, thereby reducing the stream size. 'peek' is a non-interfering, stateful-debug operation that allows you to perform an action (like logging) on each element as it is consumed, without modifying the stream's structure or flow."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Operation",
+        "Transformation Type",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "map",
+          "One-to-One",
+          "Data transformation/mapping"
+        ],
+        [
+          "flatMap",
+          "One-to-Many",
+          "Flattening nested collections"
+        ],
+        [
+          "filter",
+          "Zero-to-One",
+          "Conditional removal"
+        ],
+        [
+          "peek",
+          "One-to-One (Pass-through)",
+          "Side-effect/Debugging"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "map and flatMap are intermediate operations that trigger lazy evaluation; they do not execute until a terminal operation like collect() or forEach() is invoked.",
+        "flatMap is computationally more expensive than map because it involves creating and flattening multiple stream objects, which increases pressure on the Young Generation heap space.",
+        "filter is an optimization-friendly operation; the JVM can perform 'short-circuiting' or predicate pushdown if the underlying source supports it.",
+        "peek is strictly intended for debugging. Because streams are lazy, peek will only execute for elements that are actually pulled through the pipeline by a terminal operation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "List<String> result = users.stream()\n    .filter(u -> u.isActive())           // Keep only active\n    .peek(u -> log.info(\"Processing: \" + u.getId())) // Debugging\n    .map(User::getName)                   // Transform to Name\n    .flatMap(name -> Arrays.stream(name.split(\" \"))) // Split full names\n    .collect(Collectors.toList());"
+    },
+    {
+      "type": "note",
+      "content": "The most common production mistake is using 'peek' for business logic. Since 'peek' is an intermediate operation, if you remove the terminal operation (e.g., collect), the code inside 'peek' will never execute. Furthermore, never perform stateful side effects inside 'map' or 'filter'—the Stream API's parallel execution model makes such operations non-deterministic and prone to race conditions."
+    }
+  ],
+  "num": 622,
+  "title": "How do map, flatMap, filter, and peek differ?",
+  "category": "Core Java & Fundamentals"
+}

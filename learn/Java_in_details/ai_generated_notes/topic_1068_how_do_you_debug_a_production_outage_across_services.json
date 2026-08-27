@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Debugging a production outage across distributed services requires traversing a complex web of asynchronous boundaries, thread pools, network sockets, and exception boundaries. When an unexpected failure occurs in an Exception Handling context—such as an unhandled RuntimeException propagating out of a non-blocking I/O (NIO) selector thread—the traditional synchronous stack trace is completely lost. In modern microservices architectures communicating over NIO channels via frameworks like Netty, Project Reactor, or Java's java.nio.channels, threads are decoupled from requests. A single inbound selector loop accepts connections and delegates tasks to worker pools, meaning an I/O exception thrown during a socket write or read timeout surfaces far away from the originating thread that invoked the client request.\n\nTo effectively triage and resolve a cross-service outage, engineers must trace the propagation of failures through structured exception handling while correlating asynchronous I/O operations. This involves analyzing distributed trace contexts injected into HTTP/gRPC headers (e.g., W3C Trace Context standards), inspecting non-blocking buffer allocations to detect direct buffer memory leaks (OutOfMemoryError: Direct buffer memory), and evaluating selector thread starvation. If a selector thread blocks on a synchronous database query or an unbuffered file I/O operation, the entire event loop grinds to a halt, causing cascading timeouts, circuit breaker trips, and widespread service degradation across downstream and upstream dependencies."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Distributed Context Propagation: Ensuring that correlation IDs and Span IDs survive thread hops across reactive pipelines or asynchronous CompletableFuture boundaries using MDC (Mapped Diagnostic Context) decorators.",
+        "NIO Selector Starvation: Identifying when a non-blocking event loop thread is blocked by accidental synchronous operations, preventing the processing of incoming network events.",
+        "Buffer Management and Backpressure: Monitoring DirectByteBuffer allocations via sun.misc.Unsafe or jdk.internal.misc.Unsafe to prevent native memory exhaustion during high-throughput I/O spikes.",
+        "Exception Translation Layers: Intercepting low-level java.io.IOException or ClosedChannelException and mapping them cleanly to application-level domain faults before returning payloads to clients."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ProductionDiagnosticHandler extends SimpleChannelInboundHandler<HttpObject> {\n    private static final Logger log = LoggerFactory.getLogger(ProductionDiagnosticHandler.class);\n\n    @Override\n    protected void channelRead0(ChannelHandlerContext ctx, HttpObject msg) {\n        try {\n            // Process incoming NIO payload\n        } catch (Exception e) {\n            String traceId = ctx.channel().attr(AttributeKey.<String>valueOf(\"traceId\")).get();\n            log.error(\"Outage detected on channel: {} with TraceID: {}\", ctx.channel().id(), traceId, e);\n            \n            // Write safe error response and propagate backpressure\n            FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);\n            ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);\n        }\n    }\n\n    @Override\n    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {\n        if (cause instanceof IOException) {\n            log.warn(\"Client forcibly closed connection or network reset: {}\", cause.getMessage());\n        } else {\n            log.error(\"Critical NIO pipeline exception\", cause);\n        }\n        ctx.close();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic 7+ YOE production trap during a cross-service outage is relying solely on standard SLF4J MDC without wrapping your reactive or async execution hooks (likeSchedulers.onEachOperator() in Project Reactor). Because reactive streams continuously switch threads to optimize CPU core utilization, standard ThreadLocal-based MDC context will instantly vanish on the first thread hop, leaving your logs completely devoid of correlation IDs precisely when you need them most during an incident."
+    }
+  ],
+  "num": 1069,
+  "title": "How do you debug a production outage across services?",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In relational database systems, querying data often requires multi-tiered logic where the result of one operation feeds directly into another. A subquery, frequently termed an inner query or nested query, is a query embedded within the execution context of a larger, outer query (SELECT, INSERT, UPDATE, or DELETE). Subqueries allow developers to encapsulate complex conditions, modularize data filters, and execute operations that would otherwise require multiple round-trips or procedural constructs.\n\nA correlated subquery takes this concept a step further by establishing a dynamic, runtime dependency on the outer query. Unlike a standard (non-correlated) subquery—which executes completely independently once from top to bottom, passing its static result set up to the outer query—a correlated subquery references columns from the outer table within its own WHERE or HAVING clauses. Consequently, the database engine cannot evaluate the inner query in isolation; it must re-evaluate the inner query iteratively for every candidate row processed by the outer query. This row-by-row dependency makes understanding execution plans and performance implications critical for high-throughput Java applications interacting with databases via JDBC, JPA, or jOOQ."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Subquery Attribute",
+        "Standard (Non-Correlated) Subquery",
+        "Correlated Subquery"
+      ],
+      "rows": [
+        [
+          "Execution Frequency",
+          "Executed exactly once before the outer query runs.",
+          "Executed once for every candidate row evaluated by the outer query."
+        ],
+        [
+          "Outer Dependency",
+          "None. Completely autonomous and cacheable.",
+          "Relies explicitly on column values from the outer query context."
+        ],
+        [
+          "Performance Profile",
+          "Generally high performance; often optimized into JOINs.",
+          "Prone to severe performance degradation on large unindexed tables ($O(N \\times M)$ complexity)."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Non-correlated subqueries are optimized by modern query planners (like PostgreSQL's Cost-Based Optimizer or MySQL's Optimizer) via subquery unnesting, frequently transforming them into standard INNER JOINs or Semi-Joins during the rewriting phase.",
+        "Correlated subqueries evaluate rows sequentially unless the optimizer can materialize intermediate results or convert them into hash/merge joins. When writing SQL inside ORMs like Hibernate, native or HQL correlated queries can bypass standard batching strategies, triggering the classic N+1 database problem at the SQL execution layer.",
+        "Scoping rules dictate that an inner query can reference columns from outer queries enclosing it directly or transitively, but outer queries cannot access columns encapsulated within the inner query's projection or predicate scope."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public List<Employee> findEmployeesEarninAboveDepartmentAverage(Connection connection) throws SQLException {\n    // A classic correlated subquery example in raw JDBC\n    String sql = \"SELECT e.id, e.name, e.salary, e.department_id \" +\n                 \"FROM employees e \" +\n                 \"WHERE e.salary > (\" +\n                 \"    SELECT AVG(inner_e.salary) \" +\n                 \"    FROM employees inner_e \" +\n                 \"    WHERE inner_e.department_id = e.department_id\" +\n                 \")\";\n    \n    List<Employee> employees = new ArrayList<>();\n    try (PreparedStatement stmt = connection.prepareStatement(sql);\n         ResultSet rs = stmt.executeQuery()) {\n        while (rs.next()) {\n            employees.add(new Employee(\n                rs.getLong(\"id\"),\n                rs.getString(\"name\"),\n                rs.getBigDecimal(\"salary\"),\n                rs.getLong(\"department_id\")\n            ));\n        }\n    }\n    return employees;\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior production gotcha: Beware of NULL semantics when using NOT IN with subqueries. If a subquery evaluating a NOT IN condition returns even a single NULL value, the entire outer query evaluates to empty because SQL three-valued logic treats comparisons with NULL as UNKNOWN. Prefer NOT EXISTS with a correlated subquery instead, as it gracefully handles nullability without dropping entire result sets."
+    }
+  ],
+  "num": 865,
+  "title": "What is a subquery? What is a correlated subquery?",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Creating REST endpoints in Spring Boot centers around the @RestController annotation, which is a specialized stereotype combining @Controller and @ResponseBody. When you annotate a class with @RestController, Spring's DispatcherServlet automatically serializes the returned objects into JSON or XML using the Jackson library, eliminating the need for manual view resolution. The core mechanism relies on RequestMapping annotations like @GetMapping, @PostMapping, @PutMapping, and @DeleteMapping to route incoming HTTP requests to specific handler methods. These methods leverage parameter annotations such as @PathVariable for URI template variables, @RequestParam for query parameters, and @RequestBody for binding incoming JSON payloads to Java POJOs. By utilizing Spring's IoC container, these controllers become managed beans, allowing for seamless dependency injection of services and repositories, which keeps the controller layer thin and focused purely on request orchestration and response status management."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Annotation",
+        "Primary Purpose",
+        "Typical Usage"
+      ],
+      "rows": [
+        [
+          "@RestController",
+          "Marks class as a RESTful web service",
+          "Root of all API controller classes"
+        ],
+        [
+          "@RequestBody",
+          "Binds HTTP request body to a Java object",
+          "POST/PUT methods receiving JSON payloads"
+        ],
+        [
+          "@PathVariable",
+          "Extracts values from the URI path",
+          "Fetching specific resources by ID"
+        ],
+        [
+          "@RequestParam",
+          "Extracts query parameters from the URL",
+          "Filtering, sorting, or pagination"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The DispatcherServlet acts as the Front Controller, intercepting all requests and delegating them to the appropriate HandlerMapping, which identifies the controller method based on the request path and HTTP verb.",
+        "Spring uses HttpMessageConverters to transform Java objects into HTTP response bodies; Jackson is the default provider, automatically mapping fields based on getter/setter naming conventions or @JsonProperty annotations.",
+        "Exception handling is typically centralized using @ControllerAdvice or @ExceptionHandler methods, allowing you to map specific domain exceptions to standard HTTP status codes like 404 Not Found or 409 Conflict without polluting business logic.",
+        "The lifecycle of a controller bean is managed by the ApplicationContext; since controllers are typically stateless, they are thread-safe by default, provided they do not hold mutable state in instance variables."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/v1/users\")\npublic class UserController {\n    private final UserService userService;\n\n    public UserController(UserService userService) {\n        this.userService = userService;\n    }\n\n    @GetMapping(\"/{id}\")\n    public ResponseEntity<UserDto> getUser(@PathVariable Long id) {\n        return userService.findById(id)\n                .map(ResponseEntity::ok)\n                .orElse(ResponseEntity.notFound().build());\n    }\n\n    @PostMapping\n    public ResponseEntity<UserDto> createUser(@Valid @RequestBody UserRequest request) {\n        return new ResponseEntity<>(userService.save(request), HttpStatus.CREATED);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is injecting request-scoped beans or mutable state directly into a @RestController. Since Spring controllers are singletons by default, any instance variable modification will lead to race conditions under high concurrency. Always keep your controllers stateless and delegate state management to your service layer. Additionally, avoid exposing your JPA Entities directly in the API; always use DTOs to prevent over-posting vulnerabilities and to decouple your internal database schema from your public API contract."
+    }
+  ],
+  "num": 1210,
+  "title": "How do you create REST endpoints in Spring Boot?",
+  "category": "Spring Boot & Spring Framework"
+}

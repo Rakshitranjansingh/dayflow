@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed systems, RESTful API design, and resource naming conventions, the architectural philosophy dictates that URI paths must identify resources rather than actions. By adhering to the rule of using nouns not verbs, developers decouple the HTTP method (GET, POST, PUT, DELETE) from the resource path, allowing the uniform interface of HTTP to handle the semantics of the operation. For instance, rather than pointing an endpoint to `/getAllUsers` or `/deleteUserById`, the endpoint targets the resource collection directly using nouns.\n\nFurthermore, enforcing plural resources (e.g., `/users` instead of `/user`) creates a uniform and predictable contract for collections and singular items alike. When a client interacts with an individual element within that collection, it simply appends the resource identifier, resulting in intuitive patterns like `GET /users/{id}` for fetching a single user and `POST /users` for creating a new entity. This prevents path pollution, establishes a clean domain model abstraction, and scales effortlessly as your API surface area grows."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Operation Goal",
+        "Anti-Pattern (Verbs / Singular)",
+        "Production-Grade Standard (Nouns / Plural)"
+      ],
+      "rows": [
+        [
+          "Fetch all items",
+          "GET /getUser or GET /get-users",
+          "GET /users"
+        ],
+        [
+          "Create an item",
+          "POST /createUser",
+          "POST /users"
+        ],
+        [
+          "Fetch a specific item",
+          "GET /getUser?id=5",
+          "GET /users/5"
+        ],
+        [
+          "Update an item",
+          "PUT /updateUser/5",
+          "PUT /users/5"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Nouns-only path segments eliminate ambiguity by leveraging HTTP request verbs (GET, POST, PUT, PATCH, DELETE) to dictate state transitions rather than bloating the URI path with RPC-style action names.",
+        "Plural resource naming ensures that collection endpoints and singular resource identifiers follow a hierarchical and symmetric layout, such as `/users/{userId}/addresses/{addressId}`.",
+        "Non-resource controller actions that do not cleanly map to a CRUD lifecycle (e.g., calculating a complex report or executing a batch process) should be treated as sub-resources using a verb-like descriptive noun or action suffix only when absolutely necessary, such as `/reports` or `/users/{id}/activate`."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/v1/users\")\npublic class UserController {\n\n    @GetMapping\n    public ResponseEntity<List<UserDto>> getAllUsers() {\n        return ResponseEntity.ok(userService.findAll());\n    }\n\n    @GetMapping(\"/{id}\")\n    public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {\n        return ResponseEntity.ok(userService.findById(id));\n    }\n\n    @PostMapping\n    public ResponseEntity<UserDto> createUser(@RequestBody @Valid UserCreateDto dto) {\n        return ResponseEntity.status(HttpStatus.CREATED).body(userService.create(dto));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common trap for developers transitioning from legacy SOAP or RPC paradigms is mixing verbs into resource paths because of a complex business action (e.g., `/users/validate-email`). If an operation alters the state of a specific sub-resource or acts as a stateless function, prefer treating the action descriptor as a distinct noun or sub-resource attribute rather than polluting the root aggregate boundary."
+    }
+  ],
+  "num": 304,
+  "title": "Resource naming conventions — nouns not verbs, plural resources",
+  "category": "Exception Handling & I/O / NIO"
+}

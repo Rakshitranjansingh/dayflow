@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Consistent hashing is an indispensable algorithmic technique in distributed systems designed to solve the data partitioning and node re-mapping problem inherent in horizontally scalable architectures. In a traditional modulo-based hashing scheme (such as hash(key) % N, where N is the number of cache or database nodes), adding or removing a node fundamentally alters the denominator for nearly every single key. This triggers a catastrophic cache miss storm or massive data reshuffling wave across the entire cluster. Consistent hashing mitigates this by mapping both the storage nodes and the data keys onto a shared, abstract circular address space—typically a ring ranging from 0 to $2^{32}-1$ using a cryptographic or non-cryptographic hash function like MD5 or MurmurHash.\n\nTo map a key to a node, the system hashes the key to find its position on the ring and then traverses the ring clockwise until it encounters the first available node. When a node joins or leaves the cluster, only the keys immediately adjacent to that node's position on the ring are affected, meaning only a tiny fraction of data (K/N keys, where K is total keys and N is total nodes) needs to be migrated. However, basic consistent hashing often leads to severe load imbalances because random node hashing placement can cluster nodes closely together on the ring. To overcome this, production systems introduce virtual nodes (vnodes). Each physical node is mapped to multiple distinct points on the ring, smoothing out the distribution variance and ensuring that high-capacity nodes can take on more vnodes than under-resourced hardware."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Scaling Rehash Cost",
+        "Load Balance",
+        "Implementation Complexity"
+      ],
+      "rows": [
+        [
+          "Modulo Hashing",
+          "O(N) - Almost all keys remap",
+          "High (if hash is uniform)",
+          "Low"
+        ],
+        [
+          "Basic Consistent Hashing",
+          "O(K/N) - Minimal keys remap",
+          "Poor (vulnerable to hot-spotting)",
+          "Moderate"
+        ],
+        [
+          "Consistent Hashing with Vnodes",
+          "O(K/N) - Minimal keys remap",
+          "Excellent (tunable via vnode density)",
+          "High"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Ring Topology & Binary Search: The hash ring is typically implemented in memory using a sorted map structure (such as TreeMap in Java). Locating a key's responsible node requires finding the ceiling entry of the key's hash value, executing in O(log V) time where V is the total number of virtual nodes.",
+        "Virtual Node Skew Mitigation: By assigning hundreds or thousands of virtual nodes per physical machine, the standard deviation of data distribution drops significantly, adhering to the law of large numbers and preventing cascading failures due to localized hot spots.",
+        "Bounded Loads: Advanced variants like consistent hashing with bounded loads incorporate maximum capacity constraints per node, gracefully spilling overflow keys to the next available healthy node when a primary node reaches its quota."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.security.MessageDigest;\nimport java.security.NoSuchAlgorithmException;\nimport java.util.Collection;\nimport java.util.SortedMap;\nimport java.util.TreeMap;\n\npublic class ConsistentHashRing<T> {\n    private final int numberOfReplicas;\n    private final SortedMap<Long, T> ring = new TreeMap<>();\n\n    public ConsistentHashRing(int numberOfReplicas, Collection<T> nodes) {\n        this.numberOfReplicas = numberOfReplicas;\n        for (T node : nodes) {\n            addNode(node);\n        }\n    }\n\n    public void addNode(T node) {\n        for (int i = 0; i < numberOfReplicas; i++) {\n            long hash = computeHash(node.toString() + \"-vnode-\" + i);\n            ring.put(hash, node);\n        }\n    }\n\n    public void removeNode(T node) {\n        for (int i = 0; i < numberOfReplicas; i++) {\n            long hash = computeHash(node.toString() + \"-vnode-\" + i);\n            ring.remove(hash);\n        }\n    }\n\n    public T getNode(String key) {\n        if (ring.isEmpty()) {\n            return null;\n        }\n        long hash = computeHash(key);\n        if (!ring.containsKey(hash)) {\n            SortedMap<Long, T> tailMap = ring.tailMap(hash);\n            hash = tailMap.isEmpty() ? ring.firstKey() : tailMap.firstKey();\n        }\n        return ring.get(hash);\n    }\n\n    private long computeHash(String key) {\n        try {\n            MessageDigest md = MessageDigest.getInstance(\"MD5\");\n            md.update(key.getBytes());\n            byte[] digest = md.digest();\n            return ((long) (digest[3] & 0xFF) << 24) |\n                   ((long) (digest[2] & 0xFF) << 16) |\n                   ((long) (digest[1] & 0xFF) << 8) |\n                   ((long) (digest[0] & 0xFF));\n        } catch (NoSuchAlgorithmException e) {\n            throw new RuntimeException(e);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "In high-throughput distributed architectures, beware of thread contention when reading from a shared TreeMap for every incoming request. Even though lookups are O(log V), concurrent modifications or heavy read locks can bottleneck your execution threads. Use a concurrent read-copy-update pattern or store an immutable snapshot array of hashes alongside a binary search array for thread-safe, lock-free ring traversal in production."
+    }
+  ],
+  "num": 400,
+  "title": "Consistent hashing",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

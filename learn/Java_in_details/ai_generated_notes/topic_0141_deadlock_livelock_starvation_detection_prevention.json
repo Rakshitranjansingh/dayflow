@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In concurrent Java applications, managing shared mutable state requires explicit synchronization mechanisms. However, poor coordination can lead to catastrophic system liveness failures: Deadlock, Livelock, and Starvation. A Deadlock occurs when two or more threads are blocked forever, each waiting for a resource held by another, creating a circular dependency in the resource allocation graph. Livelock is a subtler failure mode where threads continuously change their state in response to other threads without making any actual forward progress; they are not blocked, but the CPU utilization spikes to 100% as they endlessly yield or retry. Starvation happens when a greedy or improperly prioritized thread monopolizes a shared resource (such as a CPU core, database connection, or lock), leaving lower-priority or less-fortunate threads perpetually waiting and unable to execute.\n\nAddressing these concurrency anomalies requires systematic approaches spanning detection and prevention. Deadlock detection typically involves maintaining a resource-allocation graph and executing background thread-dump analyses or using JVM management beans like java.lang.management.ThreadMXBean to discover blocked threads programmatically. Prevention, on the other hand, focuses on eliminating at least one of the four classic Coffman conditions: Mutual Exclusion, Hold and Wait, No Preemption, or Circular Wait. By enforcing strict lock ordering, utilizing timed lock acquisitions via java.util.concurrent.locks.Lock, and employing fair queuing policies, architects can engineer deterministic, robust multithreaded systems that avoid liveness failures entirely."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Failure Mode",
+        "Thread State",
+        "CPU Utilization",
+        "Primary Root Cause"
+      ],
+      "rows": [
+        [
+          "Deadlock",
+          "WAITING / BLOCKED",
+          "0% (Idle)",
+          "Circular dependency in acquiring multiple locks."
+        ],
+        [
+          "Livelock",
+          "RUNNABLE",
+          "100% (Busy)",
+          "Overly aggressive recovery logic or polite yielding without backoff."
+        ],
+        [
+          "Starvation",
+          "WAITING / BLOCKED",
+          "Normal or Low",
+          "Unfair locking policies, thread priority abuse, or resource hogging."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Coffman Conditions for Deadlock: All four conditions (Mutual Exclusion, Hold and Wait, No Preemption, and Circular Wait) must hold simultaneously for a deadlock to occur. Breaking any single condition prevents deadlocks completely.",
+        "Lock Ordering Strategy: Assign a global, unique sequential ID to every resource. Enforce that threads must always acquire locks in ascending order of these IDs to structurally eliminate circular wait chains.",
+        "Timed Lock Acquirability: Use Lock.tryLock(long timeout, TimeUnit unit) instead of synchronized blocks. If a thread cannot acquire all required locks within the timeout window, it releases its current holdings, backs off, and retries, breaking hold-and-wait scenarios.",
+        "Fairness in ReentrantLock: Instantiating ReentrantLock(true) configures a fair queuing policy that grants locks to the longest-waiting thread, directly mitigating starvation at the cost of slight throughput degradation due to thread context switching."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.TimeUnit;\nimport java.util.concurrent.locks.Lock;\nimport java.util.concurrent.locks.ReentrantLock;\n\npublic class SafeResourceTransfer {\n    private final Lock lockA = new ReentrantLock();\n    private final Lock lockB = new ReentrantLock();\n\n    public boolean transfer(long timeoutMillis) throws InterruptedException {\n        long stopTime = System.currentTimeMillis() + timeoutMillis;\n        while (System.currentTimeMillis() < stopTime) {\n            if (lockA.tryLock(50, TimeUnit.MILLISECONDS)) {\n                try {\n                    if (lockB.tryLock(50, TimeUnit.MILLISECONDS)) {\n                        try {\n                            // Critical section execution\n                            return true;\n                        } finally {\n                            lockB.unlock();\n                        }\n                    }\n                } finally {\n                    lockA.unlock();\n                }\n            }\n            // Randomized exponential backoff to prevent livelock/starvation collision loops\n            Thread.sleep((long) (Math.random() * 100));\n        }\n        return false;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is assuming that moving from synchronized blocks to java.util.concurrent locks magically solves concurrency issues. While explicit locks provide tryLock() capabilities to prevent deadlocks, improper backoff strategies during contention can easily transform a deadlock into a livelock. If fifty threads simultaneously fail to acquire a secondary lock, back off for the exact same duration, and retry simultaneously, you create a synchronized livelock storm. Always introduce randomized jitter or exponential backoff in retry loops."
+    }
+  ],
+  "num": 142,
+  "title": "Deadlock, Livelock, Starvation — detection & prevention",
+  "category": "Multithreading & Java Concurrency"
+}

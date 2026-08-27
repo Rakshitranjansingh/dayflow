@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In system design and high-performance data processing, the inverted index serves as the foundational data structure behind enterprise full-text search engines like Apache Lucene, Elasticsearch, and custom in-memory text retrieval systems in Java. Traditional relational databases excel at structured queries (e.g., exact matches, range queries on B-Trees), but scanning raw text columns for specific words requires $O(N)$ full table scans, which is disastrously slow for large corpora. An inverted index flips this relationship: instead of mapping documents to lists of words (a forward index), it maps every unique token (word) to a specialized posting list containing the document IDs and exact positions where that token appears.\n\nBuilding a high-throughput inverted index requires a deep understanding of text analysis pipelines, tokenization, normalization, and memory management. When raw text streams into a Java application, it passes through a series of filters. Tokenizers split character streams by whitespace or punctuation; normalizers lowercase characters, strip accents, and apply stemming algorithms (like the Porter Stemmer) to reduce words to their root forms (e.g., running, runs, ran -> run). Once tokens are extracted, they are registered in a term dictionary, typically backed by a trie, prefix tree, or sorted array, which points to posting lists optimized for compression algorithms like Elias-Fano or Variable Byte Encoding."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Dimension",
+        "Forward Index",
+        "Inverted Index"
+      ],
+      "rows": [
+        [
+          "Primary Mapping",
+          "Document ID -> Set of Terms",
+          "Term -> Set of Document IDs (Postings)"
+        ],
+        [
+          "Primary Use Case",
+          "Aggregation, sorting, highlighting, doc retrieval",
+          "Full-text search, keyword lookup, relevance ranking"
+        ],
+        [
+          "Query Performance",
+          "O(N) linear scan across documents",
+          "O(Term Frequency) direct lookup via dictionary"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Term Dictionary & Lexicon: The dictionary maps unique terms to metadata, including document frequency (DF) and pointers to the posting list on disk or in off-heap memory. In high-performance search engines, this dictionary is kept in RAM using FSTs (Finite State Transducers) for extreme space efficiency.",
+        "Posting Lists: A posting list stores the sorted array of document IDs (DocIDs) matching a term, often accompanied by term frequencies (TF) and positional data for phrase queries. Delta encoding (storing differences between consecutive DocIDs rather than absolute IDs) is heavily used to minimize memory footprints.",
+        "Scoring Algorithms (BM25/TF-IDF): When multiple search terms are provided, the inverted index intersects or unions posting lists. Scoring formulas like Okapi BM25 evaluate term frequency, inverse document frequency, and field-length normalization to rank results by relevance."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.*;\nimport java.util.stream.Collectors;\n\npublic class SimpleInvertedIndex {\n    private final Map<String, List<Integer>> index = new HashMap<>();\n\n    public void addDocument(int docId, String text) {\n        String[] tokens = text.toLowerCase().replaceAll(\"[^a-zA-Z0-9\\\\s]\", \"\").split(\"\\\\s+\");\n        Set<String> uniqueTokens = new HashSet<>(Arrays.asList(tokens));\n        \n        for (String token : uniqueTokens) {\n            index.computeIfAbsent(token, k -> new ArrayList<>()).add(docId);\n        }\n    }\n\n    public List<Integer> search(String query) {\n        String cleanQuery = query.toLowerCase().trim();\n        return index.getOrDefault(cleanQuery, Collections.emptyList());\n    }\n\n    public static void main(String[] args) {\n        SimpleInvertedIndex searchEngine = new SimpleInvertedIndex();\n        searchEngine.addDocument(1, \"Java is a high-performance programming language.\");\n        searchEngine.addDocument(2, \"Garbage collection in the JVM manages memory.\");\n        searchEngine.addDocument(3, \"Java and JVM internals are fascinating.\");\n\n        System.out.println(\"Search 'java': \" + searchEngine.search(\"java\"));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "When implementing custom inverted indices in high-concurrency Java applications, avoid storing millions of posting lists inside standard heap-allocated `ArrayList<Integer>` structures. Unboxed object overhead and garbage collection pause times (Stop-The-World) will degrade throughput. Instead, use primitive arrays, off-heap byte buffers (Direct ByteBuffers), or established engines like Apache Lucene, which handles memory-mapped files and delta-compressed posting lists natively."
+    }
+  ],
+  "num": 367,
+  "title": "Inverted index — how full-text search works",
+  "category": "Core Java & Fundamentals"
+}

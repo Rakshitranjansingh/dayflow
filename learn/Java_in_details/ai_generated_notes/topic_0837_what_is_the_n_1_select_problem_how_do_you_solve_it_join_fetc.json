@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The N+1 Select problem is a classic performance anti-pattern in Hibernate and Spring Data JPA that occurs when an application executes one initial query to fetch a parent entity, followed by N additional queries to fetch associated child entities for each parent. This happens primarily due to lazy loading: when you access a collection or a proxy object that hasn't been initialized, Hibernate triggers a secondary query to populate that specific association. In a list of 100 users, if you iterate through them to access their 'orders', you end up with 1 query for users plus 100 queries for orders, leading to severe latency and database connection pool exhaustion. Solutions involve eager fetching strategies that force Hibernate to retrieve the data in a single round-trip using SQL JOINs or batching mechanisms."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Mechanism",
+        "Best Use Case"
+      ],
+      "rows": [
+        [
+          "Join Fetch",
+          "Uses INNER/LEFT JOIN in JPQL/HQL",
+          "Fetching specific associations for a single request"
+        ],
+        [
+          "Entity Graphs",
+          "Dynamic fetch plans via @EntityGraph",
+          "Overriding lazy loading per repository method"
+        ],
+        [
+          "@BatchSize",
+          "In-clause fetching (WHERE IN (...))",
+          "Global optimization for collections to reduce query count"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Join Fetching works by generating a SQL JOIN, which flattens the result set. Be aware that this can lead to a Cartesian product if fetching multiple collections, which Hibernate handles by throwing a MultipleBagFetchException.",
+        "Entity Graphs allow you to define a subgraph of entities to be fetched eagerly. This is superior to @Fetch(FetchType.EAGER) because it is context-aware and avoids global eager loading, which is a common source of memory bloat.",
+        "@BatchSize operates by intercepting the lazy loading call. Instead of loading one entity, Hibernate looks at the persistence context for other uninitialized proxies of the same type and loads them in a single 'WHERE id IN (?, ?, ?)' query, effectively turning N+1 into (N/BatchSize)+1."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Repository\npublic interface UserRepository extends JpaRepository<User, Long> {\n    // Using EntityGraph to solve N+1 for orders\n    @EntityGraph(attributePaths = {\"orders\"})\n    List<User> findAll();\n    \n    // Alternatively, using JPQL Join Fetch\n    @Query(\"SELECT u FROM User u JOIN FETCH u.orders\")\n    List<User> findAllWithOrders();\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never use FetchType.EAGER on @OneToMany or @ManyToMany collections. It is a global setting that will haunt your application performance indefinitely. Always prefer lazy loading by default and use Join Fetch or Entity Graphs to optimize specific use cases. Also, watch out for the 'Cartesian Product' trap when fetching multiple collections; if you need two collections, use two separate queries or a DTO projection to avoid massive result set duplication in memory."
+    }
+  ],
+  "num": 838,
+  "title": "What is the N+1 Select Problem? How do you solve it? (Join Fetch, Entity Graphs, @BatchSize)",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

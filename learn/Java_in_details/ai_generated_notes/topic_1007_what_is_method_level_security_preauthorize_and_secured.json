@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Method-level security in Spring Security is a declarative mechanism that enforces authorization constraints directly on service or controller methods, rather than relying solely on URL-based filtering. It operates by leveraging Spring AOP (Aspect-Oriented Programming) to intercept method invocations. When a method annotated with security constraints is called, a proxy—typically a CGLIB or JDK dynamic proxy—intercepts the call, evaluates the security expression, and either proceeds to the target method or throws an AccessDeniedException. This approach is superior to URL-based security for complex domain logic because it is decoupled from the web layer, allowing you to protect business logic even when invoked from non-HTTP sources like scheduled tasks, message listeners, or internal service-to-service calls.\n\n@Secured is the legacy, role-based annotation. It is simple, fast, and strictly evaluates whether the authenticated principal possesses one of the specified authorities (e.g., 'ROLE_ADMIN'). It does not support SpEL (Spring Expression Language), making it rigid but highly performant. In contrast, @PreAuthorize is the modern, flexible standard. It evaluates SpEL expressions, allowing for dynamic, context-aware authorization. With @PreAuthorize, you can reference method arguments (e.g., #id), perform logical combinations (AND/OR), or even call custom beans to determine access, providing a fine-grained 'ABAC' (Attribute-Based Access Control) capability that @Secured simply cannot match."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "@Secured",
+        "@PreAuthorize"
+      ],
+      "rows": [
+        [
+          "Expression Language",
+          "None (Simple Strings)",
+          "SpEL (Spring Expression Language)"
+        ],
+        [
+          "Argument Access",
+          "Not supported",
+          "Supports #argumentName"
+        ],
+        [
+          "Flexibility",
+          "Low (Role-based only)",
+          "High (Context-aware/ABAC)"
+        ],
+        [
+          "Performance",
+          "Higher (No parsing)",
+          "Slightly lower (SpEL parsing)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Method security requires @EnableMethodSecurity (or @EnableGlobalMethodSecurity in older versions) to register the MethodSecurityInterceptor in the Spring context.",
+        "The interceptor is applied via AOP proxies. If you call a secured method from within the same class (self-invocation), the proxy is bypassed, and security checks will not trigger.",
+        "@PreAuthorize is evaluated before the method body executes, while @PostAuthorize is evaluated after, allowing you to filter or verify the return value of the method.",
+        "SpEL expressions in @PreAuthorize can invoke any bean in the ApplicationContext using the '@beanName.method()' syntax, enabling complex external authorization lookups."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderService {\n\n    // Legacy role-based check\n    @Secured(\"ROLE_ADMIN\")\n    public void deleteOrder(Long id) { ... }\n\n    // Modern dynamic check using SpEL\n    @PreAuthorize(\"#order.owner == authentication.name or hasRole('ADMIN')\")\n    public void updateOrder(Order order) { ... }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common 'gotcha' for senior engineers is the self-invocation trap. Because Spring AOP uses proxies, calling a method annotated with @PreAuthorize from another method within the same bean will bypass the security interceptor entirely. If you must have internal calls secured, you should either refactor the secured method into a separate component or inject the bean into itself (using @Lazy to avoid circular dependencies) to force the call through the proxy."
+    }
+  ],
+  "num": 1008,
+  "title": "What is method-level security? @PreAuthorize and @Secured?",
+  "category": "Spring Security & Web Security"
+}

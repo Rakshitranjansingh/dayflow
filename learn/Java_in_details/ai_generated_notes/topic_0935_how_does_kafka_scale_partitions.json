@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Kafka achieves horizontal scalability by decomposing a single logical topic into multiple physical units called partitions. In a distributed system, a single broker is limited by its disk I/O, network bandwidth, and CPU capacity. By splitting a topic into partitions, Kafka allows these segments to be distributed across a cluster of brokers. This is the fundamental mechanism that enables parallel processing; producers can write to different partitions concurrently, and multiple consumers within a consumer group can read from these partitions simultaneously, effectively multiplying the throughput of the system linearly as you add more brokers. When you increase the partition count, you are essentially increasing the degree of parallelism for both ingestion and consumption."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Scaling Aspect",
+        "Single Partition",
+        "Multiple Partitions"
+      ],
+      "rows": [
+        [
+          "Throughput",
+          "Limited by single broker I/O",
+          "Aggregated across cluster"
+        ],
+        [
+          "Ordering",
+          "Strictly guaranteed",
+          "Guaranteed only within partition"
+        ],
+        [
+          "Consumer Parallelism",
+          "Max 1 consumer per group",
+          "Up to N consumers (N=partitions)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Partition distribution: Kafka uses a controller node to assign partition leaders across the cluster, ensuring that no single broker becomes a hot spot for I/O.",
+        "Log segments: Each partition is stored as an append-only log on the broker's filesystem, divided into segments to facilitate efficient deletion and retention policies.",
+        "Consumer Group Rebalancing: When the number of partitions is greater than the number of consumers in a group, Kafka triggers a rebalance to redistribute partition ownership, ensuring every partition is actively consumed.",
+        "Ordering invariants: Kafka guarantees message order only within a partition. If your business logic requires strict global ordering, you must use a single partition, which sacrifices horizontal scalability."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "Properties props = new Properties();\nprops.put(\"bootstrap.servers\", \"kafka-cluster:9092\");\n// Increasing partitions allows more concurrent consumers\nAdminClient admin = AdminClient.create(props);\nNewPartitions newPartitions = NewPartitions.increaseTo(10);\nadmin.createPartitions(Collections.singletonMap(\"user-events-topic\", newPartitions));"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is 'over-partitioning.' While more partitions increase parallelism, each partition consumes file handles and memory on the broker. Excessive partitions can lead to increased latency during controller failover and significant overhead for the Zookeeper/KRaft metadata store. Always benchmark your partition count against your target throughput rather than arbitrarily choosing a high number."
+    }
+  ],
+  "num": 936,
+  "title": "How does Kafka scale? (Partitions)",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

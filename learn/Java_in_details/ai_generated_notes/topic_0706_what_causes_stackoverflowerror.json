@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A StackOverflowError in Java is a runtime error thrown by the Java Virtual Machine (JVM) when an application's call stack exceeds its allocated memory limit. Every thread created in the JVM possesses its own private stack memory, initialized at thread startup via the `-Xss` flag. This memory region stores stack frames, which are pushed onto the stack upon method invocation and popped off when the method returns. Each stack frame contains local variable tables, operand stacks, frame data (such as constant pool resolution, normal method completion, and exception dispatch info), and return values.\n\nThe most common catalyst for a StackOverflowError is infinite or excessively deep recursion where base cases are missed or poorly defined. As the method calls itself repeatedly, new stack frames accumulate continuously without any ever popping off to release memory. Eventually, the thread's stack pointer crosses the guard page boundary at the end of the native memory block allocated for the stack, triggering an immediate and unrecoverable StackOverflowError. Unlike OutOfMemoryError, which originates from the heap space and can sometimes be caught or mitigated by garbage collection, a StackOverflowError signifies a structural failure of execution depth that typically terminates the offending thread instantly."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "StackOverflowError",
+        "OutOfMemoryError"
+      ],
+      "rows": [
+        [
+          "Memory Region",
+          "Thread Stack (Native Memory per thread)",
+          "JVM Heap or Metaspace / Off-Heap"
+        ],
+        [
+          "Root Cause",
+          "Exceeding allocated stack depth (infinite recursion)",
+          "Exhausting available heap allocation for objects"
+        ],
+        [
+          "Tunable Flag",
+          "-Xss (e.g., -Xss1m)",
+          "-Xmx, -XX:MaxMetaspaceSize"
+        ],
+        [
+          "Recoverability",
+          "Catastrophic for the thread; rarely catchable safely",
+          "May be caught (though dangerous); triggers GC cycles"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Every time a method is invoked, the JVM allocates a fixed or dynamic stack frame. If native recursion lacks a terminal base case, the frame count grows linearly with depth $O(N).$",
+        "Modern JVMs implement 'guard pages' at the end of thread stacks. When a thread's stack pointer hits this unmapped page, the operating system throws a segmentation fault which the JVM intercepts and translates into a Java StackOverflowError.",
+        "Deep dependency injections, complex bytecode generation libraries (like CGLIB or ASM) producing recursive interception logic, or deeply nested JSON/XML parsers can also trigger stack overflows without explicit developer-written recursion."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class RecursionTrap {\n    public static void recursiveCounter(int count) {\n        // Missing base case causes infinite stack frame accumulation\n        System.out.println(\"Current depth: \" + count);\n        recursiveCounter(count + 1);\n    }\n\n    public static void main(String[] args) {\n        try {\n            recursiveCounter(1);\n        } catch (StackOverflowError e) {\n            System.err.println(\"Caught stack overflow at runtime!\");\n            // Note: Recovering state here is extremely risky due to partial stack frames\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Be extremely cautious if you attempt to catch a StackOverflowError in production code. Because the error is thrown when memory is already critically exhausted, executing catch block logic may easily trigger another StackOverflowError (a secondary error during handling) or result in a corrupted JVM state. Instead of increasing `-Xss` to mask deep recursion, refactor recursive algorithms into iterative loops using explicit data structures like `java.util.Stack` or `ArrayDeque`."
+    }
+  ],
+  "num": 707,
+  "title": "What causes StackOverflowError?",
+  "category": "Core Java & Fundamentals"
+}

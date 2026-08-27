@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In collaborative software engineering, integrating code changes from one branch into another is a daily necessity. Git merge and Git rebase are the two primary mechanisms provided by Git to accomplish this integration, yet they fundamentally diverge in how they handle version history. A Git merge preserves the exact chronological history by creating a 'merge commit' that ties two disparate branch histories together, retaining all individual feature branch commits, warts and all. This provides an unvarnished audit trail of what happened and when, which is critical for long-lived integration branches like main or develop. Conversely, Git rebase takes the entire set of commits from your current feature branch and 'replays' them on top of a different base branch, rewriting commit hashes and creating a strictly linear history. This eliminates messy, non-functional merge commits and makes the project history read like a clean, logical story of features added sequentially. \n\nHowever, a clean history often comes with the cost of overly granular, noisy intermediate commits—such as 'fix typo', 'WIP', or 'debugging compilation error'—which pollute the codebase's narrative. This is where squashing commits comes into play. Squashing is the process of combining multiple sequential commits into a single, cohesive commit during an interactive rebase (git rebase -i). By squashing, a developer condenses dozens of trial-and-error checkpoint commits into one production-ready commit with a descriptive message before merging it into the shared trunk. This satisfies both requirements: a clean, linear history via rebase and a semantically meaningful commit log via squashing."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Behavior",
+        "Git Merge",
+        "Git Rebase"
+      ],
+      "rows": [
+        [
+          "History Structure",
+          "Non-linear (Preserves branching topology with merge commits)",
+          "Linear (Rewrites history to look like a single straight line)"
+        ],
+        [
+          "Commit Hashes",
+          "Preserved (Existing commits remain untouched)",
+          "Modified (New commits are generated with new SHAs)"
+        ],
+        [
+          "Conflict Resolution",
+          "Resolved once in the merge commit",
+          "Resolved commit-by-commit as each change is replayed"
+        ],
+        [
+          "Safety on Shared Branches",
+          "Safe (Non-destructive, adds new commits)",
+          "Dangerous (Rewrites shared history, breaks collaborator repos)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Interactive rebase executes via the command 'git rebase -i HEAD~N', parsing the local commit log into an editable instruction sheet where actions like 'pick', 'squash', 'fixup', and 'drop' can be applied.",
+        "Squashing utilizes the 'squash' (s) or 'fixup' (f) directives; 'squash' combines the commit message with the previous commit, whereas 'fixup' discards the current commit's message entirely while keeping its code changes.",
+        "The golden rule of rebase states that you must NEVER rebase public or shared branches (like main or release), because rewriting history invalidates the local clones of every other developer working on that branch.",
+        "Under the hood, rebasing checks out the upstream branch, identifies the common ancestor via the three-way merge algorithm, extracts the diff of each commit on your branch, and attempts to apply those diffs sequentially onto the target tip."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "bash",
+      "content": "# Interactive rebase of the last 4 commits to clean up history and squash WIP commits\ngit checkout feature/user-authentication\ngit rebase -i HEAD~4\n\n# In the text editor that pops up, modify the instructions:\n# pick a1b2c3d Implement login endpoint\n# squash e4f5g6h fix typo in validator\n# squash j7k8l9m add unit tests for auth\n# squash z9y8x7w fix failing CI pipeline\n\n# After saving and exiting, provide a consolidated commit message.\n# Finally, force-push the rebased and squashed branch to origin (if working solo or on a private feature branch)\ngit push origin feature/user-authentication --force-with-lease"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap for junior developers is running 'git push --force' after a rebase or squash on a shared team branch, which brutally overwrites teammates' local commits and leads to hours of painful history reconciliation. Always use '--force-with-lease' instead of '--force'; it checks if the remote branch has been updated by someone else since your last fetch, failing safely if a collision is detected."
+    }
+  ],
+  "num": 1145,
+  "title": "What is a Git Rebase vs Git Merge? When do you squash commits?",
+  "category": "Core Java & Fundamentals"
+}

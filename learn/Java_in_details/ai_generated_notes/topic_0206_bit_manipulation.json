@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Bit manipulation is the act of algorithmically operating on bits—the fundamental units of data in computing. In the context of low-level systems programming, exception handling state flags, and Java NIO (New Input/Output), bitwise operations provide an uncompromisingly fast mechanism for packing boolean configurations, configuring socket options, and tracking I/O readiness states without the overhead of heavy object allocations or complex wrapper collections. Instead of storing multiple boolean properties in distinct fields that bloat heap memory footprints due to object header padding and reference pointers, multiple flags can be packed seamlessly into a single primitive integer using bitwise AND, OR, XOR, and shifting operators.\n\nWithin Java NIO, bit manipulation serves as the underlying backbone for channel selection and interest operations. The Selector class relies heavily on bit masks (such as SelectionKey.OP_READ, SelectionKey.OP_WRITE, SelectionKey.OP_CONNECT, and SelectionKey.OP_ACCEPT) to multiplex multiple non-blocking SelectableChannels over a single thread. When an I/O event occurs, the selector updates an integer-based ready operations bit set. Network subsystems and high-throughput servers use bitwise checks to instantly discern whether a socket channel is primed for reading or writing, bypassing conditional branching overhead. Similarly, low-level exception and error codes in native system interactions or custom I/O buffering engines utilize bit flags to signal concurrent stream states, EOF indicators, and buffer overflow anomalies with minimal CPU cycle expenditure."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Bitwise Operator",
+        "Symbol",
+        "NIO / Systems Use Case",
+        "Semantic Behavior"
+      ],
+      "rows": [
+        [
+          "Bitwise OR",
+          "|",
+          "Combining interest sets (e.g., OP_READ | OP_WRITE)",
+          "Sets specific bit flags to 1 if at least one operand has a 1."
+        ],
+        [
+          "Bitwise AND",
+          "&",
+          "Checking channel readiness (key.readyOps() & OP_READ)",
+          "Extracts specific bit flags, returning non-zero if the target bit is active."
+        ],
+        [
+          "Bitwise Complement",
+          "~",
+          "Clearing specific flags (~OP_WRITE)",
+          "Inverts all bits, turning 0s to 1s and 1s to 0s."
+        ],
+        [
+          "Bitwise XOR",
+          "^",
+          "Toggling status flags",
+          "Sets bits to 1 if operands are different."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In Java NIO, SelectionKey interest operations are stored as an integer bitmask, allowing a single 32-bit register to track up to 32 distinct channel states concurrently.",
+        "Bitwise operations execute natively in single CPU cycles, making them vastly superior to object-oriented EnumSets in latency-sensitive, high-frequency trading I/O loops.",
+        "Bit shifting (<< and >>) allows rapid multiplication or division by powers of two, heavily utilized in NIO DirectByteBuffer allocation calculations and alignment checks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.nio.channels.SelectionKey;\nimport java.nio.channels.SocketChannel;\n\npublic class NioBitManipulationDemo {\n    // Define custom bit masks for low-level stream state tracking\n    public static final int STATE_IDLE      = 1 << 0; // 0001\n    public static final int STATE_READING   = 1 << 1; // 0010\n    public static final int STATE_WRITING   = 1 << 2; // 0100\n    public static final int STATE_ERROR     = 1 << 3; // 1000\n\n    private int currentState = STATE_IDLE;\n\n    public void updateState(int eventBitmask, boolean enable) {\n        if (enable) {\n            currentState |= eventBitmask; // Set the bit(s)\n        } else {\n            currentState &= ~eventBitmask; // Clear the bit(s)\n        }\n    }\n\n    public boolean isReading() {\n        // Check if the reading bit is active using bitwise AND\n        return (currentState & STATE_READING) != 0;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production gotcha when working with bit masks in Java NIO is forgetting operator precedence. Expressions like key.readyOps() & SelectionKey.OP_READ != 0 can introduce subtle bugs because the != relational operator has higher precedence than the bitwise & operator. Always wrap bitwise evaluations in explicit parentheses: (key.readyOps() & SelectionKey.OP_READ) != 0."
+    }
+  ],
+  "num": 207,
+  "title": "Bit manipulation",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Choosing between SQL and NoSQL data stores is one of the most critical architectural decisions a software engineer faces, deeply impacting system scalability, transactional integrity, and data modeling complexity. SQL (Relational) databases, such as PostgreSQL, MySQL, and Oracle, rely on structured schemas, predefined table relationships, and strict compliance with ACID (Atomicity, Consistency, Isolation, Durability) properties. They excel at managing complex joins, multi-table transactions, and normalized data where integrity is paramount. On the other hand, NoSQL (Non-Relational) databases, encompassing document stores (MongoDB), key-value stores (Redis), wide-column stores (Cassandra), and graph databases (Neo4j), are engineered to scale horizontally across distributed clusters, favoring schema flexibility, high write throughput, and the CAP theorem's availability and partition tolerance over immediate strict consistency.\n\nIn enterprise Java applications, particularly those built on Spring Boot, the persistence layer abstraction provided by frameworks like Spring Data (JPA/Hibernate versus MongoDB/Redis templates) often masks the underlying divergence in data access philosophies. Choosing SQL is ideal when your application handles complex relational entities—such as banking ledgers, ERP systems, or e-commerce orders—where data anomalies cannot be tolerated and queries require dynamic, ad-hoc aggregation across multiple entities. Conversely, NoSQL becomes the weapon of choice when dealing with high-velocity, semi-structured, or unstructured data like real-time telemetry, session management, user profiles, or high-throughput event logs that do not fit neatly into rigid rows and columns. Understanding the operational trade-offs—such as relational normalization versus denormalization, vertical scaling limitations versus distributed consensus latency—determines whether your backend architecture sustains high load or bottlenecks under pressure."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "SQL (Relational Databases)",
+        "NoSQL (Non-Relational Databases)"
+      ],
+      "rows": [
+        [
+          "Data Schema",
+          "Rigid, predefined schema enforced via DDL constraints and foreign keys.",
+          "Dynamic, schema-less, or flexible schemas allowing nested documents."
+        ],
+        [
+          "Scalability Model",
+          "Primarily vertical scaling (scale-up); horizontal sharding is complex.",
+          "Native horizontal scaling (scale-out) via distributed architectures."
+        ],
+        [
+          "Transaction Guarantees",
+          "Strong ACID compliance across single and multi-row operations.",
+          "BASE semantics, eventual consistency, or transactional scope limited to single documents/keys."
+        ],
+        [
+          "Query Capabilities",
+          "Powerful ad-hoc querying using complex JOINs and SQL dialects.",
+          "Optimized for key lookups, document traversal, or wide-column scans; limited JOIN support."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "ACID guarantees in SQL databases utilize Write-Ahead Logging (WAL) and two-phase locking protocols to ensure durability and atomicity, which introduces lock contention under high concurrent write loads.",
+        "NoSQL horizontal scaling relies on consistent hashing algorithms to partition data across a cluster, minimizing data movement when nodes are added or removed, but often sacrificing cross-partition atomic transactions.",
+        "Document stores embed related data to avoid expensive JOIN operations at runtime, shifting the optimization burden from the query planner to the application write path via denormalization."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.persistence;\n\nimport org.springframework.data.annotation.Id;\nimport org.springframework.data.mongodb.core.mapping.Document;\nimport jakarta.persistence.Entity;\nimport jakarta.persistence.Table;\n\n// SQL Entity: Normalized, enforces strict relational mapping\n@Entity\n@Table(name = \"orders\")\nclass OrderSqlEntity {\n    @jakarta.persistence.Id\n    private Long id;\n    private String customerEmail;\n    private java.math.BigDecimal totalAmount;\n}\n\n// NoSQL Document: Denormalized, embeds related state for high-speed writes\n@Document(collection = \"orders\")\nclass OrderNoSqlDocument {\n    @Id\n    private String id;\n    private String customerEmail;\n    private java.math.BigDecimal totalAmount;\n    private java.util.List<LineItem> items;\n    \n    public static class LineItem {\n        private String sku;\n        private int quantity;\n        private java.math.BigDecimal price;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic trap for engineers migrating from SQL to NoSQL is attempting to design MongoDB collections or Cassandra tables using traditional 3NF (Third Normal Form) relational modeling. Doing so results in a proliferation of lookups and application-level joins that completely destroy NoSQL performance advantages. Remember: NoSQL models data around access patterns (how queries are executed), not around conceptual entity relationships."
+    }
+  ],
+  "num": 366,
+  "title": "When to choose SQL vs NoSQL",
+  "category": "Core Java & Fundamentals"
+}

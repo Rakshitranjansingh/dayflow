@@ -1,0 +1,61 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Spring Bean Lifecycle is the orchestrated sequence of events that the Spring IoC container performs to manage the creation, configuration, and destruction of objects. It is not merely about instantiation; it is a complex state machine that ensures dependencies are injected, awareness interfaces are satisfied, and custom initialization logic is executed. The lifecycle begins when the ApplicationContext scans for bean definitions, moving through instantiation, property population, and various 'Aware' interface callbacks, culminating in the bean becoming ready for use in the application. Understanding this lifecycle is critical because it dictates when you can safely access injected dependencies and how you can hook into the container's startup process to perform tasks like resource allocation or cache warming."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Lifecycle Phase",
+        "Primary Action",
+        "Key Hook"
+      ],
+      "rows": [
+        [
+          "Instantiation",
+          "Bean object created via reflection or factory",
+          "Constructor"
+        ],
+        [
+          "Dependency Injection",
+          "Populating properties and @Autowired fields",
+          "Setter/Field Injection"
+        ],
+        [
+          "Initialization",
+          "Custom setup logic and proxy wrapping",
+          "@PostConstruct / afterPropertiesSet"
+        ],
+        [
+          "Destruction",
+          "Resource cleanup and connection closing",
+          "@PreDestroy / DisposableBean"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Instantiation: The container uses the BeanDefinition to create the instance, typically via reflection or a factory method. At this point, the object is a 'raw' POJO with no dependencies injected.",
+        "Population: The container performs dependency injection (DI) by resolving @Autowired, @Value, and @Inject annotations, effectively wiring the bean's collaborators.",
+        "Awareness Callbacks: If the bean implements interfaces like BeanNameAware or ApplicationContextAware, the container invokes these methods, providing the bean with metadata about its own identity and the container environment.",
+        "BeanPostProcessors: Before and after initialization, the container invokes BeanPostProcessor implementations. This is the mechanism behind AOP proxies; the post-processor replaces the raw bean instance with a dynamic proxy.",
+        "Initialization: The container triggers @PostConstruct methods, followed by the InitializingBean.afterPropertiesSet() callback, and finally any custom init-method defined in the configuration.",
+        "Destruction: Upon context shutdown, the container triggers @PreDestroy and DisposableBean.destroy() to ensure clean release of resources like file handles or database pools."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Component\npublic class LifecycleManagedBean implements InitializingBean, DisposableBean {\n    @Autowired\n    private Dependency dependency;\n\n    public LifecycleManagedBean() {\n        System.out.println(\"1. Constructor: Bean instantiated\");\n    }\n\n    @PostConstruct\n    public void init() {\n        System.out.println(\"2. @PostConstruct: Dependencies are now ready\");\n    }\n\n    @Override\n    public void afterPropertiesSet() {\n        System.out.println(\"3. InitializingBean: Final setup\");\n    }\n\n    @PreDestroy\n    public void cleanup() {\n        System.out.println(\"4. @PreDestroy: Releasing resources\");\n    }\n\n    @Override\n    public void destroy() {\n        System.out.println(\"5. DisposableBean: Final destruction\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production-grade trap is attempting to access injected dependencies inside the bean's constructor. Because dependency injection happens AFTER the constructor executes, any attempt to use an @Autowired field in the constructor will result in a NullPointerException. Always use @PostConstruct or constructor-based injection (which is preferred for immutability) to ensure your dependencies are fully resolved before use."
+    }
+  ],
+  "num": 762,
+  "title": "Explain the Spring Bean Lifecycle.",
+  "category": "Spring Boot & Spring Framework"
+}

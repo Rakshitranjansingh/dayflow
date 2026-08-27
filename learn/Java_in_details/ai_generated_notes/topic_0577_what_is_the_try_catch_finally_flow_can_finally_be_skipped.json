@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The try-catch-finally block is the bedrock of Java's exception handling mechanism, designed to separate the 'happy path' of business logic from the 'exceptional path' of error recovery. The 'try' block encapsulates code that might throw a checked or unchecked exception. The 'catch' block acts as a handler, catching specific exception types to prevent application crashes and allow for graceful degradation or logging. The 'finally' block serves as a deterministic cleanup mechanism, executing regardless of whether an exception was thrown or caught. This is critical for resource management, such as closing file handles, database connections, or network sockets, ensuring that the JVM does not leak system resources even when an unexpected runtime exception occurs."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Scenario",
+        "Try Block",
+        "Catch Block",
+        "Finally Block"
+      ],
+      "rows": [
+        [
+          "No Exception",
+          "Executes",
+          "Skipped",
+          "Executes"
+        ],
+        [
+          "Exception Caught",
+          "Executes until error",
+          "Executes",
+          "Executes"
+        ],
+        [
+          "Exception Uncaught",
+          "Executes until error",
+          "Skipped",
+          "Executes"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The finally block is guaranteed to execute in almost all JVM states, including after a return statement inside the try or catch blocks, as the JVM pushes the return value onto the operand stack before executing the finally block.",
+        "The finally block will be skipped only if the JVM crashes (e.g., OutOfMemoryError, StackOverflowError), if the thread is terminated, or if System.exit() is explicitly called within the try/catch blocks.",
+        "If a return statement exists in both the try/catch and the finally block, the return value in the finally block will override the previous one, which is a common source of subtle logic bugs.",
+        "Modern Java (7+) prefers the try-with-resources pattern over manual finally blocks for AutoCloseable resources, as it handles suppressed exceptions correctly and reduces boilerplate."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void processData() {\n    Connection conn = null;\n    try {\n        conn = dataSource.getConnection();\n        // Business logic here\n    } catch (SQLException e) {\n        logger.error(\"Database failure\", e);\n        throw new DataAccessException(e);\n    } finally {\n        if (conn != null) {\n            try {\n                conn.close();\n            } catch (SQLException e) {\n                logger.warn(\"Failed to close connection\", e);\n            }\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never throw an exception inside a finally block. If an exception is already propagating from the try or catch block, an exception thrown in finally will suppress the original exception, making it nearly impossible to debug the root cause of the failure. Always wrap finally-block cleanup logic in its own nested try-catch."
+    }
+  ],
+  "num": 578,
+  "title": "What is the try-catch-finally flow? Can finally be skipped?",
+  "category": "Core Java & Fundamentals"
+}

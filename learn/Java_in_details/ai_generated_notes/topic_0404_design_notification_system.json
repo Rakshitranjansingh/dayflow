@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a high-throughput, fault-tolerant notification system requires a deep appreciation of asynchronous I/O, non-blocking network channels, and robust exception handling. In modern distributed architectures, a notification service acts as a critical integration bridge, fanning out alerts, emails, push notifications, and SMS messages across multiple third-party carrier gateways. Because network latency, throttling, and intermittent carrier failures are operational certainties, the underlying I/O engine cannot afford to block precious platform threads waiting on socket writes or downstream TCP handshakes. This is where Java's New I/O (NIO) subsystem, specifically selectors, channels, and buffers, becomes instrumental. By leveraging non-blocking socket channels multiplexed over event-driven select loops, a single JVM thread can manage thousands of concurrent outbound connections to various provider APIs without exhausting kernel thread pools or triggering excessive OS context switching.\n\nSimultaneously, enterprise-grade exception handling ensures that transient infrastructure hiccups do not result in dropped alerts or corrupted pipeline states. Network timeout exceptions, rate-limiting HTTP 429 status codes, and invalid device token responses demand distinct recovery strategies. While transient connection resets call for exponential backoff and jittered retry mechanisms, unrecoverable payload exceptions or expired tokens require immediate dead-letter queue (DLQ) routing and circuit-breaking semantics. By integrating structured I/O error handling directly with reactive backpressure or asynchronous completable futures, the notification pipeline maintains high availability while isolating failing downstream endpoints from cascading upstream thread starvation."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Non-Blocking Channels (SocketChannel and DatagramChannel) configured in non-blocking mode return immediately from read and write operations, shifting the burden of readiness management to OS-level multiplexers.",
+        "Selector Multiplexing uses platform-specific event notification frameworks (like epoll on Linux or kqueue on macOS) to monitor thousands of I/O channels for OP_READ, OP_WRITE, and OP_CONNECT events with minimal CPU overhead.",
+        "Buffer Management relies on direct ByteBuffer instances allocated off-heap to eliminate unnecessary memory copies between the JVM heap and native OS network buffers during high-volume payload serialization.",
+        "Exception Isolation decouples synchronous dispatch threads from asynchronous delivery pipelines, utilizing dedicated exception handlers to intercept socket timeouts without blocking the main event loop."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class NonBlockingNotificationDispatcher {\n    private Selector selector;\n    private ExecutorService workerPool;\n\n    public void initialize() throws IOException {\n        selector = Selector.open();\n        workerPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());\n    }\n\n    public void registerChannel(SocketChannel channel, NotificationPayload payload) throws IOException {\n        channel.configureBlocking(false);\n        SelectionKey key = channel.register(selector, SelectionKey.OP_WRITE, payload);\n    }\n\n    public void processIoEvents() {\n        try {\n            if (selector.selectNow() > 0) {\n                Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();\n                while (iterator.hasNext()) {\n                    SelectionKey key = iterator.next();\n                    iterator.remove();\n                    if (key.isWritable()) {\n                        handleWrite(key);\n                    }\n                }\n            }\n        } catch (IOException e) {\n            handleChannelException(e);\n        }\n    }\n\n    private void handleWrite(SelectionKey key) {\n        SocketChannel channel = (SocketChannel) key.channel();\n        NotificationPayload payload = (NotificationPayload) key.attachment();\n        try {\n            ByteBuffer buffer = ByteBuffer.wrap(payload.toJsonBytes());\n            channel.write(buffer);\n            if (!buffer.hasRemaining()) {\n                key.cancel();\n                channel.close();\n            }\n        } catch (IOException e) {\n            // Isolate exception, route to retry queue or DLQ\n            key.cancel();\n            try { channel.close(); } catch (IOException ignored) {}\n        }\n    }\n\n    private void handleChannelException(IOException e) {\n        // Log and emit metrics for selector failures\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap when designing high-performance NIO notification systems is the 'spurious wakeup' and 100% CPU utilization bug on Selectors. Operating systems can occasionally wake up a thread blocked on selector.select() even when no registered I/O events are ready. If your event loop fails to check the selected-key set size or handle empty iteration loops correctly, the JVM thread will spin indefinitely, burning CPU cycles. Always validate that selectedKeys() contains actual operational keys, and ensure direct ByteBuffers are pooled properly to avoid native memory fragmentation and off-heap OutOfMemoryErrors."
+    }
+  ],
+  "num": 405,
+  "title": "Design Notification System",
+  "category": "Exception Handling & I/O / NIO"
+}

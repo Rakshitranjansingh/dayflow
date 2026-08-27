@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Domain-Driven Design (DDD) is a software development approach that focuses on modeling software to match a real-world business domain. When designing complex enterprise applications in Java, technical architectures often fail not due to syntax or infrastructure issues, but because the code does not accurately reflect the business rules. DDD bridges this gap by aligning the code structure, classes, and workflows with the mental model of domain experts. At its core, DDD relies on building a Ubiquitous Language, which is a rigorous, shared vocabulary between developers and business stakeholders. This language is embedded directly into the codebase, meaning classes, methods, and variables use the exact terminology spoken by domain experts, eradicating ambiguous translations between business requirements and technical implementation.\n\nTo manage complexity in large systems, DDD introduces the concept of a Bounded Context, which explicitly defines the applicability of a domain model. Within a large enterprise, a term like 'Product' means vastly different things to the Inventory team, the Shipping team, and the Billing team. A Bounded Context acts as an unambiguous boundary around a specific model, ensuring that the domain terms within it maintain a singular, consistent meaning without polluting other parts of the system. Furthermore, to manage transactional consistency and state mutations, DDD utilizes Aggregates. An Aggregate is a cluster of associated domain objects—Entities and Value Objects—treated as a single unit for data changes. Every aggregate is governed by an Aggregate Root, a specific entity that acts as the sole entry point for modifications, enforcing business invariants and maintaining transactional consistency across the entire cluster."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "DDD Building Block",
+        "Primary Responsibility",
+        "Java Architectural Mapping"
+      ],
+      "rows": [
+        [
+          "Ubiquitous Language",
+          "Establishes a unified vocabulary across business and tech",
+          "Class, method, and package naming conventions"
+        ],
+        [
+          "Bounded Context",
+          "Isolates a specific domain model and its semantic meaning",
+          "Microservice, package boundary, or module"
+        ],
+        [
+          "Aggregate Root",
+          "Enforces invariants and manages transactional boundaries",
+          "JPA Entity with cascading operations and private setters"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Aggregates must never hold direct object references to other Aggregate Roots across different Bounded Contexts; instead, they reference them strictly by identifier (e.g., UUID or Long ID) to prevent tight coupling and unbounded database queries.",
+        "Value Objects are immutable objects characterized solely by their attributes rather than a persistent identity; in Java, they are best implemented using modern records or final classes with defensive copying.",
+        "The Ubiquitous Language must be actively maintained within code artifacts, meaning if business stakeholders change a term, the domain classes, repositories, and service names must be refactored to match."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class OrderAggregateRoot {\n    private final OrderId id;\n    private OrderStatus status;\n    private final List<OrderLineItem> lineItems = new ArrayList<>();\n\n    public void addItem(ProductCatalogId productId, int quantity, Money price) {\n        if (this.status != OrderStatus.DRAFT) {\n            throw new IllegalStateException(\"Cannot modify an order that is no longer in draft status.\");\n        }\n        this.lineItems.add(new OrderLineItem(productId, quantity, price));\n    }\n\n    public OrderId getId() { return id; }\n    public List<OrderLineItem> getLineItems() { return Collections.unmodifiableList(lineItems); }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production anti-pattern in Java applications using JPA/Hibernate is treating every database entity as an aggregate root and leaking lazy-loading proxies across boundaries. This inevitably leads to catastrophic LazyInitializationExceptions or massive memory footprints due to unintended graph traversal. Ensure that your aggregates are small, load completely within a single transaction, and use repository boundaries that return fully hydrated aggregate roots rather than raw database entities."
+    }
+  ],
+  "num": 1057,
+  "title": "What is Domain-Driven Design (DDD)? (Bounded Context, Aggregate, Ubiquitous Language)",
+  "category": "Core Java & Fundamentals"
+}

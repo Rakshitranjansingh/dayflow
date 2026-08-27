@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "String Deduplication in G1 GC is a specialized garbage collection optimization feature designed to reduce the memory footprint of Java applications by targeting redundant, duplicate java.lang.String objects in the heap. In large enterprise systems, heap analyses routinely reveal that strings account for a massive percentage of total allocated memory, with a staggering proportion of those strings being exact value duplicates created across different parts of the application lifecycle. The Garbage-First (G1) collector addresses this inefficiency natively without requiring changes to application source code.\n\nThe mechanics of String Deduplication operate under the hood during the concurrent marking and evacuation phases of G1 GC. When enabled via specific JVM flags, the collector inspects char[] or byte[] arrays backing String instances as they are processed during garbage collection. It computes a hash for each string and stores these in a temporary hashtable. If a newly encountered string matches an existing string's hash and content, G1 updates the internal char/byte array reference of the duplicate string to point directly to the canonical backing array of the original string. The duplicate array, now unreachable, is swept away during subsequent collection cycles, thereby releasing its memory back to the region pools."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Metric",
+        "Standard G1 Heap",
+        "G1 with String Deduplication"
+      ],
+      "rows": [
+        [
+          "Memory Overhead",
+          "High due to duplicate String character/byte arrays",
+          "Significantly reduced via pointer redirection"
+        ],
+        [
+          "CPU Utilization",
+          "Lower during GC cycles",
+          "Slightly elevated due to hash computation and queue processing"
+        ],
+        [
+          "Application Impact",
+          "None",
+          "Requires Java 8u20+ and specific JVM flags enabled"
+        ],
+        [
+          "Mutability Handling",
+          "Not applicable",
+          "Safe because Java Strings are deeply immutable"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "During young generation collections, G1 inserts candidate strings into a internal concurrent processing queue rather than immediately scanning the entire heap, minimizing pause-time inflation.",
+        "A background worker thread continuously drains the deduplication queue, computing weak-reference hashes and checking the global deduplication table to identify matching character arrays.",
+        "If a match is found, the JVM utilizes atomic operations to safely update the pointer inside the duplicate String object, making it reference the target array while the original array becomes eligible for GC."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "bash",
+      "content": "java -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+PrintStringDeduplicationStatistics -jar my-enterprise-app.jar"
+    },
+    {
+      "type": "note",
+      "content": "Senior Production Gotcha: While String Deduplication drastically lowers heap consumption (often by 10% to 30% in web applications with heavy JSON/XML parsing), it is not a silver bullet. The background deduplication worker thread consumes extra CPU cycles. If your application runs on an already CPU-constrained container, this feature can increase GC pause times or overall CPU utilization. Always monitor with -XX:+PrintStringDeduplicationStatistics before enabling it blindly in production."
+    }
+  ],
+  "num": 731,
+  "title": "What is String Deduplication in G1 GC?",
+  "category": "JVM Architecture & Memory Tuning"
+}

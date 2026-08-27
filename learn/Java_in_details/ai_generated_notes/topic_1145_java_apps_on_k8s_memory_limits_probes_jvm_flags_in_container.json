@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Deploying Java applications on Kubernetes (K8s) requires a paradigm shift in how we manage memory. Historically, the JVM was notorious for its inability to 'see' container boundaries, often leading to OOMKilled events. Memory limits in K8s define the hard ceiling for a pod's cgroup. If the JVM heap plus non-heap memory (Metaspace, CodeCache, Thread stacks, Direct buffers) exceeds this limit, the kernel's OOM killer terminates the process. To mitigate this, we use JVM flags like -XX:+UseContainerSupport, which allows the JVM to query the cgroup filesystem to calculate its heap size relative to the container's memory limit rather than the host's total RAM.\n\nProbes are the heartbeat of your K8s-managed JVM. Liveness probes determine if the container needs a restart, while Readiness probes dictate whether the pod should receive traffic. A common pitfall is using a heavy JMX-based health check for liveness; if the JVM is undergoing a long Stop-The-World (STW) GC pause, the probe might time out, causing a 'death spiral' where K8s kills a healthy but busy JVM. Readiness probes must be more stringent, ensuring the application context is fully initialized and the connection pool is warmed up before the service endpoint is added to the load balancer."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Memory Metric",
+        "JVM Default Behavior",
+        "Container-Aware Behavior"
+      ],
+      "rows": [
+        [
+          "Max Heap (-Xmx)",
+          "1/4 of physical host RAM",
+          "Calculated as a fraction of container limit"
+        ],
+        [
+          "ParallelGCThreads",
+          "Based on host CPU cores",
+          "Based on K8s CPU quota (CFS shares)"
+        ],
+        [
+          "Metaspace/CodeCache",
+          "Unbounded by default",
+          "Must be constrained to prevent OOM"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The JVM's 'Active Processor Count' is derived from the CFS quota. If you set a CPU limit of 1000m (1 core), the JVM will default to a single-threaded GC collector, which can cause massive latency spikes under load.",
+        "Always set -XX:MaxRAMPercentage (e.g., 75.0) instead of hardcoded -Xmx values. This ensures the heap scales dynamically if you adjust your K8s memory limits in the deployment manifest.",
+        "Liveness probes should be lightweight—a simple TCP socket check or a dedicated '/health/live' endpoint that returns a 200 OK without hitting the database or heavy business logic.",
+        "Readiness probes should perform a 'deep' check, verifying connectivity to downstream microservices and ensuring the Spring ApplicationContext is fully refreshed."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "env:\n  - name: JAVA_TOOL_OPTIONS\n    value: \"-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError\"\nreadinessProbe:\n  httpGet:\n    path: /actuator/health/readiness\n    port: 8080\n  initialDelaySeconds: 30\n  periodSeconds: 10\nlivenessProbe:\n  httpGet:\n    path: /actuator/health/liveness\n    port: 8080\n  failureThreshold: 3"
+    },
+    {
+      "type": "note",
+      "content": "The 'Memory Limit Trap': If your K8s memory limit is 1Gi and you set -XX:MaxRAMPercentage=80, the JVM heap will be ~800Mi. However, the remaining 200Mi must accommodate the Metaspace, thread stacks (1MB per thread by default), and native memory. If you have 500 threads, you will crash with an OOM even if the heap is 'fine'. Always account for 'Off-Heap' overhead in your K8s resource requests."
+    }
+  ],
+  "num": 1146,
+  "title": "Java apps on K8s — memory limits, probes, JVM flags in containers.",
+  "category": "JVM Architecture & Memory Tuning"
+}

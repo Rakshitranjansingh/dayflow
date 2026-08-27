@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Handling file upload and download operations efficiently in Java requires mastering both traditional blocking I/O and modern asynchronous non-blocking I/O (NIO) paradigms. When building enterprise systems that ingest or serve large binary payloads, failing to account for memory boundaries, socket buffers, and backpressure quickly leads to catastrophic java.lang.OutOfMemoryError exceptions or thread starvation. File uploads typically manifest as multipart/form-data payloads parsed via servlet containers or reactive web stacks, while downloads demand high-throughput stream piping capable of utilizing direct memory buffers and zero-copy transfer mechanics.\n\nIn synchronous architectures, file uploads consume servlet container threads for the duration of the network read, necessitating careful tuning of multipart configuration properties such as max-file-size and max-request-size to mitigate denial-of-service vectors like disk exhaustion or memory flooding. Conversely, Java NIO leverages channels, buffers, and selectors to decouple the network read loop from application thread pools. By employing FileChannel and ByteBuffer abstractions, developers can manipulate memory-mapped files or execute native system calls like sendfile() to pipe bytes directly from disk storage to network sockets without unnecessarily copying data through user-space JVM heap memory."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric / Feature",
+        "Traditional I/O (java.io)",
+        "NIO / NIO.2 (java.nio)"
+      ],
+      "rows": [
+        [
+          "Execution Model",
+          "Blocking, thread-per-connection",
+          "Non-blocking, multiplexed selectors"
+        ],
+        [
+          "Buffer Handling",
+          "Stream-based byte arrays",
+          "Direct/Indirect ByteBuffers, Memory-mapped files"
+        ],
+        [
+          "Zero-Copy Support",
+          "Limited (relies on JVM heap buffering)",
+          "Native OS-level zero-copy via FileChannel.transferTo()"
+        ],
+        [
+          "Scalability under High Concurrency",
+          "Degrades rapidly due to thread exhaustion",
+          "High throughput with minimal thread allocation"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "FileChannel.transferTo() interfaces directly with operating system kernel routines, bypassing user-space JVM memory buffers during file downloads to achieve maximum throughput.",
+        "Multipart uploads often stream incoming stream chunks to a temporary disk location if the file size exceeds a configured threshold, preventing JVM heap fragmentation.",
+        "AsynchronousFileChannel utilizes underlying OS completion ports (like epoll on Linux or IOCP on Windows) to handle non-blocking disk I/O operations safely."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/files\")\npublic class FileTransferController {\n\n    @PostMapping(\"/upload\")\n    public ResponseEntity<String> handleUpload(@RequestParam(\"file\") MultipartFile file) {\n        try {\n            Path destination = Paths.get(\"/var/uploads\", file.getOriginalFilename());\n            try (InputStream inputStream = file.getInputStream()) {\n                Files.copy(inputStream, destination, StandardCopyOption.REPLACE_EXISTING);\n            }\n            return ResponseEntity.ok(\"File uploaded successfully: \" + file.getOriginalFilename());\n        } catch (IOException e) {\n            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(\"Upload failed: \" + e.getMessage());\n        }\n    }\n\n    @GetMapping(\"/download/{filename}\")\n    public ResponseEntity<Resource> handleDownload(@PathVariable String filename) {\n        try {\n            Path filePath = Paths.get(\"/var/uploads\").resolve(filename).normalize();\n            Resource resource = new UrlResource(filePath.toUri());\n            if (resource.exists() && resource.isReadable()) {\n                return ResponseEntity.ok()\n                        .contentType(MediaType.APPLICATION_OCTET_STREAM)\n                        .header(HttpHeaders.CONTENT_DISPOSITION, \"attachment; filename=\\\"\" + resource.getFilename() + \"\\\"\")\n                        .body(resource);\n            }\n            return ResponseEntity.notFound().build();\n        } catch (MalformedURLException e) {\n            return ResponseEntity.badRequest().build();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap during file downloads is failing to catch ClientAbortException or IOException when a client prematurely closes the HTTP connection mid-stream. If your server code attempts to continuously push bytes to a closed socket, it will repeatedly trigger network exceptions, potentially filling log files and wasting CPU cycles. Always check the connection state or let Spring's ResponseEntity handle stream closure cleanly by leveraging zero-copy resource resolvers."
+    }
+  ],
+  "num": 296,
+  "title": "File upload / download",
+  "category": "Exception Handling & I/O / NIO"
+}

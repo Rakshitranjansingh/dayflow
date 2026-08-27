@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Building scalable Java applications requires moving away from the anti-pattern of instantiating a new Thread per task, which quickly exhausts OS resources and destroys CPU cache locality due to context switching overhead. Instead, Java concurrency relies on the ExecutorService interface and its concrete powerhouse, the ThreadPoolExecutor. Understanding its deep internals—specifically corePoolSize, maximumPoolSize, the work queue, and rejection policies—is mandatory for preventing production outages like OutOfMemoryErrors or thread starvation. When a task is submitted via execute() or submit(), the ThreadPoolExecutor evaluates its internal state machine against these boundaries to decide whether to spin up a new worker thread, enqueue the task for later execution, or reject it entirely.\n\nThe corePoolSize defines the minimum number of worker threads kept alive in the pool, even if they are idle, unless the allowCoreThreadTimeOut flag is explicitly toggled. When incoming tasks exceed corePoolSize, the executor refuses to spawn new threads immediately; instead, it funnels tasks into a blocking queue. Only when this work queue becomes completely saturated does the executor scale out worker threads up to the maximumPoolSize limit. If the workload continues to surge past maxPoolSize and the queue remains full, the configured rejection policy steps in to handle the overflow gracefully. Mastering how these knobs interact prevents both underutilization of hardware resources and catastrophic thread exhaustion."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component / Policy",
+        "Primary Responsibility",
+        "Production Failure Mode if Misconfigured"
+      ],
+      "rows": [
+        [
+          "corePoolSize",
+          "Maintains baseline threads for steady-state workloads without termination overhead.",
+          "Too low causes unnecessary thread creation latency; too high wastes idle JVM heap and OS thread stacks."
+        ],
+        [
+          "Work Queue",
+          "Buffers asynchronous tasks when concurrency demand exceeds corePoolSize.",
+          "Unbounded queues (e.g., LinkedBlockingQueue) cause silent OutOfMemoryError under high load spikes."
+        ],
+        [
+          "maximumPoolSize",
+          "Caps the upper limit of concurrent worker threads to protect OS limits.",
+          "Set too high, it leads to excessive CPU context switching and thrashing; set too low, throughput drops."
+        ],
+        [
+          "Rejection Policy",
+          "Determines fallback behavior when pool and queue are both fully saturated.",
+          "Default AbortPolicy throws unhandled RejectedExecutionException, crashing critical request processing loops."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Worker Thread Lifecycle: Workers are encapsulated within the Worker class, which extends AbstractQueuedSynchronizer (AQS). This allows tasks to acquire exclusive execution locks to cleanly differentiate between running tasks and idle states during interruption or pool shutdown phases.",
+        "Queue Interaction Mechanics: Unlike common intuition, ThreadPoolExecutor prioritizes queueing over spawning threads up to maximumPoolSize. A new thread is only spawned beyond corePoolSize if the queue rejects the task insertion (i.e., the queue is full).",
+        "Built-in Rejection Policies: CallerRunsPolicy executes the task on the caller's thread, creating backpressure; AbortPolicy throws an exception; DiscardPolicy silently drops the task; DiscardOldestPolicy drops the head of the queue to make room for the new task."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.*;\n\npublic class ProductionThreadPoolConfig {\n    public static ExecutorService createBoundedExecutor() {\n        int coreSize = Runtime.getRuntime().availableProcessors();\n        int maxSize = coreSize * 2;\n        long keepAliveTime = 60L;\n        int queueCapacity = 500;\n\n        return new ThreadPoolExecutor(\n            coreSize,\n            maxSize,\n            keepAliveTime,\n            TimeUnit.SECONDS,\n            new ArrayBlockingQueue<>(queueCapacity),\n            r -> {\n                Thread t = new Thread(r, \"AppWorker-\" + System.currentTimeMillis());\n                t.setDaemon(false);\n                return t;\n            },\n            new ThreadPoolExecutor.CallerRunsPolicy()\n        );\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Never use Executors.newCachedThreadPool() or Executors.newFixedThreadPool() in high-throughput enterprise systems. The cached pool sets maximumPoolSize to Integer.MAX_VALUE, which can easily spawn enough threads to trigger native out-of-memory errors (unable to create native thread). The fixed pool utilizes an unbounded LinkedBlockingQueue, which bypasses maximumPoolSize entirely and creates a ticking memory timebomb during traffic surges."
+    }
+  ],
+  "num": 136,
+  "title": "ExecutorService, ThreadPoolExecutor internals — corePoolSize, maxPoolSize, queue, rejection policies",
+  "category": "Multithreading & Java Concurrency"
+}

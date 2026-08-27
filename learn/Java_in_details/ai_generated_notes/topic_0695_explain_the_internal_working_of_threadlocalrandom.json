@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "ThreadLocalRandom was introduced in Java 7 to solve the severe performance bottleneck inherent in java.util.Random when accessed by multiple threads. The legacy Random class utilizes an AtomicLong seed that is updated via a Compare-And-Swap (CAS) operation. Under high contention, threads frequently collide on this single memory location, leading to CPU cache line bouncing and significant performance degradation. ThreadLocalRandom eliminates this contention by leveraging the ThreadLocal pattern to isolate the seed state to each individual thread, effectively removing the need for synchronization or CAS operations during the generation of random numbers."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "java.util.Random",
+        "java.util.ThreadLocalRandom"
+      ],
+      "rows": [
+        [
+          "Contention",
+          "High (AtomicLong CAS)",
+          "None (Thread-local state)"
+        ],
+        [
+          "Performance",
+          "Degrades with thread count",
+          "Scales linearly"
+        ],
+        [
+          "Seed Management",
+          "Shared instance",
+          "Internal Thread field"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "ThreadLocalRandom stores its seed directly within the Thread object using the 'threadLocalRandomSeed' field, which is accessed via Unsafe to bypass standard field visibility overhead.",
+        "It uses a Linear Congruential Generator (LCG) algorithm, which is computationally inexpensive and sufficient for non-cryptographic random number generation.",
+        "The class is designed to be accessed via the static 'current()' method, which initializes the thread-local state upon the first invocation for a given thread.",
+        "Because it avoids synchronization, it is not thread-safe in the sense of shared state, but it is perfectly safe for concurrent use because each thread operates on its own isolated seed."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public int generateRandom(int origin, int bound) {\n    // ThreadLocalRandom.current() is a fast-path lookup\n    // It avoids the contention of a shared AtomicLong seed\n    return ThreadLocalRandom.current().nextInt(origin, bound);\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is assuming ThreadLocalRandom is cryptographically secure. It is not. If your application requires high-entropy random numbers for security tokens or password salts, you must use java.security.SecureRandom. Additionally, while ThreadLocalRandom is fast, be aware that it can cause memory leaks in environments using custom ClassLoaders if threads are not cleaned up properly, as the thread-local state persists as long as the Thread object remains alive."
+    }
+  ],
+  "num": 696,
+  "title": "Explain the internal working of ThreadLocalRandom.",
+  "category": "Multithreading & Java Concurrency"
+}

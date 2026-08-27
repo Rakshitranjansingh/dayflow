@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "WebClient is the non-blocking, reactive replacement for the legacy RestTemplate within the Spring ecosystem. While RestTemplate relies on a thread-per-request model—which inevitably leads to thread starvation under high concurrency—WebClient leverages the Project Reactor library to handle HTTP requests asynchronously. By utilizing an event-loop architecture, WebClient allows a small number of threads to manage thousands of concurrent connections, making it the cornerstone of high-performance microservices built on Spring WebFlux. It solves the 'blocking I/O' bottleneck by returning Mono or Flux types, effectively decoupling the request-response lifecycle from the underlying thread pool."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "RestTemplate",
+        "WebClient"
+      ],
+      "rows": [
+        [
+          "Threading Model",
+          "Thread-per-request (Blocking)",
+          "Event-loop (Non-blocking)"
+        ],
+        [
+          "API Style",
+          "Imperative",
+          "Functional/Reactive"
+        ],
+        [
+          "Backpressure",
+          "Not supported",
+          "Supported via Reactor"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Event-Loop Efficiency: WebClient uses Netty as its default runtime, where a small fixed number of event-loop threads handle I/O events, preventing the overhead of context switching associated with large thread pools.",
+        "Reactive Streams Integration: Because it returns Mono<T> or Flux<T>, it integrates seamlessly with RSocket, Kafka, or other reactive data pipelines, allowing for end-to-end backpressure propagation.",
+        "Fluent API: The builder pattern allows for declarative configuration of headers, timeouts, and retry strategies, which are applied to the pipeline before the request is even subscribed to.",
+        "Cold vs Hot Streams: WebClient requests are 'cold' by default, meaning the HTTP call is only executed when a subscriber (like a controller or a flatMap) subscribes to the returned publisher."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public Mono<User> fetchUser(String userId) {\n    return webClient.get()\n        .uri(\"/users/{id}\", userId)\n        .accept(MediaType.APPLICATION_JSON)\n        .retrieve()\n        .onStatus(HttpStatusCode::is4xxClientError, response -> Mono.error(new UserNotFoundException()))\n        .bodyToMono(User.class)\n        .timeout(Duration.ofSeconds(2))\n        .retry(3);\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common production failure with WebClient is forgetting to subscribe or failing to handle the lifecycle of the reactive stream. If you call a WebClient method and do not return the Mono/Flux to the framework (e.g., Spring WebFlux controller), the request will never execute. Furthermore, avoid using .block() in production code; it forces the reactive pipeline to wait synchronously, effectively negating all the performance benefits of the non-blocking architecture and risking thread exhaustion."
+    }
+  ],
+  "num": 302,
+  "title": "WebClient (reactive HTTP client)",
+  "category": "REST APIs, WebFlux & Microservices"
+}

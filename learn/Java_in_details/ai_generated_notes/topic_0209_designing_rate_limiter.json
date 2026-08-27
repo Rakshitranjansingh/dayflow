@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a rate limiter for a distributed systems environment requires balancing accuracy, memory footprint, and network serialization overhead across stateless microservices. When multiple instances of an API gateway or service node handle incoming client requests, local in-memory counters fall short because state must be synchronized or partitioned globally to prevent burst abuse. A robust rate-limiting architecture relies heavily on atomic distributed data stores like Redis to evaluate throughput restrictions in sub-millisecond windows. We evaluate strategies such as Token Bucket, Leaky Bucket, Fixed Window Counters, Sliding Window Logs, and Sliding Window Counters to determine which traffic-shaping algorithm fits specific SLAs."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Algorithm",
+        "Memory Footprint",
+        "Burst Handling",
+        "Accuracy"
+      ],
+      "rows": [
+        [
+          "Fixed Window Counter",
+          "O(1)",
+          "Allows 2x bursts at window edges",
+          "Low (boundary spikes)"
+        ],
+        [
+          "Token Bucket",
+          "O(1)",
+          "Allows configured bursts",
+          "High"
+        ],
+        [
+          "Leaky Bucket",
+          "O(1)",
+          "Smoothes bursts into constant rate",
+          "High"
+        ],
+        [
+          "Sliding Window Log",
+          "O(N) where N = requests",
+          "Strict control, no bursts",
+          "Highest"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In a distributed Redis-backed rate limiter, using Lua scripts is mandatory to ensure atomic execution of read, check, and update operations, eliminating race conditions across concurrent cluster nodes.",
+        "Sliding Window Counters trade microsecond precision for memory efficiency by combining the count of the current partial window with a weighted historical count from the previous window.",
+        "Edge-based rate limiting (at CDN or API Gateway layers) protects downstream internal services from malicious DDoS payloads before expensive service-mesh hops occur."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class RedisTokenBucketRateLimiter {\n    private final RedisTemplate<String, String> redisTemplate;\n    private final long capacity;\n    private final long refillRatePerSecond;\n\n    public boolean allowRequest(String clientId) {\n        String key = \"rate_limit:\" + clientId;\n        String script = \"local key = KEYS[1]\\n\" +\n                        \"local capacity = tonumber(ARGV[1])\\n\" +\n                        \"local refill = tonumber(ARGV[2])\\n\" +\n                        \"local now = tonumber(ARGV[3])\\n\" +\n                        \"local requested = tonumber(ARGV[4])\\n\" +\n                        \"local data = redis.call('hmget', key, 'tokens', 'last_updated')\\n\" +\n                        \"local tokens = tonumber(data[1])\\n\" +\n                        \"local last_updated = tonumber(data[2])\\n\" +\n                        \"if not tokens then\\n\" +\n                        \"    tokens = capacity\\n\" +\n                        \"    last_updated = now\\n\" +\n                        \"else\\n\" +\n                        \"    local delta = math.max(0, now - last_updated)\\n\" +\n                        \"    tokens = math.min(capacity, tokens + (delta * refill))\\n\" +\n                        \"    last_updated = now\\n\" +\n                        \"end\\n\" +\n                        \"if tokens < requested then\\n\" +\n                        \"    return 0\\n\" +\n                        \"end\\n\" +\n                        \"tokens = tokens - requested\\n\" +\n                        \"redis.call('hmset', key, 'tokens', tokens, 'last_updated', last_updated)\\n\" +\n                        \"redis.call('expire', key, 60)\\n\" +\n                        \"return 1\";\n        // Execute via Redis eval\n        return true;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when designing distributed rate limiters is relying on multi-command Redis operations (e.g., GET then SET) from the application tier. This introduces race conditions under high concurrency where two threads read the same counter value and both permit an excess request. Always encapsulate rate-limiting logic inside atomic server-side Lua scripts or Redis Functions to guarantee transactional safety."
+    }
+  ],
+  "num": 210,
+  "title": "Designing Rate Limiter",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

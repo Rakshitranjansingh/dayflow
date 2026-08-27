@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Framework, both @Component and @Bean are core mechanisms used to register beans within the Spring IoC container, but they operate at fundamentally different levels of abstraction and ownership. The @Component annotation (along with its specialized stereotypes like @Service, @Repository, and @Controller) is a class-level annotation utilized for classpath scanning. When Spring encounters @Component, it automatically instantiates the class based on convention, relying on component-scanning to discover beans without explicit manual configuration. This makes it ideal for application classes where you own the source code.\n\nConversely, the @Bean annotation is a method-level annotation typically used within a @Configuration class. It gives you explicit, programmatic control over object creation, allowing you to instantiate, configure, and initialize objects whose source code you cannot modify—such as third-party library classes or legacy code. While @Component delegates the instantiation mechanics entirely to Spring's container via classpath scanning and reflection, @Bean forces you to write the exact Java code required to construct the dependency graph, handing the resulting instance over to the container to manage its lifecycle."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "@Component",
+        "@Bean"
+      ],
+      "rows": [
+        [
+          "Target",
+          "Class level",
+          "Method level (inside @Configuration)"
+        ],
+        [
+          "Discovery Mechanism",
+          "Automatic classpath scanning",
+          "Explicit Java configuration methods"
+        ],
+        [
+          "Source Code Control",
+          "Requires ownership of the source class",
+          "Can instantiate third-party or unmodifiable classes"
+        ],
+        [
+          "Instantiation Logic",
+          "Handled implicitly by the container",
+          "Controlled entirely by developer's method body"
+        ],
+        [
+          "Multiple Instances",
+          "Difficult (requires scoping or factory patterns)",
+          "Easy (can invoke the method multiple times or configure parameterized variants)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Classpath scanning with @Component relies on ASM (Bytecode manipulation framework) to inspect classes without loading them into the JVM, improving startup performance.",
+        "@Bean methods inside a @Configuration class are intercepted by Spring's CGLIB proxy mechanism to ensure singleton scope semantics are preserved when other @Bean methods cross-reference them.",
+        "Using @Component on third-party library classes is impossible because you cannot add annotations to compiled bytecode unless you rely on custom post-processors or bytecode weaving."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class AppConfig {\n\n    // Using @Bean for a third-party class we do not own\n    @Bean\n    public ObjectMapper objectMapper() {\n        ObjectMapper mapper = new ObjectMapper();\n        mapper.registerModule(new JavaTimeModule());\n        return mapper;\n    }\n}\n\n// Using @Component for our own domain class discovered via component scanning\n@Component\npublic class UserService {\n    private final UserRepository userRepository;\n\n    public UserService(UserRepository userRepository) {\n        this.userRepository = userRepository;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic interview trap and production gotcha is calling a @Bean method directly from another @Bean method outside of a configuration proxy context. Because Spring intercepts CGLIB-enhanced @Configuration classes, calling another @Bean method returns the existing singleton instance from the container. However, if you place @Bean inside a regular unproxied class (or use lite mode configuration), direct method calls will invoke the constructor repeatedly, breaking singleton scoping and inadvertently spawning multiple unmanaged instances of your dependency."
+    }
+  ],
+  "num": 759,
+  "title": "What is the difference between @Component and @Bean?",
+  "category": "Core Java & Fundamentals"
+}

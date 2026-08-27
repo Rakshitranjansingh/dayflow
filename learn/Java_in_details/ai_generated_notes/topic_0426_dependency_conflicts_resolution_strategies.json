@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Dependency conflicts in enterprise Java applications arise when the transitive closure of a project's dependency graph contains multiple distinct versions of the same artifact. Modern build tools like Maven and Gradle must employ deterministic dependency resolution strategies to select a single version to include on the classpath or module path, preventing runtime linkage errors such as NoSuchMethodError or ClassNotFoundException. When a library updates its internal API or drops a deprecated method, having an unintended older or newer version substituted via a transitive path leads to catastrophic runtime failures during class loading. Understanding how build engines evaluate scope, depth, and declaration order is critical for maintaining a stable build lifecycle.\n\nResolution strategies dictate how these collisions are arbitrated. Maven relies heavily on a nearest-first algorithm coupled with a declarative dependency management block for hard overrides, whereas Gradle uses a dynamic version selection mechanism defaulting to the latest version found in the dependency graph unless explicitly configured otherwise. These strategies form the backbone of deterministic builds, insulating the runtime environment from accidental upstream changes."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy Dimension",
+        "Maven Approach",
+        "Gradle Approach"
+      ],
+      "rows": [
+        [
+          "Default Algorithm",
+          "Nearest-first (shortest path wins)",
+          "Latest version (highest version number wins)"
+        ],
+        [
+          "Conflict Override",
+          "Explicit <dependencyManagement> block or direct exclusion",
+          "Resolution strategies block with strictly() or force()"
+        ],
+        [
+          "Transitive Control",
+          "<exclusions> tag inside dependency declaration",
+          "exclude clause or component selection rules"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Nearest-First Resolution: Maven evaluates the dependency tree breadth-first. The version declared closest to the root project wins the collision, which can lead to unstable builds if a newly added direct dependency pulls in an older transitive version than what was previously resolved.",
+        "Version Greediness in Gradle: By default, Gradle selects the highest version encountered across the entire dependency graph. While this avoids missing features, it can break backwards compatibility if a transitive library forces an upgrade that violates a direct dependency's assumptions.",
+        "Forcing and Strictly Constraints: Enterprise environments often utilize strict version constraints to mandate exact binary compatibility, failing the build immediately if any transitive path attempts to negotiate a version outside the approved band."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "groovy",
+      "content": "configurations.all {\n    resolutionStrategy {\n        force 'com.google.guava:guava:32.1.3-jre'\n        failOnVersionConflict()\n        eachDependency { details ->\n            if (details.requested.group == 'org.springframework') {\n                details.useVersion '6.1.2'\n            }\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap occurs when a dependency conflict is masked during compile time because the compiler resolves against a wider API, but results in a LinkageError at runtime due to a method signature change in the version actually loaded by the classloader. Always run 'mvn dependency:tree' or 'gradle dependencies' as part of your CI pipeline gates to catch silent version substitutions."
+    }
+  ],
+  "num": 427,
+  "title": "Dependency conflicts & resolution strategies",
+  "category": "Exception Handling & I/O / NIO"
+}

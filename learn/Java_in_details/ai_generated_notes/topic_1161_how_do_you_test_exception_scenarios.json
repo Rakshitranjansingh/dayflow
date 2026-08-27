@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Testing exception scenarios is a critical aspect of building resilient Java applications, particularly when dealing with I/O and NIO operations where external factors like network latency, file system permissions, or buffer overflows are common. In a production environment, simply verifying that a method returns a value is insufficient; you must ensure that your application fails gracefully and predictably when invariants are violated. Exception testing validates that your error handling logic—such as retry mechanisms, resource cleanup in finally blocks, or transaction rollbacks—actually triggers under duress. Without robust exception testing, you risk silent failures, resource leaks (like unclosed FileChannels), or corrupted state that is notoriously difficult to debug in production."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Testing Strategy",
+        "Primary Use Case",
+        "Implementation Tool"
+      ],
+      "rows": [
+        [
+          "AssertThrows",
+          "Standard business logic validation",
+          "JUnit 5 assertThrows"
+        ],
+        [
+          "Try-Catch-Fail",
+          "Legacy code or complex state verification",
+          "JUnit 4 / Manual block"
+        ],
+        [
+          "Mocking Exceptions",
+          "Simulating I/O failures (e.g., IOException)",
+          "Mockito.thenThrow()"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "When testing NIO, use Mockito to inject failures into FileChannel or SocketChannel operations to simulate partial writes or interrupted I/O, which are impossible to trigger reliably with real hardware.",
+        "Always verify the exception type and the state of the object after the exception. If an I/O exception occurs, ensure that your AutoCloseable resources are indeed closed to prevent memory leaks in the heap.",
+        "For asynchronous NIO operations, use CompletableFuture.exceptionally() or verify that the CompletionException wraps the expected cause, as stack traces are often lost or obscured in async boundaries.",
+        "Avoid over-testing checked exceptions that are merely re-thrown; focus your test coverage on the catch blocks where recovery logic or logging occurs."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Test\nvoid testFileReadFailure() {\n    FileService service = new FileService(mockChannel);\n    when(mockChannel.read(any(ByteBuffer.class))).thenThrow(new IOException(\"Disk failure\"));\n\n    IOException exception = assertThrows(IOException.class, () -> service.processData());\n    assertEquals(\"Disk failure\", exception.getMessage());\n    verify(mockChannel, times(1)).close();\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is testing the exception but ignoring the side effects. If your method throws an exception halfway through a transaction or a file write, ensure your test verifies that the system state is consistent—for example, that no partial, corrupted data was persisted. If you are using NIO, remember that an IOException during a write operation might leave the position of your buffer in an indeterminate state; verify that your catch block resets the buffer or handles the offset correctly."
+    }
+  ],
+  "num": 1162,
+  "title": "How do you test exception scenarios?",
+  "category": "Exception Handling & I/O / NIO"
+}

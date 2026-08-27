@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a high-throughput, resilient file upload and download service in Java requires going far beyond simple MultipartFile handling. When scaling to handle gigabyte-sized payloads concurrently, you must solve memory exhaustion (OutOfMemoryError), thread starvation, and I/O bottlenecks. In a production-grade architecture, standard synchronous request-response models fail because they block valuable platform threads on slow socket reads and writes. Instead, modern upload/download engines leverage asynchronous I/O (NIO), non-blocking reactive streams, and direct off-heap memory transfers to stream binary data directly from the network socket to persistent storage without intermediate buffering in the JVM heap.\n\nFor uploads, the service must handle multi-part stream parsing safely, employing chunked transfers to write data incrementally to disk or object storage (such as Amazon S3) via asynchronous multipart upload APIs. For downloads, zero-copy mechanics using FileChannel.transferTo() allow the operating system kernel to pipe bytes straight from the disk cache to the network socket buffer, bypassing user-space memory entirely and slashing CPU utilization. Furthermore, robust architectures incorporate distributed rate limiting, cryptographic payload hashing (SHA-256) for integrity verification, and byte-range request processing to enable resumable downloads and parallel chunked transfers."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Standard Synchronous Approach",
+        "High-Performance Reactive/NIO Approach"
+      ],
+      "rows": [
+        [
+          "Memory Footprint",
+          "High risk of JVM Heap OOM via byte[] buffering",
+          "Constant low footprint using direct ByteBuffers and Zero-Copy"
+        ],
+        [
+          "Thread Utilization",
+          "One blocked platform thread per active transfer",
+          "Event-loop concurrency handling thousands of concurrent streams"
+        ],
+        [
+          "Resumability & Range",
+          "Entire file must be re-transmitted on connection drop",
+          "Supports HTTP Range headers for chunked resumes and parallel fetches"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Zero-Copy Mechanics: Utilizing FileChannel.transferTo() lets the OS kernel transfer bytes from disk to network interface controllers (NICs) without CPU context switches between user space and kernel space.",
+        "Backpressure Management: In reactive implementations (e.g., Spring WebFlux with Project Reactor), data consumption speed is explicitly signaled by the consumer to prevent fast producers from overwhelming slow network clients.",
+        "Multipart Stream Parsing: Processing incoming multipart boundaries incrementally via reactive Flux<DataBuffer> streams prevents massive disk I/O amplification and garbage collection pressure."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/files\")\npublic class FileTransferController {\n\n    private final Path storageDirectory = Paths.get(\"/var/app/uploads\");\n\n    @PostMapping(value = \"/upload\", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)\n    public Mono<ResponseEntity<String>> uploadFile(@RequestPart(\"file\") FilePart filePart) {\n        Path destination = storageDirectory.resolve(filePart.filename());\n        \n        return filePart.transferTo(destination)\n                .then(Mono.just(ResponseEntity.ok(\"File uploaded successfully: \" + filePart.filename())));\n    }\n\n    @GetMapping(\"/download/{fileName}\")\n    public Mono<ResponseEntity<Resource>> downloadFile(@PathVariable String fileName) {\n        Path file = storageDirectory.resolve(fileName);\n        Resource resource = new FileSystemResource(file);\n        \n        return Mono.fromCallable(() -> {\n            if (!resource.exists() || !resource.isReadable()) {\n                throw new ResponseStatusException(HttpStatus.NOT_FOUND, \"File not found\");\n            }\n            return ResponseEntity.ok()\n                    .header(HttpHeaders.CONTENT_DISPOSITION, \"attachment; filename=\\\"\" + resource.getFilename() + \"\\\"\")\n                    .contentType(MediaType.APPLICATION_OCTET_STREAM)\n                    .body(resource);\n        }).subscribeOn(Schedulers.boundedElastic());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic 7+ YOE production trap in Java file transfers is attempting to read streams into byte arrays or using standard InputStream/OutputStream loops inside blocking thread pools under heavy load. This instantly causes thread pool starvation and triggers frequent Full GCs due to massive byte[] allocations in the Old Generation. Always offload blocking file I/O to a dedicated bounded elastic scheduler or leverage AsynchronousFileChannel, and enforce strict streaming limits to prevent malicious clients from sending unbounded payloads."
+    }
+  ],
+  "num": 1097,
+  "title": "How would you design an upload/download service?",
+  "category": "Core Java & Fundamentals"
+}

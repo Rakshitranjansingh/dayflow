@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Cross-Origin Resource Sharing (CORS) is an HTTP-header based mechanism that allows a server to indicate any origins (domain, scheme, or port) other than its own from which a browser should permit loading resources. While Same-Origin Policy (SOP) strictly isolates documents loaded from different origins to prevent malicious script injection, CORS selectively relaxes this restriction. However, a weak CORS configuration completely undermines this boundary, exposing internal enterprise APIs and sensitive user state to cross-site data theft. When developers improperly configure CORS headers—such as reflecting arbitrary Origin headers via Access-Control-Allow-Origin: * combined with credentials, or trusting null origins—they inadvertently create pathways for Cross-Site Request Forgery (CSRF) style attacks, data exfiltration, and session hijacking via rogue JavaScript executed in an authenticated victim's browser."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "CORS Configuration Pattern",
+        "Security Risk Level",
+        "Exploitation Vector"
+      ],
+      "rows": [
+        [
+          "Access-Control-Allow-Origin: *",
+          "Low (Public Data) / High (Authenticated Endpoints)",
+          "Allows any third-party domain to read public or sensitive API responses using fetch() or XMLHttpRequest."
+        ],
+        [
+          "Access-Control-Allow-Credentials: true + Wildcard Origin",
+          "Critical",
+          "Blocked by modern browsers, but older user agents or misconfigured API gateways allow credentialed requests from any site."
+        ],
+        [
+          "Dynamic Reflection of arbitrary Origin Header",
+          "Critical",
+          "Enables cross-site reading of private user data by malicious origin sites as the server blindly trusts the client's Origin."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Browsers enforce CORS by sending a preflight OPTIONS request for non-simple requests (e.g., custom headers like Authorization or PUT/DELETE methods). If the server responds with overly permissive Access-Control-Allow-Methods and Access-Control-Allow-Headers, malicious web applications gain complete CRUD access over the victim's session.",
+        "The Access-Control-Allow-Credentials header, when set to true, forces the browser to include HTTP cookies and TLS client certificates in cross-origin requests. If paired with a dynamically reflected Origin header, an attacker's script can quietly siphon out CSRF tokens or JSON payloads containing PII.",
+        "Spring Security's CorsFilter intercepts requests early in the SecurityFilterChain. If cors().configurationSource() is configured with CorsConfiguration.setAllowedOriginPatterns(Arrays.asList(\"*\")), Spring translates this to a dynamic reflection of the request's Origin header, bypassing strict wildcard blocks while retaining dynamic vulnerability risks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\npublic class SecurityConfig {\n\n    @Bean\n    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {\n        http\n            .cors(cors -> cors.configurationSource(request -> {\n                CorsConfiguration config = new CorsConfiguration();\n                // VULNERABLE: Allowing specific untrusted patterns or credentials with wildcards\n                config.setAllowedOrigins(List.of(\"https://trusted.com\"));\n                config.setAllowedMethods(List.of(\"GET\", \"POST\"));\n                config.setAllowCredentials(true);\n                config.setAllowedHeaders(List.of(\"Authorization\", \"Content-Type\"));\n                return config;\n            }))\n            .csrf(csrf -> csrf.disable()) // Often disabled alongside weak CORS in stateless APIs\n            .authorizeHttpRequests(auth -> auth.anyRequest().authenticated());\n        \n        return http.build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic trap in Spring applications is combining spring-security CORS configurations with MVC-level @CrossOrigin annotations. If both are active, headers can be duplicated or evaluate inconsistently, occasionally falling back to default permissive defaults. Always centralize CORS configuration via CorsConfigurationSource and ensure that internal microservices behind an API Gateway handle CORS at the edge rather than locally in every service."
+    }
+  ],
+  "num": 1023,
+  "title": "What is the security impact of weak CORS configuration?",
+  "category": "Spring Security & Web Security"
+}

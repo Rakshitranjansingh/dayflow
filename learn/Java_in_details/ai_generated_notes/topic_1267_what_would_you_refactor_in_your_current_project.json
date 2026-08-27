@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Refactoring is not merely about cleaning up code; it is an exercise in managing technical debt and improving the maintainability of the codebase. In a production Java environment, the most common candidate for refactoring is the 'God Object'—a class that has accumulated too many responsibilities, violating the Single Responsibility Principle (SRP). These classes often become bloated, making them impossible to unit test effectively because they require massive mock setups. Another frequent target is the misuse of primitive obsession, where domain concepts are represented by raw strings or integers rather than rich Value Objects. This leads to 'anemic domain models' where logic is scattered across service layers instead of being encapsulated within the entities themselves.\n\nFurthermore, I often look for opportunities to replace imperative loops with the Java Streams API where it improves readability, while being cautious not to introduce performance overhead in hot paths. Refactoring also involves addressing concurrency bottlenecks. If I see synchronized blocks being used where a 'java.util.concurrent' lock or a concurrent collection would suffice, I prioritize that to reduce thread contention. Ultimately, the goal is to reduce cyclomatic complexity and ensure that the code is 'self-documenting,' allowing a new engineer to understand the business logic without needing to trace through deep inheritance hierarchies or nested conditional logic."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Refactoring Target",
+        "Current State",
+        "Desired State"
+      ],
+      "rows": [
+        [
+          "Domain Logic",
+          "Anemic models with setters",
+          "Rich domain objects with behavior"
+        ],
+        [
+          "Dependency Injection",
+          "Manual instantiation/New keyword",
+          "Constructor-based injection via IoC"
+        ],
+        [
+          "Error Handling",
+          "Generic Exception catching",
+          "Custom checked/unchecked domain exceptions"
+        ],
+        [
+          "Data Access",
+          "N+1 query patterns",
+          "Optimized joins or batch fetching"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Decompose monolithic services into smaller, bounded contexts to minimize the blast radius of changes and improve compile times.",
+        "Replace manual object mapping with structured patterns to avoid 'leaky abstractions' where database schema changes force changes in the API layer.",
+        "Audit 'Optional' usage to ensure it is used as a return type for methods that might not return a value, rather than as a field in a class, which can lead to serialization issues.",
+        "Refactor long-running methods that hold onto heap memory unnecessarily, potentially leading to increased GC pressure and longer STW (Stop-The-World) pauses."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Before: Primitive Obsession and Anemic Model\npublic void process(String status) {\n    if (\"ACTIVE\".equals(status)) { /* ... */ }\n}\n\n// After: Type-safe Domain Object\npublic enum OrderStatus {\n    ACTIVE, PENDING, CANCELLED;\n    public boolean isProcessable() { return this == ACTIVE; }\n}\n\npublic void process(OrderStatus status) {\n    if (status.isProcessable()) { /* ... */ }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The biggest trap in refactoring is the 'Refactoring-to-Patterns' disease, where developers over-engineer simple logic into complex design patterns (like Strategy or Visitor) that no one on the team understands. Always prioritize readability over cleverness. If you cannot explain the refactoring to a junior developer in under two minutes, it is likely too complex."
+    }
+  ],
+  "num": 1268,
+  "title": "What would you refactor in your current project?",
+  "category": "Core Java & Fundamentals"
+}

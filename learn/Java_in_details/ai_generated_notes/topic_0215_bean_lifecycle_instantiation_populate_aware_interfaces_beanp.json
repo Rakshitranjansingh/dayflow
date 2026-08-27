@@ -1,0 +1,70 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Spring Framework IoC container manages beans through a strictly ordered, multi-phase lifecycle designed to separate raw object construction from dependency injection, custom initialization, and eventual destruction. Understanding this sequence is crucial for enterprise architects building robust, high-performance applications. The journey begins with Instantiation, where the BeanDefinition is read by the BeanFactoryPostProcessor and transformed into a physical Java object, typically via reflection or CGLIB proxying. Once the raw instance exists in memory, the container enters the Populate phase, injecting required properties, XML values, and `@Autowired` fields or constructor arguments. Before any user code runs, the container invokes various Aware interfaces (such as BeanNameAware, BeanClassLoaderAware, and ApplicationContextAware) to inject infrastructural metadata directly into the bean instance.\n\nFollowing infrastructure awareness, the container delegates initialization hooks to BeanPostProcessors. A BeanPostProcessor wraps or modifies the bean before and after initialization, serving as the foundational mechanism behind Spring AOP proxy creation, `@Async` processing, and annotation-driven caching. After pre-initialization callbacks complete, the bean executes its `@PostConstruct` annotated methods or implements InitializingBean's afterPropertiesSet(). Once these hooks successfully terminate, the bean is marked as Ready and placed into the singleton cache or scoped store for application consumption. Finally, when the ApplicationContext shuts down gracefully, the container triggers `@PreDestroy` methods and DisposableBean callbacks, ensuring proper resource cleanup such as database connection termination or thread pool shutdown."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Lifecycle Phase",
+        "Primary Responsibility",
+        "Key Extension Point"
+      ],
+      "rows": [
+        [
+          "Instantiation",
+          "Creating the raw Java object instance in memory",
+          "InstantiationAwareBeanPostProcessor"
+        ],
+        [
+          "Populate",
+          "Injecting dependencies and resolved properties",
+          "PropertyValues manipulation"
+        ],
+        [
+          "Aware Interfaces",
+          "Injecting container-level metadata into the bean",
+          "ApplicationContextAware, BeanNameAware"
+        ],
+        [
+          "BeanPostProcessor",
+          "Interception and proxy wrapping (Pre/Post init)",
+          "postProcessBeforeInitialization / postProcessAfterInitialization"
+        ],
+        [
+          "Initialization",
+          "Executing user-defined startup logic",
+          "@PostConstruct, InitializingBean"
+        ],
+        [
+          "Destruction",
+          "Releasing external resources on context shutdown",
+          "@PreDestroy, DisposableBean"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Instantiation leverages either standard Java reflection via Constructor.newInstance() or dynamic CGLIB subclassing if the bean requires method injection or proxy-backed scoping.",
+        "Aware interfaces are processed sequentially; if your bean implements ApplicationContextAware, the container detects this during post-population and injects the active ApplicationContext reference directly.",
+        "BeanPostProcessors apply globally to all beans in the container unless explicitly scoped, meaning heavy logic inside postProcessAfterInitialization can severely degrade application startup time.",
+        "@PostConstruct is standard JSR-250 metadata, preferred over InitializingBean because it decouples your domain logic from Spring-specific API dependencies.",
+        "Destruction callbacks only run for singleton and scoped beans managed directly by the container; prototype-scoped beans are handed off to the client, leaving garbage collection and manual cleanup to the caller."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.lifecycle;\n\nimport org.springframework.beans.BeansException;\nimport org.springframework.beans.factory.BeanNameAware;\nimport org.springframework.beans.factory.config.BeanPostProcessor;\nimport org.springframework.context.ApplicationContext;\nimport org.springframework.context.ApplicationContextAware;\nimport org.springframework.stereotype.Component;\n\nimport jakarta.annotation.PostConstruct;\nimport jakarta.annotation.PreDestroy;\n\n@Component\npublic class DatabaseConnectionPoolManager implements BeanNameAware, ApplicationContextAware, BeanPostProcessor {\n\n    private String beanName;\n    private ApplicationContext applicationContext;\n\n    @Override\n    public void setBeanName(String name) {\n        this.beanName = name;\n        System.out.println(\"1. Aware Phase: BeanNameAware -> \" + name);\n    }\n\n    @Override\n    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {\n        this.applicationContext = applicationContext;\n        System.out.println(\"2. Aware Phase: ApplicationContextAware injected.\");\n    }\n\n    @Override\n    public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {\n        if (bean == this) {\n            System.out.println(\"3. BeanPostProcessor: postProcessBeforeInitialization for \" + beanName);\n        }\n        return bean;\n    }\n\n    @PostConstruct\n    public void init() {\n        System.out.println(\"4. Initialization: @PostConstruct executed for pool manager.\");\n    }\n\n    @Override\n    public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {\n        if (bean == this) {\n            System.out.println(\"5. BeanPostProcessor: postProcessAfterInitialization (Ready state approaches).\");\n        }\n        return bean;\n    }\n\n    @PreDestroy\n    public void cleanup() {\n        System.out.println(\"6. Destruction: @PreDestroy executed. Closing connections.\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern is attempting to trigger database operations or access other uninitialized beans inside a bean's constructor. Because dependency population occurs strictly after instantiation, injected fields will always be null inside a constructor. Always rely on @PostConstruct or InitializingBean when your startup logic requires fully injected dependencies."
+    }
+  ],
+  "num": 216,
+  "title": "Bean lifecycle — Instantiation → Populate → Aware interfaces → BeanPostProcessor → @PostConstruct → Ready → @PreDestroy",
+  "category": "Spring Boot & Spring Framework"
+}

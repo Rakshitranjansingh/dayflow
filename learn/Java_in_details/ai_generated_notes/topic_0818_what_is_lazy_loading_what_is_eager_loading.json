@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the realm of Object-Relational Mapping (ORM) frameworks like Hibernate, managing the memory footprint and database round-trips of relational entity graphs is critical to building scalable systems. Lazy loading and eager loading represent two opposing strategies for fetching associated entity data. Lazy loading defers the initialization of an association—such as a `@OneToMany` or `@ManyToOne` relationship—until the application explicitly invokes a getter method on the proxy object standing in for the real collection or entity. This prevents the catastrophic performance drop of pulling massive, unneeded entity graphs into the JVM heap on every single query. Conversely, eager loading instructs the persistence context to fetch the associated entities immediately alongside the parent entity, typically utilizing SQL `JOIN` operations or secondary `SELECT` statements. While eager loading simplifies data access by eliminating the risk of runtime detachment exceptions, it introduces severe hazards like redundant data duplication and N+1 query performance degradation if configured indiscriminately on large domains."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Characteristic",
+        "Lazy Loading",
+        "Eager Loading"
+      ],
+      "rows": [
+        [
+          "Fetch Timing",
+          "Deferred until explicit property access",
+          "Immediate upon parent entity retrieval"
+        ],
+        [
+          "Underlying Mechanism",
+          "Bytecode enhancement / Dynamic runtime proxies",
+          "SQL JOIN or immediate subsequent SELECT statements"
+        ],
+        [
+          "Primary Risk",
+          "LazyInitializationException outside persistence context",
+          "N+1 select problem and memory bloat from cartesian products"
+        ],
+        [
+          "Default Strategy",
+          "@OneToMany, @ManyToMany",
+          "@ManyToOne, @OneToOne"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Lazy loading relies heavily on Hibernate generating dynamic subclasses or utilizing runtime bytecode enhancement to wrap collections in persistent wrappers (e.g., PersistentBag, PersistentSet) and scalar entities in proxies.",
+        "When an application triggers a lazy association outside an active database transaction and open EntityManager session, Hibernate throws a LazyInitializationException because the underlying database connection cannot be established to issue the deferred query.",
+        "Eager loading bypasses proxy generation for the target association, executing a SQL JOIN or an immediate secondary SELECT statement to fully populate the target fields before returning the root entity to the caller."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Entity\n@Table(name = \"departments\")\npublic class Department {\n    @Id\n    @GeneratedValue(strategy = GenerationType.IDENTITY)\n    private Long id;\n\n    private String name;\n\n    // Eager loading by default for ManyToOne\n    @ManyToOne(fetch = FetchType.EAGER)\n    @JoinColumn(name = \"organization_id\")\n    private Organization organization;\n\n    // Lazy loading by default for OneToMany\n    @OneToMany(mappedBy = \"department\", fetch = FetchType.Lazy, cascade = CascadeType.ALL)\n    private List<Employee> employees = new ArrayList<>();\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic senior-level production gotcha involves setting all relationships to FetchType.EAGER to avoid LazyInitializationException, only to watch the application crawl under high concurrency due to explosive cartesian product growth and unindexed multi-table JOINs. Always keep relationships lazy by default, and use Spring Data JPA @EntityGraph or JPQL fetch joins to selectively fetch eager data only when required for a specific use case."
+    }
+  ],
+  "num": 819,
+  "title": "What is lazy loading? What is eager loading?",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

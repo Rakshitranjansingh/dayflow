@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "@SpringBootTest is the heavy-duty integration testing annotation in the Spring ecosystem. It bootstraps the entire ApplicationContext, scanning for @SpringBootApplication, loading all beans, and starting an embedded web server if configured. It is the 'full-stack' approach, ideal for end-to-end testing where you need to verify the interaction between your controllers, services, and repositories. Conversely, @WebMvcTest is a focused slice-test annotation. It only instantiates the web layer—controllers, filters, and interceptors—while mocking the service layer. It is significantly faster because it ignores the database and business logic beans. Finally, @DataJpaTest is designed specifically for the persistence layer. It configures an in-memory database (like H2), scans for @Entity classes, and configures Spring Data JPA repositories. It rolls back transactions by default after every test method, ensuring your database state remains clean and isolated."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Annotation",
+        "Context Scope",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "@SpringBootTest",
+          "Full ApplicationContext",
+          "End-to-end integration flows"
+        ],
+        [
+          "@WebMvcTest",
+          "Web Layer Only",
+          "Testing request mapping and JSON serialization"
+        ],
+        [
+          "@DataJpaTest",
+          "Persistence Layer Only",
+          "Testing repository queries and schema mapping"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "@SpringBootTest uses @BootstrapWith to load the full context; if your project is large, this can lead to slow build times due to frequent context refreshing.",
+        "@WebMvcTest uses MockMvc to simulate HTTP requests without starting a full Servlet container, allowing you to verify @Valid constraints and @ExceptionHandler logic in isolation.",
+        "@DataJpaTest automatically enables @Transactional, meaning every test method is wrapped in a transaction that rolls back at the end, preventing side effects between test cases.",
+        "Using @DataJpaTest with a real database (via @AutoConfigureTestDatabase(replace = NONE)) requires careful management of schema initialization, often necessitating Flyway or Liquibase integration."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@DataJpaTest\n@AutoConfigureTestDatabase(replace = Replace.NONE)\nclass UserRepositoryTest {\n    @Autowired\n    private UserRepository userRepository;\n\n    @Test\n    void shouldSaveUser() {\n        User user = new User(\"John\");\n        userRepository.save(user);\n        assertThat(userRepository.findById(user.getId())).isPresent();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common production pitfall is 'Context Pollution'. If you use @SpringBootTest across multiple test classes with different @MockBean definitions, Spring will create a new ApplicationContext for each unique configuration. This results in massive memory consumption and slow test suites. Always prefer the slice tests (@WebMvcTest, @DataJpaTest) to keep the context footprint small and test execution fast."
+    }
+  ],
+  "num": 1158,
+  "title": "What is @SpringBootTest? What is @WebMvcTest? What is @DataJpaTest?",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

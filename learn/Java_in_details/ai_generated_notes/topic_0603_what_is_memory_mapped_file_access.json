@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Memory-mapped file access, facilitated in Java via the java.nio.MappedByteBuffer, is a technique that maps a region of a file directly into the virtual memory address space of the JVM process. Unlike traditional I/O, which requires copying data between the kernel's page cache and the application's user-space buffer, memory mapping allows the OS to map the file pages directly into the process's address space. This bypasses the overhead of read/write system calls and the associated context switching, effectively treating the file as if it were an array in memory. It is the backbone of high-performance systems like Apache Kafka, Lucene, and various low-latency databases, as it allows the OS kernel to manage demand paging and page replacement policies efficiently."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Standard I/O (FileChannel)",
+        "Memory-Mapped I/O (MappedByteBuffer)"
+      ],
+      "rows": [
+        [
+          "Data Transfer",
+          "Explicit read/write calls",
+          "Direct memory access via pointers"
+        ],
+        [
+          "Copying",
+          "Kernel to User-space buffer",
+          "Zero-copy (mapped directly)"
+        ],
+        [
+          "Performance",
+          "High overhead for small reads",
+          "High performance for large files"
+        ],
+        [
+          "Memory Usage",
+          "Heap-based buffers",
+          "Off-heap virtual memory"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The MappedByteBuffer resides in off-heap memory, meaning it is not subject to standard JVM Garbage Collection cycles, which prevents GC pauses during large data processing.",
+        "The OS kernel handles the lazy loading of file pages; when you access a memory address that isn't in RAM, a page fault occurs, and the kernel transparently loads the required page from disk.",
+        "Changes made to the buffer are eventually flushed to the underlying file by the OS, though developers can explicitly call force() to ensure durability, which behaves similarly to an fsync system call.",
+        "The maximum size of a single MappedByteBuffer is limited by the Integer.MAX_VALUE (2GB) due to the index being a 32-bit integer, requiring developers to implement 'sliding window' logic for larger files."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "try (RandomAccessFile file = new RandomAccessFile(\"data.bin\", \"rw\");\n     FileChannel channel = file.getChannel()) {\n    long size = channel.size();\n    MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, size);\n    \n    // Accessing the file like an array\n    byte b = buffer.get(1024);\n    buffer.put(1024, (byte) 0xFF);\n    \n    // Ensure changes are persisted to disk\n    buffer.force();\n} catch (IOException e) {\n    throw new RuntimeException(\"I/O error during memory mapping\", e);\n}"
+    },
+    {
+      "type": "note",
+      "content": "The 'unmapping' trap: Java does not provide a public API to explicitly unmap a MappedByteBuffer. The mapping remains until the buffer object is garbage collected. In high-frequency systems, this often leads to 'File Lock' errors on Windows or 'Too many open files' on Linux because the file descriptor remains held by the OS until the GC eventually cleans up the phantom reference. Always be cautious when mapping many small files; consider using a pool or a single large file with offsets to avoid descriptor exhaustion."
+    }
+  ],
+  "num": 604,
+  "title": "What is memory-mapped file access?",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Java 11 introduced a suite of ergonomic String API enhancements that directly address long-standing pain points in text processing. Before these additions, developers relied on cumbersome regex-based checks or external libraries like Apache Commons Lang to handle basic whitespace and multi-line string manipulation. The isBlank() method provides a semantic way to check for emptiness that ignores whitespace characters, which is critical for validating user input where a string of spaces is functionally equivalent to an empty string. The lines() method transforms a multi-line string into a Stream<String>, effectively abstracting away the platform-dependent line terminator complexity (\\n, \\r\\n). Finally, strip() serves as a Unicode-aware evolution of the legacy trim() method. While trim() only removes characters with codepoints less than or equal to U+0020 (the space character), strip() utilizes the Character.isWhitespace() definition, ensuring it correctly handles modern Unicode whitespace characters that are common in internationalized applications."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Method",
+        "Primary Purpose",
+        "Unicode Awareness"
+      ],
+      "rows": [
+        [
+          "isBlank()",
+          "Checks if string is empty or only whitespace",
+          "Yes"
+        ],
+        [
+          "strip()",
+          "Removes leading/trailing whitespace",
+          "Yes"
+        ],
+        [
+          "trim()",
+          "Removes leading/trailing ASCII space",
+          "No"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "isBlank() operates by checking if the string is empty or if all characters satisfy Character.isWhitespace(int), making it significantly more robust than checking for length == 0 or using regex.",
+        "lines() uses a Spliterator that handles various line terminators (\\n, \\r, \\r\\n) lazily, which is memory-efficient for processing large text blocks without loading every line into an intermediate list.",
+        "strip() is the preferred modern alternative to trim() because it correctly identifies whitespace characters defined by the Unicode standard, preventing bugs in applications handling non-Latin scripts.",
+        "These methods are optimized within the JVM to avoid unnecessary array copying where possible, leveraging the underlying byte array representation of the String object."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void processText(String input) {\n    if (input.isBlank()) return;\n\n    input.lines()\n         .map(String::strip)\n         .filter(line -> !line.isEmpty())\n         .forEach(System.out::println);\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Always prefer strip() over trim() in production code. The legacy trim() method is strictly limited to ASCII whitespace (U+0020 and below). If your application processes internationalized user input, trim() will fail to clean up Unicode spaces, leading to subtle data validation bugs or 'ghost' characters in your database records. Furthermore, remember that lines() returns a Stream; if you are processing massive multi-line files, ensure you handle the stream lifecycle correctly to avoid resource leaks."
+    }
+  ],
+  "num": 626,
+  "title": "(Java 11) New String methods (isBlank(), lines(), strip())?",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

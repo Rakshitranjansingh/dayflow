@@ -1,0 +1,56 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java multithreading, a thread is classified fundamentally as either a user thread or a daemon thread. A daemon thread is a background service thread—such as the Java Garbage Collector (GC), finalizer threads, or JIT compilation threads—whose primary purpose is to provide support tasks for other threads running in the application. The defining characteristic of a daemon thread lies in its lifecycle dependency: the Java Virtual Machine (JVM) terminates as soon as all non-daemon (user) threads have exited, regardless of whether any daemon threads are still actively executing their run loops. Understanding daemon threads is critical for preventing resource leaks and ensuring applications shut down gracefully without hanging on abandoned background tasks."
+    },
+    {
+      "type": "prose",
+      "content": "Creating and managing a daemon thread in Java requires strict adherence to initialization ordering. A thread cannot be dynamically toggled into a daemon state once it has already started executing; attempting to invoke setDaemon(true) on a live, running thread throws an immediate IllegalThreadStateException. Consequently, the daemon flag must be explicitly configured on the Thread instance immediately after instantiating the thread object via new Thread(...) and strictly prior to invoking the start() method. This design constraint protects running threads from mid-execution lifecycle shifts that could disrupt underlying synchronization assumptions."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "User Thread",
+        "Daemon Thread"
+      ],
+      "rows": [
+        [
+          "JVM Shutdown Impact",
+          "Keeps the JVM alive until its run() method completes.",
+          "Ignored by the JVM; does not prevent shutdown."
+        ],
+        [
+          "Typical Use Case",
+          "Application business logic, request handlers, UI threads.",
+          "Background maintenance, metrics collection, connection pool cleaners."
+        ],
+        [
+          "Inheritance Rule",
+          "Inherits user status from the parent thread by default.",
+          "Must be explicitly configured via Thread.setDaemon(true)."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Thread Inheritance: When a new thread is spawned from an existing parent thread, the child thread automatically inherits the daemon status of its creator. A daemon thread will spawn child daemon threads, while a user thread spawns user threads by default.",
+        "Resource Release Invariants: Daemon threads should never be used for critical tasks like I/O writes, file processing, or database transaction commits. Because the JVM exits abruptly when the last user thread dies, daemon threads do not execute finally blocks, catch clauses, or shutdown hooks upon termination."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class DaemonThreadExample {\n    public static void main(String[] args) {\n        Thread backgroundMonitor = new Thread(() -> {\n            try {\n                while (true) {\n                    System.out.println(\"Daemon heartbeat...\");\n                    Thread.sleep(1000);\n                }\n            } catch (InterruptedException e) {\n                System.out.println(\"Daemon interrupted.\");\n            }\n        });\n\n        // Must be set BEFORE calling start()\n        backgroundMonitor.setDaemon(true);\n        backgroundMonitor.start();\n\n        System.out.println(\"Main thread finishing. JVM will exit now.\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap involves using daemon threads inside connection pools or caching frameworks for background evictions without realizing that a container or test runner might terminate unexpectedly. Furthermore, in frameworks like Spring, custom background executor services should be carefully audited: if thread pools spawn daemon threads, application context shutdowns might silently abandon queued tasks, leading to subtle data corruption or incomplete asynchronous pipelines."
+    }
+  ],
+  "num": 651,
+  "title": "What is a Daemon Thread? How is it created?",
+  "category": "Multithreading & Java Concurrency"
+}

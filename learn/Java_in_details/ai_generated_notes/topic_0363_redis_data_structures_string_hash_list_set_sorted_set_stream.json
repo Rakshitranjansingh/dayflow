@@ -1,0 +1,69 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed systems and high-throughput event-driven architectures, Redis serves as an essential in-memory data store, acting as a distributed cache, message broker, and primary datastore. Understanding Redis requires mastering its core data structures—String, Hash, List, Set, Sorted Set, and Streams—along with operational paradigms like TTL (Time-To-Live) eviction policies and Pub/Sub messaging. Unlike traditional relational databases that map data to rigid tabular schemas, Redis is an advanced key-value store where values can be complex, highly optimized data types. Strings are binary-safe and can store text, serialized objects, or raw byte arrays up to 512MB, often leveraged for atomic counters or simple caching layers. Hashes represent maps between string fields and string values, making them memory-efficient representations of objects without incurring the overhead of multiple keys. Lists are linked lists of string elements, heavily utilized for building high-speed FIFO queues and background worker pipelines. Sets are unordered collections of unique strings, perfect for tagging systems, membership testing, and tracking unique user visits via set intersections and unions. Sorted Sets (ZSets) associate every member with a floating-point score, maintaining strict ordering by score (and lexicographically for ties), which underpins real-time leaderboards and range-based priority queues. Streams, introduced in Redis 5.0, provide a robust, log-based data structure inspired by Apache Kafka, allowing consumer groups, message acknowledgement, and persistent append-only logs for modern event-driven microservices.\n\nBeyond data organization, managing state in memory demands rigorous lifecycle management via TTL, which allows engineers to associate expiration timeouts with keys. Redis implements TTL using a hybrid lazy expiration and active sampling algorithm, purging stale keys dynamically to prevent out-of-memory errors while balancing CPU overhead. Finally, Redis Pub/Sub decouples publishers from subscribers through anonymous message channels, broadcasting fire-and-forget events across instances. However, because native Pub/Sub lacks persistence, modern architectures often substitute or complement it with Redis Streams to guarantee message delivery and fault tolerance across node failures."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Data Structure",
+        "Primary Use Case",
+        "Underlying Encoding (Internal Mechanics)"
+      ],
+      "rows": [
+        [
+          "String",
+          "Caching, Atomic Counters, Bitmaps",
+          "int, embstr, raw (SDS - Simple Dynamic String)"
+        ],
+        [
+          "Hash",
+          "Object representation, User profiles",
+          "ziplist / listpack, hashtable"
+        ],
+        [
+          "List",
+          "Message queues, recent item feeds",
+          "quicklist (doubly linked list of ziplists/listpacks)"
+        ],
+        [
+          "Set",
+          "Unique tracking, social graphs (mutual friends)",
+          "intset, hashtable"
+        ],
+        [
+          "Sorted Set",
+          "Leaderboards, priority scheduling",
+          "ziplist / listpack, skiplist + dictionary"
+        ],
+        [
+          "Streams",
+          "Event sourcing, consumer group message brokers",
+          "Radix tree (rax) + macro nodes"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "TTL Eviction Mechanics: Redis does not spawn a dedicated thread for every expiring key due to CPU thrashing concerns. Instead, it uses passive expiration (checking TTL on read) combined with active expiration—sampling 20 random keys with active TTLs every 100 milliseconds, and deleting all expired keys found in that sample. If more than 25% of the sampled keys are expired, the loop repeats immediately.",
+        "Sorted Set Internals: A Sorted Set is not powered by a single structure. It maintains both a hash table (mapping members to scores for O(1) lookups) and a skip list (maintaining score order for O(log N) range queries), ensuring that both lookups and range scans remain exceptionally fast.",
+        "Streams Consumer Groups: Unlike Pub/Sub, Redis Streams track consumer state via Consumer Groups. Each group maintains a Pending Entries List (PEL) tracking messages delivered to a consumer but not yet acknowledged via XACK, enabling reliable at-least-once processing semantics.",
+        "Pub/Sub Volatility: Redis Pub/Sub channels do not store messages. If a subscriber disconnects during a broadcast, that message is permanently lost to that client, making Redis Pub/Sub unsuitable for reliable event-driven delivery where message durability is required."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import redis.clients.jedis.Jedis;\nimport redis.clients.jedis.resps.StreamEntry;\nimport java.util.HashMap;\nimport java.util.List;\nimport java.util.Map;\n\npublic class RedisArchitectureDemo {\n    public static void main(String[] args) {\n        try (Jedis jedis = new Jedis(\"localhost\", 6379)) {\n            // 1. String with TTL\n            jedis.setex(\"session:user123\", 30, \"auth_token_xyz\");\n            \n            // 2. Hash\n            Map<String, String> userFields = new HashMap<>();\n            userFields.put(\"name\", \"Jane Doe\");\n            userFields.put(\"role\", \"ENGINEER\");\n            jedis.hset(\"user:123\", userFields);\n            \n            // 3. Sorted Set (Leaderboard)\n            jedis.zadd(\"leaderboard\", 1500.0, \"player_one\");\n            jedis.zadd(\"leaderboard\", 2300.0, \"player_two\");\n            \n            // 4. Streams (Event Sourcing)\n            Map<String, String> eventData = new HashMap<>();\n            eventData.put(\"eventType\", \"ORDER_PLACED\");\n            eventData.put(\"orderId\", \"ord_98765\");\n            String entryId = jedis.xadd(\"order-stream\", null, eventData);\n            System.out.println(\"Dispatched event to stream with ID: \" + entryId);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: When working with Redis Hashes, Lists, or Sets containing thousands of elements, avoid running blocking or heavy O(N) commands like HGETALL or SMEMBERS on production single-threaded event loops, as they will block the Redis event loop and cause cascading timeouts across your microservice cluster. Always prefer incremental iteration commands like HSCAN, SSCAN, or ZSCAN, or structure your data types to stay within safe size thresholds (e.g., keeping ziplists/listpacks small via hash-max-ziplist-entries configurations)."
+    }
+  ],
+  "num": 364,
+  "title": "Redis — data structures (String, Hash, List, Set, Sorted Set, Streams), TTL, pub/sub",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

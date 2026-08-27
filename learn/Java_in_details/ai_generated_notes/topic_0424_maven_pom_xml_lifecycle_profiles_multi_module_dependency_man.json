@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Mastering build engineering in the Java ecosystem requires a profound understanding of Maven, its pom.xml configuration model, build lifecycle mechanics, environment profiles, multi-module project aggregations, and centralized dependency management. At the core of every Maven-based project sits the Project Object Model, or pom.xml, an XML file that describes the project's metadata, dependencies, build plugins, and deployment configurations. Maven operates on a declarative configuration paradigm rather than imperative build scripts, enabling consistent compilation, testing, and packaging across diverse developer workstations and continuous integration pipelines.\n\nThe Maven build lifecycle defines the ordered sequence of phases through which a project is built and distributed. The three built-in lifecycles—default, clean, and site—manage project compilation, artifact removal, and documentation generation respectively. The default lifecycle comprises phases such as validate, compile, test, package, integration-test, verify, and install. When a developer invokes a phase like mvn install, Maven executes all preceding phases sequentially, relying on registered plugins mapped to specific lifecycle phases. Profiles allow builds to be tailored dynamically based on environmental indicators such as active operating systems, system properties, or explicit command-line flags (-Pprofile-id), preventing hardcoded configurations in production codebases.\n\nFor enterprise-scale architectures, single monolithic builds quickly become unmaintainable. Maven addresses this through multi-module project structures, utilizing a parent reactor to aggregate child modules and coordinate parallel or sequential reactor build orders. To prevent dependency version drift across these multi-module trees, Maven provides the dependency management section in parent poms. This allows teams to define exact dependency versions and exclusions in a single location, letting child modules inherit these constraints without explicitly restating version numbers, thereby enforcing absolute consistency across distributed microservices and library suites."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Maven Concept",
+        "Primary Responsibility",
+        "Key Architectural Impact"
+      ],
+      "rows": [
+        [
+          "pom.xml",
+          "Project metadata, coordinates, and build instructions",
+          "Declares dependencies, plugins, and inheritance hierarchies"
+        ],
+        [
+          "Lifecycle",
+          "Ordered phases for building and deploying software",
+          "Executes plugins automatically via phase bindings"
+        ],
+        [
+          "Profiles",
+          "Conditional configuration injection",
+          "Enables environment-specific property overrides and plugin activations"
+        ],
+        [
+          "Multi-module",
+          "Reactor-based project aggregation and inheritance",
+          "Builds interdependent modules in topological order"
+        ],
+        [
+          "Dependency Management",
+          "Centralized version and exclusion control",
+          "Prevents JAR hell and version fragmentation across modules"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Maven Reactor analyzes project dependencies across multi-module configurations to construct a Directed Acyclic Graph (DAG), ensuring child modules compile only after their required intra-project dependencies are packaged.",
+        "Dependency Management blocks in parent POMs do not actually add dependencies to the classpath; they merely establish version and scope constraints that child modules inherit when they explicitly declare the artifact.",
+        "Lifecycle phase bindings can be customized or augmented by injecting custom plugin executions into specific phases via the plugin execution element, allowing pre-compilation code generation or post-packaging analysis."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "xml",
+      "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n    <modelVersion>4.0.0</modelVersion>\n\n    <groupId>com.enterprise</groupId>\n    <artifactId>parent-service</artifactId>\n    <version>1.0.0-SNAPSHOT</version>\n    <packaging>pom</packaging>\n\n    <modules>\n        <module>service-core</module>\n        <module>service-api</module>\n    </modules>\n\n    <dependencyManagement>\n        <dependencies>\n            <dependency>\n                <groupId>org.springframework.boot</groupId>\n                <artifactId>spring-boot-dependencies</artifactId>\n                <version>3.2.0</version>\n                <type>pom</type>\n                <scope>import</scope>\n            </dependency>\n        </dependencies>\n    </dependencyManagement>\n\n    <profiles>\n        <profile>\n            <id>prod</id>\n            <build>\n                <plugins>\n                    <plugin>\n                        <groupId>org.springframework.boot</groupId>\n                        <artifactId>spring-boot-maven-plugin</artifactId>\n                    </plugin>\n                </plugins>\n            </build>\n        </profile>\n    </profiles>\n</project>"
+    },
+    {
+      "type": "note",
+      "content": "A common multi-module antipattern is circular dependency between child modules, which causes the Maven reactor to fail compilation with a topological sorting error. Additionally, relying on SNAPSHOT dependencies in production multi-module builds without enforcing strict update policies can lead to non-reproducible builds due to local repository cache contamination."
+    }
+  ],
+  "num": 425,
+  "title": "Maven — pom.xml, lifecycle, profiles, multi-module, dependency management",
+  "category": "Exception Handling & I/O / NIO"
+}

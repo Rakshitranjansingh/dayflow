@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Error handling in reactive chains within Spring WebFlux and Project Reactor requires a paradigm shift from traditional imperative try-catch blocks to declarative operator chaining. Because reactive streams execute asynchronously across different threads and execution boundaries, exceptions are not thrown up a call stack; instead, they are propagated downstream as terminal signals via the onError channel. Managing these signals effectively ensures that transient failures can be retried, unexpected exceptions can be mapped to domain-specific errors, and resources are cleanly released without crashing the underlying Netty event loop threads."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Operator",
+        "Behavior",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "onErrorReturn",
+          "Swallows the error and emits a static fallback value downstream.",
+          "Providing default configuration values or fallback constants when a service fails."
+        ],
+        [
+          "onErrorResume",
+          "Swallows the error and switches to a dynamic fallback Publisher.",
+          "Falling back to a secondary database, a cache layer, or a degraded microservice."
+        ],
+        [
+          "onErrorMap",
+          "Catches a specific exception type and transforms it into a different exception.",
+          "Translating low-level DataAccessException into custom BusinessException."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Signals in Reactor flow downstream: onNext, onComplete, and onError. An onError signal terminates the sequence immediately and halts further onNext emissions.",
+        "When using retry() or retryWhen(), the entire upstream chain is re-subscribed upon encountering an error signal, which can lead to duplicate network calls if side effects exist upstream.",
+        "Global error handling for REST controllers is typically handled via @ControllerAdvice combined with WebFluxResponseStatusException or custom WebExceptionHandler implementations."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public Mono<UserDto> fetchUserWithFallback(String userId) {\n    return webClient.get()\n        .uri(\"/users/{id}\", userId)\n        .retrieve()\n        .bodyToMono(UserDto.class)\n        .timeout(Duration.ofMillis(800))\n        .onErrorResume(TimeoutException.class, ex -> cacheService.getUser(userId))\n        .onErrorMap(WebClientResponseException.NotFound.class, ex -> new UserNotFoundException(\"User not found: \" + userId))\n        .retryWhen(Retry.backoff(3, Duration.ofMillis(100))\n            .filter(throwable -> throwable instanceof IOException));\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic trap for senior engineers is placing side-effect operators like doOnError or log() after a retry operator without realizing that every retry resubscribes to the entire pipeline. If your doOnError contains database writes or metrics increments, those side effects will execute multiple times for each retry attempt. Always isolate side effects or place them correctly relative to the retry boundary."
+    }
+  ],
+  "num": 303,
+  "title": "Error handling in reactive chains",
+  "category": "REST APIs, WebFlux & Microservices"
+}

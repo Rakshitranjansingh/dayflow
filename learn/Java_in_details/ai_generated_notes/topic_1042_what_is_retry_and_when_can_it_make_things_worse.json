@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed systems and network programming, a retry mechanism is a fault-tolerance pattern designed to automatically re-attempt a failed operation—such as an HTTP request, database call, or message queue consumption—hoping that the transient error will resolve itself. Transient failures typically stem from momentary network partitions, database connection pool saturation, or brief garbage collection pauses in downstream services. By intercepting exceptions and re-dispatching the execution payload, systems achieve higher resilience without immediately failing to the end user.\n\nHowever, blind or poorly configured retry logic can catastrophically make things worse, transforming a minor localized glitch into a cascading system-wide outage. When multiple clients simultaneously fail and instantly retry requests without coordination, they generate a synthetic traffic spike known as a retry storm. This exacerbates resource exhaustion on already struggling downstream services, increases queue depths, saturates thread pools, and can easily trigger distributed deadlocks. Furthermore, if the underlying operation is not idempotent—meaning executing it multiple times produces different side effects than executing it once—retries can corrupt data, execute duplicate financial transactions, or violate state consistency."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Failure Dimension",
+        "Naive Retry Approach",
+        "Production-Grade Retry Approach"
+      ],
+      "rows": [
+        [
+          "Timing Pattern",
+          "Immediate, constant-interval re-execution",
+          "Exponential backoff with full or decorrelated jitter"
+        ],
+        [
+          "Volume Control",
+          "Unlimited retries until success",
+          "Bounded maximum attempts combined with circuit breakers"
+        ],
+        [
+          "Safety Check",
+          "Retries all thrown exceptions blindly",
+          "Selective filtering of transient vs. permanent (e.g., 4xx vs. 5xx) errors"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Thundering Herd Problem: When a primary service recovers, thousands of queued client retries hit it at the exact same millisecond, instantly knocking it back offline before it can stabilize.",
+        "Idempotency Violations: Retrying an HTTP POST request that lacks a unique idempotency key or distributed transaction token can result in duplicate database writes or double-billing users.",
+        "Thread Pool Starvation: Synchronous retry loops block carrier threads or servlet containers, causing thread starvation that cascades upstream and impacts completely unrelated endpoints.",
+        "Error Masking: Unchecked retries obscure underlying root causes in monitoring metrics, artificially inflating latency distributions and hiding persistent configuration errors."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.Callable;\nimport java.util.concurrent.ThreadLocalRandom;\n\npublic class ResilientExecutor {\n    public static <T> T executeWithRetry(Callable<T> task, int maxAttempts, long baseDelayMs) throws Exception {\n        int attempt = 0;\n        while (true) {\n            try {\n                return task.call();\n            } catch (Exception e) {\n                attempt++;\n                if (attempt >= maxAttempts || !isTransient(e)) {\n                    throw e;\n                }\n                long backoff = (long) (baseDelayMs * Math.pow(2, attempt));\n                long jitter = ThreadLocalRandom.current().nextLong(0, 1000);\n                Thread.sleep(backoff + jitter);\n            }\n        }\n    }\n\n    private static boolean isTransient(Exception e) {\n        // Domain logic to filter retryable network/timeout exceptions from 4xx client errors\n        return e instanceof java.net.SocketTimeoutException;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior production gotcha: Never implement retry loops without jitter. If 50 microservices experience a database hiccup at the exact same time and all back off for precisely 2 seconds, they will synchronize their retry cycles, creating periodic traffic spikes every 2 seconds. Always introduce randomized jitter to break phase alignment and distribute the retry load uniformly over time."
+    }
+  ],
+  "num": 1043,
+  "title": "What is retry, and when can it make things worse?",
+  "category": "Core Java & Fundamentals"
+}

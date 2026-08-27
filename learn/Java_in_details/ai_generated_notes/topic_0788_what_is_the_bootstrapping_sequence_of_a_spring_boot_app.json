@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The bootstrapping sequence of a Spring Boot application is the precise, deterministic lifecycle orchestration that transforms a static compiled Java binary into a fully running, web-accessible enterprise container. When the main method calls SpringApplication.run(), the framework kicks off a highly sophisticated initialization phase that bridges standard JVM execution with the Spring IoC (Inversion of Control) container. This sequence is not a monolithic startup; rather, it is broken down into distinct phases: environment configuration, application context creation, auto-configuration candidate evaluation via Spring Factories, dependency injection, and finally the notification of any registered ApplicationRunner or CommandLineRunner beans. Understanding this sequence is vital for intercepting lifecycle events, customizing property resolution before beans are instantiated, and debugging silent classpath failures or circular dependency errors."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Bootstrapping Phase",
+        "Core Action",
+        "Key Component Involved"
+      ],
+      "rows": [
+        [
+          "Environment Initialization",
+          "Loads property sources, system properties, and profiles.",
+          "ConfigurableEnvironment"
+        ],
+        [
+          "Application Context Creation",
+          "Instantiates the specific ApplicationContext based on web type.",
+          "AnnotationConfigServletWebServerApplicationContext"
+        ],
+        [
+          "Auto-Configuration",
+          "Evaluates @Conditional annotations against classpath and properties.",
+          "EnableAutoConfigurationImportSelector"
+        ],
+        [
+          "Runner Execution",
+          "Triggers post-startup hooks just before run() returns.",
+          "CommandLineRunner / ApplicationRunner"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The SpringApplication instance first determines the web application type (Reactive, Servlet, or None) by inspecting classpath presence of classes like DispatcherServlet or WebFlux.",
+        "META-INF/spring.factories (and modern META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports) are scanned to compile the master list of auto-configuration classes.",
+        "The BeanDefinitionRegistryPostProcessor and BeanFactoryPostProcessor hooks run during context refresh to modify or register bean definitions before singletons are instantiated.",
+        "SmartLifecycle beans are started in a distinct, multi-phase phase order after the main ApplicationContext refeshes and the embedded web server successfully binds to its port."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@SpringBootApplication\npublic class EnterpriseBootstrapper {\n    public static void main(String[] args) {\n        SpringApplication app = new SpringApplication(EnterpriseBootstrapper.class);\n        app.addListeners(new ApplicationPidFileWriter());\n        app.setWebApplicationType(WebApplicationType.SERVLET);\n        ConfigurableApplicationContext context = app.run(args);\n        \n        // Inspecting bean definition count post-bootstrapping\n        System.out.println(\"Total beans loaded: \" + context.getBeanDefinitionCount());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production pitfall during the bootstrapping sequence is attempting to inject a fully initialized DataSource or JPA EntityManager into a custom ApplicationListener or ApplicationContextInitializer. Because initializers run before the BeanFactory has even finished refreshing, attempting to query the database at this stage will throw premature initialization or NullPointerException errors. Always defer database access until the ApplicationReadyEvent fires."
+    }
+  ],
+  "num": 789,
+  "title": "What is the bootstrapping sequence of a Spring Boot app?",
+  "category": "Spring Boot & Spring Framework"
+}

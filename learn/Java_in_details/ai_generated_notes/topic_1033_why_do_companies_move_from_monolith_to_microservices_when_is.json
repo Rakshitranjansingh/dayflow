@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The transition from a monolith to microservices is rarely driven by a desire for architectural purity; it is almost always a response to organizational scaling bottlenecks. In a monolithic architecture, the entire application exists as a single deployment unit. While this simplifies initial development, testing, and ACID-compliant transactions, it creates a 'deployment train' where a single bug in a low-priority module can block the release of critical features. As teams grow, the monolith becomes a source of extreme cognitive load and merge conflicts. Microservices solve this by decomposing the system into independently deployable, loosely coupled services organized around business capabilities. This allows teams to own their own lifecycle, choose the right technology stack for specific problems, and scale individual components based on traffic patterns rather than scaling the entire heap memory footprint of the whole application.\n\nHowever, microservices are frequently a 'bad idea' for early-stage startups or small teams. The shift introduces the 'distributed systems tax': network latency, partial failures, eventual consistency, and the massive overhead of observability (distributed tracing, centralized logging). If a team lacks mature DevOps infrastructure, the complexity of managing service discovery, circuit breakers, and inter-service authentication often outweighs the benefits of decoupling. Adopting microservices prematurely leads to 'distributed monoliths'—systems that are as tightly coupled as a single process but suffer from the added unreliability of network calls, resulting in the worst of both worlds."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Dimension",
+        "Monolith",
+        "Microservices"
+      ],
+      "rows": [
+        [
+          "Deployment",
+          "All-or-nothing",
+          "Independent"
+        ],
+        [
+          "Data Consistency",
+          "ACID/Local Transactions",
+          "Eventual Consistency/Sagas"
+        ],
+        [
+          "Operational Overhead",
+          "Low",
+          "Very High"
+        ],
+        [
+          "Failure Domain",
+          "Single Point of Failure",
+          "Isolated/Fault-tolerant"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Microservices require a shift from shared-memory communication to network-bound protocols (gRPC/REST/Message Brokers), introducing serialization costs and the necessity of handling network partitions.",
+        "Data management changes from simple JOIN queries to complex distributed patterns like CQRS (Command Query Responsibility Segregation) or API Composition to aggregate data across service boundaries.",
+        "Operational maturity is non-negotiable; you must implement service meshes or sidecar proxies (like Istio or Linkerd) to handle mTLS, retries, and circuit breaking, or risk cascading failures that take down the entire ecosystem.",
+        "Microservices enable 'polyglot persistence', allowing teams to use a Graph DB for social connections and a Document Store for content, but this increases the burden on SREs to manage multiple database technologies."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderService {\n    // In a monolith, this would be a direct repository call.\n    // In microservices, we use a Feign client or WebClient to call the Inventory service.\n    private final InventoryClient inventoryClient;\n\n    public void placeOrder(OrderRequest request) {\n        // Circuit breaker prevents cascading failure if Inventory is down\n        if (inventoryClient.checkStock(request.getItemId())) {\n             orderRepository.save(request);\n        } else {\n             throw new OutOfStockException();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior engineer insight: The biggest trap is the 'Distributed Monolith'. If you find yourself needing to deploy three different services simultaneously to release a single feature, you have failed to decouple your domain boundaries. Always start with a 'Modular Monolith'—enforce strict boundaries within the same JVM using Java Modules (JPMS) or package-private access—before incurring the network overhead of physical service separation."
+    }
+  ],
+  "num": 1034,
+  "title": "Why do companies move from monolith to microservices? When is microservices a bad idea?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

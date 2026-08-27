@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Java NIO (New I/O), introduced in Java 1.4, fundamentally shifts the paradigm of input and output operations from traditional blocking stream-based processing to a scalable, non-blocking, buffer-oriented architecture. Traditional java.io streams are synchronous and block the calling thread during read and write operations, creating a severe bottleneck when handling thousands of concurrent connections—the classic C10K problem where every client requires a dedicated OS thread consuming roughly 1MB of stack memory. NIO solves this by orchestrating three core abstractions: Channels, Buffers, and Selectors. Channels represent open connections to hardware devices, files, network sockets, or pipes, acting as high-performance conduits for data transfer. Buffers are fixed-capacity memory blocks (specifically Direct Byte Buffers allocated off-heap to bypass JVM garbage collection and JNI copying overhead) that wrap raw data primitives. Finally, Selectors act as multiplexing engines, leveraging OS-level system calls like epoll (Linux) or kqueue (BSD) to monitor multiple channels simultaneously for readiness events such as connection readiness, read readiness, or write readiness."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Component",
+        "Traditional java.io",
+        "Java NIO"
+      ],
+      "rows": [
+        [
+          "I/O Paradigm",
+          "Stream-oriented (Byte/Character streams)",
+          "Buffer-oriented (Block/Buffer abstraction)"
+        ],
+        [
+          "Execution Model",
+          "Blocking (Thread sleeps until data arrives)",
+          "Non-blocking & Multiplexed (Selector monitors state)"
+        ],
+        [
+          "Memory Management",
+          "On-heap byte arrays, subject to GC pressure",
+          "Direct Buffers off-heap, zero-copy socket transfers"
+        ],
+        [
+          "Concurrency Scaling",
+          "One thread per socket connection",
+          "Single thread managing thousands of connections"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Buffer Internals: A Buffer manages four critical integer pointers—capacity, limit, position, and mark. When writing data into a buffer, position advances, and flipping the buffer via flip() resets position to zero while setting the limit to the old position, preparing it for draining.",
+        "Channel Selectable API: Channels must be explicitly placed into non-blocking mode via configureBlocking(false) before being registered with a Selector, otherwise an IllegalBlockingModeException is thrown at runtime.",
+        "Selector Multiplexing Mechanics: The Selector maintains three key sets of SelectionKey instances: registered keys, selected keys (ready for operations), and cancelled keys. Polling via select() blocks the thread until at least one registered channel is ready, drastically reducing CPU utilization."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.io.IOException;\nimport java.net.InetSocketAddress;\nimport java.nio.ByteBuffer;\nimport java.nio.channels.SelectionKey;\nimport java.nio.channels.Selector;\nimport java.nio.channels.ServerSocketChannel;\nimport java.nio.channels.SocketChannel;\nimport java.util.Iterator;\nimport java.util.Set;\n\npublic class NioEchoServer {\n    public static void main(String[] args) throws IOException {\n        Selector selector = Selector.open();\n        ServerSocketChannel serverChannel = ServerSocketChannel.open();\n        serverChannel.bind(new InetSocketAddress(8080));\n        serverChannel.configureBlocking(false);\n        serverChannel.register(selector, SelectionKey.OP_ACCEPT);\n\n        ByteBuffer buffer = ByteBuffer.allocate(256);\n\n        while (true) {\n            selector.select();\n            Set<SelectionKey> selectedKeys = selector.selectedKeys();\n            Iterator<SelectionKey> iter = selectedKeys.iterator();\n\n            while (iter.hasNext()) {\n                SelectionKey key = iter.next();\n                iter.remove();\n\n                if (key.isAcceptable()) {\n                    SocketChannel client = serverChannel.accept();\n                    client.configureBlocking(false);\n                    client.register(selector, SelectionKey.OP_READ);\n                } else if (key.isReadable()) {\n                    SocketChannel client = (SocketChannel) key.channel();\n                    buffer.clear();\n                    int bytesRead = client.read(buffer);\n                    if (bytesRead == -1) {\n                        client.close();\n                        continue;\n                    }\n                    buffer.flip();\n                    client.write(buffer);\n                }\n            }\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production hazard in NIO programming is the 'spurious wakeup' bug and the failure to remove processed keys from the Selector's selected key set. If you iterate over selectedKeys and forget to call iter.remove(), the Selector will repeatedly return the same ready key on subsequent select() calls, resulting in a 100% CPU utilization spin-loop. Furthermore, beware of DirectByteBuffer memory leaks: while off-heap memory avoids GC pauses, unmanaged allocations will bypass the JVM heap tracking and can crash your process with native OutOfMemoryError (hs_err_pid crash) if not cleaned up or pooled correctly."
+    }
+  ],
+  "num": 603,
+  "title": "NIO — Channels, Buffers, Selectors",
+  "category": "Exception Handling & I/O / NIO"
+}

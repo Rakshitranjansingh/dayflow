@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Introduced in Java 8, the Streams API represents a paradigm shift from imperative to declarative data processing on collections and arrays. A Stream is not a data structure that stores elements; instead, it is a pipeline that conveys values from a source—such as a Collection, an array, or an I/O channel—through a sequence of computational steps. The engine driving this processing model relies heavily on functional interfaces (like `Function`, `Predicate`, and `Consumer`) and lazy evaluation. Under the hood, Streams allow the JVM to optimize execution sequences, fuse operations together to minimize memory overhead, and even parallelize workloads seamlessly without requiring manual thread management.\n\nThe processing pipeline is structurally divided into two distinct categories: intermediate operations and terminal operations. Intermediate operations—such as `map`, `filter`, and `distinct`—are stateless or stateful transformations that are strictly lazy. When you invoke an intermediate operation, no work is performed on the data elements. Instead, the operation constructs a new pipeline stage linked to the previous one, essentially building an execution graph. Terminal operations—such as `collect`, `forEach`, `reduce`, or `count`—are the triggers that set the entire pipeline in motion. When a terminal operation is invoked, the JVM traverses the data source, pushing elements through the lazily-evaluated intermediate stages. Once the terminal operation completes, the stream is considered consumed and cannot be reused, maintaining the immutability of the underlying data source."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Intermediate Operations",
+        "Terminal Operations"
+      ],
+      "rows": [
+        [
+          "Execution Timing",
+          "Lazy (deferred until execution)",
+          "Eager (triggers pipeline execution)"
+        ],
+        [
+          "Return Type",
+          "Stream<T> (enables method chaining)",
+          "Non-stream result (void, collection, scalar)"
+        ],
+        [
+          "Stream State After",
+          "Stream remains open/combinable",
+          "Stream is closed/consumed"
+        ],
+        [
+          "Examples",
+          "filter(), map(), peek(), sorted()",
+          "collect(), forEach(), reduce(), findFirst()"
+        ]
+      ]
+    },
+    {
+      "bullet_list": [
+        "Lazy Evaluation and Operation Fusion: Intermediate operations do not process elements immediately. Instead, operations like map and filter are often fused into a single pass by the JVM, avoiding the creation of intermediate collections and drastically reducing heap allocation pressure.",
+        "Short-Circuiting: Terminal and intermediate operations like findFirst, findAny, and limit allow streams to process infinite data sources or terminate early once a condition is met, preventing redundant CPU cycles.",
+        "Stateful vs. Stateless Operations: Stateless operations (filter, map) process elements independently without retaining state from previous elements. Stateful operations (sorted, distinct, limit) require buffering or tracking seen elements, which can hinder parallel stream performance and increase memory footprints."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.List;\nimport java.util.Map;\nimport java.util.stream.Collectors;\n\npublic class StreamPipelineExample {\n    public static Map<String, List<String>> groupAndFilterUsers(List<User> users) {\n        return users.stream()\n                .filter(User::isActive) // Intermediate operation (lazy)\n                .map(User::getDepartment) // Intermediate operation (lazy)\n                .distinct() // Stateful intermediate operation\n                .collect(Collectors.groupingBy(dept -> dept.substring(0, 1))); // Terminal operation (eager trigger)\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern is attempting to reuse a Stream after a terminal operation has been executed. Doing so throws an IllegalStateException indicating that the stream has already been operated upon or closed. Additionally, avoid using peek() for business logic modifications; it is strictly intended for debugging. Finally, be cautious with stateful intermediate operations like sorted() or distinct() on large parallel streams, as they can serialize execution and introduce severe memory bottlenecks."
+    }
+  ],
+  "num": 613,
+  "title": "What is the Streams API? Intermediate vs Terminal operations?",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

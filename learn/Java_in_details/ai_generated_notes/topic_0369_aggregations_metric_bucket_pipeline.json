@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In high-throughput distributed systems and data analytics engines, extracting meaning from massive datasets requires more than simple point queries. Aggregations provide the analytical power to summarize data across vast distributed indices. At the heart of this capability lie three distinct yet collaborative concepts: metric, bucket, and pipeline aggregations. A metric aggregation is a mathematical operation—such as sum, average, min, max, or cardinality—that computes numerical values from a set of documents. Unlike metrics, bucket aggregations do not calculate statistics over raw fields; instead, they partition documents into logically isolated groups, known as buckets, based on criteria like date intervals, term matches, or geographic radiuses. These buckets serve as containers that can themselves house sub-aggregations, enabling deep hierarchical data slicing.\n\nWhile metric and bucket aggregations operate directly on document fields, pipeline aggregations introduce a higher-order form of analysis. They do not process raw documents from the index shards; instead, they consume the output of other aggregations. This allows developers to chain analytical steps—such as calculating moving averages, cumulative sums, or derivative trends over bucketed time-series data. Understanding how these three paradigms interact is vital for designing robust analytics pipelines that avoid combinatorial explosion, memory pressure, and excessive network serialization overhead across cluster nodes."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Aggregation Type",
+        "Input Source",
+        "Primary Output",
+        "Common Use Case"
+      ],
+      "rows": [
+        [
+          "Metric",
+          "Raw document fields",
+          "Single numerical or statistical values",
+          "Calculating average response time or maximum CPU load"
+        ],
+        [
+          "Bucket",
+          "Raw document fields or parent buckets",
+          "Sets of document groupings (buckets)",
+          "Grouping log events by HTTP status code or hourly intervals"
+        ],
+        [
+          "Pipeline",
+          "Outputs of other aggregations",
+          "Derived metric or bucket calculations",
+          "Computing a 7-day moving average of daily sales"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Metric aggregations leverage single-value or multi-value extractors that execute during the shard-level reduce phase, minimizing memory footprints by streaming values through precise accumulators rather than loading raw payloads into the JVM heap.",
+        "Bucket aggregations rely heavily on internal data structures like ordinal maps, hash tables, or bitsets (in the case of filters and terms aggregations) to dynamically partition document IDs, which can cause significant heap allocation if cardinalities are unbounded.",
+        "Pipeline aggregations execute exclusively in the coordinating node after all shard-level metric and bucket results have been gathered and merged, making them susceptible to latency spikes if upstream buckets return massive matrices of intermediate data."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "json",
+      "content": "{\n  \"size\": 0,\n  \"aggs\": {\n    \"sales_over_time\": {\n      \"date_histogram\": {\n        \"field\": \"timestamp\",\n        \"calendar_interval\": \"day\"\n      },\n      \"aggs\": {\n        \"total_sales\": {\n          \"sum\": {\n            \"field\": \"amount\"\n          }\n        },\n        \"sales_moving_avg\": {\n          \"moving_avg\": {\n            \"buckets_path\": \"total_sales\",\n            \"window\": 7\n          }\n        }\n      }\n    }\n  }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production failure mode when combining buckets and metrics is the 'cardinality explosion' trap. Running a terms bucket aggregation on a high-cardinality field (like a user UUID or raw IP address) with deep sub-aggregations will force the JVM to construct massive priority queues across every shard, frequently resulting in an OutOfMemoryError (OOM). Always use approximate algorithms (like HyperLogLog for cardinality) and set explicit limits using 'shard_size' and 'size' parameters."
+    }
+  ],
+  "num": 370,
+  "title": "Aggregations — metric, bucket, pipeline",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Securing endpoints in Spring Security centers around the configuration of the SecurityFilterChain and the decoupling of URL-based access rules from the underlying business logic. Historically achieved via heavy XML configurations or extending WebSecurityConfigurerAdapter, modern Spring Security relies entirely on component-based security configurations using lambda DSLs. The core mechanism intercepts incoming HTTP requests via a chain of Servlet filters—most notably UsernamePasswordAuthenticationFilter, ExceptionTranslationFilter, and FilterSecurityInterceptor—evaluating them against authenticated SecurityContext attributes stored in the thread-confined SecurityContextHolder.\n\nWhen securing endpoints, developers must differentiate between authorization at the HTTP transport layer (e.g., permitAll(), hasRole(), hasAuthority() inside requestMatchers) and authorization at the method layer (e.g., @PreAuthorize, @Secured). Relying purely on URL matchers often leads to security vulnerabilities if request paths change or direct method invocations bypass the web layer. Production-grade endpoint security enforces authentication tokens (like JSON Web Tokens via OAuth2 Resource Server configurations), handles stateless sessions using SessionCreationPolicy.STATELESS, and carefully orchestrates CSRF protection depending on whether the API serves browser-based Single Page Applications or server-to-server clients."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Configuration Approach",
+        "Legacy (Pre-5.7)",
+        "Modern (5.7+ & 6.x)"
+      ],
+      "rows": [
+        [
+          "Bean Definition",
+          "Extends WebSecurityConfigurerAdapter",
+          "Exposes SecurityFilterChain bean directly"
+        ],
+        [
+          "DSL Syntax",
+          "And() chaining with HttpSecurity",
+          "Lambda-based configuration DSL"
+        ],
+        [
+          "Authentication Manager",
+          "Exposed via authenticationManagerBean()",
+          "Injected via DaoAuthenticationProvider or custom beans"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The SecurityFilterChain acts as a proxy chain registering filters into the standard Servlet container pipeline via the DelegatingFilterProxy, ensuring requests pass through authentication and authorization checks before hitting DispatcherServlet.",
+        "Method security annotations (@PreAuthorize, @PostAuthorize) rely on Spring AOP and infrastructure advisors (MethodSecurityInterceptor) to evaluate SpEL expressions against the current Authentication principal at runtime.",
+        "Stateless session management prevents the creation of HttpSession instances, forcing the application to re-authenticate inbound requests on every invocation using credentials or bearer tokens."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\n@EnableMethodSecurity\npublic class SecurityConfig {\n\n    @Bean\n    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {\n        http\n            .csrf(csrf -> csrf.disable())\n            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))\n            .authorizeHttpRequests(authorize -> authorize\n                .requestMatchers(\"/api/v1/public/**\").permitAll()\n                .requestMatchers(\"/api/v1/admin/**\").hasRole(\"ADMIN\")\n                .anyRequest().authenticated()\n            )\n            .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));\n            \n        return http.build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production pitfall involves mixing requestMatchers with method security without considering evaluation order. If your SecurityFilterChain defines permitAll() for an endpoint, but the underlying service method is annotated with @PreAuthorize(\"hasRole('ADMIN')\"), the request will pass the filter chain only to throw an AccessDeniedException deeper in the stack if the principal lacks credentials. Ensure that URL-level security acts as a broad gatekeeper while method security handles fine-grained domain object permissions."
+    }
+  ],
+  "num": 1007,
+  "title": "How do you secure endpoints in Spring Security?",
+  "category": "Spring Security & Web Security"
+}

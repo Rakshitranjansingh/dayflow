@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of modern Java development, REST APIs, WebFlux, and Microservices, the term Prototype refers fundamentally to scope management and bean instantiation semantics, heavily inspired by the Spring Framework container's prototype scope. Unlike the default singleton scope where the IoC container instantiates a single shared instance for the entire application context, a prototype-scoped component forces the container to produce a brand-new instance every single time a request for that bean is made. When architecting distributed microservices and reactive pipelines using Spring WebFlux, understanding how prototype beans interact with single-threaded event loops, thread pools, and request contexts is vital for avoiding subtle state-leak bugs and concurrency bottlenecks.\n\nIn standard Spring MVC applications running on thread-per-request models, a prototype bean injected into a singleton service creates a classic dependency trap known as the scoped dependency problem: the singleton service captures the prototype instance upon initialization, effectively trapping it and rendering it a singleton in practice. In a non-blocking reactive environment like WebFlux, which utilizes Project Reactor and Netty, the concept shifts slightly. Because WebFlux operates primarily on a fixed number of event loop threads (typically tied to CPU cores) and handles requests via asynchronous pipelines, relying on stateful prototype beans can easily lead to race conditions if shared across concurrent reactive operators without thread-confinement or proper immutability guarantees. Mastering prototype semantics in modern microservices requires careful separation of stateless business logic from stateful request-scoped or transient computational components."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Characteristic",
+        "Singleton Scope",
+        "Prototype Scope"
+      ],
+      "rows": [
+        [
+          "Instantiation Frequency",
+          "Once per Spring IoC Container",
+          "Every time the bean is requested/injected"
+        ],
+        [
+          "State Management",
+          "Must be strictly thread-safe (stateless)",
+          "Can hold state safely if not shared across threads"
+        ],
+        [
+          "Resource Cleanup",
+          "Managed by IoC Container (destroy methods called)",
+          "Container does NOT manage complete lifecycle/destruction"
+        ],
+        [
+          "WebFlux / Reactive Impact",
+          "Ideal for service and repository components",
+          "Risky in shared reactive streams unless scoped carefully"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Container Lifecycle Management: Unlike singletons, the Spring container does not manage the complete lifecycle of a prototype bean. The container instantiates, configures, and assembles the bean, but then hands it completely over to the client, omitting any subsequent destruction callback execution.",
+        "Scoped Proxy Integration: To inject a prototype-scoped bean into a singleton service in a traditional MVC or legacy Spring context, developers must use scoped proxies with proxyMode = ScopedProxyMode.TARGET_CLASS, generating a dynamic CGLIB proxy that resolves a fresh instance on every method invocation.",
+        "Reactive Context Separation: In Spring WebFlux, relying on stateful prototype beans inside flat map or filter operators running on Netty worker threads can cause memory leaks or cross-request data contamination if the reactive stream jumps threads via subscribeOn or publishOn without context isolation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.microservice.prototype;\n\nimport org.springframework.context.annotation.Scope;\nimport org.springframework.context.annotation.ScopedProxyMode;\nimport org.springframework.stereotype.Component;\nimport org.springframework.web.bind.annotation.GetMapping;\nimport org.springframework.web.bind.annotation.RestController;\nimport reactor.core.publisher.Mono;\n\n@Component\n@Scope(value = \"prototype\", proxyMode = ScopedProxyMode.TARGET_CLASS)\nclass TransientTransactionContext {\n    private final long timestamp = System.currentTimeMillis();\n    \n    public long getTimestamp() {\n        return timestamp;\n    }\n}\n\n@RestController\npublic class PrototypeDemoController {\n\n    private final TransientTransactionContext transactionContext;\n\n    public PrototypeDemoController(TransientTransactionContext transactionContext) {\n        this.transactionContext = transactionContext;\n    }\n\n    @GetMapping(\"/api/check-time\")\n    public Mono<Long> checkTime() {\n        return Mono.just(transactionContext.getTimestamp());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Production Gotcha: Injecting a prototype bean directly into a singleton REST controller or service without a scoped proxy results in the prototype bean being initialized exactly once during application startup. This completely defeats the purpose of the prototype scope and converts your transient component into an accidental singleton, introducing silent state leaks across concurrent microservice requests."
+    }
+  ],
+  "num": 181,
+  "title": "Prototype",
+  "category": "REST APIs, WebFlux & Microservices"
+}

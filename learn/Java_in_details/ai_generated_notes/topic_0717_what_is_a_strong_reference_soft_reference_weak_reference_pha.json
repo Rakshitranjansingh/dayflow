@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java Virtual Machine, reference types define the reachability of objects and dictate how the Garbage Collector (GC) interacts with them. A Strong Reference is the default, everyday reference type; as long as a strong reference exists, the GC will never reclaim the object, even if the JVM is running out of heap space, which can lead to OutOfMemoryErrors. Soft References are intended for memory-sensitive caches; the GC will only reclaim these objects if the JVM is critically low on memory, making them ideal for objects that are expensive to recreate but not strictly required. Weak References are designed for canonicalizing mappings or metadata; they offer no protection against GC and are cleared as soon as the GC identifies them as weakly reachable during a collection cycle. Finally, Phantom References are the most restrictive; they are not used to access the object itself but rather to track when an object has been finalized and is ready to be reclaimed, providing a mechanism for post-mortem cleanup that is safer than the deprecated finalize() method."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Reference Type",
+        "GC Behavior",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "Strong",
+          "Never collected",
+          "Standard object instantiation"
+        ],
+        [
+          "Soft",
+          "Collected only if OOM imminent",
+          "Memory-sensitive caching"
+        ],
+        [
+          "Weak",
+          "Collected at next GC cycle",
+          "WeakHashMap, metadata"
+        ],
+        [
+          "Phantom",
+          "Collected after finalization",
+          "Resource cleanup tracking"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Strong references create a direct path in the GC root graph, preventing the mark-and-sweep algorithm from reclaiming the memory address.",
+        "Soft references are cleared by the JVM before throwing an OutOfMemoryError, ensuring the heap is exhausted only as a last resort.",
+        "Weak references are frequently used in WeakHashMap to allow keys to be garbage collected when they are no longer referenced elsewhere in the application.",
+        "Phantom references require a ReferenceQueue; the JVM enqueues the reference after the object is finalized, allowing the developer to perform manual cleanup of native resources."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "ReferenceQueue<Object> queue = new ReferenceQueue<>();\nObject referent = new Object();\nWeakReference<Object> weakRef = new WeakReference<>(referent, queue);\n\n// Clear the strong reference\nreferent = null;\n\n// GC will now collect the object\nSystem.gc();\n\n// The reference is now in the queue\nReference<?> ref = queue.poll();"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never assume the GC will collect WeakReferences immediately. The GC is non-deterministic. If you use WeakReferences for caching, ensure your application logic handles null returns gracefully. Additionally, PhantomReferences are often misunderstood; they do not prevent an object from being reclaimed, they simply provide a signal that the object's memory is about to be reclaimed. If you hold a PhantomReference, you cannot call .get() on it—it will always return null."
+    }
+  ],
+  "num": 718,
+  "title": "What is a strong reference? Soft reference? Weak reference? Phantom reference?",
+  "category": "Core Java & Fundamentals"
+}

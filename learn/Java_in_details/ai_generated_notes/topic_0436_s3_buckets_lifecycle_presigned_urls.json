@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When designing cloud-native Java applications that interact with object storage, mastering Amazon S3 (Simple Storage Service) is non-negotiable. At the foundation of this service are S3 buckets, which act as the primary, globally unique namespaces for storing objects. Every bucket enforces strict configuration boundaries, access control lists (ACLs), and bucket policies that dictate security posture. Beyond static storage, managing storage costs and data retention at scale requires S3 lifecycle rules. Lifecycle configurations automatically transition objects across storage tiers—such as Standard to Glacier Instant Retrieval or Deep Archive—or permanently purge expired objects based on prefix filters or object tags. Finally, secure application integration often demands temporary, delegated access without exposing long-lived AWS credentials. S3 presigned URLs solve this by cryptographically signing an HTTP GET, PUT, or DELETE request using the IAM credentials of the generator, embedding an absolute expiration timestamp directly into the query parameters."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "S3 Concept",
+        "Core Responsibility",
+        "Production Consideration"
+      ],
+      "rows": [
+        [
+          "Buckets",
+          "Global namespaces and policy boundaries for objects",
+          "Must configure proper ownership, block public access, and region affinity."
+        ],
+        [
+          "Lifecycle",
+          "Automated object tiering and expiration",
+          "Incorrect prefix matching can prematurely delete critical data or fail to trigger transitions."
+        ],
+        [
+          "Presigned URLs",
+          "Time-bound delegated access to specific objects",
+          "Expiration window should be kept as short as possible to minimize replay attack vectors."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "S3 buckets enforce eventual consistency for overrides and deletes in older regions, though modern S3 provides read-after-write consistency for PUTs of new objects globally.",
+        "Lifecycle transitions require objects to meet a minimum storage duration (typically 30 days for Standard-IA) before shifting to cheaper tiers; otherwise, AWS applies early-deletion penalties.",
+        "Presigned URLs are evaluated based on the IAM permissions of the client entity that generated them; if the generating IAM role loses permissions before the URL expires, subsequent requests using that URL will fail."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import software.amazon.awssdk.regions.Region;\nimport software.amazon.awssdk.services.s3.model.GetObjectRequest;\nimport software.amazon.awssdk.services.s3.presigner.S3Presigner;\nimport software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;\nimport software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;\n\nimport java.time.Duration;\n\npublic class S3PresignedUrlService {\n\n    public String generateDownloadUrl(String bucketName, String objectKey) {\n        try (S3Presigner presigner = S3Presigner.builder()\n                .region(Region.US_EAST_1)\n                .build()) {\n\n            GetObjectRequest getObjectRequest = GetObjectRequest.builder()\n                    .bucket(bucketName)\n                    .key(objectKey)\n                    .build();\n\n            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()\n                    .signatureDuration(Duration.ofMinutes(15))\n                    .getObjectRequest(getObjectRequest)\n                    .build();\n\n            PresignedGetObjectRequest presignedRequest = presigner.presignGetObject(presignRequest);\n            return presignedRequest.url().toString();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production antipattern is instantiating a new S3Presigner for every single HTTP request. S3Presigner is resource-heavy and thread-safe; it should be managed as a singleton bean within your Spring application context. Additionally, remember that presigned URLs encode the exact IAM identity used to sign them—if you generate a URL via an instance profile with broad permissions, any holder of that URL inherits those underlying access capabilities until expiration."
+    }
+  ],
+  "num": 437,
+  "title": "S3 — buckets, lifecycle, presigned URLs",
+  "category": "Core Java & Fundamentals"
+}

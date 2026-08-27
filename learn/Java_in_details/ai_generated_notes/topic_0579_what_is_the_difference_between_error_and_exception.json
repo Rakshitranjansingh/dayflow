@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java hierarchy, both Error and Exception are direct subclasses of Throwable, but they represent fundamentally different categories of failure. An Exception represents a condition that a reasonable application might want to catch and recover from, such as a missing file, a network timeout, or invalid user input. These are typically issues within the application's control or the environment's transient state. Conversely, an Error indicates a serious, often catastrophic problem that the JVM itself has encountered, such as OutOfMemoryError or StackOverflowError. By design, Errors are not intended to be caught, as they signal that the JVM is in an unstable state where normal execution flow is no longer viable."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Exception",
+        "Error"
+      ],
+      "rows": [
+        [
+          "Intent",
+          "Recoverable application logic",
+          "Non-recoverable JVM failure"
+        ],
+        [
+          "Hierarchy",
+          "Subclass of Exception",
+          "Subclass of Error"
+        ],
+        [
+          "Handling",
+          "Should be caught/handled",
+          "Should not be caught"
+        ],
+        [
+          "Origin",
+          "Application/Business logic",
+          "JVM/Environment/Hardware"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Exception hierarchy splits into Checked (must be declared in throws clause) and Unchecked (RuntimeException, which the compiler ignores for safety).",
+        "Error instances often lead to immediate thread termination or JVM shutdown because they indicate the heap or stack integrity is compromised.",
+        "Catching Throwable is a common anti-pattern; it captures Errors that you cannot possibly fix, potentially masking critical infrastructure failures.",
+        "The JVM's StackOverflowError is an Error because it signifies the thread's execution stack is exhausted, making further method invocation impossible."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void processData() {\n    try {\n        // Catching Exception is correct for business recovery\n        performIoOperation();\n    } catch (IOException e) {\n        logger.error(\"Recoverable failure\", e);\n    } catch (Throwable t) {\n        // Anti-pattern: Catching Error prevents the JVM from shutting down gracefully\n        // during critical failures like OutOfMemoryError.\n        throw t;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never catch Error unless you are writing a custom JVM monitoring agent or a framework-level watchdog. If you catch OutOfMemoryError, you might find yourself in a state where you cannot even allocate the memory required to log the error itself, leading to a silent, infinite loop of failure. Always let Errors bubble up to the default uncaught exception handler."
+    }
+  ],
+  "num": 580,
+  "title": "What is the difference between Error and Exception?",
+  "category": "Exception Handling & I/O / NIO"
+}

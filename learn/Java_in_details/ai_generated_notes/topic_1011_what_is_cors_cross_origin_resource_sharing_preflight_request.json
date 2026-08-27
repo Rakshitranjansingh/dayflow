@@ -1,0 +1,49 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Cross-Origin Resource Sharing (CORS) is a security mechanism implemented by web browsers to enforce the Same-Origin Policy (SOP). By default, browsers restrict scripts running on a web page from making requests to a domain different from the one that served the page. CORS provides a standardized way for servers to explicitly permit cross-origin requests by exchanging HTTP headers. Without this, malicious scripts could perform unauthorized actions on behalf of a user on a different domain, such as accessing sensitive session cookies or private API data. The mechanism relies on the server sending 'Access-Control-Allow-Origin' headers to inform the browser whether the requesting origin is trusted.\n\nA Preflight request is an automatic mechanism triggered by the browser for 'non-simple' requests—those that use methods other than GET, HEAD, or POST, or include custom headers (like 'Authorization' or 'Content-Type: application/json'). Before the actual request is sent, the browser issues an HTTP OPTIONS request to the server. This serves as a handshake to verify if the server permits the actual request's method and headers. If the server responds with the appropriate CORS headers, the browser proceeds with the actual request; otherwise, it blocks the operation to protect the user's data integrity."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Request Type",
+        "Trigger Condition",
+        "Browser Behavior"
+      ],
+      "rows": [
+        [
+          "Simple Request",
+          "Standard GET/POST/HEAD with basic headers",
+          "Sends request immediately; checks response headers"
+        ],
+        [
+          "Preflight Request",
+          "PUT/DELETE/PATCH or custom headers",
+          "Sends OPTIONS request first; waits for server approval"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The browser adds the 'Origin' header to the request; the server must echo this in 'Access-Control-Allow-Origin' or use a wildcard, though wildcards cannot be used with credentials.",
+        "Preflight requests are cached by the browser via the 'Access-Control-Max-Age' header to reduce latency and server load for subsequent calls.",
+        "When using Spring Security, CORS must be configured at the Filter level, as the security filter chain often executes before the controller mapping, causing 403 Forbidden errors if the OPTIONS request is not explicitly permitted.",
+        "The 'Access-Control-Allow-Credentials' header must be set to 'true' if the client needs to send cookies or Authorization headers, requiring the 'Access-Control-Allow-Origin' to be an explicit domain rather than a wildcard."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class WebConfig implements WebMvcConfigurer {\n    @Override\n    public void addCorsMappings(CorsRegistry registry) {\n        registry.addMapping(\"/api/**\")\n                .allowedOrigins(\"https://trusted-client.com\")\n                .allowedMethods(\"GET\", \"POST\", \"PUT\", \"DELETE\")\n                .allowedHeaders(\"Authorization\", \"Content-Type\")\n                .allowCredentials(true)\n                .maxAge(3600);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is misconfiguring CORS in a way that allows 'null' or '*' origins when credentials are required. Additionally, developers often forget that the OPTIONS request must be handled by the server without requiring authentication; if your security filter chain intercepts the OPTIONS request and attempts to validate a JWT token that isn't present, the preflight will fail, effectively breaking the entire cross-origin communication flow."
+    }
+  ],
+  "num": 1012,
+  "title": "What is CORS (Cross-Origin Resource Sharing)? Preflight request (OPTIONS)?",
+  "category": "Exception Handling & I/O / NIO"
+}

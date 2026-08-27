@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A Kafka Producer is a client-side library that acts as the ingress point for data into the Apache Kafka cluster. It is responsible for serializing application-level objects into byte arrays, partitioning them based on a key or round-robin strategy, and batching them to optimize network throughput. Once the producer determines the leader partition for a specific topic, it pushes the data to the broker. The producer's reliability is governed by the 'acks' (acknowledgments) configuration, which dictates how many partition replicas must receive the record before the producer considers the write successful. This configuration represents the fundamental trade-off between latency, throughput, and data durability in a distributed system."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Acks Setting",
+        "Durability Guarantee",
+        "Latency Impact"
+      ],
+      "rows": [
+        [
+          "acks=0",
+          "None (Fire and forget)",
+          "Lowest"
+        ],
+        [
+          "acks=1",
+          "Leader only",
+          "Moderate"
+        ],
+        [
+          "acks=all",
+          "Full ISR (In-Sync Replicas)",
+          "Highest"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "acks=0: The producer does not wait for any response from the broker. This maximizes throughput but risks data loss if the broker crashes before the message is persisted or if a network partition occurs.",
+        "acks=1: The producer waits for the leader replica to write the record to its local log. This provides a balance, but if the leader fails before the followers replicate the data, the message is effectively lost.",
+        "acks=all: The producer waits for the full set of In-Sync Replicas (ISR) to acknowledge the write. This is the gold standard for durability, ensuring that even if the current leader fails, the data exists on at least one other node.",
+        "Internal Mechanics: When using acks=all, the producer's request latency is bounded by the slowest replica in the ISR, making it sensitive to network jitter and disk I/O performance across the cluster."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "Properties props = new Properties();\nprops.put(\"bootstrap.servers\", \"localhost:9092\");\nprops.put(\"key.serializer\", \"org.apache.kafka.common.serialization.StringSerializer\");\nprops.put(\"value.serializer\", \"org.apache.kafka.common.serialization.StringSerializer\");\n\n// Critical reliability configuration\nprops.put(\"acks\", \"all\");\nprops.put(\"retries\", 3);\n\nKafkaProducer<String, String> producer = new KafkaProducer<>(props);"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Setting acks=all is insufficient on its own for high-availability guarantees. You must also configure the broker's 'min.insync.replicas' setting. If you set acks=all but have min.insync.replicas=1, you are effectively running with acks=1 durability, as the leader will acknowledge the write without waiting for any followers. Always ensure your replication factor is greater than your min.insync.replicas to prevent production outages during broker maintenance."
+    }
+  ],
+  "num": 942,
+  "title": "What are Kafka Producers? What is the acks configuration (acks=0, acks=1, acks=all)?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

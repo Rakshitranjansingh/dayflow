@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In cloud-native architectures, decoupling distributed systems is non-negotiable for achieving resilience, elasticity, and fault tolerance. Two foundational messaging services offered by Amazon Web Services (AWS) are Amazon Simple Queue Service (SQS) and Amazon Simple Notification Service (SNS). Understanding when to use which dictates whether your application gracefully absorbs traffic spikes or collapses under the weight of tightly coupled dependencies.\n\nAmazon Simple Queue Service (SQS) is a fully managed message queuing service that enables you to decouple and scale microservices, distributed systems, and serverless applications. SQS operates on a pull-based (polling) model where messages are placed in a queue and held persistently until a consumer explicitly pulls them, processes them, and deletes them. It guarantees at-least-once delivery (and FIFO ordering in specialized queues) allowing workloads to process items asynchronously at their own pace, shielding downstream services from traffic surges.\n\nConversely, Amazon Simple Notification Service (SNS) is a pub/sub (publish-subscribe) messaging and mobile notifications service. SNS operates on a push-based model where publishers send messages to a \"topic\", which acts as an access point and communication channel. SNS instantly pushes these messages to all subscribed endpoints—which can include SQS queues, AWS Lambda functions, HTTP/S endpoints, or mobile devices. SNS excels at fan-out architectures, broadcasting a single event to multiple independent subscribers simultaneously."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Amazon SQS (Queue)",
+        "Amazon SNS (Topic)"
+      ],
+      "rows": [
+        [
+          "Communication Model",
+          "Point-to-point (Pull-based polling)",
+          "Publish-Subscribe (Push-based broadcasting)"
+        ],
+        [
+          "Consumer Relationship",
+          "Competing consumers pull from a shared queue",
+          "All subscribed endpoints receive a copy of the message"
+        ],
+        [
+          "Message Persistence",
+          "Retained up to 14 days if unconsumed",
+          "Ephemeral; drops messages if no active subscribers exist at publish time"
+        ],
+        [
+          "Primary Use Case",
+          "Workload leveling, asynchronous task processing, traffic throttling",
+          "Event-driven architecture, fan-out notifications, reactive pipelines"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Use SQS when you need to perform load leveling: if a web tier receives 10,000 requests per second but your database can only handle 1,000 writes per second, SQS acts as a persistent shock absorber, buffering the requests until workers can safely process them.",
+        "Use SNS combined with SQS (the classic Fan-Out pattern) when a single business event needs to trigger multiple distinct downstream actions, such as when an order placement event simultaneously triggers inventory deduction, email notification, and billing services.",
+        "SQS Standard provides maximum throughput with at-least-once delivery where message ordering is non-deterministic, whereas SQS FIFO strictly preserves exact-once processing and message sequencing per message group ID at the cost of lower throughput.",
+        "SNS guarantees delivery by retrying failed delivery attempts to push endpoints (like HTTP servers or Lambda) using an exponential backoff policy, but relies on downstream SQS integration if absolute persistence during subscriber outages is mandatory."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class OrderEventPublisher {\n    private final SnsClient snsClient;\n    private final String orderTopicArn;\n\n    public OrderEventPublisher(SnsClient snsClient, String orderTopicArn) {\n        this.snsClient = snsClient;\n        this.orderTopicArn = orderTopicArn;\n    }\n\n    public void publishOrderCreated(OrderDto order) {\n        PublishRequest request = PublishRequest.builder()\n            .topicArn(orderTopicArn)\n            .message(order.toJson())\n            .messageAttributes(Map.of(\n                \"EventType\", MessageAttributeValue.builder()\n                    .dataType(\"String\")\n                    .stringData(\"OrderCreated\")\n                    .build()\n            ))\n            .build();\n            \n        snsClient.publish(request);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern is using SQS directly for fan-out by having multiple microservices poll the exact same queue. This results in competing consumers stealing messages meant for other domains, breaking domain isolation. Always pair SNS with multiple SQS queues (Fan-Out architecture) if multiple independent bounded contexts need to react to the exact same upstream domain event."
+    }
+  ],
+  "num": 1173,
+  "title": "AWS/Cloud: SQS vs SNS? When to use which?",
+  "category": "Testing, Observability & Cloud Native"
+}

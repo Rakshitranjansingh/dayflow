@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "ArchUnit is a Java library designed to enforce architectural integrity by treating your codebase as a graph of dependencies that can be queried via a fluent API. In large-scale enterprise systems, architectural drift—where developers inadvertently introduce circular dependencies or violate layer boundaries—is a silent killer of maintainability. ArchUnit solves this by allowing you to write unit tests that fail the build if your code structure deviates from defined rules. Layer dependencies are managed by defining strict access rules, such as ensuring that the 'Service' layer never directly calls the 'Persistence' layer, forcing all communication through an 'API' or 'Repository' interface. Naming conventions are enforced through reflection-based checks, ensuring that classes follow organizational standards, such as requiring all classes in the 'controller' package to be suffixed with 'Controller' or ensuring that 'Exception' classes reside exclusively in specific packages to maintain a clean separation of concerns."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Manual Code Review",
+        "ArchUnit Automation"
+      ],
+      "rows": [
+        [
+          "Consistency",
+          "Subjective, prone to human error",
+          "Deterministic, enforced on every CI build"
+        ],
+        [
+          "Feedback Loop",
+          "Delayed until PR review",
+          "Immediate, during local development"
+        ],
+        [
+          "Scope",
+          "Limited to changed files",
+          "Full codebase analysis"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "ArchUnit works by parsing Java bytecode using ASM, allowing it to inspect class hierarchies, field types, method calls, and annotations without needing to load the classes into the JVM.",
+        "Layered architecture checks are implemented by defining slices; ArchUnit validates that no class in a 'lower' slice depends on a 'higher' slice, effectively preventing tight coupling.",
+        "Naming convention rules utilize regex-based predicates against class names, package structures, or even method signatures to ensure standard compliance across large teams.",
+        "The library integrates seamlessly with JUnit 5, allowing architectural rules to be treated as first-class citizens in your test suite, providing clear failure messages when a rule is violated."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@AnalyzeClasses(packages = \"com.myapp\")\npublic class ArchitectureTest {\n    @ArchTest\n    static final ArchRule layer_dependencies = layeredArchitecture()\n        .layer(\"Controller\").definedBy(\"..controller..\")\n        .layer(\"Service\").definedBy(\"..service..\")\n        .layer(\"Persistence\").definedBy(\"..persistence..\")\n        .whereLayer(\"Controller\").mayNotBeAccessedByAnyLayer()\n        .whereLayer(\"Service\").mayOnlyBeAccessedByLayers(\"Controller\")\n        .whereLayer(\"Persistence\").mayOnlyBeAccessedByLayers(\"Service\");\n\n    @ArchTest\n    static final ArchRule naming_convention = classes()\n        .that().resideInAPackage(\"..exception..\")\n        .should().haveSimpleNameEndingWith(\"Exception\");\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common pitfall is over-testing; do not attempt to enforce every minor detail. Focus ArchUnit on 'architectural invariants'—the rules that, if broken, would fundamentally degrade your system's design. Also, be aware that ArchUnit scans the classpath; if your project is massive, ensure you use 'ImportOptions' to exclude test code or third-party libraries to keep your build times performant."
+    }
+  ],
+  "num": 392,
+  "title": "ArchUnit — architecture testing (layer dependencies, naming conventions)",
+  "category": "Exception Handling & I/O / NIO"
+}

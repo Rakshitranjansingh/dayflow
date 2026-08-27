@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Project Loom introduced Virtual Threads to Java, shifting the paradigm from thread-per-request models to thread-per-task models. However, writing robust concurrent code with millions of lightweight threads requires safer structural abstractions than traditional `ExecutorService` and `CompletableFuture`. Enter StructuredTaskScope, a core component introduced in Java 21 (incubating and finalized in subsequent releases) under JEPs 428, 453, and 462. Structured Concurrency treats groups of related tasks running in different threads as a single unit of work, guaranteeing cleaner error handling, cancellation propagation, and observability. Within this framework, ShutdownOnFailure and ShutdownOnSuccess are two concrete subclasses designed to address common enterprise orchestration patterns where you either want to fail fast if any subtask blows up, or race multiple subtasks and take the first successful result.\n\nWhen orchestrating microservices or complex internal business logic, developers frequently face two distinct challenges: scatter-gather queries where all components must succeed for the request to be valid, and redundant fallback queries where multiple providers are hit simultaneously to reduce tail latency. ShutdownOnFailure enforces an all-or-nothing policy. If any subtask throws an exception, the scope automatically signals cancellation to all other unfinished threads in the scope, preventing wasted compute and simplifying state synchronization. Conversely, ShutdownOnSuccess implements a race condition strategy. As soon as the first subtask completes successfully, it shuts down all remaining concurrent tasks and yields the winning result. Both policies eliminate the notoriously difficult-to-debug issue of thread leaks, where forgotten threads outlive their parent scope because exception handling or cancellation logic was poorly wired."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Behavior",
+        "StructuredTaskScope.ShutdownOnFailure",
+        "StructuredTaskScope.ShutdownOnSuccess"
+      ],
+      "rows": [
+        [
+          "Core Policy",
+          "All subtasks must succeed; fails fast on the first exception.",
+          "At least one subtask must succeed; completes on the first success."
+        ],
+        [
+          "Handling of Exceptions",
+          "First exception triggers scope shutdown; subsequent exceptions are suppressed.",
+          "Exceptions are ignored unless all subtasks fail (which throws an AggregateException)."
+        ],
+        [
+          "Typical Use Case",
+          "Scatter-gather operations (e.g., aggregating user profile, permissions, and settings).",
+          "Redundant calls (e.g., querying multiple replicas or fallback APIs for the fastest response)."
+        ],
+        [
+          "Primary Method for Retrieval",
+          "throwIfFailed() followed by accessing subtask.get() values.",
+          "result() which blocks and returns the value of the first successful subtask."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "StructuredTaskScope implements AutoCloseable, enforcing a strict lexical scope where a thread cannot exit until all spawned virtual threads within the scope have either completed or been forcefully cancelled.",
+        "Under the hood, ShutdownOnFailure utilizes an internal atomic state machine that listens to subtask completion states via Future objects returned by the fork() method.",
+        "When ShutdownOnFailure encounters an exception, it atomically transitions the scope state and invokes thread interruption on all active virtual threads belonging to the scope.",
+        "ShutdownOnSuccess suppresses intermediate failures, keeping a tally of failed tasks, and only throws a composite exception if every single forked subtask fails to produce a result."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public UserProfile fetchAggregatedUserData(String userId) throws InterruptedException, ExecutionException {\n    try (var scope = new ShutdownOnFailure()) {\n        Supplier<UserAccount> accountTask = scope.fork(() -> userService.getAccount(userId));\n        Supplier<List<Order>> ordersTask = scope.fork(() -> orderService.getRecentOrders(userId));\n        Supplier<Preferences> prefsTask = scope.fork(() -> preferenceService.getPrefs(userId));\n\n        scope.join();          // Wait for all subtasks to complete or one to fail\n        scope.throwIfFailed(); // Propagate exception if any subtask failed, triggering automatic shutdown\n\n        return new UserProfile(accountTask.get(), ordersTask.get(), prefsTask.get());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A critical production gotcha when using StructuredTaskScope is forgetting that fork() accepts a Supplier, meaning execution starts immediately on submission. Additionally, calling scope.join() or scope.joinUntil(deadline) is mandatory before attempting to read results via .get() or calling throwIfFailed(); failing to join will result in an IllegalStateException. Furthermore, never share a StructuredTaskScope instance across multiple threads; a scope is explicitly bound to the single thread that created it and enforces thread-confinement invariants."
+    }
+  ],
+  "num": 152,
+  "title": "StructuredTaskScope — ShutdownOnFailure, ShutdownOnSuccess",
+  "category": "Virtual Threads & Concurrency"
+}

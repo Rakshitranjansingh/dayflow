@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In concurrent Java programming, managing shared state across multiple threads inevitably introduces synchronization bottlenecks. When threads contend for monitor locks or high-level concurrency utilities, execution can derail into three distinct pathological states: Deadlock, Livelock, and Starvation. Understanding these failures requires examining how the JVM interacts with native operating system threads, monitor enter/exit instructions, and scheduling policies.\n\nA deadlock occurs when two or more threads are permanently blocked, each waiting for a lock held by another in a circular dependency. Thread A holds Lock 1 and requests Lock 2, while Thread B holds Lock 2 and requests Lock 1. Neither can proceed, and without external intervention, they will remain suspended indefinitely, consuming OS thread resources and degrading application throughput.\n\nLivelock is a subtler failure mode where threads are not blocked in aWAITING or BLOCKED state, but are instead continuously changing their state in response to other threads without making any forward progress. Think of two people attempting to pass each other in a narrow hallway, repeatedly stepping to the same side at the same time. In Java, this often manifests when polite algorithms attempt to back off, release locks, and retry operations concurrently, creating an infinite loop of active CPU consumption.\n\nStarvation happens when a runnable thread is perpetually denied CPU time or resource access because higher-priority threads dominate the scheduler or unfair lock implementations continuously bypass it. Unlike deadlock or livelock, the starved thread is often completely ready to execute, but unfair queueing policies in concurrency constructs leave it waiting indefinitely while other threads thrive."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Failure Mode",
+        "Thread State",
+        "CPU Utilization",
+        "Primary Cause"
+      ],
+      "rows": [
+        [
+          "Deadlock",
+          "BLOCKED / WAITING",
+          "Zero (Idle)",
+          "Circular dependency on nested locks"
+        ],
+        [
+          "Livelock",
+          "RUNNABLE",
+          "High (Spinning)",
+          "Overly polite retry logic without coordination"
+        ],
+        [
+          "Starvation",
+          "RUNNABLE",
+          "Zero for starved thread",
+          "Unfair locking or aggressive priority scheduling"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Deadlocks require four concurrent conditions to manifest: Mutual Exclusion, Hold and Wait, No Preemption, and Circular Wait. Breaking any single condition via ordered lock acquisition or tryLock timeouts eliminates the risk.",
+        "Livelocks typically occur in distributed consensus algorithms, retry loops with identical backoff intervals, or improper usage of java.util.concurrent.locks.Lock.tryLock() when combined with immediate yielding.",
+        "Starvation is heavily tied to lock fairness. While ReentrantLock defaults to non-fair scheduling for performance reasons (reducing context switches), passing true to its constructor forces FIFO ordering, mitigating thread starvation at the cost of raw throughput."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ResourceContentionDemo {\n    private final Object lockA = new Object();\n    private final Object lockB = new Object();\n\n    // Classic Deadlock Scenario\n    public void unsafeMethod1() {\n        synchronized (lockA) {\n            synchronized (lockB) {\n                // Critical section\n            }\n        }\n    }\n\n    public void unsafeMethod2() {\n        // Reversed acquisition order creates circular wait potential\n        synchronized (lockB) {\n            synchronized (lockA) {\n                // Critical section\n            }\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Never rely solely on Thread.holdsLock() or programmatic checks to debug deadlocks in production. Instead, configure your JVM monitoring to capture thread dumps (via jstack or JVM Mission Control) when latency spikes. Look for the explicit 'Found one or more Java-level deadlocks' section which maps out the exact stack traces and monitor addresses involved."
+    }
+  ],
+  "num": 655,
+  "title": "Deadlock vs Livelock vs Starvation?",
+  "category": "Multithreading & Java Concurrency"
+}

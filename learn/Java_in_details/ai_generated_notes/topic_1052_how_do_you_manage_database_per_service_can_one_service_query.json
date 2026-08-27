@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In a microservices architecture, managing database per service is a fundamental architectural pattern that guarantees loose coupling and autonomous lifecycle management for each microservice. Under this model, every microservice owns its dedicated relational or NoSQL database instance, ensuring that no two services share the same database schema or physical storage layer. This decoupling completely eliminates cross-service database locks, hidden schema dependencies, and tightly-coupled foreign key constraints that plague monolithic architectures. However, true encapsulation raises a critical operational challenge: Can one service query another service's database? The short answer is an absolute architectural violation. Allowing direct database queries across service boundaries bypasses business logic encapsulation, creates fragile code prone to breaking when underlying tables are refactored, and ties distinct scaling and connection-pooling boundaries together.\n\nTo understand why this is catastrophic, we must examine the Shared Database Anti-Pattern. This anti-pattern occurs when multiple distinct microservices directly read from and write to the same database instance or shared tables. While it may initially seem like a convenient shortcut to avoid building APIs or dealing with eventual consistency, it quietly introduces tight temporal and spatial coupling. If Service A alters a column or renames a table to optimize its own internal write performance, Service B's read queries silently fail or corrupt data. Furthermore, database-level transactions spanning multiple service domains lock records across business boundaries, creating distributed deadlocks and destroying the independent deployability that microservices were designed to achieve. Instead of direct database queries or shared schemas, services must communicate exclusively via well-defined APIs (REST, gRPC, or GraphQL) or asynchronous event-driven messaging topologies."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Database-per-Service Pattern",
+        "Shared Database Anti-Pattern"
+      ],
+      "rows": [
+        [
+          "Schema Ownership",
+          "Strictly owned by a single microservice; internal changes require zero coordination.",
+          "Shared across multiple services; schema migrations require synchronized multi-team deployments."
+        ],
+        [
+          "Transactional Boundary",
+          "Encapsulated within a single service boundary; cross-service updates use sagas or events.",
+          "Enables distributed ACID transactions across services, causing severe lock contention and deadlocks."
+        ],
+        [
+          "Scaling & Performance",
+          "Each database can be optimized, tuned, or scaled independently based on workload.",
+          "Connection pool exhaustion and query contention affect all services sharing the instance."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Enforcing Data Encapsulation: A microservice's database is an internal implementation detail, precisely like private fields within a Java class; exposing it directly to other services violates information hiding.",
+        "Querying Alternatives via API Composition: When Service A needs data owned by Service B, it must invoke Service B's query API rather than executing a cross-database join, preserving clear domain boundaries.",
+        "Asynchronous Event Replication: For high-throughput read requirements, services can consume domain events published by the data owner and maintain a localized, read-optimized projection or materialized cache."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.textbook.orders.client;\n\nimport org.springframework.cloud.openfeign.FeignClient;\nimport org.springframework.web.bind.annotation.GetMapping;\nimport org.springframework.web.bind.annotation.PathVariable;\n\n// ANTI-PATTERN AVOIDED: We never inject a second DataSource into OrderService.\n// Instead, we use a dedicated API client to fetch data from the owning service over HTTP/gRPC.\n@FeignClient(name = \"inventory-service\", url = \"${inventory.service.url}\")\npublic interface InventoryClient {\n\n    @GetMapping(\"/api/inventory/{productId}\")\n    InventoryDTO getInventoryLevel(@PathVariable(\"productId\") Long productId);\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic interview trap is asking how to execute distributed joins across microservices. If an applicant suggests joining tables across different databases via federated queries or shared connection strings, they are walking straight into the Shared Database Anti-Pattern. Always pivot the discussion toward CQRS, API composition, or eventual consistency patterns via event-driven streaming like Apache Kafka."
+    }
+  ],
+  "num": 1053,
+  "title": "How do you manage database per service? Can one service query another service's database? What is shared database anti-pattern?",
+  "category": "Core Java & Fundamentals"
+}

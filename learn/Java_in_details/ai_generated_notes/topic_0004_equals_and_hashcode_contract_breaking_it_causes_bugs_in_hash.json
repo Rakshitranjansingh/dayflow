@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java, the contract between equals() and hashCode() is a foundational invariant of the Collections Framework. The contract dictates that if two objects are equal according to the equals(Object) method, they must return the exact same integer value from their hashCode() method. Conversely, if two objects are unequal, they are not strictly required to return different hash codes, though doing so is highly desirable to minimize collisions. This relationship exists because hash-based collections like HashMap and HashSet rely on a two-step lookup mechanism to achieve near O(1) time complexity for insertions, deletions, and retrievals."
+    },
+    {
+      "type": "prose",
+      "content": "When you insert a key-value pair into a HashMap or an element into a HashSet (which internally delegates to a HashMap), the collection first invokes the key's hashCode() method. It applies a secondary perturbation function to this hash and maps it to a specific bucket index using bitwise masking. If multiple keys map to the same bucket, a collision occurs, and the collection chains these entries using a linked list or a red-black tree. To locate or verify a key within that bucket, the collection iterates through the chained nodes and calls equals(). If you break the contract—for example, by overriding equals() but leaving the default identity-based hashCode()—two logically equal objects will yield different hash codes. They will map to different buckets, causing the collection to fail to find an existing key, resulting in duplicate keys in a HashMap or duplicate elements in a HashSet."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Scenario / Contract Violation",
+        "Internal Collection Behavior",
+        "Production Impact & Bugs"
+      ],
+      "rows": [
+        [
+          "equals() overridden, hashCode() inherited (default identity)",
+          "Equal objects generate different hash codes and map to different buckets.",
+          "Duplicate entries in HashSet; HashMap.get() returns null for an existing, logically equal key."
+        ],
+        [
+          "hashCode() returns a constant value, equals() is correct",
+          "All objects map to bucket index 0, creating a single massive linked list or red-black tree.",
+          "Performance degrades from O(1) to O(N) (or O(log N) in Java 8+), causing high CPU utilization under load."
+        ],
+        [
+          "Mutable fields used in hashCode() are modified after insertion",
+          "The object's hash code changes, but its physical bucket index in the table remains unchanged.",
+          "The object becomes 'lost' inside the map. contains() returns false, and the entry cannot be removed, causing a memory leak."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Hash Perturbation: HashMap uses the formula (h = key.hashCode()) ^ (h >>> 16) to spread the high bits of the hash code downward. This mitigates collisions in power-of-two sized tables where only the lower bits determine the bucket index.",
+        "Bucket Index Calculation: The bucket index is resolved using the bitwise AND operation: index = (table.length - 1) & hash. This is mathematically equivalent to modulo division but executes in a single CPU cycle.",
+        "The Identity Shortcut: Before calling equals(), HashMap optimizes lookups by checking reference equality and hash equality: if (node.hash == hash && ((k = node.key) == key || (key != null && key.equals(k)))). If the hash codes do not match, equals() is never even invoked.",
+        "Treeification Threshold: If a bucket's size exceeds 8 and the total table capacity is at least 64, the linked list is converted into a Red-Black Tree (TreeNode). If the keys implement Comparable, the tree uses compareTo() to order nodes; otherwise, it falls back to system identity hash codes, which can degrade performance if hashCode() is poorly implemented.",
+        "Rehashing on Resize: When the map exceeds its load factor threshold (default 0.75), the capacity doubles, and all elements are reallocated to new buckets. If a key's hash code has changed due to mutation, it will be placed in a bucket that does not match its new hash code, permanently corrupting the map's state."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.Objects;\n\n/**\n * A production-grade immutable key class adhering to the equals/hashCode contract.\n * Using final fields prevents post-insertion mutation bugs.\n */\npublic final class UserKey {\n    private final String username;\n    private final int tenantId;\n    private final int cachedHash; // Performance optimization for frequently queried keys\n\n    public UserKey(String username, int tenantId) {\n        if (username == null) {\n            throw new IllegalArgumentException(\"Username cannot be null\");\n        }\n        this.username = username;\n        this.tenantId = tenantId;\n        // Pre-compute hash code to keep the key immutable and fast\n        this.cachedHash = Objects.hash(username, tenantId);\n    }\n\n    @Override\n    public boolean equals(Object o) {\n        if (this == o) return true;\n        if (o == null || getClass() != o.getClass()) return false;\n        UserKey userKey = (UserKey) o;\n        return tenantId == userKey.tenantId && \n               username.equals(userKey.username);\n    }\n\n    @Override\n    public int hashCode() {\n        return cachedHash;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A highly insidious production bug occurs when developers use mutable JPA entities or Lombok's @Data annotation on classes used as HashMap keys or HashSet elements. If an entity's ID is assigned by the database after persist() is called, its hashCode() (if based on the ID) will change from its pre-persisted state (usually 0 or null). The entity becomes permanently orphaned in the collection. To prevent this, either use immutable DTOs/Records as keys, or implement a stable UUID-based identity for JPA entities that is assigned at object creation time rather than database insertion time."
+    }
+  ],
+  "num": 5,
+  "title": "equals() and hashCode() contract — breaking it causes bugs in HashMap/HashSet",
+  "category": "Collections Framework & Internals"
+}

@@ -1,0 +1,52 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Handling concurrent updates in a database is one of the foundational challenges of enterprise software engineering, bridging the gap between application-layer Java threads and storage-layer transaction isolation. When multiple clients or threads attempt to mutate the same persistent state simultaneously, naive read-modify-write cycles lead to catastrophic data anomalies, including lost updates, dirty reads, and non-repeatable reads. To maintain ACID guarantees without sacrificing throughput, architects must leverage two primary concurrency control paradigms: Optimistic Concurrency Control (OCC) and Pessimistic Concurrency Control (PCC). \n\nOptimistic Concurrency Control assumes that data contention is rare. Transactions read data without acquiring locks, perform their business logic computations in memory, and only at the commit phase verify whether any other transaction has modified the underlying state. In Java and JPA/Hibernate applications, this is routinely implemented using a versioning strategy via the `@Version` annotation. If a version mismatch is detected at flush time, an `OptimisticLockException` is thrown, forcing the application layer to handle the retry or rollback. Conversely, Pessimistic Concurrency Control assumes contention is frequent and safety must be guaranteed upfront. This approach utilizes database-level locking mechanisms—specifically `SELECT ... FOR UPDATE`—to acquire exclusive or shared locks on targeted rows during the read phase, preventing concurrent transactions from even reading or modifying the locked records until the outer transaction commits or rolls back."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Locking Behavior",
+        "Contention Assumption",
+        "Primary Failure Mode"
+      ],
+      "rows": [
+        [
+          "Optimistic Concurrency",
+          "No locks held during read/modify; version check at commit",
+          "Rare contention; high read-to-write ratio",
+          "OptimisticLockException / Lost Update rollbacks"
+        ],
+        [
+          "Pessimistic Concurrency",
+          "Exclusive locks acquired immediately via SELECT ... FOR UPDATE",
+          "High contention; frequent race conditions",
+          "Deadlocks and thread connection pool exhaustion"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In Optimistic Locking, the persistence provider issues an UPDATE statement containing a predicate that checks the version column: UPDATE table SET val = ?, version = version + 1 WHERE id = ? AND version = ?.",
+        "If zero rows are affected by the update statement due to a concurrent modification changing the version value in the interim, the ORM instantly flags a concurrent modification violation.",
+        "Pessimistic locking bypasses version columns by pushing the concurrency management directly to the database engine's lock manager, utilizing row-hash latches or gap locks depending on the isolation level.",
+        "Using pessimistic locks for extended durations risks severe thread starvation and database connection pool depletion, as waiting threads block execution threads at the JDBC driver level."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Entity\n@Table(name = \"accounts\")\npublic class Account {\n    @Id\n    private Long id;\n    \n    private BigDecimal balance;\n    \n    @Version\n    private Long version;\n    \n    public void debit(BigDecimal amount) {\n        if (this.balance.compareTo(amount) < 0) {\n            throw new InsufficientFundsException();\n        }\n        this.balance = this.balance.subtract(amount);\n    }\n}\n\n// Repository layer utilizing Pessimistic Locking\npublic interface AccountRepository extends JpaRepository<Account, Long> {\n    @Lock(LockModeType.PESSIMISTIC_WRITE)\n    @Query(\"SELECT a FROM Account a WHERE a.id = :id\")\n    Optional<Account> findByIdWithLock(@Param(\"id\") Long id);\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap when using Optimistic Locking in distributed systems is wrapping retry logic around the entire transaction without backoff, which causes a 'thundering herd' effect during high-traffic spikes, completely saturating CPU and database connection pools. Furthermore, if you use pessimistic locks across multiple tables without a strict global ordering of resource acquisition, you will inevitably introduce database deadlocks (ORA-00060 or PostgreSQL deadlock detected)."
+    }
+  ],
+  "num": 891,
+  "title": "How do you handle concurrent updates in a database?",
+  "category": "Core Java & Fundamentals"
+}

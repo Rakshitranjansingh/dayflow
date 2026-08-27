@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Modeling data for transactions (OLTP) and reporting (OLAP) requires fundamentally different architectural strategies because they serve opposing masters: low-latency consistency versus high-throughput analytical aggregation. Transactional modeling prioritizes normalization (3NF) to eliminate data redundancy, ensuring that every write operation maintains ACID properties without anomalies. In this model, you optimize for row-level locking and indexed lookups, keeping tables slim to minimize the overhead of write-ahead logging (WAL) and index maintenance. Conversely, reporting models favor denormalization, often utilizing Star or Snowflake schemas. The goal here is to minimize expensive JOIN operations and facilitate massive sequential scans. By flattening data into fact and dimension tables, you trade storage space and write-latency for query performance, allowing analytical engines to aggregate millions of rows without traversing complex relational graphs."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Transactional (OLTP)",
+        "Reporting (OLAP)"
+      ],
+      "rows": [
+        [
+          "Normalization",
+          "High (3NF/BCNF)",
+          "Low (Denormalized)"
+        ],
+        [
+          "Primary Goal",
+          "Data Integrity/Latency",
+          "Query Throughput"
+        ],
+        [
+          "Access Pattern",
+          "Point Lookups/Updates",
+          "Bulk Aggregations"
+        ],
+        [
+          "Storage Focus",
+          "Row-oriented",
+          "Columnar-oriented"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Transactional models utilize B-Tree indexes to optimize for O(log n) lookups, which are ideal for single-row retrieval but suffer under massive analytical scans due to random I/O patterns.",
+        "Reporting models leverage columnar storage formats like Parquet or ORC, which allow the engine to skip irrelevant columns entirely and utilize vectorization for CPU-efficient aggregation.",
+        "The ETL/ELT pipeline acts as the bridge, often involving a Change Data Capture (CDC) mechanism that streams transactional logs into a staging area before transforming them into analytical structures.",
+        "Transactional systems are sensitive to lock contention; heavy reporting queries run directly against production tables can trigger row-level locks that stall incoming user transactions."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "sql",
+      "content": "-- Transactional: Normalized for consistency\nCREATE TABLE orders (order_id UUID PRIMARY KEY, user_id UUID, status VARCHAR(20));\n\n-- Reporting: Denormalized for OLAP performance\nCREATE TABLE fact_sales (\n    date_key INT, \n    product_key INT, \n    total_amount DECIMAL(19,4)\n) WITH (format = 'PARQUET', partitioning = 'date_key');"
+    },
+    {
+      "type": "note",
+      "content": "The classic 'Production Reporting' trap: Never run complex analytical aggregations directly against your primary transactional database. Even with read-only replicas, you risk 'replication lag' where your reports show stale data, or worse, you saturate the I/O bandwidth of the replica, causing it to fall behind the primary and potentially causing a cascading failure in your application's ability to read current state."
+    }
+  ],
+  "num": 900,
+  "title": "How do you model data for reporting vs transactions?",
+  "category": "Exception Handling & I/O / NIO"
+}

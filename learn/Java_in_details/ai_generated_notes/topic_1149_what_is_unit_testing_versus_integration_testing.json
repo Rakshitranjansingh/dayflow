@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Unit testing and integration testing represent the two primary pillars of a robust automated test strategy. Unit testing focuses on the smallest testable parts of an application—typically individual methods or classes—in complete isolation. By mocking external dependencies like databases, file systems, or network sockets, unit tests ensure that the core logic of a business service behaves correctly under specific inputs. This isolation is critical for fast feedback loops and pinpointing the exact line of code where a regression occurred.\n\nIntegration testing, conversely, validates the interaction between multiple components or systems. In the context of I/O and NIO, this means verifying that your code correctly interacts with the underlying OS file descriptors, network buffers, or database drivers. While unit tests might mock a 'Repository' interface, an integration test exercises the actual implementation, ensuring that your SQL queries are syntactically valid, your connection pools are configured correctly, and your NIO Selectors or Channels are handling backpressure and buffer overflows as expected. Integration tests are inherently slower and more fragile due to their reliance on external state, but they are the only way to catch 'plumbing' issues that unit tests simply cannot see."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Aspect",
+        "Unit Testing",
+        "Integration Testing"
+      ],
+      "rows": [
+        [
+          "Scope",
+          "Single class/method",
+          "Modules, DBs, APIs, File I/O"
+        ],
+        [
+          "Speed",
+          "Milliseconds",
+          "Seconds to Minutes"
+        ],
+        [
+          "Dependencies",
+          "Always mocked",
+          "Real infrastructure"
+        ],
+        [
+          "Failure Source",
+          "Logic error",
+          "Configuration/Contract error"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Unit tests utilize frameworks like Mockito to stub out I/O streams, preventing the test from actually hitting the disk or network, which keeps the heap footprint low and execution deterministic.",
+        "Integration tests for NIO often require Testcontainers or embedded databases to spin up ephemeral environments, ensuring that the JVM's interaction with native OS buffers and socket channels is exercised in a realistic lifecycle.",
+        "A common failure pattern in integration testing involves resource leaks; if your test doesn't explicitly close FileChannels or SocketChannels, the OS file descriptor limit will eventually be reached, causing subsequent tests to fail with 'Too many open files' exceptions.",
+        "Unit tests should ideally be stateless and run in parallel, whereas integration tests often require sequential execution or careful database transaction rollback strategies to maintain isolation between test runs."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Unit Test: Mocking I/O to test business logic\n@Test\nvoid processData_ShouldHandleEmptyFile() {\n    InputStream mockStream = new ByteArrayInputStream(new byte[0]);\n    DataProcessor processor = new DataProcessor();\n    assertThrows(EmptyFileException.class, () -> processor.process(mockStream));\n}\n\n// Integration Test: Verifying actual NIO FileChannel interaction\n@Test\nvoid writeToFile_ShouldPersistToDisk() throws IOException {\n    Path tempFile = Files.createTempFile(\"test\", \".txt\");\n    try (FileChannel channel = FileChannel.open(tempFile, StandardOpenOption.WRITE)) {\n        ByteBuffer buffer = ByteBuffer.wrap(\"data\".getBytes());\n        channel.write(buffer);\n    }\n    assertEquals(\"data\", Files.readString(tempFile));\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: The most common mistake I see is 'Integration Testing in Disguise.' If your unit test spends 500ms spinning up a Spring Context or connecting to a local H2 database, you have lost the primary benefit of unit testing: speed. If you find yourself needing to mock more than three dependencies in a unit test, that is a code smell indicating your class has too many responsibilities (violating the Single Responsibility Principle) and should be refactored before you write another test."
+    }
+  ],
+  "num": 1150,
+  "title": "What is unit testing versus integration testing?",
+  "category": "Exception Handling & I/O / NIO"
+}

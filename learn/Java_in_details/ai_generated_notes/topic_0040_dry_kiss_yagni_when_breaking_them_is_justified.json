@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In software engineering, DRY (Don't Repeat Yourself), KISS (Keep It Simple, Stupid), and YAGNI (You Aren't Gonna Need It) form the bedrock of clean code design principles. DRY targets the reduction of duplication in business logic and structural metadata, ensuring that every piece of knowledge has a single, unambiguous representation within a system. KISS dictates that systems work best if they are kept simple rather than made complex, favoring straightforward implementations over clever, convoluted abstractions. YAGNI guards against speculative generalization, advising developers not to build functionality until it is strictly required by current business drivers. Together, these heuristics keep codebases maintainable, readable, and malleable.\n\nHowever, treating these principles as absolute dogmas often leads to over-engineering or premature abstraction, both of which are equally toxic to software delivery velocity. Senior engineers understand that DRY, KISS, and YAGNI are trade-off levers rather than moral imperatives. Breaking them is not only justified but necessary when the cost of adherence outweighs the cost of violation. For instance, premature DRYing can couple two completely distinct domains just because they share a superficial structural similarity (accidental duplication), leading to a rigid monolithic coupling that breaks when one domain evolves independently. Similarly, strictly following KISS might force a naive O(n^2) loop into a core domain service where a complex data structure or caching layer is genuinely required to meet SLAs. Understanding the exact boundaries where these axioms fail separates pragmatic enterprise developers from textbook theorists."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Principle",
+        "Primary Goal",
+        "Failure Mode When Blindly Followed",
+        "Justified Breaking Point"
+      ],
+      "rows": [
+        [
+          "DRY",
+          "Eliminate knowledge duplication and structural redundancy.",
+          "Coupling unrelated domains via premature abstraction (The Wrong Abstraction).",
+          "When duplication is purely coincidental and domains are expected to evolve on divergent trajectories."
+        ],
+        [
+          "KISS",
+          "Maximize readability and minimize cognitive overhead.",
+          "Writing naive, unscalable algorithms that fail under production loads.",
+          "When domain complexity inherently demands sophisticated design patterns or high-performance data structures."
+        ],
+        [
+          "YAGNI",
+          "Prevent wasted effort on speculative features.",
+          "Painting the architecture into a corner that requires painful refactoring for basic extensions.",
+          "When building foundational extension points for known, highly probable enterprise growth vectors."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Accidental vs. Intentional Duplication: DRY warns against duplicating knowledge, not code. Two methods containing identical lines of Java code do not violate DRY if they represent entirely different business rules that happen to look similar today.",
+        "The Cost of Premature Abstraction: Violating DRY by keeping code slightly duplicated for a few weeks is almost always cheaper and safer than pulling it into a shared utility library too early and getting the abstraction wrong.",
+        "Architectural Escalation under YAGNI: While you aren't gonna need it today, ignoring basic thread-safety, proper exception hierarchies, or pluggable SPI interfaces in a multi-tenant enterprise system under the banner of YAGNI creates massive technical debt.",
+        "Balancing KISS with Performance: Simple code is often slow code in high-throughput JVM environments. Implementing lock-free rings, ring buffers, or complex custom caching mechanisms violates KISS but is justified by strict latency SLAs."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class NotificationService {\n    // Intentionally violating DRY: Externalizing SMS and Email logic \n    // instead of creating a premature generic 'MessageDispatcher' abstraction.\n    // This keeps domains decoupled when SMS and Email payloads diverge.\n    \n    public void sendSms(User user, String smsContent) {\n        SmsPayload payload = new SmsPayload(user.getPhoneNumber(), smsContent);\n        twilioClient.dispatch(payload);\n    }\n\n    public void sendEmail(User user, String subject, String htmlBody) {\n        EmailPayload payload = new EmailPayload(user.getEmail(), subject, htmlBody);\n        sendGridClient.dispatch(payload);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common trap for senior engineers is the 'DRY Evangelist' code review comment. Junior developers often try to collapse two methods with identical validation logic into a single superclass method. Push back on this if the entities belong to different bounded contexts in a domain-driven design architecture. Decoupled code with minor duplication is vastly superior to tightly coupled, generalized code that requires cascading changes whenever one domain shifts."
+    }
+  ],
+  "num": 41,
+  "title": "DRY, KISS, YAGNI — when breaking them is justified",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "CompletableFuture, introduced in Java 8, is the evolution of the Future interface, designed to solve the blocking nature of traditional asynchronous programming. While a standard Future requires a blocking get() call to retrieve results, CompletableFuture implements the CompletionStage interface, allowing for a non-blocking, event-driven, and functional pipeline of dependent tasks. Under the hood, it functions as a state machine that manages a chain of dependents. When a task completes, it triggers a series of callbacks—often executed in the ForkJoinPool.commonPool() by default—which propagate the result through the pipeline. This architecture effectively bridges the gap between imperative thread management and reactive programming, allowing developers to compose complex asynchronous workflows without manual thread orchestration."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Future",
+        "CompletableFuture"
+      ],
+      "rows": [
+        [
+          "Completion Mechanism",
+          "Blocking get()",
+          "Callback/Stage chaining"
+        ],
+        [
+          "Composition",
+          "None",
+          "thenCompose, thenCombine"
+        ],
+        [
+          "Exception Handling",
+          "Checked Exceptions",
+          "exceptionally, handle"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "State Management: Internally, CompletableFuture uses a volatile 'result' field. When a task finishes, it uses CAS (Compare-And-Swap) operations to transition the state from incomplete to complete, ensuring thread-safe visibility of the result.",
+        "Stack of Dependents: Each stage in the pipeline is represented by a 'Completion' object. These are stored in a Treiber stack (a lock-free linked list) attached to the CompletableFuture. When the source completes, it traverses this stack to trigger the next stage.",
+        "Executor Strategy: Methods ending in 'Async' allow for custom Executor injection. If no executor is provided, the JVM defaults to the ForkJoinPool.commonPool(), which is a shared, daemon-thread-based pool optimized for CPU-bound tasks.",
+        "Memory Barriers: The implementation relies heavily on VarHandles (or Unsafe in older versions) to manage memory fences, ensuring that the result written by the producer thread is visible to the consumer thread without explicit synchronization blocks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "CompletableFuture.supplyAsync(() -> fetchUserData(userId), executor)\n    .thenApply(user -> user.getEmail())\n    .thenCompose(email -> sendWelcomeEmailAsync(email))\n    .exceptionally(ex -> {\n        log.error(\"Pipeline failed\", ex);\n        return false;\n    });"
+    },
+    {
+      "type": "note",
+      "content": "The most common production pitfall is the 'Common Pool Exhaustion' trap. Since CompletableFuture defaults to the ForkJoinPool.commonPool(), blocking operations (like JDBC calls or synchronous I/O) inside a pipeline can saturate the entire JVM's common pool, causing a cascading failure across unrelated parts of your application. Always pass a dedicated, bounded ThreadPoolExecutor to async methods when performing blocking I/O."
+    }
+  ],
+  "num": 458,
+  "title": "How does CompletableFuture work under the hood?",
+  "category": "Multithreading & Java Concurrency"
+}

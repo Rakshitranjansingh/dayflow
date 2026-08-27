@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern cloud-native architectures characterized by microservices, synchronous REST calls and asynchronous event-driven messaging make debugging runtime issues exceptionally challenging. A single user interaction can fan out across dozens of JVM processes, rendering traditional single-node log analysis useless. Distributed Tracing solves this by tracking a request's entire journey across network boundaries, assembling a directed acyclic graph of operations known as a trace. Within the Java ecosystem, Micrometer Tracing and OpenTelemetry (OTel) form the bedrock of this observability layer. Micrometer Tracing acts as an instrumentation facade and abstraction bridge—much like SLF4J does for logging—letting developers write framework-agnostic tracing code while plugging in different underlying vendors. OpenTelemetry, conversely, is the Cloud Native Computing Foundation (CNCF) industry standard specification and SDK/API implementation that standardizes how telemetry data (traces, metrics, and logs) is collected, processed, and exported to backends like Zipkin, Jaeger, or Prometheus."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Micrometer Tracing",
+        "OpenTelemetry (Java SDK)"
+      ],
+      "rows": [
+        [
+          "Primary Role",
+          "Vendor-neutral facade & Spring-native integration layer",
+          "Universal CNCF standard specification, API, and SDK"
+        ],
+        [
+          "API Design",
+          "Thin abstraction wrapper (historically Brave or OTel bridges)",
+          "Rich, vendor-agnostic API with native baggage and context propagation"
+        ],
+        [
+          "Ecosystem Alignment",
+          "Deeply embedded in Spring Boot 3+ (Micrometer Observation API)",
+          "Cross-language standard adopted globally across infrastructure vendors"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "W3C Trace Context Propagation: Distributed tracing relies heavily on standard HTTP headers, specifically traceparent and tracestate, to pass context (Trace ID and Parent Span ID) down the wire across thread and process boundaries.",
+        "Micrometer Observation API: Combines metrics and tracing into a single unified concept, allowing an annotated or instrumented block of code to simultaneously emit a latency metric and record a span without duplicate instrumentation boilerplate.",
+        "Span Lifecycle & Thread Local Storage: Spans manage their lifecycle through scopes. When a span is started, it is bound to the current thread via a Scope object (often backed by ScopedValue in modern Loom threads or traditional ThreadLocal mechanisms) so that logging frameworks can automatically append Trace IDs to MDC logs."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderProcessingService {\n\n    private static final Logger log = LoggerFactory.getLogger(OrderProcessingService.class);\n    private final Tracer tracer;\n\n    public OrderProcessingService(Tracer tracer) {\n        this.tracer = tracer;\n    }\n\n    public void processOrder(Order order) {\n        Span newSpan = tracer.nextSpan().name(\"process-order-business-logic\");\n        try (Tracer.SpanInScope ws = tracer.withSpan(newSpan.start())) {\n            newSpan.tag(\"order.id\", order.getId());\n            log.info(\"Processing order inside custom span context\");\n            \n            // Simulate downstream execution\n            executePayment(order);\n            \n        } catch (RuntimeException ex) {\n            newSpan.error(ex);\n            throw ex;\n        } finally {\n            newSpan.end();\n        }\n    }\n\n    private void executePayment(Order order) {\n        // Automatically picked up by Micrometer/OTel HTTP client instrumentation\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha when combining Micrometer Tracing with reactive code (Project Reactor) or Java Virtual Threads (Project Loom) is context loss. Because traditional tracing relies on ThreadLocal storage, reactive operators that switch threads (like .publishOn()) or virtual thread pinning/unpinning can sever the trace context. Always ensure you are using the Observation API or OTel context propagation hooks configured explicitly for Reactor's Hooks.enableAutomaticContextPropagation() to avoid broken traces in asynchronous code."
+    }
+  ],
+  "num": 421,
+  "title": "Distributed Tracing — Micrometer Tracing / OpenTelemetry",
+  "category": "Testing, Observability & Cloud Native"
+}

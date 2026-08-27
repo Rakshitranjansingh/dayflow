@@ -1,0 +1,33 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Single Responsibility Principle (SRP), the foundational 'S' in Robert C. Martin's SOLID principles, states that a class should have one, and only one, reason to change. In object-oriented programming, this means every module, class, or function should encapsulate a single part of the software's functionality, rendering that responsibility entirely accountable to a single actor or business requirement. When a class handles multiple domains—such as data persistence, business logic, and UI formatting—it couples orthogonal concerns together. This tight coupling violates SRP, as changes to database schemas or reporting formats force modifications to the core domain model, resulting in brittle codebases, merge conflicts in version control systems, and exponential complexity growth.\n\nIn the context of Core Java and enterprise architecture, failing to adhere to SRP often yields 'God Objects'—monolithic classes that orchestrate hundreds of lines of procedural logic inside object-oriented wrappers. By decomposing these classes, developers isolate volatility. For instance, separating an entity's business validation rules from its JDBC persistence layer or JSON serialization strategy ensures that a redesign of the network serialization format has zero impact on core domain invariant checks. Designing systems with SRP in mind naturally drives low coupling and high cohesion, making unit testing trivial because test fixtures do not need to mock unrelated subsystems like loggers, disk I/O, or external HTTP clients."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "A class violates SRP if it changes due to requests from two or more distinct stakeholder groups (e.g., DBAs requesting schema updates and product managers requesting UI layout adjustments).",
+        "Cohesion is the primary metric of SRP: highly cohesive classes group methods and fields that operate on the same state to fulfill a single capability.",
+        "Refactoring an SRP violation often introduces factories, strategy interfaces, and service orchestrators to delegate disparate sub-tasks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class OrderProcessor {\n    public void processOrder(Order order) {\n        if (order.isValid()) {\n            saveToDatabase(order);\n            sendConfirmationEmail(order);\n        }\n    }\n\n    private void saveToDatabase(Order order) {\n        // JDBC or ORM persistence logic\n    }\n\n    private void sendConfirmationEmail(Order order) {\n        // SMTP network logic\n    }\n}"
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class OrderProcessor {\n    private final OrderRepository orderRepository;\n    private final EmailService emailService;\n\n    public OrderProcessor(OrderRepository orderRepository, EmailService emailService) {\n        this.orderRepository = orderRepository;\n        this.emailService = emailService;\n    }\n\n    public void process(Order order) {\n        orderRepository.save(order);\n        emailService.sendConfirmation(order);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common trap for intermediate developers is applying SRP at too granular a level, creating classes for every single line of logic (e.g., a class just to add two numbers). SRP is about actors and reasons to change, not line counts. If a class encapsulates a cohesive business concept that changes together, leave it intact. Over-engineering with micro-classes damages readability and increases cognitive load."
+    }
+  ],
+  "num": 35,
+  "title": "Single Responsibility Principle (SRP)",
+  "category": "Core Java & Fundamentals"
+}

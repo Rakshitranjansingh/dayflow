@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "For over two decades, Java developers faced a frustrating API inconsistency in the java.util collections framework. While collections like List, Deque, and SortedSet inherently maintained an encounter order, there was no unified interface to interact with their first or last elements, nor was there a standard way to view a collection in reverse. Retrieving the last element of a List required boilerplate code like list.get(list.size() - 1), while doing the same for a Deque required peekLast(), and for a SortedSet, casting or iterating to the end. Java 21 introduced Sequenced Collections via JEP 431 to solve this structural deficiency definitively.\n\nAt its core, a Sequenced Collection is a collection whose elements have a defined encounter order, and it introduces three new interface definitions into the type hierarchy: SequencedCollection, SequencedSet, and SequencedMap. These interfaces systematically insert themselves between existing collections and their root interfaces (Collection, Set, Map). By establishing uniform methods such as getFirst(), getLast(), addFirst(E), addLast(E), and reversed(), the platform eliminates historical API gaps. This means algorithms can now safely operate on the first or last elements of any ordered collection without needing to know whether the underlying data structure is backed by an array, a linked list, or a red-black tree."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Legacy Approach",
+        "Sequenced Collections Approach (Java 21)",
+        "Underlying Interface Benefit"
+      ],
+      "rows": [
+        [
+          "list.get(list.size() - 1)",
+          "list.getLast()",
+          "Direct element access without arithmetic bounds checks"
+        ],
+        [
+          "deque.descendingIterator()",
+          "collection.reversed()",
+          "Provides a lightweight, non-copying reversed view of the collection"
+        ],
+        [
+          "sortedSet.first() / sortedSet.last()",
+          "Uniform getFirst() / getLast()",
+          "Unifies method naming conventions across Lists, Sets, and Maps"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The reversed() method does not copy the underlying data structure. Instead, it returns a reverse-ordered view backed by the original collection, meaning structural modifications to the view reflect immediately on the source.",
+        "SequencedSet inherits from SequencedCollection and ensures that its addFirst and addLast operations maintain set invariants, throwing an IllegalArgumentException if the element cannot be placed at the requested boundary due to ordering constraints (such as in SortedSet derivatives like TreeSet).",
+        "SequencedMap provides parallel capabilities for key-value pairs, introducing methods like putFirst(), putLast(), pollFirstEntry(), and pollLastEntry(), effectively transforming LinkedHashMap into a fully-realized double-ended queue of entries."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.LinkedHashSet;\nimport java.util.SequencedSet;\n\npublic class SequencedDemo {\n    public static void main(String[] args) {\n        SequencedSet<String> colors = new LinkedHashSet<>();\n        colors.add(\"Red\");\n        colors.add(\"Green\");\n        colors.add(\"Blue\");\n\n        // Accessing boundaries uniformly\n        System.out.println(colors.getFirst()); // Red\n        System.out.println(colors.getLast());  // Blue\n\n        // Mutating via boundaries\n        colors.addFirst(\"Yellow\");\n        System.out.println(colors.getFirst()); // Yellow\n\n        // Iterating in reverse view without copying\n        SequencedSet<String> reversedView = colors.reversed();\n        reversedView.forEach(System.out::println);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Beware of performance traps when using addFirst() and addLast() on collections backed by arrays, such as ArrayList. While the Sequenced Collection interface standardizes these operations, inserting an element at the beginning of an ArrayList still requires an O(n) array copy operation. If you need frequent O(1) mutations at both ends, always bind your reference to a Deque implementation like ArrayDeque or LinkedList rather than a raw List interface."
+    }
+  ],
+  "num": 102,
+  "title": "Sequenced Collections (Java 21)",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

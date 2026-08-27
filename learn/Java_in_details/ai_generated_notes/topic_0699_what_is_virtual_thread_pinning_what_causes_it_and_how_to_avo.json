@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Virtual Thread pinning is a critical performance bottleneck in Java's Project Loom implementation where a virtual thread becomes 'pinned' to its underlying carrier thread, preventing the carrier from being unmounted. In the Java concurrency model, virtual threads are lightweight wrappers that are multiplexed onto a small pool of platform threads, known as carrier threads. When a virtual thread performs a blocking operation—such as I/O or waiting on a lock—the JVM typically unmounts the virtual thread from the carrier, freeing the carrier to execute other tasks. However, pinning occurs when the virtual thread executes a synchronized block or method, or calls a native method, while holding a monitor. Because the JVM's current implementation of synchronized blocks is tied to the carrier thread's stack, the carrier cannot be released until the virtual thread exits the synchronized block, effectively negating the scalability benefits of virtual threads and potentially leading to thread starvation in the ForkJoinPool used by the scheduler."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Scenario",
+        "Carrier Thread Status",
+        "Scalability Impact"
+      ],
+      "rows": [
+        [
+          "Standard I/O",
+          "Unmounts and executes other tasks",
+          "High"
+        ],
+        [
+          "Synchronized Block",
+          "Pinned (Blocked)",
+          "Low/None"
+        ],
+        [
+          "ReentrantLock",
+          "Unmounts and executes other tasks",
+          "High"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Pinning occurs primarily due to the legacy implementation of the 'synchronized' keyword, which requires the carrier thread's monitor to be held, preventing the scheduler from suspending the virtual thread.",
+        "Native methods (JNI) cause pinning because the JVM cannot safely unmount a thread while it is executing non-managed code, as the stack state is opaque to the JVM's continuation mechanism.",
+        "The JVM tracks pinning events; you can detect them by setting the system property '-Djdk.tracePinnedThreads=full' to log stack traces when a thread is pinned during a blocking operation.",
+        "Pinning does not cause deadlocks directly, but it creates a 'bottleneck' where the carrier pool size limits the total number of concurrent operations, effectively reverting virtual threads to the performance profile of platform threads."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Avoid this: Synchronized blocks cause pinning\npublic synchronized void criticalSection() { \n    // ... blocking I/O here will pin the carrier thread\n}\n\n// Use this: ReentrantLock allows the carrier to unmount\nprivate final ReentrantLock lock = new ReentrantLock();\npublic void safeSection() {\n    lock.lock();\n    try {\n        // ... blocking I/O here is safe and will not pin\n    } finally {\n        lock.unlock();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Do not blindly replace all synchronized blocks with ReentrantLocks. While ReentrantLocks are 'virtual-thread friendly,' they carry a slight overhead compared to synchronized blocks in non-contended scenarios. Only refactor synchronized blocks that wrap blocking I/O or long-running operations. If your synchronized block is just a simple memory-bound state update, the pinning duration is likely negligible and not worth the refactoring effort."
+    }
+  ],
+  "num": 700,
+  "title": "What is Virtual Thread pinning — what causes it and how to avoid it?",
+  "category": "Virtual Threads & Concurrency"
+}

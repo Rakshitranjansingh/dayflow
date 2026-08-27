@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Configuring profiles for dev, test, and prod environments is a core discipline in enterprise Java applications to ensure separation of concerns, secure credential management, and runtime adaptability. In a modern ecosystem, environments diverge drastically: local development demands verbose console logging and H2 or embedded database instances; integration testing mandates isolated transactional runners with deterministic mocks; and production requires robust connection pooling, optimized JVM heap sizing, strict security constraints, and structured JSON logging. Managing these configurations efficiently prevents catastrophic runtime failures, such as pointing a test suite at a production data store or leaking plaintext secrets in a shared repository.\n\nTo bridge the gap between application code and environment-specific constraints, frameworks like Spring Boot leverage the concept of profiles alongside externalized configuration mechanisms. By partitioning settings into discrete resource files—such as application-dev.yml, application-test.yml, and application-prod.yml—alongside a central application.yml, developers can override default properties cleanly. Activation of these profiles is controlled via environment variables, JVM system properties, or command-line arguments (e.g., -Dspring.profiles.active=prod), ensuring that the codebase remains environment-agnostic while the runtime execution context dictates the structural behavior of the container, data sources, and security filters."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Environment Profile",
+        "Primary Data Source",
+        "Logging Level",
+        "Caching & Metrics"
+      ],
+      "rows": [
+        [
+          "dev",
+          "H2 / Embedded SQLite",
+          "DEBUG / TRACE",
+          "Disabled / Local Memory"
+        ],
+        [
+          "test",
+          "Testcontainers / H2 (Isolated)",
+          "INFO",
+          "Mock / Stubbed"
+        ],
+        [
+          "prod",
+          "Managed PostgreSQL / MySQL Cluster",
+          "WARN / ERROR",
+          "Distributed Redis / Prometheus Actuator"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Environment Activation Order: Spring Boot evaluates active profiles sequentially, prioritizing command-line flags and system properties over OS environment variables and physical YAML files.",
+        "Profile-Specific Bean Registration: Annotating a class with @Profile(\"prod\") restricts its instantiation to environments where the production profile is explicitly active, preventing accidental execution of production scheduled jobs in local environments.",
+        "YAML Document Separation: Multiple profiles can be housed within a single application.yml file by utilizing the spring.config.activate.on-profile document delimiter, keeping configuration centralized.",
+        "Externalized Secrets Management: Production environments should never store plaintext credentials in version-controlled YAML files; instead, they should rely on environment variable interpolation or vault integration."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "server:\n  port: 8080\nspring:\n  profiles:\n    active: \"${SPRING_PROFILES_ACTIVE:dev}\"\n---\nspring:\n  config:\n    activate:\n      on-profile: dev\nlogging:\n  level:\n    root: DEBUG\ndatasource:\n  url: jdbc:h2:mem:devdb\n---\nspring:\n  config:\n    activate:\n      on-profile: prod\nlogging:\n  level:\n    root: WARN\ndatasource:\n  url: ${PROD_DB_URL}\n  username: ${PROD_DB_USER}\n  password: ${PROD_DB_PASSWORD}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production gotcha involves relying on default fallback behaviors when an environment variable is omitted. If your container orchestration tool fails to pass SPRING_PROFILES_ACTIVE=prod, Spring Boot gracefully falls back to the default profile or 'dev'. If your application boots up in production using the 'dev' profile, it might attempt to spin up an embedded H2 database or disable security filters, exposing sensitive endpoints. Always enforce fail-fast behavior by validating mandatory profile states during the ApplicationContext initialization phase."
+    }
+  ],
+  "num": 1225,
+  "title": "How do you configure profiles for dev, test, and prod?",
+  "category": "Exception Handling & I/O / NIO"
+}

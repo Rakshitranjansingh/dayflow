@@ -1,0 +1,70 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Spring AOP (Aspect-Oriented Programming), pointcut expressions are predicate languages used to determine which join points (specifically, method executions) advice should be applied to. Understanding how to precisely target execution contexts is critical for cross-cutting concerns like declarative exception handling, transaction management, and auditing. The execution designator matches method execution join points based on method signatures, return types, and declaring types. The within designator restricts matching to join points within specific types (such as classes or packages), providing a broader scope boundary. The args designator matches method execution where the runtime arguments are instances of given types, enabling inspection and extraction of argument values. The @annotation designator matches join points where the subject of the join point has a given annotation applied to it, which is heavily used in custom-built exception handling or security frameworks. Finally, the bean designator allows matching based on the Spring bean identifier, enabling pointcuts scoped to specific named beans in the container. Together, these designators form a powerful DSL for declarative enterprise architectures."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Designator",
+        "Target Scope",
+        "Evaluation Time",
+        "Performance Impact"
+      ],
+      "rows": [
+        [
+          "execution",
+          "Method signatures & return types",
+          "Static (at startup during proxy creation)",
+          "Low (cached after initial matching)"
+        ],
+        [
+          "within",
+          "Package or type boundaries",
+          "Static (at startup during proxy creation)",
+          "Lowest (fast structural inspection)"
+        ],
+        [
+          "args",
+          "Runtime argument types",
+          "Dynamic (evaluated at every method call)",
+          "Higher (requires runtime type checking)"
+        ],
+        [
+          "@annotation",
+          "Method-level annotations",
+          "Static (cached) or Dynamic (if target is proxy)",
+          "Low to Moderate"
+        ],
+        [
+          "bean",
+          "Spring container bean names",
+          "Static (at application context load)",
+          "Lowest (string matching on bean IDs)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The execution designator supports wildcards such as '*' for any character in a type name or method return, and '..' for an arbitrary number of parameters, making it extremely flexible for cross-cutting logging or exception translation.",
+        "Runtime-evaluated designators like args introduce performance overhead because Spring must inspect the actual method arguments at runtime to check type assignability, potentially bypassing optimized static proxy method caches.",
+        "Combining pointcut expressions using boolean operators (&&, ||, !) allows developers to compose complex join point filters, such as applying error-handling advice only to methods within a specific service package that also bear a custom transactional annotation.",
+        "The bean designator is a unique Spring-specific extension not found in standard AspectJ, allowing infrastructure engineers to bind pointcuts directly to container-managed component names like bean(userService*) for targeted fault isolation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Aspect\n@Component\npublic class ServiceExceptionHandlingAspect {\n\n    @Pointcut(\"execution(* com.example.service.*.*(..))\")\n    private void servicePackageExecution() {}\n\n    @Pointcut(\"within(com.example.service..*)\")\n    private void withinServicePackage() {}\n\n    @Pointcut(\"args(java.lang.String, ..)\")\n    private void startsWithStringArg() {}\n\n    @Pointcut(\"@annotation(com.example.annotation.HandleExceptions)\")\n    private void hasHandleExceptionsAnnotation() {}\n\n    @Pointcut(\"bean(*ServiceImpl)\")\n    private void targetServiceBeans() {}\n\n    @Around(\"servicePackageExecution() && hasHandleExceptionsAnnotation() && targetServiceBeans()\")\n    public Object handleServiceExceptions(ProceedingJoinPoint pjp) throws Throwable {\n        try {\n            return pjp.proceed();\n        } catch (DataAccessException ex) {\n            // Translate database exceptions to domain-specific runtime exceptions\n            throw new CustomDataAccessException(\"Translated data error in \" + pjp.getSignature(), ex);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha when combining execution and args pointcuts is mismatched parameter binding. If you use args(param) in the pointcut expression to bind a parameter to advice, but your execution expression uses wildcards (..), make sure the types align strictly. If the argument type in args is not fully qualified or if proxy creation fails to resolve interface vs. target class types (CGLIB vs. JDK dynamic proxies), the pointcut will silently fail to match at runtime, leaving your exception handlers uninvoked."
+    }
+  ],
+  "num": 229,
+  "title": "Pointcut expressions — execution, within, args, @annotation, bean",
+  "category": "Exception Handling & I/O / NIO"
+}

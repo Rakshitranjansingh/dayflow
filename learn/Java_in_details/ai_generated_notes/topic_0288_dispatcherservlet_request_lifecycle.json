@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The DispatcherServlet request lifecycle represents the core architectural backbone of the Spring MVC framework, acting as the front controller pattern implementation that centralizes all incoming HTTP request handling. When a client sends a request to a Spring-based web application, the underlying servlet container (such as Apache Tomcat or Jetty) intercepts the request and hands it over to the DispatcherServlet. From this exact moment, the servlet becomes the orchestrator, steering the request through a precisely choreographed sequence of phases: interceptor pre-handling, handler mapping resolution, adapter execution, model-view rendering, and exception translation. Understanding this lifecycle is critical for building performant enterprise applications, as it dictates where security filters execute, how database transactions are scoped, and where performance bottlenecks like the N+1 select problem or memory leaks can inadvertently occur during asynchronous processing or view resolution."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Lifecycle Phase",
+        "Primary Component",
+        "Core Responsibility"
+      ],
+      "rows": [
+        [
+          "Request Interception",
+          "HandlerInterceptor",
+          "Pre-processing, security checks, and MDC context setup"
+        ],
+        [
+          "Mapping Resolution",
+          "HandlerMapping",
+          "Matching the URI to a specific controller method or handler object"
+        ],
+        [
+          "Adapter Execution",
+          "HandlerAdapter",
+          "Invoking the actual controller method via reflection with argument resolution"
+        ],
+        [
+          "View Rendering",
+          "ViewResolver / View",
+          "Translating logical view names into physical templates and rendering HTML/JSON"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The DispatcherServlet overrides standard HttpServlet methods like doService() and doDispatch(), wherein it binds the current HttpServletRequest and HttpServletResponse to thread-local variables managed byRequestContextHolder.",
+        "HandlerMapping implementations (like RequestMappingHandlerMapping) cache lookup paths at startup, meaning dynamic runtime URI manipulation without context refreshing is fundamentally unsupported.",
+        "HandlerAdapters decouple the DispatcherServlet from specific controller programming models, allowing seamless execution of annotated @Controller classes, legacy Controller interfaces, and functional routing endpoints alike.",
+        "During exception translation, if an unhandled exception occurs within the handler execution chain, the DispatcherServlet delegates processing to registered HandlerExceptionResolver beans to convert exceptions into appropriate HTTP error responses."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Component\npublic class AuditInterceptor implements HandlerInterceptor {\n    private static final Logger log = LoggerFactory.getLogger(AuditInterceptor.class);\n\n    @Override\n    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {\n        long startTime = System.currentTimeMillis();\n        request.setAttribute(\"startTime\", startTime);\n        log.info(\"Incoming request: {} uri: {}\", request.getMethod(), request.getRequestURI());\n        return true;\n    }\n\n    @Override\n    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {\n        long startTime = (Long) request.getAttribute(\"startTime\");\n        long duration = System.currentTimeMillis() - startTime;\n        log.info(\"Completed request in {} ms with status {}\", duration, response.getStatus());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production gotcha in the DispatcherServlet lifecycle involves thread-local pollution. Because DispatcherServlet relies heavily on ThreadLocal storage (such as RequestContextHolder and LocaleContextHolder) to propagate request attributes downstream to services and persistence layers, failing to properly clean up asynchronous threads or custom thread pools can lead to severe memory leaks and cross-request data contamination in multi-tenant systems."
+    }
+  ],
+  "num": 289,
+  "title": "DispatcherServlet request lifecycle",
+  "category": "Core Java & Fundamentals"
+}

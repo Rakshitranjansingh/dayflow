@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In object-oriented software engineering, Inheritance and Composition represent two fundamentally different paradigms for code reuse and relationship building between types. Inheritance, often realized via the `extends` keyword in Java, models an 'is-a' hierarchy where a subclass inherits state and behavior from a superclass. While conceptually intuitive at first, deep inheritance trees frequently lead to the fragile base class problem, where internal modifications to a parent class inadvertently break downstream subclasses due to tight runtime coupling. Furthermore, Java does not support multiple implementation inheritance, forcing developers to resort to complex multi-tiered hierarchies to share orthogonal behaviors.\n\nConversely, the 'Composition over Inheritance' design principle (often phrased as 'favor composition over inheritance') dictates that classes should achieve polymorphic behavior and code reuse by containing instances of other classes that implement desired functionalities rather than inheriting from a parent class. This models a 'has-a' or 'uses-a' relationship. By delegating calls to internal component objects rather than relying on inherited methods, systems gain immense flexibility. The composition principle allows behavior to be swapped, decorated, or mocked dynamically at runtime, whereas inheritance locks classes into rigid compile-time structures. In modern Java design, this principle is foundational—exemplified by advanced utility architectures, decorator wrappers in the `java.io` package, and dependency injection frameworks."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Design Dimension",
+        "Inheritance (is-a)",
+        "Composition (has-a)"
+      ],
+      "rows": [
+        [
+          "Coupling",
+          "Tight coupling; subclass depends heavily on parent internal implementation details.",
+          "Loose coupling; components interact strictly through well-defined interfaces."
+        ],
+        [
+          "Flexibility",
+          "Static and determined entirely at compile-time.",
+          "Dynamic; component references can be swapped out at runtime."
+        ],
+        [
+          "Multiple Behavior",
+          "Restricted by single-inheritance limitations in Java.",
+          "Virtually unlimited via holding multiple interface-typed references."
+        ],
+        [
+          "Testing",
+          "Difficult to unit test base classes in isolation without concrete subclasses.",
+          "Trivial to mock and unit test individual components independently."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Inheritance breaks encapsulation by exposing protected members of a superclass to all subclasses, creating hidden side-effects when superclass invariants change.",
+        "Composition embraces the Dependency Inversion Principle by depending on abstractions (interfaces) rather than concrete implementations, maximizing testability and modularity.",
+        "The standard Java I/O library (`java.io`) heavily leverages composition through the Decorator Pattern, wrapping low-level streams like `FileInputStream` inside higher-level streams like `BufferedInputStream` or `GZIPInputStream`."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public interface DataProcessor {\n    void process(byte[] data) throws Exception;\n}\n\npublic class FileDataProcessor implements DataProcessor {\n    @Override\n    public void process(byte[] data) {\n        // Core file writing logic\n    }\n}\n\n// Composition in action: LoggingProcessor wraps any DataProcessor dynamically\npublic class LoggingDataProcessor implements DataProcessor {\n    private final DataProcessor wrapped;\n\n    public LoggingDataProcessor(DataProcessor wrapped) {\n        this.wrapped = wrapped;\n    }\n\n    @Override\n    public void process(byte[] data) throws Exception {\n        long start = System.currentTimeMillis();\n        try {\n            wrapped.process(data);\n        } finally {\n            long duration = System.currentTimeMillis() - start;\n            System.out.println(\"Processed bytes in: \" + duration + \"ms\");\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common trap for intermediate developers is overusing inheritance simply because two entities share some common fields. Always apply the Liskov Substitution Principle (LSP): if substituting a subclass for its superclass breaks the expected behavior, you are violating LSP and must refactor immediately toward composition. In high-performance systems, excessive composition with deep object wrapping can introduce minor memory overhead and pointer chasing, but this trade-off is almost always worth the maintainability gains."
+    }
+  ],
+  "num": 28,
+  "title": "Inheritance vs Composition — composition over inheritance principle",
+  "category": "Exception Handling & I/O / NIO"
+}

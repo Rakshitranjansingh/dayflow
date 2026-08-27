@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Java Platform Module System (JPMS), introduced in Java 9 via Project Jigsaw, fundamentally transforms how large-scale Java applications and the core JDK itself are structured, compiled, and executed. Before JPMS, Java relied on a monolithic classpath where all classes shared a single, flat namespace, causing severe architectural vulnerabilities such as brittle dependency management, hidden and illegal access to internal APIs (like `sun.misc.Unsafe` or internal collection implementations), and bloated runtimes that could not easily be stripped down for edge devices or microservices. JPMS introduces strong encapsulation, reliable configuration, and explicit readability and accessibility boundaries at the component level.\n\nA Java module is essentially a named, self-describing collection of packages and resources, defined by a special configuration file named `module-info.java` placed at the root of the source tree. This descriptor uses declarative directives such as `module`, `requires`, `exports`, `opens`, `uses`, and `provides` to explicitly declare compile-time and run-time dependencies. Strong encapsulation ensures that public types inside a module are not accessible by default to other modules unless explicitly exported via the `exports` keyword. Furthermore, the concept of a module path replaces the traditional classpath, allowing the JVM to verify at startup that all required modules are present, preventing runtime `NoClassDefFoundError` failures mid-execution due to missing transitive dependencies."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Traditional Classpath",
+        "JPMS Module Path"
+      ],
+      "rows": [
+        [
+          "Namespace",
+          "Flat, global namespace across all JARs",
+          "Isolated, modular namespace with explicit visibility"
+        ],
+        [
+          "Accessibility",
+          "Public types are accessible everywhere",
+          "Public types accessible only if explicitly exported"
+        ],
+        [
+          "Dependency Validation",
+          "Lazy verification (fails at runtime when class is loaded)",
+          "Eager verification (fails at startup if modules are missing)"
+        ],
+        [
+          "Internal APIs",
+          "Accessible to all application code",
+          "Strongly encapsulated, blocked by default at runtime"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Reliable Configuration: The JVM analyzes the module graph before executing `main`, checking for missing dependencies, cyclic dependencies, and duplicate module definitions, failing fast with a descriptive error message.",
+        "Strong Encapsulation: Types within a package that is not explicitly exported are inaccessible outside the module, even via deep reflection, unless runtime encapsulation is explicitly loosened using `opens` or command-line flags like `--add-opens`.",
+        "Service Provider Interfaces (SPI): JPMS standardizes loose coupling through the `uses` and `provides...with` directives, allowing service consumers to interact with implementations without compiling against concrete classes.",
+        "Scalable Runtimes: Using the `jlink` tool, developers can assemble custom runtime images containing only the exact JDK modules and application modules required to run an application, significantly reducing footprint."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "module com.enterprise.billing {\n    requires transitive com.enterprise.core;\n    requires java.logging;\n    \n    exports com.enterprise.billing.service;\n    exports com.enterprise.billing.model to com.enterprise.audit;\n    \n    opens com.enterprise.billing.internal to spring.core, spring.beans;\n    \n    uses com.enterprise.billing.spi.TaxCalculator;\n    provides com.enterprise.billing.spi.TaxCalculator with com.enterprise.billing.internal.DefaultTaxCalculator;\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production pitfall when migrating legacy applications to JPMS is the breakage of frameworks like Hibernate, Jackson, or Spring that rely heavily on setAccessible(true) for deep reflection, serialization, and proxy generation. If an external library attempts to reflectively access a closed package, the JVM throws an InaccessibleObjectException. To resolve this without rewriting libraries, you must use the 'opens' directive in your module-info.java to grant specific frameworks runtime reflective access, or temporarily pass JVM illegal-access flags during migration."
+    }
+  ],
+  "num": 89,
+  "title": "Modules (JPMS)",
+  "category": "Core Java & Fundamentals"
+}

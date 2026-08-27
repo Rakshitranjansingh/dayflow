@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of the Java Virtual Machine (JVM), a Process is an independent execution environment that encapsulates its own memory space, file handles, and system resources. When you execute 'java MyClass', the OS spawns a new process, allocating a private heap and stack space for the JVM instance. Within this process, a Thread is the smallest unit of execution—a lightweight path of control that shares the process's memory, including the heap and static variables, but maintains its own private program counter, stack, and local variables. While processes are isolated by the operating system, threads are managed by the JVM and the underlying kernel, allowing them to communicate via shared memory, which is significantly faster than inter-process communication (IPC) but introduces the complex challenge of thread safety and synchronization."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Process",
+        "Thread"
+      ],
+      "rows": [
+        [
+          "Memory",
+          "Isolated, private address space",
+          "Shared heap, private stack"
+        ],
+        [
+          "Creation Cost",
+          "High (OS resource allocation)",
+          "Low (Lightweight JVM object)"
+        ],
+        [
+          "Communication",
+          "Expensive (IPC/Sockets/Pipes)",
+          "Cheap (Shared objects/Volatile)"
+        ],
+        [
+          "Failure Impact",
+          "Independent (Crash doesn't kill others)",
+          "Shared (Uncaught exception can terminate process)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "JVM Thread Mapping: Modern JVMs use a 1:1 threading model where each Java Thread is mapped directly to a native kernel thread, meaning the OS scheduler is responsible for context switching.",
+        "Memory Layout: Every thread allocates a private stack (default size often 1MB) used for method invocation and local primitives; however, the Heap is shared, necessitating the use of the Java Memory Model (JMM) to handle visibility and atomicity.",
+        "Context Switching: Switching between processes requires flushing TLB (Translation Lookaside Buffer) and cache, whereas switching between threads within the same process is faster as they share the same virtual memory map."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ThreadExample {\n    public static void main(String[] args) {\n        // Creating a thread to perform concurrent work within the process\n        Thread worker = new Thread(() -> {\n            System.out.println(\"Thread ID: \" + Thread.currentThread().getId());\n            // Shared heap access is safe but requires synchronization\n        });\n        worker.start();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Never confuse 'lightweight' with 'zero-cost'. Creating thousands of threads in Java will eventually lead to an OutOfMemoryError: unable to create new native thread, as each thread consumes native memory for its stack. Always prefer ThreadPoolExecutor or the ForkJoinPool to manage thread lifecycles rather than manual instantiation."
+    }
+  ],
+  "num": 640,
+  "title": "What is a Thread in Java? What is a Process? Difference between them.",
+  "category": "Multithreading & Java Concurrency"
+}

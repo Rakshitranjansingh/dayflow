@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java Virtual Machine (JVM) architecture, memory is partitioned into two primary regions: the Stack and the Heap. The Stack is a thread-local memory area that follows a Last-In-First-Out (LIFO) structure, primarily used for execution of methods and storage of primitive variables and object references. Each thread has its own private stack, created at the same time as the thread. When a method is invoked, a new frame is pushed onto the stack, containing local variables and partial results. Once the method completes, the frame is popped, making the memory instantly available for the next method call. This makes stack allocation extremely fast but limited in size, often leading to StackOverflowError if recursion depth is excessive.\n\nConversely, the Heap is a shared memory area used for the dynamic allocation of all Java objects and arrays. Unlike the stack, the heap is global to the entire JVM process, meaning all threads share the same heap space. Because objects on the heap are not tied to a specific method scope, their lifecycle is managed by the Garbage Collector (GC). The heap is significantly larger than the stack but incurs higher overhead due to object allocation, pointer dereferencing, and the eventual cost of GC cycles. The heap is further subdivided into generations (Young, Old/Tenured) to optimize GC performance based on the Weak Generational Hypothesis, which posits that most objects die young."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Stack Memory",
+        "Heap Memory"
+      ],
+      "rows": [
+        [
+          "Scope",
+          "Thread-specific",
+          "Global/Shared"
+        ],
+        [
+          "Lifecycle",
+          "Method execution scope",
+          "GC-managed lifecycle"
+        ],
+        [
+          "Access Speed",
+          "Very fast (LIFO)",
+          "Slower (pointer indirection)"
+        ],
+        [
+          "Size",
+          "Fixed/Limited (Thread stack size)",
+          "Dynamic (Xmx/Xms settings)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Stack frames store primitive types (int, boolean, etc.) directly, while object variables on the stack only hold a 4-8 byte reference (pointer) to the actual object instance residing on the heap.",
+        "The JVM manages heap memory using complex algorithms like G1GC or ZGC, which track reachability via GC Roots (local variables, static fields, JNI references) to determine which objects are eligible for reclamation.",
+        "Stack memory is not subject to garbage collection; it is reclaimed automatically by the CPU pointer increment/decrement, making it exempt from the 'stop-the-world' pauses associated with heap management.",
+        "Heap fragmentation can occur over time, requiring the JVM to perform compaction phases to ensure large object allocations (like large arrays) can find contiguous memory blocks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class MemoryDemo {\n    public void process() {\n        int x = 10; // 'x' is stored on the Stack\n        String str = new String(\"Hello\"); // 'str' (ref) is on Stack, \"Hello\" object is on Heap\n        calculate(x);\n    }\n\n    private void calculate(int val) {\n        // 'val' is a new stack frame variable\n        // The heap object remains until GC determines it is unreachable\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is assuming that setting a massive -Xmx heap size solves OutOfMemoryErrors. If your application leaks references in static collections (e.g., a static Map that never clears), the GC cannot reclaim those objects regardless of heap size. Conversely, if you see a StackOverflowError, increasing -Xss (thread stack size) is often a 'band-aid' for poor recursive algorithm design rather than a fix for the underlying logic."
+    }
+  ],
+  "num": 702,
+  "title": "Heap Memory vs Stack Memory in Java?",
+  "category": "Core Java & Fundamentals"
+}

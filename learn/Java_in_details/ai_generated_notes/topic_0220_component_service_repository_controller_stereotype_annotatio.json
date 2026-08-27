@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring's stereotype annotations—specifically @Component, @Service, @Repository, and @Controller—serve as the foundation of annotation-driven component scanning and Inversion of Control (IoC). At their core, these annotations signal to the Spring container that the annotated class is a candidate for bean creation, auto-wiring, and lifecycle management. While @Component is the generic meta-annotation, @Service, @Repository, and @Controller are specialized semantic variations designed to document architectural intent and unlock specific framework-level behaviors. For instance, @Repository plays a critical role in data access layers by automatically translating low-level persistence exceptions (such as those from JDBC or Hibernate) into Spring's unified, unchecked DataAccessException hierarchy, bridging the gap between vendor-specific errors and clean service-layer abstractions.\n\nUnderstanding the nuanced responsibilities of each stereotype requires looking past mere syntactic sugar. A @Controller indicates a traditional web endpoint handling HTTP requests, often working hand-in-hand with view resolvers, whereas its cousin @RestController combines @Controller and @ResponseBody to streamline JSON/XML-producing REST APIs. Meanwhile, @Service acts as a semantic marker for business logic, where transactional boundaries (@Transactional) are typically applied. By leveraging component scanning, the Spring container parses classpath bytecode during bootstrap, instantiates these beans, injects their dependencies, and registers them in the DefaultListableBeanFactory. This eliminates the boilerplate XML configuration of early enterprise Java while maintaining strict architectural boundaries."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Stereotype Annotation",
+        "Architectural Layer",
+        "Special Framework Feature"
+      ],
+      "rows": [
+        [
+          "@Component",
+          "Generic / Any Layer",
+          "None (Base meta-annotation)"
+        ],
+        [
+          "@Service",
+          "Business / Service Layer",
+          "Semantic marker for business logic and transactional boundaries"
+        ],
+        [
+          "@Repository",
+          "Data Access / Persistence Layer",
+          "Automatic JDBC/ORM PersistenceException translation"
+        ],
+        [
+          "@Controller / @RestController",
+          "Presentation / Web Layer",
+          "Web request handling, view mapping, and automatic payload serialization"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Component Scanning Mechanics: During context initialization, ClassPathBeanDefinitionScanner traverses configured packages, reads ASM class file metadata without loading the classes into the JVM, and identifies classes marked with @Component or any meta-annotated stereotype.",
+        "Exception Translation Mechanism: The @Repository annotation enables the PersistenceExceptionTranslationPostProcessor bean post-processor, which uses JDK dynamic proxies or CGLIB to wrap data access beans and intercept checked vendor exceptions, translating them into un-checked DataAccessExceptions.",
+        "Meta-Annotation Inheritance: Because @Service, @Repository, and @Controller are all meta-annotated with @Component, any custom annotation combining @Component can create proprietary domain stereotypes that inherit full Spring container discovery."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.textbook.infrastructure;\n\nimport org.springframework.stereotype.Repository;\nimport org.springframework.dao.DataAccessException;\nimport jakarta.persistence.PersistenceException;\n\n@Repository\npublic class HibernateUserRepository {\n\n    // Spring's PersistenceExceptionTranslationPostProcessor ensures that\n    // underlying JPA or Hibernate exceptions are automatically translated\n    // into Spring's consistent DataAccessException hierarchy.\n    public void saveUser(User user) {\n        // Entitymanager operations here...\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is misusing @Component in place of @Repository on data access components. While the bean will still be registered and injected correctly, you completely lose Spring's automatic exception translation. Without @Repository, your service layer will be tightly coupled to vendor-specific exceptions like HibernateException or SQLException, making it painful to swap out ORMs or handle errors uniformly."
+    }
+  ],
+  "num": 221,
+  "title": "@Component, @Service, @Repository, @Controller stereotype annotations",
+  "category": "Exception Handling & I/O / NIO"
+}

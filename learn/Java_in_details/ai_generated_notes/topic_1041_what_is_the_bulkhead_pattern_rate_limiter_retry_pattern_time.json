@@ -1,0 +1,65 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed systems, cascading failures are the primary enemy of availability. The Bulkhead pattern, inspired by ship construction, isolates resources—such as thread pools or connection pools—so that a failure in one service component cannot exhaust the resources of the entire system. When combined with a Rate Limiter, which strictly controls the throughput of incoming requests to prevent resource saturation, you create a robust defense against traffic spikes. The Retry pattern provides a mechanism to recover from transient faults (like network blips) by re-executing failed operations, though it must be paired with exponential backoff and jitter to avoid 'thundering herd' scenarios. Timeout handling is the essential 'fail-fast' mechanism that prevents threads from hanging indefinitely on unresponsive downstream dependencies, thereby preserving the caller's responsiveness. Finally, the Fallback pattern provides a graceful degradation strategy—returning a cached value, a default response, or a simplified result—when a primary service call fails, ensuring the end-user experience remains functional even when the system is partially degraded."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Pattern",
+        "Primary Goal",
+        "Failure Mode Addressed"
+      ],
+      "rows": [
+        [
+          "Bulkhead",
+          "Resource Isolation",
+          "Resource Exhaustion"
+        ],
+        [
+          "Rate Limiter",
+          "Throughput Control",
+          "Overload/DoS"
+        ],
+        [
+          "Retry",
+          "Transient Recovery",
+          "Network Flakiness"
+        ],
+        [
+          "Timeout",
+          "Latency Management",
+          "Hanging Dependencies"
+        ],
+        [
+          "Fallback",
+          "Graceful Degradation",
+          "Service Unavailability"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Bulkheads are typically implemented using separate thread pools (e.g., Resilience4j Bulkhead) to ensure that if Service A hangs, Service B still has dedicated threads to process requests.",
+        "Rate Limiters operate on token bucket or leaky bucket algorithms; the critical internal mechanic is the atomic update of the counter, often utilizing CAS (Compare-And-Swap) operations to remain performant under high concurrency.",
+        "Retries without jitter lead to synchronized spikes in traffic; adding a random delay (jitter) ensures that retrying clients desynchronize, preventing the target service from being overwhelmed by a wave of synchronized retries.",
+        "Timeouts must be applied at both the client-side (socket timeout) and the server-side (request processing deadline) to prevent 'zombie' requests from consuming memory in the JVM heap.",
+        "Fallbacks should be kept lightweight; if your fallback logic involves a complex database query or another network call, you risk creating a secondary failure loop."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public String getProductDetails(String id) {\n    return CircuitBreaker.ofDefaults(\"productService\")\n        .executeSupplier(() -> remoteService.fetch(id))\n        .fallback(e -> \"Default Product Info\");\n}\n\n// Resilience4j configuration example\nBulkheadConfig config = BulkheadConfig.custom()\n    .maxConcurrentCalls(10)\n    .maxWaitDuration(Duration.ofMillis(500))\n    .build();"
+    },
+    {
+      "type": "note",
+      "content": "The most common production mistake is configuring retries without a circuit breaker. If you retry a failing service that is already at 100% CPU, you are effectively performing a self-inflicted Distributed Denial of Service (DDoS) attack. Always wrap your retry logic in a circuit breaker to stop the bleeding once the error threshold is breached."
+    }
+  ],
+  "num": 1042,
+  "title": "What is the Bulkhead pattern? Rate Limiter? Retry pattern? Timeout handling? Fallback?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

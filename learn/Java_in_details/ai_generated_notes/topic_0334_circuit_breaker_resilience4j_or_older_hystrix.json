@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed microservice architectures, cascading failures represent a critical availability risk. When a downstream dependency—such as a remote payment API or database service—becomes unresponsive or exhibits high latency, upstream callers continue to dispatch threads and consume connection pool slots. This resource exhaustion rapidly propagates, taking down entire ecosystems. A Circuit Breaker pattern protects systems from cascading failures by monitoring calls to unstable dependencies, intercepting execution when failure thresholds are breached, and failing fast.\n\nResilience4j has largely superseded older implementations like Netflix Hystrix, which was built on thread-per-dependency isolation using heavy thread pools and semaphores, introducing significant CPU context-switching overhead and latency penalties. Resilience4j embraces a modern, functional programming model designed specifically for Java 8 and above. It leverages lightweight decorators built on higher-order functions to wrap functional interfaces, lambda expressions, or reactive types (like Project Reactor Mono/Flux). By operating directly on the call stack without mandatory thread isolation, Resilience4j minimizes memory overhead while delivering robust fault tolerance mechanisms including circuit breaking, rate limiting, retries, and bulkheading."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Metric",
+        "Resilience4j",
+        "Netflix Hystrix (Legacy)"
+      ],
+      "rows": [
+        [
+          "Architecture & Model",
+          "Lightweight decorators on functional interfaces",
+          "Heavy thread-pools and semaphores per command"
+        ],
+        [
+          "Java Paradigm",
+          "Java 8+ lambdas, Streams, and Functional APIs",
+          "Imperative command pattern extending HystrixCommand"
+        ],
+        [
+          "Maintenance Status",
+          "Active, modern, highly modular",
+          "Deprecated and in maintenance mode since 2018"
+        ],
+        [
+          "Dependencies",
+          "Vavr (optional for functional types), zero heavy core dependencies",
+          "Archaius, RxJava 1.x, Jackson, large transitive footprint"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "State Machine Mechanics: The Resilience4j Circuit Breaker operates as a finite state machine with three primary states: CLOSED, OPEN, and HALF_OPEN, alongside two transient states (FORCED_OPEN and DISABLED). In the CLOSED state, execution proceeds normally while a sliding window records success and failure metrics. Once failure rates or slow-call rates cross configured thresholds, the breaker transitions to OPEN, immediately short-circuiting calls by throwing a CallNotPermittedException without invoking the underlying service.",
+        "Sliding Window Implementation: Resilience4j offers two types of sliding windows to calculate failure rates: a count-based window that tracks the last N calls, and a time-based window that tracks calls over the last N seconds. This statistical foundation ensures that transient network blips do not permanently trip the circuit while maintaining rapid detection of actual outages.",
+        "Half-Open State Transition: When the configured waitDurationInOpenState elapses, the circuit automatically shifts to the HALF_OPEN state. In this state, a limited number of test requests (permittedNumberOfCallsInHalfOpenState) are allowed through. If the failure rate or slow call rate remains below the threshold, the circuit resets back to CLOSED; otherwise, it snaps back to OPEN, resetting the wait timer."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import io.github.resilience4j.circuitbreaker.CircuitBreaker;\nimport io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;\nimport io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;\nimport io.vavr.control.Try;\nimport java.time.Duration;\nimport java.util.function.Supplier;\n\npublic class PaymentServiceClient {\n    \n    private final CircuitBreaker circuitBreaker;\n    \n    public PaymentServiceClient() {\n        CircuitBreakerConfig config = CircuitBreakerConfig.custom()\n            .failureRateThreshold(50.0)\n            .slowCallRateThreshold(75.0)\n            .slowCallDurationThreshold(Duration.ofMillis(200))\n            .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)\n            .slidingWindowSize(10)\n            .minimumNumberOfCalls(5)\n            .waitDurationInOpenState(Duration.ofSeconds(10))\n            .permittedNumberOfCallsInHalfOpenState(3)\n            .build();\n            \n        CircuitBreakerRegistry registry = CircuitBreakerRegistry.of(config);\n        this.circuitBreaker = registry.circuitBreaker(\"paymentService\");\n    }\n    \n    public String processPayment(String payload) {\n        Supplier<String> supplier = CircuitBreaker.decorateSupplier(\n            circuitBreaker, \n            () -> callThirdPartyGateway(payload)\n        );\n        \n        Try<String> result = Try.of(supplier::get)\n            .recover(throwable -> fallbackPayment(payload, throwable));\n            \n        return result.get();\n    }\n    \n    private String callThirdPartyGateway(String payload) {\n        // Remote network call execution\n        return \"SUCCESS\";\n    }\n    \n    private String fallbackPayment(String payload, Throwable t) {\n        return \"FALLBACK_QUEUED\";\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production pitfall in Resilience4j occurs when mixing declarative Spring Boot annotations (@CircuitBreaker) with imperative exception handling. If you define a fallback method, ensure the fallback signature accepts the exact exception type thrown, or a generic java.lang.Throwable as its final parameter. Furthermore, be mindful that runtime exceptions wrapped by proxy mechanisms can obscure original causes; always inspect metric registries and configure composite exception predicates if business-level failures (like HTTP 404) should not trip a circuit designed exclusively to guard against infrastructure outages (HTTP 5xx or connection timeouts)."
+    }
+  ],
+  "num": 335,
+  "title": "Circuit Breaker — Resilience4j (or older Hystrix)",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a Low-Level Design (LLD) for a parking lot is a canonical object-oriented analysis and design (OOAD) problem frequently encountered in senior engineering interviews. To build a robust system, we must dissect the problem into its core domain entities: Classes, Interfaces, and Design Patterns. Classes represent the structural blueprint of our domain model—such as Vehicle, ParkingSpot, Ticket, and Payment—encapsulating state and state-transition logic. Interfaces define contractual behaviors and polymorphism, decoupling high-level orchestration from low-level implementations, as seen in pricing strategies or parking spot allocation algorithms. Finally, Design Patterns provide battle-tested architectural solutions to recurring structural and behavioral challenges. For instance, the Singleton pattern manages the exclusive ParkingLot instance, the Factory pattern instantiates varied vehicle types, the Strategy pattern handles flexible pricing and parking assignment, and the Observer pattern broadcasts real-time capacity updates to display boards."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Design Element",
+        "Role in System",
+        "Key Benefits"
+      ],
+      "rows": [
+        [
+          "Classes (Domain Entities)",
+          "Represent concrete state and behavior (e.g., Car, Truck, ParkingTicket)",
+          "Encapsulation, clear domain boundaries, maintainable data models"
+        ],
+        [
+          "Interfaces (Contracts)",
+          "Define decoupled system boundaries (e.g., PricingStrategy, ParkingSpotAssignment)",
+          "Open/Closed Principle adherence, easy extensibility for new business rules"
+        ],
+        [
+          "Design Patterns",
+          "Solve architectural friction (Singleton, Strategy, Factory, Observer)",
+          "Standardized solutions, decoupled modules, robust concurrency management"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Vehicle inheritance hierarchy: Abstract Vehicle class with a size attribute extended by Car, Van, Truck, and Motorcycle, ensuring polymorphic type handling.",
+        "Spot-to-Vehicle compatibility mapping: Compact spots accommodate Motorcycles and Cars; Large spots accommodate Vans and Trucks. This requires strategic encapsulation within the ParkingSpot class.",
+        "Strategy Pattern for slot allocation: Nearest-to-entrance strategy vs. compact-first strategy implemented via a common ParkingAssignmentStrategy interface.",
+        "Concurrency safety via synchronized blocks or ConcurrentHashMap when mutating spot occupancy states across multiple gate entry terminals."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public interface ParkingAssignmentStrategy {\n    ParkingSpot findSpot(VehicleType vehicleType, List<Level> levels);\n}\n\npublic enum VehicleType {\n    MOTORCYCLE, CAR, TRUCK\n}\n\npublic abstract class Vehicle {\n    private String licensePlate;\n    private VehicleType type;\n    // constructor, getters, setters\n}\n\npublic class ParkingTicket {\n    private String ticketId;\n    private LocalDateTime entryTime;\n    private ParkingSpot spot;\n    private boolean isPaid;\n}\n\npublic class ParkingLot {\n    private static ParkingLot instance;\n    private List<Level> levels;\n    private ParkingAssignmentStrategy assignmentStrategy;\n\n    private ParkingLot() {\n        this.levels = new ArrayList<>();\n        this.assignmentStrategy = new NearestToEntranceStrategy();\n    }\n\n    public static synchronized ParkingLot getInstance() {\n        if (instance == null) {\n            instance = new ParkingLot();\n        }\n        return instance;\n    }\n\n    public synchronized ParkingTicket assignTicket(Vehicle vehicle) {\n        ParkingSpot spot = assignmentStrategy.findSpot(vehicle.getType(), levels);\n        if (spot == null) {\n            throw new ParkingFullException(\"Parking lot is full.\");\n        }\n        spot.assignVehicle(vehicle);\n        return new ParkingTicket(UUID.randomUUID().toString(), LocalDateTime.now(), spot);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production-level pitfall in parking lot design is race conditions during concurrent spot allocation. If two cars enter different gates simultaneously, they might read the exact same free spot from memory before either thread marks it as occupied. Always ensure that spot assignment and state transition happen inside a synchronized block or transactional database boundary using optimistic or pessimistic locking."
+    }
+  ],
+  "num": 1113,
+  "title": "LLD: Design a Parking Lot (Classes, Interfaces, Design Patterns)",
+  "category": "OOPs & Design Patterns"
+}

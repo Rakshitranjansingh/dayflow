@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Buffering is the architectural practice of staging data in a temporary memory area—the buffer—before it is processed or transmitted to its final destination. In the context of Java I/O, it serves as a critical bridge between the high-speed CPU and the relatively slow, high-latency peripheral devices like disk drives or network sockets. Without buffering, every single read or write operation would trigger a costly system call, forcing the thread to context-switch into kernel mode and wait for the hardware to complete the I/O operation. By grouping small, disparate data chunks into a larger contiguous block, we minimize the frequency of these expensive transitions, effectively amortizing the overhead of I/O operations across a larger volume of data."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric",
+        "Unbuffered I/O",
+        "Buffered I/O"
+      ],
+      "rows": [
+        [
+          "System Calls",
+          "One per byte/small chunk",
+          "One per buffer flush"
+        ],
+        [
+          "CPU Utilization",
+          "High (context switching)",
+          "Low (batch processing)"
+        ],
+        [
+          "Latency",
+          "High per-operation",
+          "Low (throughput optimized)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Memory Layout: In Java NIO, buffers (like ByteBuffer) are often allocated as direct memory outside the JVM heap. This allows the OS to perform I/O operations directly on the memory address, bypassing the need to copy data between the JVM heap and the native kernel space.",
+        "Throughput vs. Latency: Buffering improves throughput by maximizing the utilization of the underlying bus, but it introduces a 'flush' latency. If the buffer size is too large, data may sit in memory longer than desired, creating a trade-off between efficiency and real-time responsiveness.",
+        "The Flush Invariant: In stream-based I/O, the buffer acts as a staging area that must be explicitly or implicitly flushed. Failure to invoke flush() or close() on a BufferedOutputStream can result in data loss, as the final bytes remaining in the buffer are never committed to the underlying sink."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(\"data.bin\"))) {\n    // The buffer aggregates these writes into a single system call when full\n    bos.write(dataChunk);\n    bos.flush(); // Forces the buffer to commit to the underlying FileOutputStream\n} catch (IOException e) {\n    logger.error(\"I/O failure during buffered write\", e);\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap is the 'buffer size mismatch.' If your application processes data in 4KB chunks but your BufferedInputStream is configured with an 8KB buffer, you incur unnecessary memory copies. Always align your buffer size with the underlying storage's block size (typically 4KB or 8KB on modern filesystems) to maximize the efficiency of hardware-level DMA (Direct Memory Access) transfers."
+    }
+  ],
+  "num": 602,
+  "title": "What is buffering, and why does it matter?",
+  "category": "Exception Handling & I/O / NIO"
+}

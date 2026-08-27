@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed data systems, replication is the bedrock strategy for achieving high availability, low-latency geographic read scalability, and fault tolerance. When scaling out storage, data must be copied across multiple nodes, introducing the fundamental challenge of consistency across replicas. The three primary topologies to address this challenge are leader-follower, multi-leader, and leaderless replication. Each architecture implements distinct trade-offs along the spectrum of consistency models, write throughput limits, and partition tolerance.\n\nLeader-follower replication (also known as active-passive or master-slave) designates a single node as the primary writer (leader), which processes all client writes, writes them to its local storage, and streams the raw transaction log or state changes to secondary nodes (followers). Followers apply these updates in order to maintain a replica of the dataset. While this topology cleanly serializes writes and simplifies conflict resolution, the leader remains a single point of failure and a throughput bottleneck for write-heavy workloads. \n\nMulti-leader replication extends this concept by permitting multiple nodes to accept writes, thereby decentralizing the write bottleneck and offering better resilience against single-datacenter outages. Each leader acts as a follower for the other leaders, asynchronously replicating write streams between them. However, this introduces the notoriously complex problem of concurrent write conflicts, where the same record is mutated simultaneously in two different datacenters, requiring sophisticated conflict resolution strategies such as Last-Write-Wins (LWW), CRDTs (Conflict-free Replicated Data Types), or application-level merging.\n\nLeaderless replication abandons the concept of designated write leaders altogether, allowing clients to write directly to several replica nodes concurrently. Exemplified by systems inspired by Amazon's Dynamo paper (such as Cassandra and Riak), this topology relies on quorum configurations (using read and write parameters $W$ and $R$ out of total replicas $N$) to ensure that overlapping nodes guarantee up-to-date reads. Combined with anti-entropy processes like read repair and hinted handoffs, leaderless systems achieve extreme write availability and partition resilience at the cost of eventual consistency and potential stale reads."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Topology",
+        "Write Scalability",
+        "Conflict Resolution",
+        "Primary Trade-off"
+      ],
+      "rows": [
+        [
+          "Leader-Follower",
+          "Low (bounded by single leader)",
+          "None (leader serializes writes)",
+          "Leader bottleneck, failover downtime"
+        ],
+        [
+          "Multi-Leader",
+          "High (distributed across nodes)",
+          "Required (concurrent writes)",
+          "Complex convergence, replication lag anomalies"
+        ],
+        [
+          "Leaderless",
+          "High (client writes to quorum)",
+          "Required (read repair / CRDTs)",
+          "Stale reads, tunable quorum overhead"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In leader-follower setups, synchronous vs. asynchronous replication dictates consistency guarantees. Synchronous replication ensures zero data loss upon failover if the leader crashes, but increases write latency because the leader must block until all sync followers acknowledge the write. Asynchronous replication yields minimal write latency, but introduces the risk of data loss and read-after-write consistency anomalies if a follower is promoted prematurely.",
+        "Multi-leader systems frequently encounter replication topology bottlenecks. If configured in a star or circular replication topology, a single network partition can isolate a portion of the write stream, causing silent drift or split-brain behaviors unless explicit version vectors or vector clocks are evaluated during reconciliation.",
+        "Leaderless replication relies strictly on the Pigeonhole Principle for quorum consistency. By configuring read ($R$) and write ($W$) nodes such that $W + R > N$, you guarantee that a read quorum will always overlap with at least one node from the write quorum that contains the most recent version of the data."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class QuorumWriteCoordinator {\n    private final List<StorageNode> replicas;\n    private final int writeQuorum;\n\n    public QuorumWriteCoordinator(List<StorageNode> replicas, int writeQuorum) {\n        this.replicas = replicas;\n        this.writeQuorum = writeQuorum;\n    }\n\n    public CompletableFuture<Boolean> write(String key, byte[] value) {\n        List<CompletableFuture<Boolean>> futures = replicas.stream()\n            .map(node -> CompletableFuture.supplyAsync(() -> node.put(key, value)))\n            .collect(Collectors.toList());\n\n        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))\n            .thenApply(v -> {\n                long successfulWrites = futures.stream()\n                    .filter(f -> f.join())\n                    .count();\n                return successfulWrites >= writeQuorum;\n            });\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in leader-follower replication is assuming 'read-after-write consistency' out of the box. If your client writes to the leader and immediately redirects to a lagging asynchronous follower for the subsequent read, the user will experience missing data anomalies. Always route user-session reads directly to the leader or implement monotonic reads pinned to a specific follower replica version."
+    }
+  ],
+  "num": 399,
+  "title": "Replication — leader-follower, multi-leader, leaderless",
+  "category": "Exception Handling & I/O / NIO"
+}

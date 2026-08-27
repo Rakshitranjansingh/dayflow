@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Concurrency and parallelism are often conflated, but they describe fundamentally different architectural concerns. Concurrency is about structure; it is the ability of an application to handle multiple tasks by overlapping their execution periods, even if they aren't running at the exact same instant. Think of it as a single-core CPU context-switching between threads to keep the UI responsive while performing I/O. It solves the problem of throughput in systems where waiting (blocking) is common. Parallelism, conversely, is about execution; it is the simultaneous execution of multiple computations on different physical processing units (cores). It is a hardware-leveraging strategy designed to reduce the latency of CPU-bound tasks by dividing a large problem into smaller, independent sub-tasks that run concurrently on separate hardware threads."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Concurrency",
+        "Parallelism"
+      ],
+      "rows": [
+        [
+          "Primary Goal",
+          "Throughput/Responsiveness",
+          "Latency Reduction"
+        ],
+        [
+          "Hardware Requirement",
+          "Single or Multi-core",
+          "Multi-core/Multi-processor"
+        ],
+        [
+          "Mechanism",
+          "Context switching/Interleaving",
+          "Simultaneous execution"
+        ],
+        [
+          "Analogy",
+          "One chef managing multiple pots",
+          "Multiple chefs cooking different meals"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Concurrency is managed by the OS scheduler and the JVM, which perform context switching to save the state of a thread and load another, creating the illusion of parallel execution on a single core.",
+        "Parallelism requires data decomposition, where the problem space is partitioned (e.g., using ForkJoinPool or Parallel Streams) so that independent chunks can be processed by different CPU cores without shared state contention.",
+        "In Java, the transition from Thread-per-request models to Virtual Threads (Project Loom) enhances concurrency by decoupling platform threads from carrier threads, allowing millions of concurrent tasks without the memory overhead of OS-level stacks.",
+        "Parallelism is limited by Amdahl's Law, which dictates that the speedup of a program is constrained by the sequential portion of the code; adding more cores yields diminishing returns if the task cannot be effectively parallelized."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Parallelism: Utilizing all available cores for CPU-bound work\nList<Integer> numbers = IntStream.range(0, 1000000).boxed().toList();\nlong sum = numbers.parallelStream()\n                  .mapToLong(i -> i * 2L)\n                  .sum();\n\n// Concurrency: Handling I/O-bound tasks with Virtual Threads\ntry (var executor = Executors.newVirtualThreadPerTaskExecutor()) {\n    IntStream.range(0, 1000).forEach(i -> executor.submit(() -> {\n        Thread.sleep(100); // Simulated I/O block\n        return i;\n    }));\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is assuming that adding 'parallel()' to a stream will always improve performance. If your task is I/O-bound (e.g., database calls or network requests), parallel streams can actually degrade performance by saturating the common ForkJoinPool, which is sized for CPU-bound tasks. Always use Virtual Threads for concurrent I/O and reserve Parallel Streams for heavy computational math."
+    }
+  ],
+  "num": 642,
+  "title": "What is concurrency versus parallelism?",
+  "category": "Multithreading & Java Concurrency"
+}

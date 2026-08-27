@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "gRPC interceptors are the middleware layer of the gRPC ecosystem, providing a mechanism to intercept incoming and outgoing RPC calls. Unlike traditional REST filters in Spring WebFlux, which operate on the HTTP/1.1 request-response cycle, gRPC interceptors operate at the transport layer using HTTP/2. They are essential for cross-cutting concerns like authentication, where you need to validate metadata (headers) before the service method is invoked, or logging, where you need to capture request payloads and latency metrics without polluting business logic. By implementing the ServerInterceptor interface, you gain access to the ServerCall and the Metadata object, allowing you to inspect, modify, or reject requests before they ever hit your service implementation."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "gRPC Interceptors",
+        "WebFlux Filters"
+      ],
+      "rows": [
+        [
+          "Protocol",
+          "HTTP/2 (Binary/Protobuf)",
+          "HTTP/1.1 or HTTP/2 (JSON/Text)"
+        ],
+        [
+          "Context",
+          "ServerCall / Metadata",
+          "ServerWebExchange"
+        ],
+        [
+          "Performance",
+          "Low overhead, binary serialization",
+          "Higher overhead due to JSON parsing"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "ServerInterceptor implementation requires overriding the interceptCall method, which returns a Listener. This Listener acts as a callback handler for the lifecycle of the RPC stream.",
+        "To perform authentication, you extract the 'Authorization' key from the Metadata object. If the token is missing or invalid, you call call.close(Status.UNAUTHENTICATED, new Metadata()) to terminate the request immediately.",
+        "Logging interceptors must be careful not to block the event loop. Since gRPC uses a thread-per-call or executor-based model, heavy I/O in an interceptor will directly impact the throughput of the underlying Netty server.",
+        "Interceptors are executed in the order they are added to the ServerBuilder; this chain-of-responsibility pattern allows for fine-grained control over request processing."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class AuthInterceptor implements ServerInterceptor {\n    private static final Metadata.Key<String> AUTH_HEADER = Metadata.Key.of(\"Authorization\", Metadata.ASCII_STRING_MARSHALLER);\n\n    @Override\n    public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {\n        String token = headers.get(AUTH_HEADER);\n        if (token == null || !isValid(token)) {\n            call.close(Status.UNAUTHENTICATED.withDescription(\"Invalid Token\"), new Metadata());\n            return new ServerCall.Listener<ReqT>() {};\n        }\n        return next.startCall(call, headers);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Trap: Never perform blocking network calls (like a synchronous database lookup or an external REST call) inside an interceptor. gRPC threads are often shared; blocking here can lead to thread starvation and effectively take down your entire microservice. Always use non-blocking reactive patterns or local caching for auth validation."
+    }
+  ],
+  "num": 988,
+  "title": "gRPC: How do you implement interceptors in gRPC for logging or auth?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

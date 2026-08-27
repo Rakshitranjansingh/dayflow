@@ -1,0 +1,51 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The introduction of Project Loom transformed Java concurrency by bringing lightweight, user-mode threads—known as virtual threads—to the JVM. Unlike traditional platform threads, which have a direct 1:1 mapping to underlying OS threads, virtual threads decouple Java's execution units from operating system threads. This decoupling allows applications to scale to millions of concurrent threads without exhausting OS-level thread allocations or hitting memory limits imposed by native stack sizes.\n\nTo instantiate and manage these lightweight constructs, Java provides two primary APIs: the fluent builder pattern via Thread.ofVirtual(), and the executor-based approach through Executors.newVirtualThreadPerTaskExecutor(). Thread.ofVirtual() gives developers granular control over thread properties such as naming, daemon status, and uncaught exception handlers before starting them either unstarted or instantly. Conversely, Executors.newVirtualThreadPerTaskExecutor() adapts virtual threads into the familiar java.util.concurrent.ExecutorService abstraction, making it trivial to refactor existing thread-pool-based task dispatchers to leverage unbounded per-task concurrency without altering application logic or business code."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "API / Feature",
+        "Primary Use Case",
+        "Lifecycle Management",
+        "Underlying Execution"
+      ],
+      "rows": [
+        [
+          "Thread.ofVirtual()",
+          "Fine-grained, customized virtual thread creation and configuration.",
+          "Manual start or implicit via ThreadFactory.",
+          "Scheduled onto ForkJoinPool.commonPool() carrier threads."
+        ],
+        [
+          "Executors.newVirtualThreadPerTaskExecutor()",
+          "Task-based concurrency, dropping in as an ExecutorService replacement.",
+          "Managed via ExecutorService scope / try-with-resources.",
+          "Scheduled onto ForkJoinPool.commonPool() carrier threads."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Carrier Threads and the ForkJoinPool: Virtual threads do not run in isolation; when active, they are mounted onto a platform thread called a 'carrier thread'. The JVM uses a specialized ForkJoinPool configured with a parallelism level equal to the number of available CPU cores to manage these carrier threads.",
+        "Mounting and Unmounting Mechanics: When a virtual thread encounters a blocking operation—such as I/O reading, socket waiting, or Thread.sleep()—the JVM unmounts the virtual thread from its carrier thread. This frees up the underlying platform thread to execute other virtual threads, maximizing CPU utilization.",
+        "Pinning Gotchas: Pinning occurs when a virtual thread cannot be unmounted from its carrier thread because it is executing inside a synchronized block/method or a native method/FFI call. While pinned, blocking operations will block the underlying OS thread, degrading throughput."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.ExecutorService;\nimport java.util.concurrent.Executors;\nimport java.util.concurrent.ThreadFactory;\nimport java.util.stream.IntStream;\n\npublic class VirtualThreadDemo {\n    public static void main(String[] args) throws InterruptedException {\n        // 1. Using Thread.ofVirtual()\n        Thread customVirtualThread = Thread.ofVirtual()\n                .name(\"worker-vthread-\", 0)\n                .unstarted(() -> System.out.println(\"Running custom virtual thread: \" + Thread.currentThread()));\n        customVirtualThread.start();\n        customVirtualThread.join();\n\n        // 2. Using Executors.newVirtualThreadPerTaskExecutor()\n        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {\n            IntStream.range(0, 10).forEach(i -> {\n                executor.submit(() -> {\n                    Thread.sleep(Duration.ofMillis(100));\n                    System.out.println(\"Task \" + i + \" executed by: \" + Thread.currentThread());\n                    return i;\n                });\n            });\n        } // ExecutorService closes automatically, awaiting termination of all tasks\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Never pool virtual threads. One of the most common anti-patterns engineers fall into when migrating to Project Loom is wrapping Executors.newVirtualThreadPerTaskExecutor() in custom connection or worker pools. Virtual threads are cheap—costing only a few hundred bytes of memory—and are designed to be created on-demand for a single task and discarded immediately. Pooling them defeats the purpose of the runtime's scheduling optimizations and can lead to thread starvation or memory overhead."
+    }
+  ],
+  "num": 146,
+  "title": "Creating virtual threads — Thread.ofVirtual(), Executors.newVirtualThreadPerTaskExecutor()",
+  "category": "Virtual Threads & Concurrency"
+}

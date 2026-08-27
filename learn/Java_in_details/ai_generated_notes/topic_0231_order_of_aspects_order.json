@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Spring applications, cross-cutting concerns such as transaction management, security auditing, rate limiting, and performance logging are commonly implemented using Aspect-Oriented Programming (AOP). When multiple aspects advise the same join point—for instance, a service method annotated with both `@Transactional` and a custom `@Secured` annotation—the exact execution sequence becomes critical for correctness and security. If a logging aspect wraps a transactional aspect incorrectly, you might log an uncommitted transaction state. To solve this non-deterministic execution order, Spring provides the Order of aspects via the `@Order` annotation (or by implementing the `Ordered` interface). By assigning specific precedence values, developers can deterministically orchestrate the onion-skin wrapper pattern of advice execution.\n\nThe mechanics of aspect ordering are rooted in how Spring AOP creates proxies and delegates method invocations through a chain of interceptors. When multiple dynamic proxies or interceptors apply to a target bean, Spring sorts them using the `AnnotationAwareOrderComparator`. Lower integer values supplied to `@Order` indicate higher priority, meaning the advice starts earlier in the outer call layer and finishes later during the unwinding phase. Understanding this execution flow prevents silent race conditions, security bypasses during authorization checks, and inconsistent database session states across layered enterprise architectures."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The `AnnotationAwareOrderComparator` inspects beans and component classes for the `@Order` annotation, `@Priority` (from Jakarta Common Annotations), or direct implementations of the `Ordered` interface to determine sorting precedence.",
+        "In Spring AOP's advice chain, a lower integer value means the aspect wraps closer to the outside of the invocation stack. It executes its 'before' logic first, and its 'after' logic last as the call unwinds.",
+        "If multiple aspects share the exact same order value (or lack an explicit order), their relative execution sequence is undefined and may vary depending on classpath scanning order or JVM implementation details.",
+        "Bootstrapping Spring Data repositories or custom transaction interceptors have default internal orders (e.g., `Ordered.LOWEST_PRECEDENCE` or specific framework defaults), requiring careful tuning when custom aspects need to wrap around them."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Aspect\n@Component\n@Order(1)\npublic class SecurityAspect {\n    @Around(\"@annotation(Secured)\")\n    public Object enforceSecurity(ProceedingJoinPoint pjp) throws Throwable {\n        // Executes first (outermost layer)\n        validateToken();\n        return pjp.proceed();\n    }\n}\n\n@Aspect\n@Component\n@Order(2)\npublic class TransactionAspect {\n    @Around(\"@annotation(Transactional)\")\n    public Object manageTransaction(ProceedingJoinPoint pjp) throws Throwable {\n        // Executes second (nested inside SecurityAspect)\n        TransactionStatus status = startTx();\n        try {\n            Object result = pjp.proceed();\n            commitTx(status);\n            return result;\n        } catch (Exception e) {\n            rollbackTx(status);\n            throw e;\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production gotcha occurs when mixing Spring AOP aspects with native AspectJ load-time or compile-time weaving. Spring's `@Order` mechanism only governs Spring-managed beans and proxies created by the `DefaultAdvisorChainFactory`. If you are using AspectJ weaving, Spring's `@Order` annotation is completely ignored unless you explicitly use AspectJ's precedence declaration syntax (e.g., `declare precedence: SecurityAspect, TransactionAspect;`). Furthermore, placing transaction management outside of security checks can leave open database connections during heavy authentication failures, exhausting your connection pool."
+    }
+  ],
+  "num": 232,
+  "title": "Order of aspects (@Order)",
+  "category": "Spring Boot & Spring Framework"
+}

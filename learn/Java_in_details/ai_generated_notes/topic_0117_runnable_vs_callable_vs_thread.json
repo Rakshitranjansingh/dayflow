@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the realm of Java concurrency, managing asynchronous execution relies heavily on understanding the core abstractions: Runnable, Callable, and Thread. A Thread represents the actual operating system-level thread of execution mapped directly by the JVM via native OS calls. It is the fundamental worker that schedules and executes CPU instructions. However, extending Thread directly tightly couples your business logic to the threading infrastructure, making code difficult to test, maintain, and scale.\n\nTo decouple task definition from task execution, Java provides the Runnable interface. Introduced in Java 1.0, Runnable represents a unit of work that can be executed asynchronously, characterized by its single, void-returning run() method. Because run() cannot return a computed result or throw checked exceptions, Java 5 introduced Callable as part of the java.util.concurrent package. Callable is a generic interface featuring a call() method that returns a parameterized future result and can throw checked exceptions. Together, these three components form the bedrock of concurrent processing, where Runnables and Callables define the 'what', and Threads or ExecutorServices define the 'how'."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Thread",
+        "Runnable",
+        "Callable"
+      ],
+      "rows": [
+        [
+          "Return Value",
+          "None (void)",
+          "None (void)",
+          "Generic Type (V)"
+        ],
+        [
+          "Exception Handling",
+          "Unchecked exceptions only",
+          "Unchecked exceptions only",
+          "Checked and Unchecked exceptions"
+        ],
+        [
+          "Execution Mechanism",
+          "Direct instantiation / extension",
+          "Passed to Thread or ExecutorService",
+          "Submitted to ExecutorService (returns Future)"
+        ],
+        [
+          "OOP Design Impact",
+          "Forces class inheritance",
+          "Encourages composition",
+          "Encourages composition with results"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "A Thread object consumes substantial memory overhead, typically allocating around 1MB of stack space per thread, making direct thread creation unsustainable for high-throughput systems.",
+        "Runnable instances lack any mechanism to return values or propagate checked exceptions back to the submitting thread, forcing developers to resort to shared mutable state or callbacks.",
+        "Callable integrates seamlessly with the Executor framework, wrapping the execution result inside a Future object which blocks on retrieval via get() until the computation completes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.*;\n\npublic class ConcurrencyDemo {\n    public static void main(String[] args) throws Exception {\n        ExecutorService executor = Executors.newFixedThreadPool(2);\n\n        Runnable runnableTask = () -> System.out.println(\"Executing Runnable\");\n        \n        Callable<String> callableTask = () -> {\n            Thread.sleep(500);\n            return \"Result from Callable\";\n        };\n\n        executor.submit(runnableTask);\n        Future<String> futureResult = executor.submit(callableTask);\n\n        System.out.println(futureResult.get());\n        executor.shutdown();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern is calling future.get() immediately after submitting every single Callable in a loop, which effectively serializes your concurrent tasks and destroys throughput. Always batch your futures into a collection and retrieve results asynchronously or use CompletionService."
+    }
+  ],
+  "num": 118,
+  "title": "Runnable vs Callable vs Thread",
+  "category": "Multithreading & Java Concurrency"
+}

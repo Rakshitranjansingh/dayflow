@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java multithreading, concurrent access to mutable shared state inevitably leads to race conditions, thread interference, and memory visibility issues. The synchronized keyword is the foundational language-level mechanism provided by the Java Virtual Machine to enforce mutual exclusion and guarantee Java Memory Model (JMM) happens-before relationships. Under the hood, every object and class in Java is associated with an intrinsic lock, commonly referred to as a monitor. When a thread executes a synchronized region, it must successfully acquire the corresponding monitor lock before entry, and it automatically releases that lock upon exiting the region, whether normally or via an uncaught exception.\n\nTo apply synchronization, developers choose between a synchronized method and a synchronized block. A synchronized method locks the entire instance (using 'this' as the monitor) or the Class object if it is declared static. While syntactically concise, this approach can severely throttle application throughput if a method contains long-running computations or IO operations independent of the shared state. Conversely, a synchronized block allows developers to explicitly specify an arbitrary monitor object and scope the locking window to the absolute minimum lines of code required to protect the critical section, drastically reducing lock contention."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Synchronized Method",
+        "Synchronized Block"
+      ],
+      "rows": [
+        [
+          "Lock Scope",
+          "Entire method body",
+          "Explicitly defined block of code"
+        ],
+        [
+          "Monitor Object",
+          "'this' for instance methods; Class<?> for static methods",
+          "Any arbitrary non-null object reference specified in parentheses"
+        ],
+        [
+          "Granularity & Contention",
+          "Coarse-grained; higher risk of thread contention and reduced concurrency",
+          "Fine-grained; reduces critical section scope and optimizes throughput"
+        ],
+        [
+          "Performance Impact",
+          "Higher if the method performs extraneous non-critical work",
+          "Lower, as locks are held for the shortest duration necessary"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Intrinsic locks in Java are reentrant, meaning a thread that already holds a monitor can re-enter the same synchronized method or block without deadlocking itself, updating an internal acquisition counter.",
+        "The Java Memory Model ensures that releasing a monitor flushes all CPU cache lines to main memory, and acquiring a monitor invalidates local thread caches, guaranteeing visibility of updates made by the previous lock holder."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class CounterManager {\n    private int sharedCount = 0;\n    private final Object lock = new Object();\n\n    // Synchronized method locks the entire 'this' instance\n    public synchronized void incrementMethod() {\n        sharedCount++;\n    }\n\n    // Synchronized block uses a dedicated fine-grained lock object\n    public void incrementBlock() {\n        // Do non-critical work here concurrently\n        synchronized (lock) {\n            sharedCount++;\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Never synchronize on mutable objects like Strings (especially string literals via interning), boxed primitives, or public 'this' references if external classes can access them. External code can acquire your class's 'this' lock maliciously or accidentally, causing deadlocks or thread starvation. Always use a dedicated, private, final Object instance solely for locking purposes."
+    }
+  ],
+  "num": 657,
+  "title": "What is the synchronized keyword? Difference between synchronized method and synchronized block?",
+  "category": "Multithreading & Java Concurrency"
+}

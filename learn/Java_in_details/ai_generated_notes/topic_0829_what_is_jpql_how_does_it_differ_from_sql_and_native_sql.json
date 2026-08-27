@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "JPQL (Java Persistence Query Language) is an object-oriented query language defined by the Jakarta Persistence API (JPA) specification. Unlike standard SQL, which operates directly on relational database tables and columns, JPQL operates on your Java entity model. When you write a JPQL query, you are querying against the class names and field names defined in your @Entity classes, not the underlying database schema. This abstraction layer is what enables Hibernate to translate your intent into dialect-specific SQL, effectively decoupling your business logic from the underlying database vendor. SQL is the universal language for relational databases, focusing on rows and sets, while Native SQL refers to raw, vendor-specific queries that bypass the ORM's abstraction entirely. JPQL exists to provide a type-safe, portable way to interact with data while allowing the ORM to manage the mapping, caching, and state management of your objects."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "JPQL",
+        "Native SQL"
+      ],
+      "rows": [
+        [
+          "Target",
+          "Java Entities/Fields",
+          "Database Tables/Columns"
+        ],
+        [
+          "Portability",
+          "High (Dialect-agnostic)",
+          "Low (Vendor-specific)"
+        ],
+        [
+          "Result Mapping",
+          "Automatic to Managed Entities",
+          "Manual or ResultTransformer"
+        ],
+        [
+          "Performance",
+          "Slight overhead due to parsing",
+          "Optimal (No abstraction layer)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "JPQL parsing involves the Hibernate Query Translator (HQLT), which converts the JPQL string into an Abstract Syntax Tree (AST) before generating the final SQL dialect.",
+        "Native SQL bypasses the Persistence Context's automatic dirty checking and first-level cache unless the results are explicitly mapped back to managed entities using @SqlResultSetMapping.",
+        "JPQL supports polymorphic queries; querying a base class automatically includes subclasses in the result set, a feature Native SQL cannot natively comprehend without complex JOINs.",
+        "Native SQL is necessary for accessing database-specific features like window functions, CTEs, or specialized index hints that the JPA specification does not expose."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Repository\npublic interface UserRepository extends JpaRepository<User, Long> {\n    // JPQL: Operates on 'User' entity, not 'users' table\n    @Query(\"SELECT u FROM User u WHERE u.email = :email\")\n    User findByEmail(String email);\n\n    // Native SQL: Operates on raw table structure\n    @Query(value = \"SELECT * FROM users WHERE email = ?1\", nativeQuery = true)\n    User findByEmailNative(String email);\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is using JPQL for bulk updates or deletes. Executing a bulk JPQL operation does not automatically synchronize the Hibernate First-Level Cache (Persistence Context). If you update entities via a JPQL query, your current session might still hold stale data in memory. Always call entityManager.clear() after bulk operations to force the next fetch to hit the database and refresh the cache state."
+    }
+  ],
+  "num": 830,
+  "title": "What is JPQL? How does it differ from SQL and native SQL?",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

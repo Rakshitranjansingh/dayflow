@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing safe schema migrations is fundamentally about managing state transitions in a distributed system where the database is the single source of truth. A 'safe' migration implies zero downtime, data integrity, and the ability to roll back without catastrophic loss. In modern Java environments, we typically employ the Expand-Contract pattern (or Parallel Change). Instead of destructive DDL operations like 'ALTER TABLE DROP COLUMN', which lock tables and cause application-level exceptions, we break changes into additive steps. First, we add new columns or tables, then we update the application to write to both old and new locations, backfill existing data, and finally, once the code is fully migrated, we remove the deprecated schema elements. This approach leverages the application layer to handle the transition, effectively decoupling the database schema evolution from the deployment lifecycle."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Risk Profile",
+        "Operational Overhead"
+      ],
+      "rows": [
+        [
+          "In-place DDL",
+          "High (Table Locks)",
+          "Low"
+        ],
+        [
+          "Expand-Contract",
+          "Low (Backward Compatible)",
+          "High"
+        ],
+        [
+          "Blue-Green Schema",
+          "Medium (Sync Complexity)",
+          "Very High"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Transactional DDL: Utilize tools like Flyway or Liquibase that wrap migrations in transactions, though be aware that some databases (e.g., MySQL) perform implicit commits on DDL, rendering rollback scripts mandatory for atomicity.",
+        "Lock Timeout Management: Always set a low 'lock_wait_timeout' for migration scripts. It is better for a migration to fail immediately than to queue up behind a long-running SELECT query and cause a cascading thread pool exhaustion in your Java application.",
+        "Data Backfilling: For large tables, perform data migration in chunks using a background job or a cursor-based approach to avoid transaction log bloat and excessive undo/redo overhead.",
+        "Application-Level Dual Writes: During the transition phase, the DAO layer should be configured to read from the old source but write to both, ensuring the new schema is populated before the switchover."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class UserMigrationService {\n    // Dual-write pattern to ensure data consistency during schema evolution\n    public void updateUser(User user) {\n        userRepository.updateOldSchema(user);\n        if (featureFlags.isNewSchemaEnabled()) {\n            userRepository.updateNewSchema(user);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common production failure in schema migrations is the 'Online DDL' trap. Even if your database claims to support non-blocking DDL, adding a column with a default value in older versions of MySQL or PostgreSQL can still trigger a full table rewrite, locking the table for minutes. Always perform a 'dry run' on a production-sized staging clone to measure the actual lock duration before executing on your primary instance."
+    }
+  ],
+  "num": 1260,
+  "title": "How do you design safe migrations for schema changes?",
+  "category": "Exception Handling & I/O / NIO"
+}

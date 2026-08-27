@@ -1,0 +1,51 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java's Exception Handling & I/O subsystem, a custom exception is a user-defined subclass of either java.lang.Exception (for checked exceptions) or java.lang.RuntimeException (for unchecked exceptions). While the standard library offers a rich hierarchy—including IOException, NullPointerException, and IllegalArgumentException—built-in types frequently lack the domain-specific semantic context required by enterprise business logic. Creating a custom exception allows software engineers to encapsulate distinct operational failures, attach contextual error payloads (such as transaction IDs, failed resource paths, or state codes), and enforce precise catch-block handling.\n\nDeciding when to create a custom exception hinges on recoverability and caller actionability. You should write a custom checked exception when the calling code can reasonably be expected to recover from the failure, such as retrying a failed external service call with a fallback route. Conversely, you should create a custom unchecked (runtime) exception when the failure represents a programming bug, invalid system state, or unrecoverable invariant violation, such as passing a null user profile into a core authorization engine. Overusing custom exceptions for routine control flow introduces unnecessary architectural coupling and severely degrades performance due to the JVM's expensive stack trace filling operation."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Exception Type",
+        "Superclass",
+        "Ideal Use Case",
+        "Caller Requirement"
+      ],
+      "rows": [
+        [
+          "Custom Checked Exception",
+          "java.lang.Exception",
+          "Recoverable business rule violations, missing external configuration files",
+          "Must be explicitly caught or declared via throws"
+        ],
+        [
+          "Custom Unchecked Exception",
+          "java.lang.RuntimeException",
+          "Programming bugs, illegal state transitions, invariant breaches",
+          "Optional handling; propagates up the call stack to a global handler"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Stack Trace Generation Overhead: Instantiating any Throwable invokes a native method (fillInStackTrace()) that inspects the current thread's stack frames. This is a heavy CPU operation that bypasses typical JIT optimizations, making exceptions unsuitable for validation logic or loop control flows.",
+        "Constructor Chaining Best Practices: A robust custom exception must override standard constructors—specifically the default, message-bearing, cause-bearing, and message-plus-cause constructors—to ensure exception chaining is never broken during root-cause analysis.",
+        "Serialization Invariants: Because all throwables implement java.io.Serializable, custom exceptions crossing network or process boundaries (such as RMI or microservice boundaries) require a explicitly declared serialVersionUID to prevent InvalidClassExceptions during deserialization."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class InsufficientAccountBalanceException extends RuntimeException {\n    private final String accountNumber;\n    private final double attemptedDebit;\n\n    public InsufficientAccountBalanceException(String accountNumber, double attemptedDebit) {\n        super(String.format(\"Account %s lacks funds for debit of %.2f\", accountNumber, attemptedDebit));\n        this.accountNumber = accountNumber;\n        this.attemptedDebit = attemptedDebit;\n    }\n\n    public String getAccountNumber() {\n        return accountNumber;\n    }\n\n    public double getAttemptedDebit() {\n        return attemptedDebit;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior production gotcha: If your custom exception is meant to be thrown across distributed microservices (e.g., serialized in JSON via Spring Web's @RestControllerAdvice), ensure you do not inadvertently serialize massive nested cause chains or cyclic object graphs. Furthermore, overriding Throwable.fillInStackTrace() to return 'this' without populating the stack trace can yield massive performance gains if your custom exception is used purely as a signaling mechanism for predictable domain events, though this strips out debugging context and should be used with extreme caution."
+    }
+  ],
+  "num": 579,
+  "title": "What is a custom exception? When to create one?",
+  "category": "Exception Handling & I/O / NIO"
+}

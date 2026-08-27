@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Deciding where to persist a JSON Web Token (JWT) is a foundational architectural decision that pits convenience against hardened security. Local Storage is a client-side mechanism within the Web Storage API that is accessible via JavaScript. While it simplifies state management for Single Page Applications (SPAs), it is inherently vulnerable to Cross-Site Scripting (XSS) attacks; if an attacker manages to inject a malicious script into your page, they can trivially exfiltrate your tokens via window.localStorage.getItem(). Conversely, HttpOnly cookies are a browser-level storage mechanism that prevents client-side scripts from accessing the cookie content. When the HttpOnly flag is set, the browser automatically attaches the cookie to outgoing requests, effectively shielding the token from XSS-based theft. However, using cookies introduces the risk of Cross-Site Request Forgery (CSRF), as the browser will automatically include these cookies on requests to your domain, even if initiated by a third-party site. Mitigating this requires implementing SameSite=Strict or Lax attributes and robust CSRF protection tokens, which are standard in frameworks like Spring Security."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Local Storage",
+        "HttpOnly Cookies"
+      ],
+      "rows": [
+        [
+          "XSS Vulnerability",
+          "High (Accessible via JS)",
+          "Low (Hidden from JS)"
+        ],
+        [
+          "CSRF Vulnerability",
+          "None (Requires custom header)",
+          "High (Automatic inclusion)"
+        ],
+        [
+          "Implementation",
+          "Manual header injection",
+          "Automatic browser handling"
+        ],
+        [
+          "Domain Scope",
+          "Origin-bound",
+          "Path/Domain-bound"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Local Storage persists until explicitly cleared, making it a persistent target for attackers who gain execution context in your SPA.",
+        "HttpOnly cookies leverage the browser's native cookie jar, ensuring that even if an XSS payload executes, the document.cookie object remains empty of your sensitive JWT.",
+        "Spring Security's CSRF protection is mandatory when using cookies, typically requiring a hidden token that the client must echo back in a custom header to validate the request origin.",
+        "SameSite=Strict cookie attribute prevents the browser from sending the cookie on cross-site requests, which is the primary defense against CSRF in modern browsers."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Bean\npublic SecurityFilterChain filterChain(HttpSecurity http) throws Exception {\n    return http\n        .csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))\n        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))\n        .build();\n}"
+    },
+    {
+      "type": "note",
+      "content": "The 'Gold Standard' for production is often a hybrid approach: Store the JWT in an HttpOnly, Secure, SameSite=Strict cookie to prevent XSS, and use a secondary CSRF token (often stored in memory or a non-HttpOnly cookie) to validate that the request originated from your own frontend. Never rely on Local Storage for sensitive authentication tokens in a production environment if you care about PCI-DSS or SOC2 compliance."
+    }
+  ],
+  "num": 1004,
+  "title": "Where should you store a JWT on the client side? (Local Storage vs HttpOnly Cookies)",
+  "category": "Spring Security & Web Security"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the realm of networking and Java core fundamentals, distinguishing between a Uniform Resource Identifier (URI) and a Uniform Resource Locator (URL) is foundational for designing robust web services, parsing network payloads, and handling resource location securely. A URI, defined by RFC 3986, is a compact sequence of characters that identifies an abstract or physical resource. It is a broad umbrella term that encompasses both locators and names. A URI can be further categorized as a URN (Uniform Resource Name) which identifies a resource by name in a given namespace without implying its location (e.g., urn:isbn:0-486-27557-4), or a URL which provides a means of acting upon or retrieving the resource through a primary access mechanism (network address).\n\nConversely, a URL is a specialized subset of a URI. Every URL is a URI, but not every URI is a URL. A URL not only identifies a resource but also specifies the exact mechanism and network routing information required to access it—typically combining a network protocol schema (like HTTP, HTTPS, FTP) with a hostname, port, and absolute path. In Java, these concepts are represented by the `java.net.URI` and `java.net.URL` classes, respectively. Understanding their underlying contracts is critical: `java.net.URI` is strictly a syntactic parser that adheres strictly to RFC 2396/3986 without making network calls, whereas legacy `java.net.URL` implementations historically attempted DNS lookups during `equals()` and `hashCode()` evaluations, leading to notorious production bottlenecks and latency issues."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric",
+        "URI (Uniform Resource Identifier)",
+        "URL (Uniform Resource Locator)"
+      ],
+      "rows": [
+        [
+          "Scope",
+          "Broader concept; superset that identifies a resource by name, location, or both.",
+          "Narrower concept; a specific subset of URI focused strictly on resource location."
+        ],
+        [
+          "Network Interaction",
+          "Purely syntactic. Performs string parsing, encoding, and decoding without network IO.",
+          "Historically performs network access (e.g., DNS resolution during hostname comparisons)."
+        ],
+        [
+          "Components",
+          "Scheme, Authority, Path, Query, Fragment (may lack location specifics like port/host if it's a URN).",
+          "Scheme, Authority (Host/Port), Path, Query, Fragment (always includes location/protocol)."
+        ],
+        [
+          "Java API Class",
+          "java.net.URI",
+          "java.net.URL"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The `java.net.URI` class parses strings according to strict syntax rules and supports relative URIs, making it ideal for routing engines, API endpoint validations, and path manipulation.",
+        "The legacy `java.net.URL.equals(Object)` method is notoriously dangerous because it resolves the IP address of the host to compare two URLs, which blocks the calling thread and can cause cascading application failures if a DNS server is slow or unresponsive.",
+        "Modern Java (Java 11+) recommends using `java.net.http.HttpClient` and `java.net.URI` for constructing network requests, while explicitly converting to `URL` only when legacy API boundaries require it."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.net.URI;\nimport java.net.URL;\n\npublic class UriVsUrlDemo {\n    public static void main(String[] args) throws Exception {\n        // A URI that is a URL\n        String urlString = \"https://api.example.com:8443/v1/users?active=true#profile\";\n        \n        URI uri = new URI(urlString);\n        URL url = uri.toURL(); // Safe conversion when scheme and authority are present\n\n        System.out.println(\"Scheme: \" + uri.getScheme());\n        System.out.println(\"Host: \" + uri.getHost());\n        System.out.println(\"Port: \" + uri.getPort());\n        System.out.println(\"Path: \" + uri.getPath());\n        System.out.println(\"Query: \" + uri.getQuery());\n        \n        // Example of a URI that is NOT a URL (URN)\n        URI urn = new URI(\"urn:isbn:978-0134685991\");\n        System.out.println(\"URN Scheme: \" + urn.getScheme());\n        System.out.println(\"URN Scheme-Specific Part: \" + urn.getSchemeSpecificPart());\n        \n        // Attempting urn.toURL() would throw a MalformedURLException because a URN has no network locator\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineering Gotcha: Never use `java.net.URL` instances as keys in HashMaps or HashSets if the URL points to an external or potentially flaky domain. Because `URL.equals()` triggers a blocking DNS lookup to compare IP addresses, putting a URL into a collection or invoking `contains()` can unexpectedly block your thread, exhaust your connection pools, or trigger timeout exceptions during map lookups. Always normalize and convert your `URL` objects to `URI` strings before performing equality checks or storing them in hash-based collections."
+    }
+  ],
+  "num": 961,
+  "title": "What is the difference between URI and URL?",
+  "category": "Core Java & Fundamentals"
+}

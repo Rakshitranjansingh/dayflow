@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Cross-Site Request Forgery (CSRF) is an attack vector that forces an authenticated user to execute unwanted actions on a web application in which they are currently authenticated. In a traditional session-cookie based architecture, the browser automatically and implicitly attaches session identifiers to every cross-origin or same-origin HTTP request directed at the target domain. If a malicious site issues a forged state-changing request (like a POST or DELETE) via an invisible form submission or an XMLHttpRequst, the server cannot inherently distinguish it from a legitimate user-initiated action. To combat this, Spring Security implements the Synchronizer Token Pattern, utilizing unique, unpredictable CSRF tokens bound to the user's current session. When a state-changing operation is requested, the application validates that the token presented in the request headers or body matches the cryptographic token stored in the server-side session or persistence layer.\n\nHowever, understanding when to disable CSRF protection is equally vital for modern application architectures. In stateless APIs—such as those utilizing JSON Web Tokens (JWTs) or opaque bearer tokens passed exclusively via the HTTP Authorization header—CSRF protection is inherently redundant and can safely be disabled. Because browsers do not automatically attach Authorization headers to cross-origin requests, these APIs are immune to traditional CSRF vectors. Disabling CSRF in these scenarios prevents unnecessary cryptographic overhead and avoids frustrating integration failures for non-browser clients like mobile applications or server-to-server microservices."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Security Dimension",
+        "Stateful Web Apps (Session/Cookie)",
+        "Stateless APIs (Token/Header)"
+      ],
+      "rows": [
+        [
+          "Default CSRF Status",
+          "Enabled",
+          "Disabled"
+        ],
+        [
+          "Credential Transmission",
+          "Implicitly via Browser Cookies",
+          "Explicitly via Authorization Header"
+        ],
+        [
+          "Vulnerability Vector",
+          "High Risk for POST/PUT/DELETE",
+          "Immune to Browser-driven Forgery"
+        ],
+        [
+          "Spring Security Setup",
+          "http.csrf(Customizer.withDefaults())",
+          "http.csrf(csrf -> csrf.disable())"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Synchronizer Token Pattern works by generating a cryptographically strong pseudorandom value per user session, storing it in the HttpSession, and requiring clients to return it back on mutating HTTP methods (POST, PUT, DELETE, PATCH).",
+        "Spring Security's CsrfFilter intercepts incoming requests, extracts the expected token from the repository (usually HttpSessionCsrfTokenRepository), and compares it against the actual token found in the request header (defaulting to X-XSRF-TOKEN).",
+        "Disabling CSRF is safe strictly when the application relies entirely on stateless bearer tokens and does not accept session cookies. If a session cookie is ever introduced alongside an API, CSRF must be re-evaluated immediately."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\npublic class SecurityConfig {\n\n    @Bean\n    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {\n        http\n            // Disable CSRF for stateless REST APIs using Bearer tokens\n            .csrf(csrf -> csrf.disable())\n            .authorizeHttpRequests(auth -> auth\n                .requestMatchers(\"/api/public/**\").permitAll()\n                .anyRequest().authenticated()\n            )\n            .sessionManagement(session -> session\n                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)\n            );\n            \n        return http.build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production anti-pattern is disabling CSRF globally just because 'we are building a React/Angular single-page application'. If your SPA authenticates via an HTTP-only login endpoint that issues a session cookie, your app is still entirely vulnerable to CSRF, regardless of whether the frontend is rendered via a decoupled build system. Only disable CSRF if your backend is genuinely stateless and uses explicit header-based authentication."
+    }
+  ],
+  "num": 276,
+  "title": "CSRF protection — when to disable (APIs), how tokens work",
+  "category": "Spring Security & Web Security"
+}

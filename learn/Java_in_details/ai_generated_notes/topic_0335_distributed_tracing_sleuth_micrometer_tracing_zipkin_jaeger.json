@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern cloud-native architectures, synchronous monoliths have fragmented into distributed graphs of microservices communicating via HTTP, gRPC, and message brokers. When a user request spans dozens of services, isolating the root cause of a latency spike or a runtime exception becomes an impossible puzzle if you rely solely on isolated local log files. This is where the triumvirate of Distributed tracing, Spring Cloud Sleuth, Micrometer Tracing, and Zipkin or Jaeger enters the picture. Distributed tracing is the methodology of tracking a request as it propagates across network boundaries, assigning it a unique identifier to stitch together disparate logs and metrics.\n\nHistorically, Spring Cloud Sleuth was the de facto instrumentation library for the Spring ecosystem. Sleuth seamlessly integrated with SLF4J, automatically injecting trace identifiers (Trace ID) and span identifiers (Span ID) into the MDC (Mapped Diagnostic Context) so that every log line emitted by a service could be correlated. Furthermore, Sleuth abstracted underlying tracer implementations, abstracting away the boilerplate of distributed context propagation. However, as the observability landscape evolved towards vendor-neutral open standards, the Spring team deprecated Sleuth in favor of Micrometer Tracing. Micrometer Tracing brings the same powerful instrumentation model under the broader Micrometer umbrella, aligning the Java ecosystem with the OpenTelemetry specification and decoupling observability from any specific vendor or framework.\n\nOnce a request is instrumented via Micrometer Tracing, the generated trace data must be collected, aggregated, and visualized. This is where backends like Zipkin and Jaeger come into play. Zipkin is a lightweight, time-tested distributed tracing system that accepts spans via HTTP or Thrift, storing them for query and visualization through its native UI. Jaeger, originally developed at Uber and now a Cloud Native Computing Foundation (CNCF) graduated project, is built for scale, handling massive trace volumes with advanced storage backends like Elasticsearch and Cassandra, while offering sophisticated dependency graph analytics. Together, Micrometer Tracing captures the traces on the client/server side, while Zipkin and Jaeger render the end-to-end latency path."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Dimension",
+        "Spring Cloud Sleuth",
+        "Micrometer Tracing + Zipkin/Jaeger"
+      ],
+      "rows": [
+        [
+          "Ecosystem Alignment",
+          "Tied closely to the Spring Cloud release train and proprietary abstractions.",
+          "Aligned with the broader Micrometer ecosystem and OpenTelemetry specifications."
+        ],
+        [
+          "Standardization",
+          "Custom API abstraction layer over Brave or OpenTracing.",
+          "Standardized facade supporting Brave and OpenTelemetry natively."
+        ],
+        [
+          "Maintenance Status",
+          "Deprecated and end-of-life; no longer receives updates.",
+          "Actively maintained, modern standard for Spring Boot 3+."
+        ],
+        [
+          "Backend Agility",
+          "Relied on specific bridge dependencies for reporters.",
+          "Pluggable architecture allowing seamless switching between Zipkin, Jaeger, and OTLP."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Context Propagation: Micrometer Tracing injects W3C Trace Context headers (traceparent, tracestate) or B3 propagation headers across thread boundaries and network calls via RestClient, WebClient, or gRPC interceptors.",
+        "MDC Integration: Trace and span identifiers are automatically pushed to the SLF4J MDC, ensuring log aggregation tools like Elasticsearch/Logstash/Kibana (ELK) can query logs belonging to a specific Trace ID.",
+        "Span Lifecycle Management: A Tracer creates a Root Span at the ingress boundary, spawning Child Spans for downstream database calls, external REST requests, or asynchronous message publishing via Spring Cloud Stream.",
+        "Sampling Strategies: To prevent network saturation and storage exhaustion in high-throughput production systems, Micrometer Tracing utilizes probabilistic or rate-limiting samplers to capture a representative percentage of traces."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import io.micrometer.tracing.Tracer;\nimport org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\nimport org.springframework.stereotype.Service;\n\n@Service\npublic class OrderProcessingService {\n\n    private static final Logger log = LoggerFactory.getLogger(OrderProcessingService.class);\n    private final Tracer tracer;\n\n    public OrderProcessingService(Tracer tracer) {\n        this.tracer = tracer;\n    }\n\n    public void processOrder(String orderId) {\n        // Manually creating a custom span if business logic warrants granular visibility\n        io.micrometer.tracing.Span newSpan = tracer.nextSpan().name(\"process-order-logic\");\n        try (Tracer.SpanInScope ws = tracer.withSpan(newSpan.start())) {\n            log.info(\"Processing order with ID: {}\", orderId);\n            // Simulate business logic\n            newSpan.tag(\"order.id\", orderId);\n        } finally {\n            newSpan.end();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "When migrating legacy applications from Spring Cloud Sleuth to Micrometer Tracing, watch out for breaking changes in baggage APIs and tracer bean names. Additionally, beware of thread-pool context loss: if you offload work to custom ExecutorService instances without wrapping them in Micrometer's ContextPropagatingTaskDecorator, the Trace ID will be dropped, resulting in broken traces in Zipkin or Jaeger."
+    }
+  ],
+  "num": 336,
+  "title": "Distributed tracing — Sleuth → Micrometer Tracing + Zipkin/Jaeger",
+  "category": "Testing, Observability & Cloud Native"
+}

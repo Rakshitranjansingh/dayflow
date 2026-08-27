@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A Content Delivery Network (CDN) is a globally distributed system of proxy servers designed to optimize web performance, lower latency, and mitigate origin server load by caching static and dynamic assets closer to end-users. When discussing what a CDN is, the architecture relies heavily on Edge Servers, which are strategically placed nodes inside Internet Exchange Points (IXPs) and Point of Presence (PoPs) managed by network service providers. Instead of routing every HTTP request directly to a centralized monolithic origin data center—which incurs high network latency due to physical distance and the speed-of-light limitations across fiber-optic cables—a CDN intercepts the request via Anycast DNS routing and serves the cached content from the nearest geographic edge node.\n\nThe role of a Content Delivery Network extends far beyond simple caching; it serves as a critical defense layer and acceleration mechanism in modern distributed systems. By absorbing high-volume traffic spikes, a CDN protects backend services from cascading failures and Distributed Denial of Service (DDoS) attacks through built-in Web Application Firewalls (WAF) and Rate Limiting. Furthermore, CDNs perform TLS termination, HTTP/2 and HTTP/3 multiplexing, and dynamic content routing. They utilize advanced optimization techniques such as image resizing on-the-fly, Brotli/Gzip compression, and origin shielding, ensuring that client applications achieve optimal Time to First Byte (TTFB) and high availability across globally fragmented user bases."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Aspect",
+        "Without CDN (Origin Direct)",
+        "With CDN (Edge Caching)"
+      ],
+      "rows": [
+        [
+          "Latency / TTFB",
+          "High (depends on physical distance to origin data center)",
+          "Low (served from local PoP edge server)"
+        ],
+        [
+          "Origin Load",
+          "High (every asset request hits application and database tiers)",
+          "Low (only cache misses and dynamic invalidations hit origin)"
+        ],
+        [
+          "Resilience",
+          "Vulnerable to origin outages, saturation, and volumetric DDoS",
+          "High availability via edge fallback and Anycast traffic dispersion"
+        ],
+        [
+          "Bandwidth Costs",
+          "Expensive egress charges directly from cloud origin providers",
+          "Lowered via regional caching and optimized edge pricing tiers"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Anycast Routing: CDNs map multiple geographically dispersed servers to a single IP address, causing BGP (Border Gateway Protocol) routers to automatically direct a client's request to the topologically shortest and least congested PoP.",
+        "Cache Invalidation & Purging: Edge nodes respect HTTP caching headers like Cache-Control, ETag, and Last-Modified. When assets update, CDNs rely on manual purges, API-driven invalidations, or Cache-Tags to synchronously clear stale entries across global nodes.",
+        "Origin Shielding: An intermediate caching layer positioned between the CDN edge servers and the origin server. It aggregates cache-miss requests from multiple edge nodes, preventing stampedes of identical requests from hitting the origin simultaneously.",
+        "Dynamic Content Acceleration (DCA): For uncacheable dynamic API requests, CDNs maintain persistent, optimized TCP/QUIC connections back to the origin, employing intelligent route optimization to bypass public internet congestion points."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.springframework.http.CacheControl;\nimport org.springframework.http.ResponseEntity;\nimport org.springframework.web.bind.annotation.GetMapping;\nimport org.springframework.web.bind.annotation.PathVariable;\nimport org.springframework.web.bind.annotation.RestController;\nimport java.util.concurrent.TimeUnit;\n\n@RestController\npublic class ProductAssetController {\n\n    @GetMapping(\"/api/v1/products/{id}/specifications\")\n    public ResponseEntity<ProductSpec> getProductSpecifications(@PathVariable String id) {\n        ProductSpec spec = productDatabaseService.findSpecById(id);\n\n        // Configure HTTP caching headers instructing CDN edge nodes and browsers\n        // to cache the response for 1 hour, allowing stale data while revalidating in the background.\n        CacheControl cacheControl = CacheControl.maxAge(1, TimeUnit.HOURS)\n                .public()\n                .mustRevalidate()\n                .staleWhileRevalidate(15, TimeUnit.MINUTES);\n\n        return ResponseEntity.ok()\n                .cacheControl(cacheControl)\n                .body(spec);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap with CDNs is the 'Cache Stampede' (or Thundering Herd) problem. When a heavily requested asset expires or is purged simultaneously across global edge nodes, thousands of concurrent cache misses slam the origin server at once, often triggering database connection pool exhaustion. Always configure stale-while-revalidate headers or utilize origin locking and request coalescing at the CDN edge layer to ensure only a single upstream fetch occurs while stale content is temporarily served to waiting clients."
+    }
+  ],
+  "num": 1085,
+  "title": "What is CDN? What is the role of a Content Delivery Network?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

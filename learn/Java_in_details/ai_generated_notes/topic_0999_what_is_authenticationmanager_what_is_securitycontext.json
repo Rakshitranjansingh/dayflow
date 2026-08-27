@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Security ecosystem, the AuthenticationManager serves as the central orchestrator for the authentication process. It acts as the primary entry point for any authentication request, receiving an Authentication object and returning a fully populated Authentication instance if the credentials are valid. It does not perform the validation logic itself; instead, it delegates to a chain of configured AuthenticationProviders. This decoupling allows Spring to support multiple authentication mechanisms—such as LDAP, database-backed JDBC, or OAuth2—simultaneously within the same application. When a request hits the filter chain, the AuthenticationManager is invoked to verify identity, effectively acting as the gatekeeper of the security lifecycle.\n\nOnce identity is established, the SecurityContext becomes the thread-local container that holds the authentication details for the duration of the request. It acts as a bridge between the authentication process and the rest of your application logic. By storing the Authentication object within the SecurityContextHolder, Spring ensures that your business services can access the currently logged-in user's identity, authorities, and principal information without having to pass the user object through every method signature. This mechanism is critical for maintaining state in a stateless HTTP environment, as it provides a consistent, thread-safe way to retrieve user context throughout the execution of a single request thread."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "AuthenticationManager",
+        "SecurityContext"
+      ],
+      "rows": [
+        [
+          "Primary Role",
+          "Verification of credentials",
+          "Storage of current user identity"
+        ],
+        [
+          "Lifecycle",
+          "Stateless execution during login",
+          "Thread-scoped for the request duration"
+        ],
+        [
+          "Access Point",
+          "AuthenticationFilter",
+          "SecurityContextHolder"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The AuthenticationManager typically uses a ProviderManager implementation, which iterates through a list of AuthenticationProviders until one successfully authenticates the request or all are exhausted.",
+        "The SecurityContext uses a ThreadLocal storage strategy by default, meaning the context is bound to the current execution thread. If you spawn new threads (e.g., via @Async), you must configure a DelegatingSecurityContextExecutor to propagate the context.",
+        "The Authentication object inside the SecurityContext is immutable once set, ensuring that security data cannot be tampered with during the request lifecycle.",
+        "The SecurityContextHolder is a static helper class that provides access to the context; it is the standard way to retrieve the 'Principal' in service-layer code."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void performAction() {\n    // Retrieving the current user from the SecurityContext\n    Authentication auth = SecurityContextHolder.getContext().getAuthentication();\n    if (auth != null && auth.isAuthenticated()) {\n        String username = auth.getName();\n        // Proceed with business logic\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is assuming the SecurityContext is available in background threads. Because it defaults to ThreadLocal, any manual thread creation or use of thread pools will result in a null SecurityContext. Always use Spring's TaskExecutor wrappers or explicitly pass the context if you are performing asynchronous processing. Furthermore, never store sensitive raw credentials in the SecurityContext; only store the Principal and granted authorities."
+    }
+  ],
+  "num": 1000,
+  "title": "What is AuthenticationManager? What is SecurityContext?",
+  "category": "Spring Security & Web Security"
+}

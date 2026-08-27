@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Building robust, enterprise-grade REST APIs and microservices requires a standardized, predictable way to communicate failures to downstream clients. When unhandled exceptions ripple through a Spring MVC or WebFlux application, simply leaking stack traces or returning generic HTTP 500 status codes makes client-side debugging difficult and violates modern API design principles. Spring provides a cohesive, centralized mechanism to handle errors gracefully using @ControllerAdvice, @ExceptionHandler, and ProblemDetail (RFC 7807).\n\nFirst, @ControllerAdvice acts as a specialized component-scanning stereotype that intercepts exceptions thrown across multiple controllers or reactive handlers. By applying global cross-cutting logic for error translation, it keeps controller classes clean and focused solely on happy-path business logic. Second, within these advice components, @ExceptionHandler methods target specific exception types—ranging from custom domain exceptions like InsufficientStockException to framework exceptions like MethodArgumentNotValidException—mapping them to precise HTTP status codes and payloads. Finally, ProblemDetail standardizes the response body using RFC 7807 (Problem Details for HTTP APIs). Instead of proprietary JSON error formats, ProblemDetail defines a machine-readable schema containing standard fields like type, title, status, detail, and instance, allowing API consumers to parse errors uniformly across disparate microservices."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "@ControllerAdvice classes are detected automatically via classpath scanning, registering global interceptor interceptors that wrap or inspect dispatcher servlets and reactive web filters.",
+        "@ExceptionHandler delegates resolution by matching the thrown exception against the method parameter types, picking the most specific exception handler in the type hierarchy.",
+        "ProblemDetail implements RFC 7807 by standardizing standard metadata properties alongside custom extension properties via its properties map for rich domain error propagation.",
+        "In Spring WebFlux, ResponseEntityExceptionHandler supports both imperative MVC and reactive WebFlux pipelines, adapting seamlessly to Mono and Flux error signals."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.springframework.http.HttpStatus;\nimport org.springframework.http.ProblemDetail;\nimport org.springframework.http.ResponseEntity;\nimport org.springframework.web.bind.annotation.ExceptionHandler;\nimport org.springframework.web.bind.annotation.RestControllerAdvice;\nimport org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;\n\n@RestControllerAdvice\npublic class GlobalExceptionHandler extends ResponseEntityExceptionHandler {\n\n    @ExceptionHandler(ResourceNotFoundException.class)\n    public ResponseEntity<ProblemDetail> handleResourceNotFound(ResourceNotFoundException ex) {\n        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(\n            HttpStatus.NOT_FOUND,\n            ex.getMessage()\n        );\n        problemDetail.setTitle(\"Resource Not Found\");\n        problemDetail.setType(URI.create(\"https://api.domain.com/errors/not-found\"));\n        problemDetail.setProperty(\"errorCategory\", \"Business Logic\");\n        problemDetail.setProperty(\"timestamp\", Instant.now());\n        \n        return ResponseEntity.of(problemDetail).build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Production Gotcha: When extending ResponseEntityExceptionHandler to handle standard Spring MVC exceptions (like MethodArgumentNotValid), be aware that Spring overrides handleExceptionInternal to construct its own ProblemDetail responses. If you attempt to mutate headers or suppress standard body rendering without calling super correctly, you risk returning empty bodies or conflicting content-types. Always verify how exception serialization interacts with your ObjectMapper configurations."
+    }
+  ],
+  "num": 293,
+  "title": "Exception handling — @ControllerAdvice, @ExceptionHandler, ProblemDetail (RFC 7807)",
+  "category": "REST APIs, WebFlux & Microservices"
+}

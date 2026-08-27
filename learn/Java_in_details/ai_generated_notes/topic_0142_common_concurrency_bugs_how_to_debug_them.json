@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Multithreaded programming introduces non-deterministic execution paths due to thread scheduling, CPU instruction reordering, and complex memory hierarchies. Common concurrency bugs—such as race conditions, deadlocks, livelocks, memory visibility failures, and thread starvation—plague modern Java applications. A race condition occurs when multiple threads concurrently access shared mutable state without proper synchronization, resulting in data corruption or incorrect business logic. Deadlocks manifest when two or more threads are permanently blocked, each waiting for a resource held by the other, creating a cyclic dependency graph. Memory visibility issues arise from the Java Memory Model (JMM), where CPU core caches fail to flush writes to main memory, causing threads to operate on stale data. Debugging these defects requires a deep understanding of thread states, intrinsic locks, synchronized blocks, volatile semantics, and explicit java.util.concurrent abstractions like ReentrantLock and CountDownLatch."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Concurrency Bug",
+        "Primary Cause",
+        "Symptom",
+        "Debugging Tool/Strategy"
+      ],
+      "rows": [
+        [
+          "Race Condition",
+          "Unsynchronized shared mutable state access",
+          "Corrupted data, intermittent calculation errors",
+          "Thread-safe collections, AtomicInteger, ThreadSanitizer"
+        ],
+        [
+          "Deadlock",
+          "Circular wait-for graph on multiple locks",
+          "Application freeze, 100% CPU on stuck threads or blocked threads",
+          "Thread dumps (jstack), VisualVM, ThreadMXBean"
+        ],
+        [
+          "Visibility Issue",
+          "Missing volatile or synchronization boundary",
+          "Infinite loops, threads ignoring flag updates",
+          "Volatile keyword, AtomicBoolean, Happens-Before analysis"
+        ],
+        [
+          "Thread Starvation",
+          "Unfair lock allocation or low thread priority",
+          "Tasks taking indefinitely long to execute",
+          "Fairness parameters in ReentrantLock, ExecutorService tuning"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Java Memory Model (JMM) defines the happens-before relationship. Without synchronization or volatile fields, instructions can be reordered by the Just-In-Time (JIT) compiler or CPU, hiding updates made by one thread from another.",
+        "Deadlocks can be programmatically detected by querying the ThreadMXBean API to find threads in BLOCKED state waiting for specific lock owner identities, allowing automated recovery or alerting.",
+        "Race conditions on compound operations (like check-then-act) cannot be fixed simply by making individual variables volatile; they require atomic blocks, explicit locks, or thread-safe data structures to guarantee atomicity."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class DeadlockPreventionExample {\n    private final Object lock1 = new Object();\n    private final Object lock2 = new Object();\n\n    public void safeExecution() {\n        // Always acquire locks in a consistent global order to prevent deadlocks\n        synchronized (lock1) {\n            synchronized (lock2) {\n                // Critical section safely executing with ordered locks\n                System.out.println(Thread.currentThread().getName() + \" acquired both locks.\");\n            }\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap is assuming that standard collections like HashMap or ArrayList are thread-safe because they aren't throwing exceptions immediately. In high-concurrency environments, non-synchronized collections can corrupt internal pointer chains during structural modifications, leading to infinite CPU loops inside resize operations. Always use ConcurrentHashMap or explicit synchronization wrappers when sharing state across threads, and inspect thread dumps for WAITING or BLOCKED states under heavy load."
+    }
+  ],
+  "num": 143,
+  "title": "Common concurrency bugs & how to debug them",
+  "category": "Multithreading & Java Concurrency"
+}

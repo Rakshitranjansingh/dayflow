@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When designing high-throughput Java applications, understanding the inner workings of the Collections Framework is non-negotiable. At the center of sequential data storage lies the ArrayList, a resizable-array implementation of the List interface backed fundamentally by a contiguous chunk of memory holding an array of Object references. Unlike linked structures, ArrayList leverages random access through memory offsets, making index lookups an O(1) operation. However, maintaining this performance guarantee requires managing dynamic resizing when the backing array runs out of space.\n\nCapacity management is the first critical pillar of ArrayList internals. Every instance is initialized with a backing array of a certain size—either default (typically 10 elements) or user-specified via constructor argument. When elements are appended via add(), the ArrayList checks if the current capacity is exhausted. If it is, it triggers a growth factor mechanism, typically expanding the array by 1.5x its previous size (calculated via bitwise operations as oldCapacity + (oldCapacity >> 1)). This expansion forces an expensive system-level array copy using System.arraycopy(), which relocates all existing references into a newly allocated, larger contiguous memory block. Tuning initial capacity prevents these costly reallocations under high write loads.\n\nThe final core invariant of ArrayList is its fail-fast iteration policy. ArrayList instances maintain a protected modCount field that tracks structural modifications—any operation that alters the size of the list or disrupts its internal backing array. When an iterator (or ListIterator) is instantiated, it captures this modCount value as expectedModCount. Throughout traversal, any next() or remove() operation compares the iterator's expected modCount with the list's current modCount. If a mismatch is detected—meaning a thread or concurrent block structurally modified the list outside of the iterator's control—a ConcurrentModificationException is thrown immediately. This safeguard prevents undefined behavior and hard-to-debug memory corruption caused by concurrent mutations."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Internal Feature",
+        "Mechanism & Implementation",
+        "Performance Impact"
+      ],
+      "rows": [
+        [
+          "Capacity & Growth",
+          "Backing array grows by 1.5x via System.arraycopy() upon overflow.",
+          "O(N) during resize operations; amortized O(1) for standard appends."
+        ],
+        [
+          "Fail-Fast Iteration",
+          "Tracks structural modifications using the modCount vs expectedModCount check.",
+          "O(1) overhead per iteration step; prevents silent data corruption."
+        ],
+        [
+          "Random Access",
+          "Direct index calculation via memory address offsets.",
+          "Strict O(1) time complexity for get(int index)."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The 1.5x growth factor mathematically ensures that the cost of array resizing is amortized to O(1) time complexity per insertion, balancing memory waste against CPU reallocation overhead.",
+        "System.arraycopy() utilizes native memory-copying routines, bypassing JVM-level looping to efficiently shift large blocks of references during capacity expansion.",
+        "The modCount field is deliberately non-volatile, meaning fail-fast mechanics are designed to catch single-threaded developer errors rather than offer thread-safety guarantees in concurrent environments."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.ArrayList;\nimport java.util.Iterator;\nimport java.util.List;\n\npublic class ArrayListInternalsDemo {\n    public static void main(String[] args) {\n        // Pre-allocating capacity to avoid hidden 1.5x growth array copies\n        List<String> pipeline = new ArrayList<>(10000);\n        \n        pipeline.add(\"Stage-1\");\n        pipeline.add(\n            \"Stage-2\"\n        );\n\n        // Demonstrating fail-fast behavior\n        Iterator<String> iterator = pipeline.iterator();\n        while (iterator.hasNext()) {\n            String stage = iterator.next();\n            if (stage.equals(\"Stage-1\")) {\n                // Structural modification outside iterator triggers ConcurrentModificationException\n                pipeline.add(\"Stage-3\"); \n            }\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap involves looping over an ArrayList while mutating it via list.add() or list.remove() instead of using Iterator.remove(). This not only throws a ConcurrentModificationException due to the fail-fast modCount check, but can also cause memory leaks if old object references linger in the truncated tail of the backing array, preventing garbage collection until the ArrayList instance itself is cleared or reclaimed."
+    }
+  ],
+  "num": 42,
+  "title": "ArrayList internals — capacity, growth factor (1.5x), fail-fast",
+  "category": "Collections Framework & Internals"
+}

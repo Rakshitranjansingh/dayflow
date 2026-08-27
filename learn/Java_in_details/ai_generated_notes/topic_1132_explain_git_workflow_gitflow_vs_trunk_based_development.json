@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java engineering, code organization and branch strategies are just as critical as architectural patterns. A Git workflow dictates how teams collaborate on a codebase using version control systems, establishing rules for branching, merging, and releasing. Two dominant strategies govern modern software engineering: GitFlow and Trunk-Based Development. GitFlow is a structured, parallel-branching model centered around release cycles, utilizing dedicated branches for features, development, releases, and hotfixes. It is historically favored by organizations with strict release cadences, such as enterprise software vendors or embedded systems where QA cycles are mandatory and multi-version support is required. Conversely, Trunk-Based Development (TBD) strips away long-lived integration branches. Developers merge their changes frequently—often multiple times a day—directly into a single central branch called the trunk. TBD serves as the foundational branching strategy for Continuous Integration and Continuous Delivery (CI/CD) pipelines, forcing developers to rely heavily on automated testing, feature flags, and short-lived feature branches rather than isolated integration silos."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Evaluation Metric",
+        "GitFlow",
+        "Trunk-Based Development"
+      ],
+      "rows": [
+        [
+          "Branch Lifespan",
+          "Long-lived (develop, main, release/*)",
+          "Short-lived (feature branches lasting < 2 days, or direct-to-trunk)"
+        ],
+        [
+          "Release Cadence",
+          "Scheduled (weekly, monthly, or quarterly)",
+          "Continuous (multiple deployments per day)"
+        ],
+        [
+          "Merge Conflict Risk",
+          "High, due to infrequent integration of long-lived branches",
+          "Low, due to small, continuous, atomic merges"
+        ],
+        [
+          "Automation Dependency",
+          "Moderate; heavy reliance on manual QA phases",
+          "Extreme; automated test suites must run on every commit"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "GitFlow relies on two permanent core branches: 'main' (holding production-ready code) and 'develop' (serving as the integration branch for features). Developers spawn 'feature/*' branches off 'develop', merge via pull requests back into 'develop', cut a 'release/*' branch when ready to freeze features, and patch production via 'hotfix/*' branches that merge back to both 'main' and 'develop'.",
+        "Trunk-Based Development minimizes branching overhead by mandating that all developers integrate their work into the 'trunk' (or 'main') at least once a day. To prevent breaking production with incomplete features, engineers employ branch by abstraction and dynamic feature flags to wrap unfinished code paths at runtime.",
+        "From a JVM memory and build pipeline perspective, GitFlow often leads to heavyweight snapshot versioning (e.g., Maven's SNAPSHOT artifacts) as long-running branches diverge, whereas TBD pairs seamlessly with continuous artifact generation and fast incremental builds."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.enterprise.workflow;\n\npublic class FeatureFlagService {\n    // In Trunk-Based Development, long feature branches are replaced by feature flags\n    // allowing code to merge to trunk safely while remaining dormant in production.\n    private final FeatureToggleRepository toggleRepository;\n\n    public FeatureFlagService(FeatureToggleRepository toggleRepository) {\n        this.toggleRepository = toggleRepository;\n    }\n\n    public void executeNewWorkflow() {\n        if (toggleRepository.isEnabled(\"v2-engine-refactor\")) {\n            runOptimizedPipeline();\n        } else {\n            runLegacyPipeline();\n        }\n    }\n\n    private void runOptimizedPipeline() { /* ... */ }\n    private void runLegacyPipeline() { /* ... */ }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineering Gotcha: Adopting Trunk-Based Development without robust automated regression suites and comprehensive contract testing will lead to production outages. TBD is not merely 'pushing to main'—it is a cultural and technical commitment to rapid automated validation. Conversely, forcing GitFlow onto a fast-paced microservices architecture will cause merge hell, where developers spend more time resolving merge conflicts across stale integration branches than writing business logic."
+    }
+  ],
+  "num": 1133,
+  "title": "Explain Git workflow (GitFlow vs Trunk-based development).",
+  "category": "Core Java & Fundamentals"
+}

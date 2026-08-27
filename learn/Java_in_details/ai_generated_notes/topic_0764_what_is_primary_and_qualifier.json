@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Framework's Inversion of Control (IoC) container, bean wiring is usually a straightforward affair when a single matching type exists for an injection point. However, enterprise applications frequently require multiple implementations of the exact same interface or abstract class. When this happens, the Spring container faces ambiguity: which specific bean instance should it inject? To solve this dependency resolution dilemma without resorting to brittle, hardcoded bean names, Spring provides two powerful annotations: @Primary and @Qualifier.\n\nThe @Primary annotation acts as a declarative default marker. When placed on a Spring-managed component (such as a @Component, @Service, or @Bean method), it tells the container that this particular bean should be given highest priority when multiple candidates match an injection type. It is the ideal mechanism for establishing a convention-over-configuration baseline, ensuring that standard autowiring succeeds without boilerplate annotations at every injection site. For instance, if you have a PaymentService interface implemented by both StripePaymentService and MockPaymentService, marking StripePaymentService with @Primary ensures that any unannotated injection of PaymentService receives the Stripe implementation automatically.\n\nOn the other hand, @Qualifier provides fine-grained, explicit control at the point of injection. While @Primary establishes a global default, @Qualifier allows developers to target a specific bean by its logical identifier or a custom qualifier value, effectively overriding any global @Primary designation. By passing a string value that matches a name assigned via @Qualifier on a bean definition (or matching the bean's default name), you bypass ambiguity entirely. Together, these annotations create a robust hierarchy of resolution: precise qualifiers take precedence over broad primary defaults, giving architects the flexibility to handle both common-case defaults and specialized edge cases gracefully."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "@Primary",
+        "@Qualifier"
+      ],
+      "rows": [
+        [
+          "Target Location",
+          "Placed on the bean definition class or @Bean factory method.",
+          "Placed on injection points (fields, constructor parameters) and bean definitions."
+        ],
+        [
+          "Resolution Strategy",
+          "Establishes a global fallback default when multiple candidates exist.",
+          "Targets an exact, named bean candidate, bypassing ambiguity."
+        ],
+        [
+          "Precedence",
+          "Lower priority than @Qualifier (overridden by explicit qualifiers).",
+          "Highest priority during autowiring resolution."
+        ],
+        [
+          "Use Case",
+          "Defining the standard, most common implementation of an interface.",
+          "Selecting a specific alternative implementation for a unique workflow."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring's DefaultBeanResolver evaluates @Primary during the post-processing phase of BeanFactory initialization when a dependency lookup yields more than one candidate of the required type.",
+        "If multiple beans are marked with @Primary in the same context, Spring throws a NoUniqueBeanDefinitionException because the ambiguity cannot be automatically resolved, forcing an explicit disambiguation via @Qualifier.",
+        "Custom qualifiers can be created by defining a custom annotation annotated with @Qualifier itself, allowing for type-safe metadata-driven injection instead of relying on magic strings.",
+        "Constructor injection seamlessly supports @Qualifier by placing the annotation directly on the specific parameter corresponding to the dependency you wish to target."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public interface MessageSender {\n    void send(String message);\n}\n\n@Component\n@Primary\npublic class EmailMessageSender implements MessageSender {\n    @Override\n    public void send(String message) {\n        System.out.println(\"Sending Email: \" + message);\n    }\n}\n\n@Component\n@Qualifier(\"smsSender\")\npublic class SmsMessageSender implements MessageSender {\n    @Override\n    public void send(String message) {\n        System.out.println(\n            \"Sending SMS: \" + message);\n    }\n}\n\n@Component\npublic class NotificationService {\n    private final MessageSender defaultSender;\n    private final MessageSender smsSender;\n\n    public NotificationService(\n            MessageSender defaultSender,\n            @Qualifier(\"smsSender\") MessageSender smsSender) {\n        this.defaultSender = defaultSender; // Resolves to EmailMessageSender via @Primary\n        this.smsSender = smsSender;         // Resolves to SmsMessageSender via @Qualifier\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap occurs when combining Lombok's @RequiredArgsConstructor with @Qualifier. Because @RequiredArgsConstructor generates a constructor based on all final fields, you cannot easily place a @Qualifier annotation on a specific constructor parameter without abandoning Lombok for that class and writing the constructor by hand. If you need fine-grained qualification across multiple dependencies of the same type, drop Lombok for that service and write explicit constructors to avoid unexpected autowiring failures."
+    }
+  ],
+  "num": 765,
+  "title": "What is @Primary and @Qualifier?",
+  "category": "Core Java & Fundamentals"
+}

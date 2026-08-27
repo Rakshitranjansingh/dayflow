@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The split-brain problem is a catastrophic failure mode in distributed clusters where a network partition cleaves a single cluster into two or more isolated sub-networks. If both sub-networks mistakenly assume that the other is dead and independently promote local nodes to act as the primary or master coordinator, data divergence, corruption, and irreversible state loss immediately follow. In systems like Elasticsearch, a split-brain occurs when two independent master nodes start accepting index and cluster state updates concurrently, resulting in conflicting index mappings and data fragments that cannot be cleanly merged once network connectivity is restored. Similarly, in Apache ZooKeeper, a split-brain would manifest if two distinct quorums of nodes elected their own leaders, violating the linearizability guarantees required for coordination.\n\nTo solve the split-brain problem, distributed systems enforce quorum-based decision making. A quorum represents a strict mathematical majority of the cluster's voting nodes, calculated as (N/2) + 1, where N is the total number of master-eligible nodes. Because any two majorities must overlap by at least one node, it is mathematically impossible for two independent sub-networks to simultaneously achieve a quorum. When a network partition occurs, any sub-network that falls below the quorum threshold immediately steps down, stops accepting writes, and enters a recovery state. This ensures that at any given moment, there is at most one valid, authoritative master capable of mutating the cluster state, thereby preserving consistency at the cost of availability."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Split-Brain State",
+        "Quorum-Protected State"
+      ],
+      "rows": [
+        [
+          "Master Nodes",
+          "Multiple active masters operating independently",
+          "At most one active master globally"
+        ],
+        [
+          "Write Availability",
+          "Accepted on both sides of the partition",
+          "Blocked on the minority side; allowed only on the majority side"
+        ],
+        [
+          "Data Consistency",
+          "Permanently diverged (split-brain corruption)",
+          "Strongly consistent (linearizable history)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Elasticsearch modern cluster coordination utilizes a dedicated voting configuration and quorum requirements (minimum_master_nodes in older versions, now dynamically managed via cluster.initial_master_nodes) to ensure that a newly elected master requires votes from a majority of active master-eligible nodes.",
+        "ZooKeeper employs the Zab (ZooKeeper Atomic Broadcast) protocol, requiring an absolute majority of ensemble nodes to acknowledge an election and every state-updating transaction (proposals) before committing them to disk.",
+        "If an odd number of nodes (e.g., 3, 5, or 7) is deployed across separate failure domains or data centers, the system maximizes fault tolerance against network splits while retaining the strict majority requirement."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class QuorumClusterNode {\n    private final int totalVotingNodes;\n    private final Set<String> activePeers;\n\n    public QuorumClusterNode(int totalVotingNodes) {\n        this.totalVotingNodes = totalVotingNodes;\n        this.activePeers = ConcurrentHashMap.newKeySet();\n    }\n\n    public boolean hasQuorum() {\n        int requiredQuorum = (totalVotingNodes / 2) + 1;\n        // Include self (+1) in the active cluster count calculation\n        int currentVotes = activePeers.size() + 1;\n        return currentVotes >= requiredQuorum;\n    }\n\n    public void handleHeartbeat(String peerId, boolean isAlive) {\n        if (isAlive) {\n            activePeers.add(peerId);\n        } else {\n            activePeers.remove(peerId);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap is deploying an even number of master nodes (e.g., 4 nodes) to save costs. If a network split divides the cluster evenly into two groups of 2, neither side can reach the strict majority quorum of 3. As a result, the entire cluster loses availability for master operations. Always deploy an odd number of master or coordination nodes, and distribute them across at least three independent availability zones to prevent single-rack network switches from causing an unwanted split-brain."
+    }
+  ],
+  "num": 1279,
+  "title": "What is the \"Split-Brain\" problem in distributed clusters (Elasticsearch, Zookeeper), and how do quorums solve it?",
+  "category": "Core Java & Fundamentals"
+}

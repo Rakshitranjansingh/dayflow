@@ -1,0 +1,50 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Decomposing a monolith into microservices is not a simple refactoring task; it is a fundamental architectural migration that requires balancing business continuity with technical decoupling. The Strangler Fig Pattern serves as the primary tactical execution strategy, allowing you to gradually replace specific functionalities of the legacy system by intercepting calls at the edge and routing them to new services. Instead of a high-risk 'big bang' migration, you build a facade—often an API Gateway—that slowly 'strangles' the monolith until the legacy codebase becomes obsolete. To do this effectively, you must employ Domain-Driven Design (DDD) to identify Bounded Contexts. Without DDD, you risk creating a 'distributed monolith' where services are tightly coupled by shared database tables or cross-service transactions, defeating the purpose of the migration."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Primary Goal",
+        "Risk Profile"
+      ],
+      "rows": [
+        [
+          "Strangler Fig",
+          "Incremental replacement of legacy code",
+          "Low: allows for rollback per module"
+        ],
+        [
+          "Domain-Driven Design",
+          "Aligning software boundaries with business logic",
+          "Medium: requires deep domain expertise"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Identify Bounded Contexts: Use Ubiquitous Language to define clear boundaries. If two modules are constantly fighting over the same database entity, they belong in the same service.",
+        "Implement the Facade: Deploy an API Gateway (like Spring Cloud Gateway or Kong) to act as the traffic router. Initially, 100% of traffic goes to the monolith.",
+        "Incremental Extraction: Extract a single, low-risk module into a microservice. Update the Gateway to route traffic for that specific path to the new service.",
+        "Database Decomposition: Transition from shared schemas to 'Database-per-Service'. Use the Outbox Pattern or Change Data Capture (CDC) to maintain eventual consistency during the transition.",
+        "Decommissioning: Once a module is fully extracted and verified, remove the corresponding code from the monolith, effectively 'strangling' that portion of the legacy system."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class GatewayConfig {\n    @Bean\n    public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {\n        return builder.routes()\n            .route(\"order-service\", r -> r.path(\"/orders/**\")\n                .uri(\"lb://order-service\")) // New microservice\n            .route(\"legacy-monolith\", r -> r.path(\"/**\")\n                .uri(\"http://legacy-monolith:8080\")) // Fallback to monolith\n            .build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common failure mode in this migration is the 'Shared Database Trap'. Developers often keep the new microservice pointing to the old monolith's database to 'save time'. This creates a hidden coupling that prevents independent deployments and leads to catastrophic locking issues. Always prioritize migrating the data schema alongside the service logic; if you cannot decouple the data, you have not actually built a microservice."
+    }
+  ],
+  "num": 1056,
+  "title": "How do you decompose a Monolith into Microservices? (Strangler Fig Pattern, Domain-Driven Design)",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

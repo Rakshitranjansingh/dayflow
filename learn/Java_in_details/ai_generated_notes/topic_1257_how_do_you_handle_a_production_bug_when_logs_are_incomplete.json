@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When production logs are incomplete, you are essentially debugging a black box. This situation typically arises due to aggressive log rotation, insufficient log levels in production, or silent failures where an exception is swallowed by a catch-all block without being re-thrown or logged. To resolve this, you must shift from reactive log analysis to proactive state inspection. Start by leveraging JVM instrumentation tools like JMX or JConsole to inspect live heap objects and thread states. If the issue is persistent, you may need to attach a remote debugger or use Byteman to inject tracepoints into the running bytecode without requiring a redeployment. This allows you to observe method arguments and return values in real-time, effectively 'patching' the missing logs dynamically."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Tooling",
+        "Risk Level"
+      ],
+      "rows": [
+        [
+          "Bytecode Injection",
+          "Byteman / Java Agent",
+          "High (Potential overhead)"
+        ],
+        [
+          "Heap Dump Analysis",
+          "jmap / Eclipse MAT",
+          "Medium (Stop-the-world GC)"
+        ],
+        [
+          "Remote Debugging",
+          "JDWP",
+          "Extreme (Blocks execution)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Analyze the Thread Dump: If logs are missing, look for thread contention or deadlocks using 'jstack'. Often, the 'missing' log is actually a thread blocked indefinitely on a locked monitor.",
+        "Inspect the Heap: Use 'jmap -dump:live,format=b,file=heap.bin <pid>' to capture a snapshot. Use Eclipse MAT to search for 'Inbound References' to objects that should have been processed but remain in memory, indicating a stalled pipeline.",
+        "Check NIO Selectors: In NIO-heavy applications, incomplete logs often mask a Selector 'spinning' or a closed channel that wasn't properly handled, causing the event loop to drop packets silently.",
+        "Review GC Logs: Sometimes 'missing' logs are simply a symptom of a long Stop-The-World (STW) pause where the application was unresponsive and failed to flush the logging buffer before the process was killed."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Example of a Byteman rule to log missing method arguments without redeploying\nRULE trace missing order details\nCLASS com.app.OrderProcessor\nMETHOD processOrder(Order)\nAT ENTRY\nIF true\nDO traceln(\"DEBUG: Order ID: \" + $1.getId() + \" Status: \" + $1.getStatus())\nENDRULE"
+    },
+    {
+      "type": "note",
+      "content": "A common trap for junior engineers is increasing log levels to DEBUG in production to 'catch' the bug. This is a production anti-pattern that can trigger a log-flooding DoS, exhaust disk IOPS, or cause massive GC pressure due to the allocation of thousands of short-lived String objects. Always prefer dynamic instrumentation or side-channel metrics over changing log levels in a live environment."
+    }
+  ],
+  "num": 1258,
+  "title": "How do you handle a production bug when logs are incomplete?",
+  "category": "Exception Handling & I/O / NIO"
+}

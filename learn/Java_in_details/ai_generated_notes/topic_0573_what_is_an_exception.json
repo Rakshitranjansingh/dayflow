@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the JVM ecosystem, an Exception is a runtime event that disrupts the normal flow of instruction execution. Unlike a simple error code return, Java's exception model leverages the call stack to propagate control flow interruptions until a handler is found. Exceptions are categorized into checked exceptions, which the compiler forces you to handle or declare, and unchecked exceptions (RuntimeExceptions), which represent programming errors or unrecoverable states. When an exception occurs, the JVM creates an Exception object, captures the current stack trace, and initiates a stack unwinding process. This mechanism is critical for maintaining system integrity; it ensures that if a database connection fails or a file is missing, the application does not continue in an inconsistent state, but instead jumps to a catch block or terminates gracefully."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Exception Type",
+        "Compiler Requirement",
+        "Typical Use Case"
+      ],
+      "rows": [
+        [
+          "Checked",
+          "Must catch or declare (throws)",
+          "Recoverable I/O or network issues"
+        ],
+        [
+          "Unchecked",
+          "Optional",
+          "NullPointer, IndexOutOfBounds, Logic bugs"
+        ],
+        [
+          "Error",
+          "None",
+          "JVM failure, OutOfMemory, StackOverflow"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Stack Unwinding: When an exception is thrown, the JVM traverses the call stack backwards, popping frames until it identifies a matching catch block or reaches the thread's uncaught exception handler.",
+        "Performance Overhead: Creating an exception object is expensive because the JVM must capture the entire stack trace, which involves walking the thread's execution frames. Avoid using exceptions for flow control.",
+        "Exception Transparency: In NIO, exceptions like IOException are frequently encountered. Proper handling involves closing resources via try-with-resources to prevent file descriptor leaks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void processFile(Path path) throws IOException {\n    // try-with-resources ensures the stream is closed even if an exception occurs\n    try (BufferedReader reader = Files.newBufferedReader(path)) {\n        String line = reader.readLine();\n        if (line == null) throw new IllegalStateException(\"File is empty\");\n    } catch (IOException e) {\n        logger.error(\"Failed to read file: {}\", path, e);\n        throw e; // Rethrowing to maintain abstraction integrity\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Never swallow exceptions by leaving catch blocks empty. If you catch an exception and cannot recover, rethrow it as a custom business exception or at least log the full stack trace. Furthermore, be wary of 'Exception Chaining'—always pass the original cause to the constructor of your new exception to ensure the root cause isn't lost during debugging."
+    }
+  ],
+  "num": 574,
+  "title": "What is an exception?",
+  "category": "Exception Handling & I/O / NIO"
+}

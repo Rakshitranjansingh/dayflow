@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Programmatic transactions using TransactionTemplate provide developers with fine-grained, explicit control over transaction boundaries within enterprise Java applications, contrasting sharply with declarative transaction management (@Transactional). In architectures that intersect with exception handling and I/O / NIO operations—such as reactive streams, asynchronous pipelines, or complex streaming file transfers—declarative approaches often fall short because proxies cannot easily intercept non-standard execution paths, or because scope boundaries must be explicitly narrowed to prevent long-lived connection holds during slow blocking or non-blocking I/O. TransactionTemplate eliminates the boilerplate of try-catch-finally blocks associated with low-level PlatformTransactionManager calls by encapsulating the transactional demarcation inside a functional callback pattern.\n\nAt its core, TransactionTemplate leverages a PlatformTransactionManager (such as DataSourceTransactionManager or JpaTransactionManager) to handle the lifecycle of a database transaction. When executing a transactional block, it retrieves a TransactionStatus, evaluates propagation behaviors and isolation levels configured on the template instance, executes the provided TransactionCallback or TransactionCallbackWithoutResult, and subsequently commits or rolls back based on whether an unchecked exception (or explicitly marked checked exception) propagates out of the callback. This programmatic approach ensures that I/O bottlenecks or custom exception-handling routines do not inadvertently leave database connections stranded in active states, thereby protecting connection pool capacity under high concurrency."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Declarative (@Transactional)",
+        "Programmatic (TransactionTemplate)"
+      ],
+      "rows": [
+        [
+          "Granularity",
+          "Method-level boundaries via AOP proxies",
+          "Line-level, fine-grained control within any method body"
+        ],
+        [
+          "Exception Handling",
+          "Declarative rollback rules via rollbackFor / noRollbackFor",
+          "Explicit programmatic rollback via status.setRollbackOnly()"
+        ],
+        [
+          "I/O & NIO Integration",
+          "Prone to thread-local context loss in async/reactive streams",
+          "Easily bound to specific execution scopes and callback blocks"
+        ],
+        [
+          "Boilerplate Code",
+          "None (annotation-driven)",
+          "Low to moderate (lambda-based callback structure)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "TransactionStatus Propagation: The TransactionTemplate inspects the current thread's transaction synchronization context, manages savepoints for nested transactions, and handles suspension of existing transactions depending on the configured Propagation behavior.",
+        "Callback Execution Lifecycle: Before invoking the callback, it initiates transaction creation via the transaction manager. Upon successful completion, it triggers commit triggers; if a RuntimeException is thrown, it executes a programmatic rollback.",
+        "NIO and Exception Interoperability: When dealing with NIO channels or custom exception handlers, TransactionTemplate allows developers to catch specific low-level IOExceptions, handle them locally, and selectively dictate whether the transaction should persist or abort using status.setRollbackOnly()."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class StreamImportService {\n\n    private final TransactionTemplate transactionTemplate;\n    private final JdbcTemplate jdbcTemplate;\n\n    public StreamImportService(PlatformTransactionManager transactionManager, JdbcTemplate jdbcTemplate) {\n        this.transactionTemplate = new TransactionTemplate(transactionManager);\n        this.transactionTemplate.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);\n        this.transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRED);\n        this.jdbcTemplate = jdbcTemplate;\n    }\n\n    public void processDataStream(ReadableByteChannel channel) {\n        transactionTemplate.execute(status -> {\n            try {\n                ByteBuffer buffer = ByteBuffer.allocate(1024);\n                while (channel.read(buffer) != -1) {\n                    buffer.flip();\n                    // Perform batch I/O and database operations\n                    jdbcTemplate.update(\"INSERT INTO staging_data (payload) VALUES (?)\", buffer.toString());\n                    buffer.clear();\n                }\n            } catch (IOException e) {\n                // Mark rollback explicitly upon I/O failure\n                status.setRollbackOnly();\n                throw new UncheckedIOException(e);\n            }\n            return null;\n        });\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Production Gotcha: When combining TransactionTemplate with NIO or asynchronous executors, beware of ThreadLocal context leakage. Transaction synchronization and transaction status are bound to the calling thread via TransactionSynchronizationManager. If you hand off database writes inside the TransactionTemplate callback to a separate non-blocking event loop or thread pool without explicitly propagating the transaction context, the inner operations will execute outside the transaction boundary, leading to silent consistency failures or missing connection errors."
+    }
+  ],
+  "num": 237,
+  "title": "Programmatic transactions (TransactionTemplate)",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Spring Boot, a test slice is a specialized testing mechanism designed to load only a curated, domain-specific subset of the application context instead of spinning up the entire heavy-duty root ApplicationContext via @SpringBootTest. When writing integration tests for large enterprise systems, loading every single bean, configuration class, and third-party starter can degrade test execution speed and bloat memory overhead. Test slices solve this by leveraging meta-annotations annotated with @BootstrapWith and @ImportAutoConfiguration, which selectively filter the auto-configuration classes and candidate components registered in the BeanFactory.\n\nAt the core of test slices are specialized annotations like @WebMvcTest, @DataJpaTest, @JsonTest, and @RestClientTest. Each slice targets a distinct architectural tier. For example, @WebMvcTest restricts the classpath scan to Spring MVC controllers, controller advice, filters, and WebMvcConfigurer beans, entirely omitting persistence layers, service beans, and security chains unless explicitly mocked or imported. Similarly, @DataJpaTest configures an embedded database, registers Hibernate and Spring Data repositories, and disables full-context component scanning, giving developers a rapid feedback loop for data access logic without touching external infrastructure."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Annotation",
+        "Target Layer",
+        "Default Component Scanning",
+        "Auto-Configurations Loaded"
+      ],
+      "rows": [
+        [
+          "@SpringBootTest",
+          "Full Application",
+          "Entire root package",
+          "All discovered auto-configurations"
+        ],
+        [
+          "@WebMvcTest",
+          "Presentation / Controller",
+          "Controllers, Filters, Handlers",
+          "MVC, Jackson, Validation auto-configs"
+        ],
+        [
+          "@DataJpaTest",
+          "Persistence / Data Access",
+          "Repositories, @Entity classes",
+          "DataSource, JPA, Hibernate, JDBC auto-configs"
+        ],
+        [
+          "@JsonTest",
+          "Serialization / JSON",
+          "Jackson modules, @JsonComponent",
+          "Jackson, Gson, Jsonb auto-configs"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Test slices dynamically modify the BeanFactory PostProcessor phase by scanning only for specific marker annotations or filtering out irrelevant auto-configuration candidates via exclusion filters defined in META-INF/spring.factories or spring/autoconfigure.imports.",
+        "They automatically configure an embedded database (like H2 or HSQLDB) for persistence slices unless overridden, and wrap database interactions in a transaction by default, rolling back changes after each test method execution.",
+        "They provide dedicated test-scoped infrastructure beans (such as MockMvc for web slices or TestEntityManager for JPA slices) pre-injected into the test class, removing the need for manual setup boilerplate."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@WebMvcTest(UserController.class)\npublic class UserControllerTest {\n\n    @Autowired\n    private MockMvc mockMvc;\n\n    @MockBean\n    private UserService userService;\n\n    @Test\n    public void shouldReturnUserById() throws Exception {\n        User mockUser =new User(1L, \"Jane Doe\");\n        given(userService.findById(1L)).willReturn(Optional.of(mockUser));\n\n        mockMvc.perform(get(\"/api/users/1\")\n                .accept(MediaType.APPLICATION_JSON))\n                .andExpect(status().isOk())\n                .andExpect(jsonPath(\"$.name\").value(\"Jane Doe\"));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha with test slices is mistakenly injecting beans that belong to an excluded layer. For instance, using @WebMvcTest means your @Service and @Repository beans are NOT loaded into the ApplicationContext; attempting to @Autowired them directly will cause a NoSuchBeanDefinitionException unless you use @MockBean to supply a mock substitute, or explicitly use @Import to pull in the specific service class."
+    }
+  ],
+  "num": 1159,
+  "title": "What is test slice in Spring Boot?",
+  "category": "Spring Boot & Spring Framework"
+}

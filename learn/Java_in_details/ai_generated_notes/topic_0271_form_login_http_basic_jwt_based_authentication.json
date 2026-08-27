@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Securing modern enterprise applications requires navigating a landscape of distinct authentication mechanisms, each serving unique architectural topologies. Form login is the quintessential stateful browser-based entry point, leveraging traditional username and password credentials submitted via an HTML form to establish a server-side HttpSession, which is subsequently tracked via a JSESSIONID cookie. This mechanism is deeply coupled to monolithic or server-rendered architectures where the backend maintains conversational state for the duration of the user session.\n\nHTTP Basic authentication, defined in RFC 7617, strips away HTML views in favor of a stateless, header-driven protocol. The client base64-encodes the credentials in the format username:password and transmits them within the Authorization header on every single request. While trivial to implement and natively supported by almost all HTTP clients, it is notoriously insecure over unencrypted channels and forces the client to persistently cache and re-transmit sensitive credentials.\n\nJWT-based authentication (JSON Web Token, RFC 7519) represents the modern standard for decentralized, stateless architectures like Single Page Applications (SPAs) and microservices. Instead of storing session state on the server or re-sending credentials, the server validates the initial credentials and issues a cryptographically signed token containing claims regarding the user's identity and authorities. Subsequent requests carry this token in the Bearer authorization header, allowing any downstream service possessing the public key or shared secret to validate the caller's identity without querying a central session store or database."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Form Login",
+        "HTTP Basic",
+        "JWT-based Auth"
+      ],
+      "rows": [
+        [
+          "State Management",
+          "Stateful (HttpSession / Cookie)",
+          "Stateless (Credentials sent every time)",
+          "Stateless (Signed token claims)"
+        ],
+        [
+          "Primary Client",
+          "Web Browsers (HTML Forms)",
+          "API Clients, Scripts, Testing tools",
+          "SPAs, Mobile Apps, Microservices"
+        ],
+        [
+          "Credential Exposure",
+          "Exposed only on initial login request",
+          "Exposed on every single request",
+          "Exposed initially; token exposed thereafter"
+        ],
+        [
+          "Revocation",
+          "Immediate via HttpSession invalidation",
+          "Immediate via credential rotation",
+          "Complex (requires token blacklist or short TTL)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Form login registers a UsernamePasswordAuthenticationFilter in the Spring Security filter chain, extracting parameters from HttpServletRequest and passing an unauthenticated Authentication object to the AuthenticationManager.",
+        "HTTP Basic authentication relies on the BasicAuthenticationFilter, which parses the Authorization header, decodes the base64 payload, and populates the SecurityContextHolder if validation succeeds.",
+        "JWT-based authentication bypasses default security filters by introducing a custom OncePerRequestFilter that intercepts incoming Bearer tokens, validates cryptographic signatures using libraries like JJWT or Nimbus, and builds an authenticated UsernamePasswordAuthenticationToken manually.",
+        "Stateless architectures using JWT completely disable HttpSession creation via SessionCreationPolicy.STATELESS in the SecurityFilterChain configuration, preventing Spring Security from retaining any server-side security context."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\npublic class SecurityConfig {\n\n    @Bean\n    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {\n        http\n            .csrf(csrf -> csrf.disable())\n            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))\n            .authorizeHttpRequests(auth -> auth\n                .requestMatchers(\"/api/auth/**\").permitAll()\n                .anyRequest().authenticated()\n            )\n            .httpBasic(Customizer.withDefaults())\n            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);\n            \n        return http.build();\n    }\n\n    @Bean\n    public JwtAuthenticationFilter jwtAuthenticationFilter() {\n        return new JwtAuthenticationFilter();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A critical production pitfall with JWTs is the lack of native server-side revocation. Because JWTs are self-contained, a compromised token remains valid until its expiration timestamp (exp) unless you implement a distributed token blacklist via Redis or enforce exceptionally short expiration windows paired with sliding refresh token rotation patterns."
+    }
+  ],
+  "num": 272,
+  "title": "Form login, HTTP Basic, JWT-based authentication",
+  "category": "Spring Security & Web Security"
+}

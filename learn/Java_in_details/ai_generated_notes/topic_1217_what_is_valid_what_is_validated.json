@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Jakarta Bean Validation ecosystem, @Valid and @Validated serve distinct roles in ensuring data integrity before business logic execution. @Valid is the standard JSR-380 annotation. It is a core part of the Bean Validation specification, designed for recursive validation. When you annotate a field or a method parameter with @Valid, the validation engine triggers a cascading check on the object's internal constraints. It is the go-to choice for validating nested objects within a DTO or ensuring that a request body is fully compliant with defined constraints like @NotNull or @Size. Because it is part of the standard, it is portable across different Java EE or Jakarta EE implementations, such as Hibernate Validator.\n\n@Validated, conversely, is a Spring-specific annotation. It extends the capabilities of @Valid by adding support for validation groups. In complex enterprise applications, you often need to validate the same object differently depending on the context—for instance, requiring a field during creation but allowing it to be null during an update. @Validated allows you to specify these groups, which the validator will respect during the inspection process. Furthermore, @Validated is required if you want to perform method-level validation on Spring beans (e.g., validating arguments of a service method) because it triggers Spring's MethodValidationPostProcessor, which @Valid alone cannot do at the class level."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "@Valid",
+        "@Validated"
+      ],
+      "rows": [
+        [
+          "Origin",
+          "Jakarta Bean Validation (JSR-380)",
+          "Spring Framework"
+        ],
+        [
+          "Validation Groups",
+          "Not supported",
+          "Supported"
+        ],
+        [
+          "Method-level validation",
+          "Requires @Validated on class",
+          "Supported via @Validated on class"
+        ],
+        [
+          "Cascading validation",
+          "Supported",
+          "Supported"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The @Valid annotation triggers the validation engine to traverse the object graph. If a field is marked with @Valid, the validator will recursively validate the nested object's constraints.",
+        "Spring's @Validated is processed by the MethodValidationPostProcessor. When placed on a class, it instructs Spring to create a proxy around that bean to intercept method calls and validate parameters before the method body executes.",
+        "Validation groups are defined as marker interfaces. By passing these interfaces to @Validated(CreateGroup.class), you instruct the validator to ignore any constraints not explicitly assigned to that group."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class UserRequest {\n    @NotNull(groups = {OnCreate.class})\n    private String username;\n\n    @Valid // Cascades validation to the nested Address object\n    private Address address;\n}\n\n@Service\n@Validated // Enables method-level validation for this bean\npublic class UserService {\n    public void updateUser(@Validated(OnUpdate.class) UserRequest request) {\n        // Logic here\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is assuming @Valid works on Spring beans without additional configuration. If you try to use @Valid on a service method parameter without the class-level @Validated annotation, the validation will simply be ignored, leading to silent failures where invalid data reaches your database. Always verify that your MethodValidationPostProcessor bean is registered in your Spring context if you intend to use validation outside of the Controller layer."
+    }
+  ],
+  "num": 1218,
+  "title": "What is @Valid? What is @Validated?",
+  "category": "Core Java & Fundamentals"
+}

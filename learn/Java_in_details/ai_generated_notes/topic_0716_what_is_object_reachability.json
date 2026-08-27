@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Object reachability in Java is the fundamental mechanism by which the Garbage Collector (GC) determines whether an object in the heap is actively needed by the application or can safely have its memory reclaimed. Rather than relying on explicit memory deallocation like C++, the Java Virtual Machine continuously assesses an object's state relative to the execution context by traversing a directed graph of references starting from GC Roots—such as local variables on thread stacks, active static variables, JNI global references, and active synchronization monitors. An object is considered reachable if there exists a directed path of active references from at least one GC Root to that object. Conversely, when an object loses all such paths, it becomes unreachable (or eligible for collection), though the exact timing of its finalization and memory sweep is non-deterministic and managed entirely by generational or concurrent garbage collection algorithms.\n\nJava provides a nuanced continuum of reachability states through the java.lang.ref package, allowing developers to hint at their caching or resource-management intentions to the GC. These states range from strongly reachable (the default state where an object can be accessed directly or via a chain of ordinary object references without any intervening reference objects) down to softly reachable, weakly reachable, and phantomly reachable. Softly reachable objects are collected only when the JVM is critically low on memory, making them ideal for memory-sensitive caches. Weakly reachable objects are scrubbed at the very next GC cycle, serving scenarios like WeakHashMap where keys should not prevent garbage collection. Finally, phantomly reachable objects have already been stripped of their finalization structures and are tracked primarily to schedule post-mortem cleanup actions via ReferenceQueues, preventing memory leaks in native resource wrappers."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Reachability Level",
+        "Reference Type",
+        "Collection Timing",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "Strongly Reachable",
+          "Ordinary References",
+          "Never collected while reachable",
+          "Standard application objects and state variables"
+        ],
+        [
+          "Softly Reachable",
+          "java.lang.ref.SoftReference",
+          "Collected before OutOfMemoryError",
+          "In-memory caches that can be regenerated"
+        ],
+        [
+          "Weakly Reachable",
+          "java.lang.ref.WeakReference",
+          "Collected at the next GC cycle",
+          "Metadata associations, WeakHashMap keys"
+        ],
+        [
+          "Phantomly Reachable",
+          "java.lang.ref.PhantomReference",
+          "Collected; queued after finalization",
+          "Safe cleanup of native memory buffers (DirectByteBuffers)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "GC Roots form the absolute starting point of reachability analysis, comprising thread stack frames (local variables and parameters), JNI local and global references, classes loaded by the system class loader, and active monitor locks.",
+        "The Garbage Collector periodically performs reachability analysis using algorithms like tri-color marking, painting objects white (unvisited), grey (visited with unvisited children), and black (visited with all children evaluated) to isolate unreachable white objects.",
+        "Reference objects themselves are processed specially by the JVM: when the collector discovers that the referent's reachability has dropped to the corresponding level (e.g., weak), it clears the reference and enqueues it onto an associated ReferenceQueue for application-level cleanup handling."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.lang.ref.ReferenceQueue;\nimport java.lang.ref.WeakReference;\n\npublic class ReachabilityDemo {\n    public static void main(String[] args) throws InterruptedException {\n        byte[] heavyData = new byte[1024 * 1024 * 10]; // 10MB allocation\n        ReferenceQueue<byte[]> queue = new ReferenceQueue<>();\n        WeakReference<byte[]> weakRef = new WeakReference<>(heavyData, queue);\n\n        System.out.println(\"Before dropping strong reference: \" + weakRef.get());\n\n        // Drop the only strong reference to heavyData\n        heavyData = null;\n\n        // Suggest garbage collection (non-deterministic)\n        System.gc();\n        Thread.sleep(100);\n\n        System.out.println(\"After GC and dropping strong reference: \" + weakRef.get());\n        if (queue.poll() != null) {\n            System.out.println(\"Object has been garbage collected and enqueued.\");\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap with reachability involves premature reference clearing and finalize/Cleaner interactions. If you override finalize() or misuse PhantomReferences without draining the associated ReferenceQueue, you can easily cause native memory leaks or object resurrection issues where an object becomes strongly reachable again during its finalizer execution. Furthermore, never rely on System.gc() to force a reachability transition in production code; it is merely a hint to the JVM and can severely degrade performance."
+    }
+  ],
+  "num": 717,
+  "title": "What is object reachability?",
+  "category": "Core Java & Fundamentals"
+}

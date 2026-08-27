@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "HTTP caching is a foundational mechanism for reducing latency, minimizing network bandwidth consumption, and scaling web architectures. When building robust backend applications, leveraging standard caching headers allows intermediate proxies, content delivery networks (CDNs), and client browsers to determine whether a stored representation of a resource is still fresh or if it must be re-fetched. To achieve this, HTTP/1.1 relies on a symbiotic relationship between freshness directives and validation tokens. Cache-Control serves as the primary header governing overall caching behavior, offering fine-grained directives like max-age, no-cache, no-store, public, and private. It instructs the client and intermediaries on how long a resource can be safely cached and under what security constraints it can be stored.\n\nHowever, freshness has an expiration date. Once a resource is stale, the application needs a mechanism for conditional requests to avoid downloading redundant payloads. This is where ETag (Entity Tag) and Last-Modified come into play. Last-Modified is a timestamp-based validator indicating the exact point in time the resource was last updated on the server. When a client makes a subsequent request, it sends this timestamp back via the If-Modified-Since header. If the server resource hasn't changed, a lightweight 304 Not Modified response is returned with an empty body, saving significant network I/O.\n\nETag addresses the inherent limitations of timestamp granularity and clock skew by providing an opaque, cryptographically derived identifier or hash of the resource's current state (e.g., content hash or database version number). ETag validation happens via the If-None-Match request header. ETags can be strong or weak: strong ETags guarantee byte-for-byte identical representation, while weak ETags (prefixed with W/) indicate that the semantic meaning is identical even if minor formatting or byte-level shifts have occurred. Mastering how Cache-Control, ETag, and Last-Modified interact allows engineers to construct high-throughput REST APIs that gracefully handle heavy traffic spikes while maintaining strict data consistency."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Header / Directive",
+        "Primary Purpose",
+        "Validation Mechanism",
+        "Granularity / Type"
+      ],
+      "rows": [
+        [
+          "Cache-Control",
+          "Governs freshness and storage rules (max-age, no-cache)",
+          "Directives parsed directly by client/proxy",
+          "Directives / Time duration"
+        ],
+        [
+          "Last-Modified",
+          "Indicates exact filesystem/database update timestamp",
+          "If-Modified-Since request header",
+          "Timestamp (Second precision)"
+        ],
+        [
+          "ETag",
+          "Provides a unique hash/identifier for resource state",
+          "If-None-Match request header",
+          "Opaque String (Strong or Weak)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Cache-Control directives take strict precedence over legacy headers like Expires; max-age calculates relative expiration time from the moment the response is generated, bypassing client clock drift issues.",
+        "Conditional requests bypass full payload generation by short-circuiting the request lifecycle in filters or interceptors, returning an HTTP 304 status code with zero body bytes.",
+        "Strong ETags are typically generated using cryptographic hashes (like SHA-256) of the response body, though calculating hashes for large payloads introduces CPU overhead.",
+        "Weak ETags prefixed with 'W/' allow semantic caching equivalence, which is heavily leveraged for compressed responses or dynamic layouts where whitespace might slightly shift."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/documents\")\npublic class DocumentController {\n\n    @GetMapping(\"/{id}\")\n    public ResponseEntity<Document> getDocument(@PathVariable Long id, WebRequest request) {\n        Document doc = documentService.findById(id);\n        \n        // Compute strong ETag based on document version or content hash\n        String eTag = \"\\\"\" + doc.getVersionHash() + \"\\\"\";\n        long lastModified = doc.getUpdatedAt().toInstant().toEpochMilli();\n\n        // Check if-none-match and if-modified-since headers via Spring's built-in check\n        if (request.checkNotModified(eTag, lastModified)) {\n            return null; // Spring automatically sets 304 Not Modified status and clears body\n        }\n\n        return ResponseEntity.ok()\n                .cacheControl(CacheControl.maxAge(Duration.ofHours(1)).public())\n                .eTag(eTag)\n                .lastModified(lastModified)\n                .body(doc);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is mixing strong ETags with dynamic infrastructure like load balancers or multi-instance clustering. If Instance A generates an ETag using local memory state or a timestamp, and Instance B generates a slightly different hash for the same logical resource, users hitting round-robin load balancers will experience cache misses and erratic validation loops. Always ensure ETag generation is deterministically derived from canonical database state or shared content hashes across all horizontal instances."
+    }
+  ],
+  "num": 1181,
+  "title": "Explain standard HTTP caching headers (Cache-Control, ETag, Last-Modified).",
+  "category": "Core Java & Fundamentals"
+}

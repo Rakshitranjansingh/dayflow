@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Framework, stereotyping classes is the primary mechanism for declaring beans via component scanning rather than explicit XML or Java configuration. A stereotype annotation is a specialized meta-annotation that decorates a class to indicate that it plays a specific role in the application architecture, fulfilling the contract of the Dependency Injection container. While functionally identical at runtime—as they all ultimately register a BeanDefinition with the BeanFactory—they carry immense semantic and architectural value.\n\nThe root of all stereotypes is `@Component`, a generic marker for any Spring-managed component. However, as enterprise architectures grew, the Spring team introduced specialized semantic variants: `@Service`, `@Repository`, and `@Controller`. Each of these annotations is meta-annotated with `@Component`, meaning Spring's classpath scanner treats them with the exact same bean-creation lifecycle. The true differentiator lies in how infrastructure components, persistence exception translators, and aspect-oriented programming (AOP) pointcuts target them.\n\nThe `@Service` annotation denotes a business-layer component. While it currently does not add specialized behavior beyond `@Component`, it signals intent to human maintainers and leaves the door open for future framework optimizations, such as declarative transaction management pointcuts. The `@Repository` annotation serves the persistence layer and triggers Spring's powerful PersistenceExceptionTranslationPostProcessor. This translation mechanism automatically catches vendor-specific database exceptions (like SQLException from JDBC or Hibernate exceptions) and translates them into a unified, unchecked DataAccessException hierarchy, decoupling your business logic from underlying persistence technologies. Finally, the `@Controller` annotation identifies a web controller in Spring MVC. Beyond bean registration, it informs the DispatcherServlet that the class is eligible for handling incoming HTTP requests, often working in tandem with request-mapping handlers and view resolvers."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Annotation",
+        "Architectural Layer",
+        "Special Framework Behavior",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "@Component",
+          "General / Any",
+          "None (Base stereotype)",
+          "Utility classes or generic beans that don't fit specific layers"
+        ],
+        [
+          "@Service",
+          "Business Layer",
+          "Semantic intent (potential AOP targets)",
+          "Service-layer business logic and transactional boundaries"
+        ],
+        [
+          "@Repository",
+          "Persistence Layer",
+          "Automatic DataAccessException translation",
+          "Data access objects (DAOs), repositories interacting with databases"
+        ],
+        [
+          "@Controller",
+          "Web Layer",
+          "Integration with Spring MVC DispatcherServlet",
+          "Handling HTTP requests, returning views or REST responses"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Classpath Scanning: Spring's ClassPathBeanDefinitionScanner discovers stereotype annotations by inspecting class bytecode during startup using the ASM library, avoiding the performance overhead of loading every class via standard reflection.",
+        "Meta-Annotation Inheritance: Because @Service, @Repository, and @Controller are meta-annotated with @Component, you can write custom annotations that combine multiple traits (e.g., combining @Service and @Transactional into a single composite annotation).",
+        "Persistence Exception Translation: The @Repository annotation forces Spring to create a bean post-processor proxy around the class, intercepting native database exceptions and rethrowing them as runtime DataAccessExceptions to maintain architecture purity."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.enterprise.banking.service;\n\nimport com.enterprise.banking.repository.AccountRepository;\nimport org.springframework.stereotype.Service;\nimport org.springframework.transaction.annotation.Transactional;\n\n@Service\npublic class AccountServiceImpl implements AccountService {\n\n    private final AccountRepository accountRepository;\n\n    public AccountServiceImpl(AccountRepository accountRepository) {\n        this.accountRepository = accountRepository;\n    }\n\n    @Override\n    @Transactional\n    public void transferFunds(Long sourceId, Long targetId, double amount) {\n        accountRepository.decrementBalance(sourceId, amount);\n        accountRepository.incrementBalance(targetId, amount);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is swapping out @Repository for @Component on a data access bean thinking 'they do the same thing.' Doing this breaks exception translation; your service layer will suddenly start catching raw, vendor-locked SQLExceptions or Hibernate exceptions instead of Spring's unified DataAccessException hierarchy, tightly coupling your business logic to your database vendor."
+    }
+  ],
+  "num": 769,
+  "title": "@Component vs @Service vs @Repository vs @Controller? What is a stereotype annotation?",
+  "category": "Exception Handling & I/O / NIO"
+}

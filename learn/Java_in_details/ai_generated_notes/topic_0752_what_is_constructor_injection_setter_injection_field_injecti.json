@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Dependency Injection (DI) is a core design pattern in modern software engineering, particularly within the Spring Framework, facilitating inversion of control (IoC) between classes and their dependencies. When wiring components together, developers choose among three primary strategies: constructor injection, setter injection, and field injection. Constructor injection involves passing required collaborators through a class constructor, explicitly enforcing immutability and guaranteed initialization. Setter injection passes dependencies via standard JavaBean setter methods, designed primarily for optional configurations or runtime reconfiguration. Field injection uses Java reflection to inject dependencies directly into member fields, bypassing constructors and accessors entirely.\n\nWhile field injection gained widespread popularity due to its brevity—often accomplished simply by annotating a private field with @Autowired—it is heavily discouraged in production-grade software engineering. Field injection conceals tightly coupled design, obscures circular dependencies until runtime instantiation, violates encapsulation by breaking immutability invariants, and tightly couples the class to a specific DI container, making native unit testing without framework bootstrapping nearly impossible."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Dependency Injection Type",
+        "Immutability Support",
+        "Null Safety",
+        "Testability"
+      ],
+      "rows": [
+        [
+          "Constructor Injection",
+          "High (fields can be final)",
+          "Guaranteed (fail-fast at startup)",
+          "High (pure Java instantiation)"
+        ],
+        [
+          "Setter Injection",
+          "Low (fields mutable)",
+          "Optional / Potential NullPointerException",
+          "Medium (requires setter calls)"
+        ],
+        [
+          "Field Injection",
+          "None (fields mutable, reflection-based)",
+          "Concealed until runtime usage",
+          "Low (requires container or reflection helpers)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Constructor injection allows fields to be marked as final, guaranteeing thread safety and immutability throughout the lifecycle of the instantiated bean.",
+        "Field injection uses reflection (specifically Field.set(Object, Object)) to bypass access modifiers, hiding architectural complexity and masking excessively large class designs that indicate violation of the Single Responsibility Principle.",
+        "Circular dependencies manifest immediately as a BeanCurrentlyInCreationException at application startup under constructor injection, whereas field injection can silently mask them or throw unexpected runtime failures."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderService {\n\n    // Recommended: Constructor Injection with final immutability\n    private final PaymentClient paymentClient;\n    private final InventoryRepository inventoryRepository;\n\n    public OrderService(PaymentClient paymentClient, InventoryRepository inventoryRepository) {\n        this.paymentClient = paymentClient;\n        this.inventoryRepository = inventoryRepository;\n    }\n\n    public void processOrder(Order order) {\n        paymentClient.charge(order.getAmount());\n        inventoryRepository.decrementStock(order.getItems());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Relying on field injection makes unit testing tedious because you cannot instantiate the class using a standard 'new OrderService()' without mocking the framework container or using Mockito's @MockAnnotations.initMocks(). Furthermore, if you refactor your class to add a new mandatory dependency and forget to annotate the field, the application will compile successfully and only throw a NullPointerException when that specific code path is executed in production."
+    }
+  ],
+  "num": 753,
+  "title": "What is constructor injection? Setter injection? Field injection — why is it discouraged?",
+  "category": "Exception Handling & I/O / NIO"
+}

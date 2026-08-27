@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed messaging architectures, a Dead Letter Queue (DLQ) serves as a specialized holding repository for messages that cannot be successfully processed or delivered by a consumer application. When message-driven systems encounter intermittent network partitions, database deadlocks, or malformed JSON payloads, consumers typically rely on retry mechanisms with exponential backoff. However, without a DLQ, a perpetually failing message would either cause an infinite consumption loop, poison the queue by blocking subsequent messages, or be permanently lost due to a discarded unhandled exception. The DLQ pattern intercepts these poison pill messages after a designated maximum redelivery threshold is breached, routing them safely out of the primary ingestion pipeline.\n\nHandling failed messages effectively involves more than simply dropping them into a secondary queue; it requires a robust operational strategy encompassing automatic routing, persistent storage, alerting, and remediation tooling. When a message is routed to a DLQ, it usually carries critical metadata headers injected by the message broker—such as the original queue name, the timestamp of the final failure, the exception message, and the total retry count. Senior engineers design DLQ management pipelines to trigger real-time alerts via monitoring systems like Prometheus and PagerDuty when throughput on the DLQ spikes. From there, mitigation strategies typically branch into three paths: manual inspection and replay via developer consoles, automated administrative scripts that parse and fix corrupt payloads before pushing them back to the main queue, or permanent archival to cold storage for audit and compliance analytics."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Handling Strategy",
+        "Pros",
+        "Cons"
+      ],
+      "rows": [
+        [
+          "Automated Requeue",
+          "Zero human intervention required; recovers from transient downstream outages.",
+          "Can lead to endless loops or retry storms if the underlying root cause is not fixed."
+        ],
+        [
+          "Manual Inspection & Replay",
+          "Allows engineers to inspect state, fix data bugs, and selectively replay safe messages.",
+          "High operational overhead; delays resolution time during critical incidents."
+        ],
+        [
+          "Discard & Log (Drop)",
+          "Protects downstream pipeline throughput from being blocked by bad data.",
+          "Permanent data loss; unacceptable for financial or audit-trail transactions."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Poison pill isolation: Prevents a single malformed message from triggering continuous re-delivery loops that consume CPU resources and starve healthy messages.",
+        "Message metadata enrichment: Brokers like RabbitMQ and AWS SQS append specific X-Death or failure attribute headers to track the exact lineage and failure history of a quarantined message.",
+        "Idempotency enforcement: Replaying messages from a DLQ back into the primary queue requires downstream consumers to be strictly idempotent to avoid duplicate mutations or data corruption.",
+        "Alerting thresholds: Monitoring systems must alert on absolute DLQ size and velocity rather than just presence, as a single dropped message during a test run differs drastically from a flood of failing production transactions."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RabbitListener(queues = \"primary.queue\")\npublic class OrderConsumer {\n\n    private static final Logger log = LoggerFactory.getLogger(OrderConsumer.class);\n\n    @Autowired\n    private OrderProcessingService orderService;\n\n    @RabbitHandler\n    public void handleOrder(OrderPayload payload, Channel channel, @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {\n        try {\n            orderService.process(payload);\n            channel.basicAck(deliveryTag, false);\n        \\} catch (TransientDatabaseException e) {\n            log.warn(\"Transient failure processing order {}. Requeuing for retry.\", payload.getOrderId(), e);\n            // Requeue=false routes the message to the configured Dead Letter Exchange (DLX)\n            channel.basicNack(deliveryTag, false, false);\n        \\} catch (Exception e) {\n            log.error(\"Permanent failure processing order {}. Dropping to DLQ.\", payload.getOrderId(), e);\n            channel.basicReject(deliveryTag, false);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern is writing a consumer that automatically reads from the DLQ and pushes messages directly back to the primary queue without fixing the underlying bug. This creates a high-speed infinite processing loop that exhausts CPU and fills disk logs. Always isolate DLQ consumers behind manual administrative tooling or implement a robust exponential backoff quarantine layer before attempting automated retries."
+    }
+  ],
+  "num": 941,
+  "title": "What is a Dead Letter Queue (DLQ)? How do you handle failed messages?",
+  "category": "Core Java & Fundamentals"
+}

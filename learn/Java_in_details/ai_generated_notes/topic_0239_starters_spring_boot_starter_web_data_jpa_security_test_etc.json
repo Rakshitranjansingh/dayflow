@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Boot Starters are a curated set of convenient dependency descriptors that you can include in your application. They act as all-inclusive integration packages, solving the historical 'dependency hell' of Enterprise Java where developers had to manually track compatible versions of dozens of third-party libraries. When diving into Spring Boot, the ecosystem relies heavily on specialized starters to bootstrap specific architectural layers. Specifically, spring-boot-starter-web sets up an embedded web container—typically Apache Tomcat—along with Spring MVC and Jackson for JSON serialization. Meanwhile, data-jpa (spring-boot-starter-data-jpa) bridges the object-oriented domain model with relational databases, bundling Hibernate, HikariCP connection pooling, Spring Data Commons, and Jakarta Persistence APIs. The security starter (spring-boot-starter-security) activates a robust, filter-chain-based authentication and authorization mechanism out of the box, while the test starter (spring-boot-starter-test) aggregates testing powerhouses like JUnit 5, Mockito, AssertJ, and Spring Test into a single cohesive unit.\n\nBeneath the surface, these starters leverage Spring Boot's powerful auto-configuration mechanism, primarily driven by the @EnableAutoConfiguration annotation and META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports files. When a starter is added to your build path, the auto-configuration engine evaluates conditional annotations such as @ConditionalOnClass, @ConditionalOnMissingBean, and @ConditionalOnProperty. For instance, data-jpa detects the presence of Hibernate and a DataSource implementation on the classpath, automatically spinning up an EntityManagerFactory and a PlatformTransactionManager without requiring explicit XML configurations or verbose Java-based bean declarations."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Starter Artifact",
+        "Primary Core Dependencies",
+        "Auto-Configured Components"
+      ],
+      "rows": [
+        [
+          "spring-boot-starter-web",
+          "spring-web, spring-webmvc, tomcat-embed-core, jackson-databind",
+          "DispatcherServlet, CharacterEncodingFilter, ObjectMapper, Embedded Tomcat"
+        ],
+        [
+          "spring-boot-starter-data-jpa",
+          "spring-data-jpa, hibernate-core, hikariCP, jakarta.persistence-api",
+          "EntityManagerFactory, PlatformTransactionManager, HikariDataSource, JpaRepository proxies"
+        ],
+        [
+          "spring-boot-starter-security",
+          "spring-security-config, spring-security-web, spring-security-core",
+          "SecurityFilterChain, BCryptPasswordEncoder, AuthenticationManager"
+        ],
+        [
+          "spring-boot-starter-test",
+          "junit-jupiter, mockito-core, assertj-core, spring-test",
+          "MockMvc, TestEntityManager, Mockito beans, SpringBootTest context loader"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Starters contain zero application code; they are pure Maven or Gradle dependency descriptors designed to aggregate transitive libraries into a synchronized version tree managed by the Spring Boot parent BOM.",
+        "Auto-configuration classes evaluate environmental conditions lazily at startup, meaning dropping a starter onto the classpath only activates beans if user-defined equivalents are absent (via @ConditionalOnMissingBean).",
+        "The data-jpa starter defaults to creating an in-memory H2 database if no explicit JDBC URL is provided, speeding up rapid prototyping while requiring explicit overrides for production database dialects.",
+        "The security starter intercepts every incoming HTTP request by default, requiring you to define a custom SecurityFilterChain bean to carve out public endpoints like actuator health checks or swagger documentation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.demo;\n\nimport org.springframework.boot.SpringApplication;\nimport org.springframework.boot.autoconfigure.SpringBootApplication;\nimport org.springframework.context.annotation.Bean;\nimport org.springframework.security.config.annotation.web.builders.HttpSecurity;\nimport org.springframework.security.web.SecurityFilterChain;\n\n@SpringBootApplication\npublic class DemoApplication {\n\n    public static void main(String[] args) {\n        SpringApplication.run(DemoApplication.class, args);\n    }\n\n    @Bean\n    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {\n        http\n            .csrf(csrf -> csrf.disable())\n            .authorizeHttpRequests(auth -> auth\n                .requestMatchers(\"/api/public/**\").permitAll()\n                .anyRequest().authenticated()\n            )\n            .httpBasic(httpBasic -> {});\n        return httpBasic;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production gotcha when combining spring-boot-starter-web and spring-boot-starter-data-jpa is the Open Session in View (OSIV) pattern, which Spring Boot enables by default. OSIV keeps the Hibernate Session open through the duration of the entire HTTP request to render lazy-loaded associations in the view layer. While convenient, this ties up database connections from the HikariCP pool longer than necessary, risking thread starvation under high concurrency. Always evaluate whether you need OSIV disabled (spring.jpa.open-in-view=false) and fetch your data explicitly using JOIN FETCH queries in your service layer."
+    }
+  ],
+  "num": 240,
+  "title": "Starters — spring-boot-starter-web, data-jpa, security, test, etc.",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

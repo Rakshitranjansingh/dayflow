@@ -1,0 +1,70 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Java concurrency primitives in the `java.util.concurrent` package provide advanced coordination patterns that go beyond basic synchronized blocks and explicit ReentrantLocks. When orchestrating multi-threaded architectures, managing thread phase transitions, capacity constraints, data swaps, and transactional milestones requires robust synchronizers. CountDownLatch acts as a one-shot gatekeeper, allowing one or more threads to wait until a set of operations performed in other threads completes. It uses an internal state counter that decrements to zero, after which all awaiting threads are released permanently without the ability to reset.\n\nCyclicBarrier solves a different architectural challenge by enabling a fixed number of threads to repeatedly wait for each other to reach a common execution point, known as a barrier action. Unlike a latch, a barrier is cyclic—it automatically resets its internal generation counter once tripped, making it ideal for iterative parallel algorithms like matrix computations or parallel simulations. Phaser generalizes the functionality of both latches and barriers by introducing a dynamic, reusable synchronization barrier where the number of registered parties can change over time through dynamic registration.\n\nSemaphore manages concurrency bottlenecks by maintaining a set of permits, limiting the number of threads that can access a critical section simultaneously. It acts as a signaling mechanism for resource pooling and rate limiting. Finally, Exchanger provides a synchronized point of rendezvous where two threads can exchange data objects safely. One thread arriving first blocks until the second thread reaches the exchange point, at which point an atomic swap of references occurs without data corruption or explicit synchronization overhead."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Synchronizer",
+        "Reusable?",
+        "Dynamic Parties?",
+        "Primary Purpose"
+      ],
+      "rows": [
+        [
+          "CountDownLatch",
+          "No",
+          "No",
+          "One-shot countdown for thread startup/completion."
+        ],
+        [
+          "CyclicBarrier",
+          "Yes",
+          "No",
+          "Iterative phased execution among fixed thread pools."
+        ],
+        [
+          "Phaser",
+          "Yes",
+          "Yes",
+          "Advanced dynamic multi-phase cyclical barriers."
+        ],
+        [
+          "Semaphore",
+          "Yes",
+          "Yes",
+          "Permit-based concurrency throttling and rate-limiting."
+        ],
+        [
+          "Exchanger",
+          "Yes",
+          "No (Exact pair)",
+          "Safe bidirectional point-to-point data swapping between threads."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "CountDownLatch internally delegates its state management to a subclass of AbstractQueuedSynchronizer (AQS) named Sync, where the count variable maps directly to the AQS state field, and countDown() atomically triggers releaseShared.",
+        "CyclicBarrier relies on a ReentrantLock and Condition queue mechanism, maintaining generation tracking objects to prevent stale threads from accidentally tripping barriers across rapid resets.",
+        "Phaser keeps track of phase numbers and party counts packed into a single 64-bit long atomic variable, allowing lock-free state transitions under low contention scenarios.",
+        "Semaphore supports both fair and unfair queuing strategies via distinct AQS extensions, where fair queuing guarantees FIFO thread ordering at the expense of throughput."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.*;\n\npublic class ConcurrencyDemo {\n    public static void main(String[] args) throws InterruptedException {\n        int parties = 3;\n        CountDownLatch latch = new CountDownLatch(parties);\n        CyclicBarrier barrier = new CyclicBarrier(parties, () -> System.out.println(\"Barrier tripped! Next phase.\"));\n        Semaphore semaphore = new Semaphore(2);\n        Exchanger<String> exchanger = new Exchanger<>();\n        Phaser phaser = new Phaser(1); // Register self\n\n        ExecutorService executor = Executors.newFixedThreadPool(parties);\n        for (int i = 0; i < parties; i++) {\n            final int id = i;\n            executor.submit(() -> {\n                try {\n                    semaphore.acquire();\n                    System.out.println(\"Worker \" + id + \" acquired permit.\");\n                    \n                    latch.countDown();\n                    barrier.await();\n                    \n                    if (id == 0) {\n                        String exchanged = exchanger.exchange(\"Data from 0\");\n                        System.out.println(\"Worker 0 got: \" + exchanged);\n                    }\n                } catch (Exception e) {\n                    Thread.currentThread().interrupt();\n                } finally {\n                    semaphore.release();\n                }\n            });\n        }\n        latch.await();\n        executor.shutdown();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha with CyclicBarrier and Phaser is handling interrupted exceptions or timeouts incorrectly. If a thread waiting on a CyclicBarrier encounters a timeout or gets interrupted, the barrier trips into a broken state (isBroken() returns true), throwing a BrokenBarrierException for all other participating threads. Always ensure your error-handling blocks gracefully recover or abort coordinated workflows to avoid silent deadlocks."
+    }
+  ],
+  "num": 132,
+  "title": "CountDownLatch, CyclicBarrier, Phaser, Semaphore, Exchanger",
+  "category": "Multithreading & Java Concurrency"
+}

@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java, the distinction between String, StringBuilder, and StringBuffer is rooted in how the JVM manages memory and concurrency. A String is immutable; once created, its internal char array cannot be modified. Every concatenation operation using the '+' operator or String.concat() creates a new String object, leading to excessive garbage collection pressure in tight loops. StringBuilder and StringBuffer solve this by providing a mutable sequence of characters, allowing for in-place modifications by resizing an internal buffer rather than allocating new objects.\n\nThe critical differentiator between StringBuilder and StringBuffer is thread safety. StringBuffer is a legacy class where every public method is 'synchronized', ensuring that multiple threads can safely append to the same buffer without corrupting the internal state. However, this synchronization introduces significant locking overhead, making it slower in single-threaded contexts. StringBuilder, introduced in Java 5, is the non-synchronized counterpart. It offers the same mutable API as StringBuffer but lacks the monitor lock overhead, making it the default choice for local variable string manipulation within methods."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "String",
+        "StringBuilder",
+        "StringBuffer"
+      ],
+      "rows": [
+        [
+          "Mutability",
+          "Immutable",
+          "Mutable",
+          "Mutable"
+        ],
+        [
+          "Thread Safety",
+          "Thread-Safe",
+          "Not Thread-Safe",
+          "Thread-Safe"
+        ],
+        [
+          "Performance",
+          "Slow (in loops)",
+          "Fastest",
+          "Moderate"
+        ],
+        [
+          "Synchronization",
+          "N/A",
+          "None",
+          "Synchronized"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "String objects are stored in the String Pool (a special area of the Heap) to enable interning and memory reuse, which is why immutability is required for security and caching.",
+        "StringBuilder and StringBuffer maintain an internal char array that doubles in capacity when the buffer overflows, triggering an array copy operation (System.arraycopy).",
+        "The JIT compiler often optimizes simple String concatenations (e.g., 'a' + 'b') into StringBuilder operations automatically, but this optimization fails inside loops, where manual StringBuilder usage is mandatory for O(n) complexity.",
+        "StringBuffer uses intrinsic locks on the 'this' object, which can lead to thread contention if multiple threads frequently access the same instance."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public String buildString(List<String> items) {\n    // Use StringBuilder for local, non-shared mutations\n    StringBuilder sb = new StringBuilder(128); \n    for (String item : items) {\n        sb.append(item).append(\", \");\n    }\n    return sb.toString();\n}\n\n// StringBuffer is only for shared, mutable state across threads\nprivate final StringBuffer logBuffer = new StringBuffer();\npublic synchronized void log(String msg) {\n    logBuffer.append(msg);\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Never use StringBuffer unless you are explicitly sharing a mutable buffer across threads. Even then, consider using a thread-local StringBuilder or a concurrent collection if the throughput requirements are high, as the coarse-grained synchronization in StringBuffer is a common bottleneck in high-concurrency systems."
+    }
+  ],
+  "num": 510,
+  "title": "String vs StringBuilder vs StringBuffer — when to use which? Performance & thread-safety differences.",
+  "category": "Multithreading & Java Concurrency"
+}

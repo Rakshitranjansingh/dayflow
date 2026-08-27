@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When a Spring Boot application hits 100% CPU utilization in production, it is rarely due to raw computational math. Instead, it almost universally boils down to a few systemic culprits: an infinite loop in business logic, unchecked thread pool saturation, catastrophic garbage collection thrashing (stop-the-world cycles combined with allocation failure), or database connection pool exhaustion locking up request threads in a spin-wait or blocked state. Debugging this requires moving past standard logs—which are likely unhelpful or completely unresponsive due to thread starvation—and deep-diving into JVM runtime diagnostics.\n\nThe debugging lifecycle starts by isolating the offending operating system process ID (PID), capturing high-resolution thread dumps, and mapping native threads back to their JVM stack equivalents. Simultaneously, you must inspect the memory allocation rates and garbage collection logs to determine whether the CPU burn is happening in the application logic itself or inside the HotSpot garbage collector (such as CMS or G1GC) desperately trying to reclaim survivor spaces. In modern Spring Boot applications, reactive event loops or misconfigured Apache Tomcat thread pools can also manifest as CPU spikes if tasks are continuously rescheduled without yielding control."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Identify the high-CPU process using native tools like 'top -H -p <PID>' to find the specific Linux thread ID (LWD), convert that ID to hexadecimal, and cross-reference it with a 'jstack' thread dump to find the exact line of Java code.",
+        "Inspect the Garbage Collection subsystem using 'jstat -gcutil <PID> 1000' to check if the Full GC or Young Gen collection time is pegged near 100%, indicating memory pressure rather than an infinite loop.",
+        "Analyze Spring Boot Actuator endpoints ('/actuator/threaddump' and '/actuator/metrics') if the HTTP connector is still responsive enough to accept requests, allowing you to view live thread states without SSH access.",
+        "Look for regex catastrophic backtracking, unindexed database queries causing massive result set iterations in memory, or infinite recursion within Spring Bean post-processors or AOP proxy invocations."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "bash",
+      "content": "# 1. Find the Java PID consuming high CPU\ntop -c\n\n# 2. Find the specific thread within that PID consuming CPU\ntop -H -p <PID>\n\n# 3. Convert the decimal thread ID to hexadecimal (e.g., 12345 -> 3039)\nprintf '%x\n' 12345\n\n# 4. Capture a thread dump to a file\njstack <PID> > thread_dump.txt\n\n# 5. Grep for the hex thread ID in the dump to see the stack trace\ngrep -A 30 \"0x3039\" thread_dump.txt"
+    },
+    {
+      "type": "note",
+      "content": "A common 7+ YOE production trap is assuming a high CPU spike means you need to scale out your Kubernetes pods. If the root cause is an infinite loop or a memory leak causing continuous G1GC marking cycles, scaling out will simply deploy more pods that will also quickly peg at 100% CPU and potentially crash the upstream database with connection storms. Always capture a thread dump first to inspect the execution stacks before altering infrastructure capacity."
+    }
+  ],
+  "num": 1239,
+  "title": "Scenario: Your Spring Boot application is consuming 100% CPU in production. How do you debug and resolve this?",
+  "category": "Spring Boot & Spring Framework"
+}

@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java collections and object-oriented design, sorting elements relies heavily on two foundational interfaces: java.lang.Comparable and java.util.Comparator. When dealing with the question of which one modifies the original class, the answer is definitively Comparable. Comparable represents a natural ordering for a class, meaning the class itself must implement the interface and override the compareTo(T o) method, directly modifying its source code to dictate how its instances compare against one another. Examples of this include String, Long, and Integer, which are inherently sortable.\n\nConversely, Comparator is an external strategy pattern implementation. It decouples the sorting algorithm from the data model entirely. By creating a separate class or lambda expression implementing int compare(T o1, T o2), you can define multiple arbitrary sorting sequences (e.g., sorting employees by salary, name, or tenure) without touching a single line of the original Employee domain class. This makes Comparator exceptionally powerful when you do not own the source code of the class or when you require dynamic, runtime-defined sorting strategies."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Comparable",
+        "Comparator"
+      ],
+      "rows": [
+        [
+          "Package",
+          "java.lang",
+          "java.util"
+        ],
+        [
+          "Method to Implement",
+          "compareTo(T o)",
+          "compare(T o1, T o2)"
+        ],
+        [
+          "Modifies Original Class?",
+          "Yes (must implement the interface directly)",
+          "No (implemented externally as a separate strategy)"
+        ],
+        [
+          "Number of Sorting Sequences",
+          "Single (the natural ordering)",
+          "Multiple (as many custom strategies as needed)"
+        ],
+        [
+          "Usage with Collections",
+          "Collections.sort(list)",
+          "Collections.sort(list, comparator)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Comparable interface relies on the class's internal state. Its contract dictates that if x.compareTo(y) < 0, then y.compareTo(x) > 0, and transitivity must be strictly maintained to prevent undefined behavior in sorting algorithms like TimSort.",
+        "Comparator leverages modern Java functional programming features, allowing static helper methods like Comparator.comparing(), thenComparing(), and reversed() to build complex, multi-field sort criteria fluently.",
+        "When a TreeSet or TreeMap uses a custom sorting mechanism rather than natural ordering, it strictly requires a Comparator passed to its constructor; otherwise, it casts the inserted elements to Comparable at runtime, risking a ClassCastException."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class OrderSystem {\n    public static class Task implements Comparable<Task> {\n        private final String title;\n        private final int priority;\n\n        public Task(String title, int priority) {\n            this.title = title;\n            this.priority = priority;\n        }\n\n        public int getPriority() { return priority; }\n        public String getTitle() { return title; }\n\n        // Modifies the original class to establish natural ordering by priority\n        @Override\n        public int compareTo(Task other) {\n            return Integer.compare(this.priority, other.priority);\n        }\n    }\n\n    public static void main(String[] args) {\n        List<Task> tasks = new ArrayList<>();\n        tasks.add(new Task(\"Refactor\", 3));\n        tasks.add(new Task(\"Hotfix\", 1));\n\n        // Uses Comparable (natural ordering)\n        Collections.sort(tasks);\n\n        // Uses Comparator (external strategy, sorting by title alphabetically)\n        tasks.sort(Comparator.comparing(Task::getTitle));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production bug surfaces when a custom Comparator's compare logic is inconsistent with equals(). If your Comparator returns 0 for two distinct objects that are not considered equal by equals(), putting them into a sorted set like TreeSet will cause the set to silently drop elements because TreeSet relies on compareTo/compare rather than equals() for uniqueness checks."
+    }
+  ],
+  "num": 539,
+  "title": "Explain Comparable vs Comparator interfaces. Which one modifies the original class?",
+  "category": "OOPs & Design Patterns"
+}

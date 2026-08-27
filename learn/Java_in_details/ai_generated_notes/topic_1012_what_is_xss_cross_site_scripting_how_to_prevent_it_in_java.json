@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Cross-Site Scripting (XSS) is a critical web application vulnerability where an attacker injects malicious client-side scripts—typically JavaScript—into trusted web pages viewed by other users. When these scripts execute within a victim's browser context, they can bypass same-origin policy constraints, hijack session cookies, capture sensitive keylog data, or manipulate the Document Object Model (DOM) to stage phishing attacks. XSS generally manifests in three primary variants: Stored (Persistent) XSS, where the payload is permanently saved in a database or file system and served to unsuspecting users; Reflected (Non-Persistent) XSS, where the malicious payload is embedded directly into an immediate HTTP request (such as a search query parameter) and reflected back in the response without proper sanitization; and DOM-based XSS, which occurs entirely on the client side when untrusted user input is unsafely written to execution sinks like eval() or innerHTML.\n\nPreventing XSS in Java-based enterprise architectures, particularly those powered by Spring Boot and Spring Security, requires a defense-in-depth strategy anchored primarily on contextual output encoding and robust HTTP response headers. Because Java web applications frequently render dynamic HTML via frameworks like Thymeleaf, JSP, or REST APIs consumed by Single Page Applications (SPAs) like React or Angular, raw user input must never be trusted. Spring Framework's view engines and libraries such as OWASP Java HTML Sanitizer provide deterministic parsing mechanisms to neutralize malicious payloads before they ever hit the wire. Combined with strict Content Security Policy (CSP) headers and SameSite cookie attributes, Java applications can effectively seal off the attack vectors exploited by modern browser-based script injection."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "XSS Vector",
+        "Attack Mechanism",
+        "Java Prevention Strategy"
+      ],
+      "rows": [
+        [
+          "Stored XSS",
+          "Payload saved in DB and served to multiple users over time",
+          "Sanitize input at persistence boundary using OWASP Java HTML Sanitizer; contextually encode on output."
+        ],
+        [
+          "Reflected XSS",
+          "Payload embedded in request parameters and reflected in immediate response",
+          "Perform strict input validation via Bean Validation (@Size, @Pattern) and automatic HTML encoding in Thymeleaf."
+        ],
+        [
+          "DOM-based XSS",
+          "Client-side JS processes unsafe input from window.location or document.URL",
+          "Ensure REST APIs return sanitized JSON rather than unescaped HTML fragments; implement strict CSP headers."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Contextual Output Encoding: Raw strings must be transformed based on where they appear in the HTML document—such as HTML body text, HTML attribute values, JavaScript variables, or CSS properties—using specialized character escaping maps to convert characters like <, >, &, and quotes into their respective HTML entities.",
+        "OWASP Java HTML Sanitizer Integration: For rich-text fields where users are allowed to submit safe markup (like bold or italic tags), standard escaping is insufficient. The OWASP sanitizer uses a policy-driven filtering mechanism (PolicyFactory) that parses untrusted HTML into an AST (Abstract Syntax Tree) and strips out dangerous tags and attributes like <script> or onload before rendering.",
+        "Spring Security Content Security Policy (CSP): By configuring Spring Security's headers filter to emit a strict CSP directive (e.g., default-src 'self'), the browser restricts the execution domains of scripts and completely blocks inline script execution, neutralizing unexpected XSS vectors even if an injection slips past validation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.owasp.html.HtmlPolicyBuilder;\nimport org.owasp.html.PolicyFactory;\nimport org.springframework.context.annotation.Bean;\nimport org.springframework.context.annotation.Configuration;\nimport org.springframework.security.config.annotation.web.builders.HttpSecurity;\nimport org.springframework.security.web.SecurityFilterChain;\n\n@Configuration\npublic class WebSecurityConfig {\n\n    @Bean\n    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {\n        http\n            .headers(headers -> headers\n                .contentSecurityPolicy(csp -> csp\n                    .policyDirectives(\"default-src 'self'; script-src 'self'\")\n                )\n            );\n        return http.build();\n    }\n\n    @Bean\n    public PolicyFactory htmlSanitizerPolicy() {\n        return new HtmlPolicyBuilder()\n            .allowElements(\"a\", \"b\", \"i\", \"p\", \"br\")\n            .allowAttributes(\"href\").onElements(\"a\")\n            .requireRelNofollowOnLinks()\n            .toFactory();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is assuming that marking a Spring REST controller method with @ResponseBody or returning a ResponseEntity<String> automatically protects against XSS. While Spring MVC automatically HTML-encodes template models (like Thymeleaf), it does not automatically encode raw JSON payloads returned to frontend single-page apps. If your React or Angular frontend takes that JSON and renders it using dangerouslySetInnerHTML or unsafe bindings, you have introduced a DOM-based XSS vulnerability. Always sanitize at the persistence boundary for rich text, and let frontend frameworks handle safe text interpolation."
+    }
+  ],
+  "num": 1013,
+  "title": "What is XSS (Cross-Site Scripting)? How to prevent it in Java?",
+  "category": "Spring Security & Web Security"
+}

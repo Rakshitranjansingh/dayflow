@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "GraalVM is a high-performance polyglot virtual machine that extends the standard JVM ecosystem by providing a modular architecture capable of executing Java, JavaScript, Python, Ruby, and LLVM-based languages. At its core, GraalVM replaces the traditional HotSpot JIT compiler with the Graal compiler, written in Java itself, which utilizes advanced partial evaluation and aggressive optimization techniques. The most transformative feature of GraalVM is its ability to perform Ahead-Of-Time (AOT) compilation via the Native Image technology. While the standard JVM relies on Just-In-Time (JIT) compilation to optimize bytecode into machine code during runtime, AOT compilation shifts this burden to the build phase, producing a standalone, platform-specific native executable. This eliminates the need for a full JVM runtime at execution time, drastically reducing startup latency and memory footprint, which is critical for cloud-native, serverless, and containerized microservices where cold-start times are a primary performance metric."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "JIT (Just-In-Time)",
+        "AOT (Ahead-Of-Time)"
+      ],
+      "rows": [
+        [
+          "Compilation Timing",
+          "Runtime (Lazy)",
+          "Build-time (Eager)"
+        ],
+        [
+          "Startup Latency",
+          "High (Warm-up required)",
+          "Near-instant"
+        ],
+        [
+          "Memory Footprint",
+          "Higher (JIT metadata + JVM)",
+          "Minimal (Native binary)"
+        ],
+        [
+          "Optimization Context",
+          "Profile-guided (runtime data)",
+          "Static analysis (closed-world)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "JIT compilation utilizes Tiered Compilation, where the JVM starts in interpreted mode and uses the C1/C2 compilers to profile hot code paths, eventually generating highly optimized machine code based on actual runtime branch prediction and type profiling.",
+        "AOT compilation relies on the 'Closed-World Assumption,' meaning all reachable classes, methods, and fields must be known at build time. This requires reflection, JNI, and dynamic proxies to be explicitly configured via reachability metadata (JSON/reflect-config.json).",
+        "Native Image strips away the dynamic nature of the JVM, removing unused classes and methods during the static analysis phase, which results in a significantly smaller binary size compared to a standard JAR file running on a full JRE.",
+        "GraalVM's JIT compiler (the Graal JIT) is often faster than the legacy C2 compiler for complex object-oriented code due to its superior escape analysis and aggressive method inlining capabilities."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "bash",
+      "content": "# Build a native executable using GraalVM native-image\nnative-image --no-fallback -jar target/my-application.jar my-app-binary\n\n# Run the resulting binary without a JVM\n./my-app-binary"
+    },
+    {
+      "type": "note",
+      "content": "The 'Closed-World Assumption' is the most common pitfall for developers migrating to AOT. Because the compiler performs static analysis, any code using dynamic class loading or heavy reflection will likely fail at runtime with a ClassNotFoundException unless you provide exhaustive reachability configuration. Always test your native images with high-coverage integration tests to ensure that reflection-heavy frameworks like Hibernate or Spring are correctly initialized in the native context."
+    }
+  ],
+  "num": 746,
+  "title": "What is GraalVM? How does Ahead-Of-Time (AOT) compilation differ from JIT?",
+  "category": "JVM Architecture & Memory Tuning"
+}

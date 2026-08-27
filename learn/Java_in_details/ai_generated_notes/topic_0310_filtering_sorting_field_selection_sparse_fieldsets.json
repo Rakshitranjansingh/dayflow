@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In high-throughput enterprise architectures, API performance is frequently bottlenecked not by backend compute or database execution plans, but by network payload serialization and I/O bus saturation. To solve this, robust RESTful endpoints implement three core query-parameter-driven strategies: filtering, sorting, and field selection (also known as sparse fieldsets). Filtering restricts the record set based on predicates, sorting orders the result set by one or more attributes, and field selection drastically reduces the JSON object graph transmitted over the wire by projecting only the user-requested properties. When dealing with complex I/O and NIO channels, minimizing byte arrays written to socket buffers directly translates to lower garbage collection pressure and reduced heap allocation rates."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Filtering transforms raw resource collections by parsing query parameters into criteria expressions, mapping string keys to persistent domain attributes while guarding against injection attacks and unindexed database queries.",
+        "Sorting constructs multi-column ORDER BY clauses dynamically, requiring careful validation against safe-listable properties to prevent CPU-intensive sorting operations on unindexed fields.",
+        "Field selection (sparse fieldsets) leverages Jackson's ObjectMapper and PropertyFilter APIs to dynamically modify serialization behavior at runtime, omitting null or unrequested fields from the JSON payload.",
+        "NIO optimization occurs naturally when payload sizes shrink, as fewer direct buffers are allocated and filled via SocketChannels, reducing kernel-to-user-space context switching overhead."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/v1/users\")\npublic class UserController {\n\n    @GetMapping\n    public ResponseEntity<MappingJacksonValue> getUsers(\n            @RequestParam(required = false) String filter,\n            @RequestParam(required = false) String sort,\n            @RequestParam(name = \"fields\", required = false) String sparseFields) {\n        \n        List<User> users = userService.findWithFilterAndSort(filter, sort);\n        \n        SimpleBeanPropertyFilter propertyFilter = (sparseFields != null && !sparseFields.isEmpty())\n            ? SimpleBeanPropertyFilter.filterOutAllExcept(sparseFields.split(\",\"))\n            : SimpleBeanPropertyFilter.serializeAll();\n            \n        FilterProvider filters = new SimpleFilterProvider()\n            .addFilter(\"userFilter\", propertyFilter);\n            \n        MappingJacksonValue mapping = new MappingJacksonValue(users);\n        mapping.setFilters(filters);\n        \n        return ResponseEntity.ok(mapping);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap with dynamic field selection and filtering is the N+1 query problem hidden inside nested object graphs, or memory exhaustion caused by unbounded sparse fieldset expansion. Always enforce a maximum limit on allowed nested expansions and apply database-level projection (e.g., JPA Criteria API tuples or DTO constructor expressions) rather than hydrating entire entity graphs in memory just to filter fields out during Jackson serialization."
+    }
+  ],
+  "num": 311,
+  "title": "Filtering, sorting, field selection (sparse fieldsets)",
+  "category": "Exception Handling & I/O / NIO"
+}

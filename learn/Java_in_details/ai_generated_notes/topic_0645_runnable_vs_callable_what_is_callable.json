@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java Concurrency model, Runnable and Callable represent the two primary ways to define a task for execution in a multi-threaded environment. The Runnable interface, introduced in JDK 1.0, is a functional interface with a single void run() method. It is inherently limited because it cannot return a result to the calling thread, nor can it throw checked exceptions, forcing developers to wrap logic in try-catch blocks within the task. This makes it unsuitable for complex asynchronous workflows where the main thread needs to wait for a computation to complete.\n\nCallable, introduced in Java 5 as part of the java.util.concurrent package, addresses these limitations by providing a generic V call() method. Unlike Runnable, Callable can return a computed value of type V and is permitted to throw checked exceptions. When you submit a Callable to an ExecutorService, it returns a Future object, which acts as a handle to the eventual result. This shift from 'fire-and-forget' to 'compute-and-retrieve' is the cornerstone of modern asynchronous Java programming, allowing for cleaner error propagation and result aggregation."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Runnable",
+        "Callable"
+      ],
+      "rows": [
+        [
+          "Return Value",
+          "None (void)",
+          "Generic Type V"
+        ],
+        [
+          "Exception Handling",
+          "Cannot throw checked exceptions",
+          "Can throw checked exceptions"
+        ],
+        [
+          "Method Signature",
+          "void run()",
+          "V call() throws Exception"
+        ],
+        [
+          "Integration",
+          "Thread, ExecutorService",
+          "ExecutorService (via Future)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Callable tasks are wrapped in a FutureTask internally by the ExecutorService, which implements both Runnable and Future, effectively bridging the gap between the two interfaces.",
+        "The Future.get() method is a blocking call; it will pause the calling thread until the Callable's call() method completes or throws an exception.",
+        "Because Callable is a functional interface, it is highly compatible with Lambda expressions, allowing for concise task definitions like '() -> computeValue()'.",
+        "Checked exceptions thrown by a Callable are captured by the Future object and re-thrown as an ExecutionException when you invoke Future.get()."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "ExecutorService executor = Executors.newFixedThreadPool(2);\n\n// Callable returning a result\nCallable<Integer> task = () -> {\n    Thread.sleep(1000);\n    return 42;\n};\n\nFuture<Integer> future = executor.submit(task);\n\ntry {\n    Integer result = future.get(); // Blocks until completion\n    System.out.println(\"Result: \" + result);\n} catch (ExecutionException | InterruptedException e) {\n    e.printStackTrace();\n} finally {\n    executor.shutdown();\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is calling future.get() without a timeout. If the task hangs due to a deadlock or an infinite loop, your main thread will block indefinitely, leading to thread starvation in your application. Always use future.get(long timeout, TimeUnit unit) to ensure your system remains responsive and can handle failures gracefully."
+    }
+  ],
+  "num": 646,
+  "title": "Runnable vs Callable? What is Callable?",
+  "category": "Core Java & Fundamentals"
+}

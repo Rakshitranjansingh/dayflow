@@ -1,0 +1,48 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Cross-Site Scripting (XSS) remains one of the most prevalent web vulnerabilities, allowing malicious actors to inject client-side scripts into web pages viewed by other users. In modern enterprise applications built on frameworks like Spring Boot, mitigating XSS requires a defense-in-depth strategy anchored by two primary pillars: Output Encoding and Content Security Policy (CSP). Output encoding neutralizes untrusted user input by transforming special characters (such as `<`, `>`, `&`, and `\"`) into their corresponding safe HTML entities before they are rendered in the browser. This ensures the browser interprets the data strictly as string content rather than executable markup or script blocks.\n\nWhile output encoding is the first line of defense against reflected and stored XSS, it is insufficient on its own against DOM-based XSS or complex injection vectors. This is where Content Security Policy (CSP) acts as an indispensable, browser-enforced security layer. CSP is delivered via HTTP response headers (like `Content-Security-Policy`) that explicitly declare which dynamic resources are allowed to load and execute. By restricting script execution sources, disallowing inline scripts (`unsafe-inline`), and limiting where data can be sent via `connect-src`, CSP effectively neutralizes injected payloads even if an application fails to properly encode a piece of output."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Defense Mechanism",
+        "Primary Responsibility",
+        "Primary Limitation"
+      ],
+      "rows": [
+        [
+          "Output Encoding",
+          "Neutralizes untrusted data by escaping special characters at rendering time.",
+          "Context-sensitive; failing to match the encoding context (HTML vs JS vs Attribute) leaves gaps."
+        ],
+        [
+          "Content Security Policy (CSP)",
+          "Enforces browser-level restrictions on script sources, object loading, and network connections.",
+          "Requires rigorous modern browser support and careful policy tuning to avoid breaking legitimate features."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Context-Aware Encoding: Different contexts require distinct encoding algorithms. HTML body requires HTML entity encoding, JavaScript variable contexts require Unicode or JavaScript escaping, and URL parameters require percent-encoding.",
+        "Browser-Enforced Directives: CSP relies on directives such as `default-src`, `script-src`, and `object-src`. When a browser encounters a violation, it blocks the execution and can optionally report the incident to a designated URI endpoint using `report-uri` or `report-to`.",
+        "Spring Security Integration: Spring Security automatically applies robust default security headers, including basic XSS protection headers, and allows deep customization of CSP policies via its DSL configuration (`http.headers(headers -> headers.contentSecurityPolicy(...))`)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\npublic class SecurityConfig {\n\n    @Bean\n    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {\n        http\n            .headers(headers -> headers\n                .contentSecurityPolicy(csp -> csp\n                    .policyDirectives(\"default-src 'self'; script-src 'self' https://trustedscripts.com; object-src 'none';\")\n                )\n            );\n        return http.build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap is relying solely on framework default encoders without validating the rendering context. For instance, encoding data for an HTML body context and then placing it inside a JavaScript variable block (`let username = '[[${user.name}]]';`) completely bypasses the protection, leading to severe script injection. Always match your encoder directly to the parsing engine of the target context, and never use 'unsafe-inline' in your production CSP headers."
+    }
+  ],
+  "num": 283,
+  "title": "XSS prevention — output encoding, Content Security Policy",
+  "category": "Spring Security & Web Security"
+}

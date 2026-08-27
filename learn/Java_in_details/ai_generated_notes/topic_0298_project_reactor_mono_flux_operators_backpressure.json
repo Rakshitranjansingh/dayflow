@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Project Reactor is the foundational reactive programming library for the Java ecosystem, heavily powering frameworks like Spring WebFlux. At its core, Project Reactor addresses the throughput and scalability bottlenecks of traditional thread-per-request models (like classic Spring MVC on Tomcat) by embracing non-blocking, asynchronous execution pipelines. The library revolves around two primary reactive publisher types: Mono and Flux. A Mono represents an asynchronous sequence that emits at most one item or terminates with a completion signal or an error, making it ideal for distinct operations like fetching a single user entity by ID. Conversely, a Flux is a standard Publisher that emits an unbounded or bounded asynchronous sequence of 0 to N items, terminating with either a completion or an error signal. These publishers do nothing until a subscriber explicitly invokes subscribe(), triggering the assembly-time execution model where operators build up a decorated chain of execution contexts.\n\nOperators in Project Reactor form the declarative vocabulary used to transform, filter, combine, and coordinate these asynchronous data streams. From stateless transformers like map() and filter() to stateful or asynchronous orchestrations like flatMap(), zip(), and switchIfEmpty(), operators allow developers to express complex dataflows functionally. However, a major architectural challenge in asynchronous systems is speed mismatch: what happens when a fast producer overwhelms a slow consumer? This is solved via backpressure, a mechanism where downstream subscribers explicitly signal their processing capacity upstream, constraining the number of items pushed down the pipeline. Project Reactor implements reactive streams backpressure through the Subscription.request(long n) contract, allowing strategies ranging from buffer and drop to latest and error when downstream cannot keep up."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Reactive Feature",
+        "Mono",
+        "Flux"
+      ],
+      "rows": [
+        [
+          "Cardinality",
+          "0 to 1 element",
+          "0 to N elements (unbounded stream)"
+        ],
+        [
+          "Primary Use Case",
+          "Single RPC calls, database lookups, optional results",
+          "Event streams, file reads, pagination, message queues"
+        ],
+        [
+          "Typical Operators",
+          "just, justOrEmpty, zipWith, block",
+          "fromIterable, flatMap, buffer, window, groupBy"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Assembly Time vs Subscription Time: Reactor separates the definition of the pipeline (assembly) from its execution (subscription). Operators decorate existing Publishers with wrapper Publishers, building a nested execution tree. No IO or computation occurs until subscribe() is invoked.",
+        "Backpressure Negotiation: Downstream consumers request a specific demand quota via Subscription.request(n). Publishers respect this quota, pushing at most 'n' items before waiting for subsequent requests, preventing OutOfMemoryError (OOM) scenarios in unbuffered infinite streams.",
+        "Schedulers and Threading: Reactor does not mandate a thread per operator. Instead, operators execute on whatever thread triggers them unless explicitly redirected via execution context shifting operators like publishOn() (which changes the thread for downstream operators) and subscribeOn() (which dictates the thread for the source subscription)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import reactor.core.publisher.Flux;\nimport reactor.core.publisher.Mono;\nimport reactor.core.scheduler.Schedulers;\n\npublic class ReactorDemo {\n    public static void main(String[] args) {\n        Flux<String> userStream = Flux.just(\"Alice\", \"Bob\", \"Charlie\");\n\n        userStream\n            .publishOn(Schedulers.boundedElastic())\n            .filter(name -> name.length() > 3)\n            .map(String::toUpperCase)\n            .flatMap(name -> fetchUserMetadata(name))\n            .doOnNext(meta -> System.out.println(\"Processed: \" + meta))\n            .blockLast();\n    }\n\n    private static Mono<String> fetchUserMetadata(String username) {\n        return Mono.just(\"Metadata for: \" + username);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern in Reactor is blocking the reactive pipeline using operators like .block() or .toFuture() inside a netty event loop thread. Doing so starves the underlying event loop, cratering application throughput. Always keep pipelines entirely non-blocking end-to-end, delegating blocking legacy operations (like JDBC calls) to Schedulers.boundedElastic()."
+    }
+  ],
+  "num": 299,
+  "title": "Project Reactor — Mono, Flux, operators, backpressure",
+  "category": "Core Java & Fundamentals"
+}

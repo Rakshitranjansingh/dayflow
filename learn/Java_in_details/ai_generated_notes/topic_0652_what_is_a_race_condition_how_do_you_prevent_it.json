@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A race condition is a pathological concurrency bug that occurs when two or more threads access shared mutable state concurrently, and at least one of these accesses is a write operation, without proper synchronization. The correctness of the system's execution depends on the relative timing or interleaving of threads—the so-called 'race' to the CPU scheduler. Because thread scheduling is non-deterministic and managed by the operating system kernel, this results in intermittent, highly elusive failures that frequently vanish under low-load debugging environments only to manifest catastrophically in production under high throughput.\n\nTo prevent race conditions, Java developers must leverage synchronization mechanisms that enforce mutual exclusion and establish a 'happens-before' relationship in the Java Memory Model (JMM). Preventing race conditions involves isolating shared state, utilizing atomic hardware instructions via java.util.concurrent.atomic, employing explicit locks (ReentrantLock) or intrinsic monitors (synchronized blocks), or adhering to thread-confinement strategies. Without these safeguards, non-atomic compound actions like check-then-act or read-modify-write will inevitably corrupt shared memory structures."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Mechanism",
+        "Performance & Scalability",
+        "Best Use Case"
+      ],
+      "rows": [
+        [
+          "Intrinsic Locks",
+          "synchronized keyword / monitors",
+          "Moderate contention overhead; thread blocking",
+          "Simple critical sections and legacy codebases"
+        ],
+        [
+          "Explicit Locks",
+          "java.util.concurrent.locks.ReentrantLock",
+          "High flexibility (tryLock, fair locks)",
+          "Advanced locking patterns requiring timeouts or interrupts"
+        ],
+        [
+          "Atomic Variables",
+          "Compare-And-Swap (CAS) via sun.misc.Unsafe",
+          "Lock-free, highly scalable under low/moderate contention",
+          "Counters, state flags, and single-variable updates"
+        ],
+        [
+          "Thread Confinement",
+          "ThreadLocal or immutable objects",
+          "Zero contention; maximal performance",
+          "Request-scoped data or stateless web architectures"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Java Memory Model (JMM) guarantees that monitor enter operations synchronize working memory with main memory (flushing cache lines), ensuring visibility alongside atomicity.",
+        "Compare-And-Swap (CAS) loops inside atomic classes can suffer from livelock or high CPU utilization under extreme contention due to continuous retry cycles.",
+        "Check-then-act operations (e.g., lazy initialization without synchronization) are classic race condition vectors because checking a state and subsequently modifying it are not executed as a single indivisible atomic block."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ThreadSafeCounter {\n    private final AtomicLong count = new AtomicLong(0);\n\n    public void increment() {\n        count.incrementAndGet();\n    }\n\n    public long get() {\n        count.get();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common rookie mistake is assuming that volatile alone makes compound operations thread-safe. While volatile guarantees visibility (preventing thread caching of variables), it does not guarantee atomicity. An operation like `count++` consists of read, modify, and write steps, leaving a wide window for thread interleaving and data corruption."
+    }
+  ],
+  "num": 653,
+  "title": "What is a Race Condition? How do you prevent it?",
+  "category": "Multithreading & Java Concurrency"
+}

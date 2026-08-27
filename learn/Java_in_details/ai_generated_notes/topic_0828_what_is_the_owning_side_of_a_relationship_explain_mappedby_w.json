@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java Persistence Architecture (JPA) and Hibernate, managing bidirectional relationships requires determining which entity holds the database foreign key constraint. This is known as the owning side of a relationship, while the opposite side is designated as the inverse or non-owning side using the mappedBy attribute. The owning side is strictly responsible for synchronizing state changes to the database during flush time; updates made exclusively on the mappedBy side are ignored by the persistence context. When a many-to-many relationship—or a complex unidirectional/bidirectional one-to-many or many-to-one mapping—cannot cleanly store a foreign key on either of the participating entity tables without violating normalization, JPA introduces a join table. A join table is a dedicated associative database table containing foreign keys pointing to the primary keys of both participating entities, effectively bridging the multi-valued association without altering the primary entity schemas."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Owning Side",
+        "Inverse Side (mappedBy)"
+      ],
+      "rows": [
+        [
+          "Database Impact",
+          "Contains the foreign key column or manages the join table insert/delete statements.",
+          "Does not generate foreign keys or modify database state for this relationship."
+        ],
+        [
+          "Annotation",
+          "Uses @JoinColumn or @JoinTable directly on the field.",
+          "Uses the mappedBy element pointing to the owning entity's field name."
+        ],
+        [
+          "Persistence Behavior",
+          "Changes are tracked and written to the database.",
+          "Changes are ignored by dirty checking unless synchronized by the owning side."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The mappedBy attribute signals to the Hibernate metadata parser that the field is mapped by the referenced property in the target entity, meaning no redundant foreign key column is generated in the table of the inverse class.",
+        "When dealing with a join table in a Many-to-Many association, the owning side dictates which entity controls the insertion and deletion of rows inside the intermediate cross-reference table.",
+        "Failing to update both sides of a bidirectional in-memory object graph before committing a transaction leads to first-level cache discrepancies, where the entity manager returns stale collections despite successful database flushes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Entity\npublic class Author {\n    @Id\n    @GeneratedValue(strategy = GenerationType.IDENTITY)\n    private Long id;\n\n    // Inverse side: mappedBy points to the 'author' field in Book\n    @OneToMany(mappedBy = \"author\", cascade = CascadeType.ALL, orphanRemoval = true)\n    private List<Book> books = new ArrayList<>();\n\n    public void addBook(Book book) {\n        books.add(book);\n        book.setAuthor(this); // Maintaining both sides of the association\n    }\n}\n\n@Entity\npublic class Book {\n    @Id\n    @GeneratedValue(strategy = GenerationType.IDENTITY)\n    private Long id;\n\n    // Owning side: defines the foreign key column 'author_id' in the 'book' table\n    @ManyToOne(fetch = FetchType.LAZY)\n    @JoinColumn(name = \"author_id\", nullable = false)\n    private Author author;\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production bug occurs when developers populate only the inverse side of a bidirectional relationship (e.g., calling author.getBooks().add(book)) without setting book.setAuthor(author). Because Hibernate only inspects the owning side (Book.author) during flush time, the foreign key column remains null in the database, resulting in a constraint violation or silently dropped relationship depending on nullability rules."
+    }
+  ],
+  "num": 829,
+  "title": "What is the owning side of a relationship? (Explain mappedBy). What is a join table?",
+  "category": "Exception Handling & I/O / NIO"
+}

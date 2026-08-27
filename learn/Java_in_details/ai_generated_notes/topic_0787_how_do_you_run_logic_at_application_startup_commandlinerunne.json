@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Boot ecosystem, executing logic at application startup is a common requirement for tasks like warming up caches, initializing database schemas, or scheduling background synchronization jobs. CommandLineRunner and ApplicationRunner are functional interfaces specifically designed for this purpose; they are invoked by the SpringApplication after the ApplicationContext is fully refreshed but before the application starts accepting traffic. While CommandLineRunner provides access to raw String arguments passed via the command line, ApplicationRunner provides a more robust ApplicationArguments object, which parses options and non-option arguments into a structured format, making it the preferred choice for complex CLI-driven configuration. Conversely, @EventListener(ApplicationReadyEvent.class) offers a more decoupled approach. Unlike the runners, which are tied to the startup lifecycle of the SpringApplication, the event-driven model allows you to hook into the lifecycle of the ApplicationContext itself. This is particularly useful when you need to ensure that all beans are fully initialized and the environment is entirely ready, avoiding potential issues with circular dependencies or incomplete bean wiring that might occur if you attempt to trigger logic during the bean construction phase."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Mechanism",
+        "Input Type",
+        "Use Case"
+      ],
+      "rows": [
+        [
+          "CommandLineRunner",
+          "String[]",
+          "Simple CLI flag processing"
+        ],
+        [
+          "ApplicationRunner",
+          "ApplicationArguments",
+          "Structured argument parsing"
+        ],
+        [
+          "@EventListener",
+          "ApplicationReadyEvent",
+          "Decoupled lifecycle hooks"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "CommandLineRunner and ApplicationRunner are executed in the order defined by the @Order annotation or the Ordered interface, allowing you to sequence startup tasks effectively.",
+        "ApplicationReadyEvent is published only once the application is fully operational, making it the safest point to trigger background threads or external system handshakes.",
+        "Using @PostConstruct is generally discouraged for heavy startup logic because it blocks the bean initialization process, potentially leading to timeouts or deadlocks if the logic depends on other beans not yet fully instantiated.",
+        "The ApplicationArguments interface provides convenient methods like getOptionValues() and containsOption(), abstracting away the manual parsing of '--key=value' syntax."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Component\npublic class StartupTask implements ApplicationRunner {\n    @Override\n    public void run(ApplicationArguments args) throws Exception {\n        if (args.containsOption(\"init-cache\")) {\n            // Logic to warm up cache\n        }\n    }\n}\n\n@Component\npublic class ReadyListener {\n    @EventListener(ApplicationReadyEvent.class)\n    public void onReady() {\n        // Triggered after context is fully up\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is performing blocking I/O or long-running tasks inside a Runner without offloading to a separate thread. Since these methods run on the main application thread, a slow startup task will delay the application's transition to a 'Ready' state, causing Kubernetes liveness/readiness probes to fail and potentially triggering a crash-loop backoff. Always wrap heavy initialization logic in a CompletableFuture or a dedicated TaskExecutor."
+    }
+  ],
+  "num": 788,
+  "title": "How do you run logic at application startup? (CommandLineRunner, ApplicationRunner, @EventListener)",
+  "category": "Exception Handling & I/O / NIO"
+}

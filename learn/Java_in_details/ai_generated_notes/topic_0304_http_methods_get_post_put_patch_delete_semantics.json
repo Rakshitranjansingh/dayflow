@@ -1,0 +1,69 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java development, particularly when designing RESTful APIs using frameworks like Spring Boot or Jakarta EE, mastering HTTP methods and their exact semantics is non-negotiable. HTTP methods (GET, POST, PUT, PATCH, DELETE) define the operational contract between a client and a resource on a server. Understanding these semantics goes far beyond basic CRUD mapping; it dictates how web caches behave, how database transactions scale, and how network failures are retried safely.\n\nGET semantics mandate safe, idempotent retrieval of resource representations without inducing side effects on the server state. POST represents a non-idempotent operation used primarily to create new subordinate resources, where submitting the exact request payload twice typically results in two distinct resource creations. PUT provides idempotent complete replacement of a target resource; sending the identical payload multiple times guarantees the same final server state. PATCH executes partial updates, applying a delta to modify specific fields of a resource rather than replacing it wholesale. Finally, DELETE provides idempotent removal of a resource by its identifier, ensuring that subsequent identical deletion requests yield the same 'resource not found' or 'already deleted' state on the server."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "HTTP Method",
+        "Idempotent?",
+        "Safe?",
+        "Typical Status Codes"
+      ],
+      "rows": [
+        [
+          "GET",
+          "Yes",
+          "Yes",
+          "200 OK, 404 Not Found, 304 Not Modified"
+        ],
+        [
+          "POST",
+          "No",
+          "No",
+          "201 Created, 200 OK, 422 Unprocessable Entity"
+        ],
+        [
+          "PUT",
+          "Yes",
+          "No",
+          "200 OK, 201 Created, 204 No Content"
+        ],
+        [
+          "PATCH",
+          "No",
+          "No",
+          "200 OK, 204 No Content, 409 Conflict"
+        ],
+        [
+          "DELETE",
+          "Yes",
+          "No",
+          "204 No Content, 200 OK, 404 Not Found"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Idempotency implies that making multiple identical requests has the exact same side effect on the server as making a single request, which is vital for safe network retries during transient socket timeouts.",
+        "Safety means the HTTP method does not mutate the server-side state or resource representations, allowing transparent caching by proxies, content delivery networks (CDNs), and browser runtimes.",
+        "PUT semantics require the client to supply the complete state of the resource. If fields are omitted in a PUT payload, they risk being overwritten with null or default values, contrasting sharply with PATCH which targets differential updates."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/v1/users\")\npublic class UserController {\n\n    @GetMapping(\"/{id}\")\n    public ResponseEntity<UserDTO> getUser(@PathVariable Long id) {\n        // GET: Safe and idempotent retrieval\n        return userService.findById(id)\n                .map(ResponseEntity::ok)\n                .orElse(ResponseEntity.notFound().build());\n    }\n\n    @PostMapping\n    public ResponseEntity<UserDTO> createUser(@RequestBody UserCreateDTO dto) {\n        // POST: Not idempotent, creates a new resource\n        UserDTO created = userService.save(dto);\n        return ResponseEntity.status(HttpStatus.CREATED).body(created);\n    }\n\n    @PutMapping(\"/{id}\")\n    public ResponseEntity<UserDTO> replaceUser(@PathVariable Long id, @RequestBody UserUpdateDTO dto) {\n        // PUT: Idempotent total replacement\n        UserDTO updated = userService.fullyUpdate(id, dto);\n        return ResponseEntity.ok(updated);\n    }\n\n    @PatchMapping(\"/{id}\")\n    public ResponseEntity<UserDTO> patchUser(@PathVariable Long id, @RequestBody Map<String, Object> updates) {\n        // PATCH: Non-idempotent partial update\n        UserDTO patched = userService.partiallyUpdate(id, updates);\n        return ResponseEntity.ok(patched);\n    }\n\n    @DeleteMapping(\"/{id}\")\n    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {\n        // DELETE: Idempotent removal\n        userService.delete(id);\n        return ResponseEntity.noContent().build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production anti-pattern in Java microservices is using POST for everything (e.g., /api/users/search or /api/users/delete). This breaks standard HTTP caching headers, confuses API gateways regarding rate limiting, and violates REST architectural constraints. Always reserve POST for resource creation or complex processing commands, and ensure your PUT implementations are genuinely idempotent to prevent database corruption during automated client retries."
+    }
+  ],
+  "num": 305,
+  "title": "HTTP methods — GET, POST, PUT, PATCH, DELETE semantics",
+  "category": "Core Java & Fundamentals"
+}

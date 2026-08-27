@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In concurrent programming, maximizing throughput on shared data structures requires moving beyond crude mutual exclusion primitives like synchronized blocks or ReentrantLock when read operations heavily outnumber write operations. ReadWriteLock and StampedLock are specialized concurrency utilities designed to solve the readers-writer problem. A ReadWriteLock utilizes a pair of associated locks—one for read-only operations and one for write operations. Multiple threads can acquire the read lock concurrently as long as no thread holds the write lock, while the write lock is strictly exclusive. This dramatically improves performance for read-heavy workloads by eliminating unnecessary contention.\n\nHowever, standard ReadWriteLocks can suffer from writer starvation under heavy read loads, where readers continually acquire and release the read lock, blocking waiting writers. To overcome this limitation and provide even higher throughput, Java 8 introduced StampedLock. Unlike traditional lock interfaces, StampedLock does not implement the Lock interface; instead, it returns a long value—a stamp—representing the internal state of the lock. StampedLock introduces a revolutionary third mode: optimistic reading. An optimistic read does not actually acquire any lock state or modify the memory bus; it simply reads a stamp and later validates whether any write operations occurred in the interim. If validation succeeds, the read proceeds completely lock-free, avoiding thread parking, context switching, and cache line invalidation entirely."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "ReadWriteLock (ReentrantReadWriteLock)",
+        "StampedLock"
+      ],
+      "rows": [
+        [
+          "Reentrancy",
+          "Fully reentrant for both read and write locks.",
+          "Not reentrant. Holding a lock and attempting to re-acquire it will deadlock."
+        ],
+        [
+          "Optimistic Reading",
+          "Not supported. Readers must acquire a shared lock.",
+          "Fully supported via tryOptimisticRead() and validate()."
+        ],
+        [
+          "Lock Conversion",
+          "Complex upgrade path (must release read, acquire write).",
+          "Supports lock conversion (e.g., tryConvertToWriteLock)."
+        ],
+        [
+          "Interface Implementation",
+          "Implements java.util.concurrent.locks.ReadWriteLock.",
+          "Standalone class, does not implement standard Lock interfaces."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "StampedLock internals maintain a state variable where bits are allocated for reader counts, write status, and a sequence number. Optimistic reads simply sample this sequence counter without CAS operations or memory fencing.",
+        "When an optimistic read validation fails (due to an intervening write lock acquisition), the thread must gracefully fall back to acquiring a standard pessimistic read lock to ensure consistency.",
+        "ReentrantReadWriteLock uses an internal AQS (AbstractQueuedSynchronizer) queue, splitting the state word into a 16-bit shared read count and a 16-bit exclusive write count."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.locks.StampedLock;\n\npublic class Point {\n    private double x, y;\n    private final StampedLock sl = new StampedLock();\n\n    void move(double deltaX, double deltaY) {\n        long stamp = sl.writeLock();\n        try {\n            x += deltaX;\n            y += deltaY;\n        } finally {\n            sl.unlockWrite(stamp);\n        }\n    }\n\n    double distanceFromOrigin() {\n        long stamp = sl.tryOptimisticRead();\n        double currentX = x, currentY = y;\n        if (!sl.validate(stamp)) {\n            stamp = sl.readLock();\n            try {\n                currentX = x;\n                currentY = y;\n            } finally {\n                sl.unlockRead(stamp);\n            }\n        }\n        return Math.sqrt(currentX * currentX + currentY * currentY);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Never call Thread.interrupt() on a thread waiting for a StampedLock pessimistic read or write lock if you are using methods like readLock() that do not support interruption (or use the interruptible counterparts carefully). Furthermore, StampedLock is NOT reentrant—if a thread holding a write lock attempts to call another method that acquires a lock on the same StampedLock, it will instantly self-deadlock. Always keep your critical sections extremely short when using optimistic reads to minimize validation failure rates."
+    }
+  ],
+  "num": 130,
+  "title": "ReadWriteLock / StampedLock",
+  "category": "Core Java & Fundamentals"
+}

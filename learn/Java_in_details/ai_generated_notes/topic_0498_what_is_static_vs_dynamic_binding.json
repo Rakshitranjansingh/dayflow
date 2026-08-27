@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java Virtual Machine, method invocation requires linking the method call site to the actual memory address where the target bytecode instructions reside. This linking process is broadly categorized into static binding and dynamic binding. Static binding, also known as early binding, occurs entirely at compile-time by the Java compiler. Because the target method cannot be overridden, the compiler resolves the reference using the declared type of the reference variable. This applies exclusively to methods marked as private, static, or final, as well as constructors, where inheritance polymorphism does not introduce ambiguity.\n\nConversely, dynamic binding, or late binding, defers the method resolution to runtime. When a method can be overridden—which is the default behavior for all non-private, non-static, and non-final instance methods in Java—the compiler cannot possibly know which subclass implementation will be instantiated at runtime. The JVM must inspect the actual object instance sitting on the heap, navigate its Class metadata via the method table (vtable), and dispatch the call to the correct execution block. This mechanism is the foundational pillar enabling runtime polymorphism, allowing base-class reference variables to execute specialized subclass behaviors seamlessly."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Static Binding (Early Binding)",
+        "Dynamic Binding (Late Binding)"
+      ],
+      "rows": [
+        [
+          "Resolution Timing",
+          "Compile-time (by javac)",
+          "Runtime (by JVM execution engine)"
+        ],
+        [
+          "Applicable Modifiers",
+          "private, static, final, constructors",
+          "Default instance methods (non-private/static/final)"
+        ],
+        [
+          "Performance",
+          "Slower overhead (direct instruction call)",
+          "Slight runtime overhead (vtable lookup)"
+        ],
+        [
+          "Polymorphism Support",
+          "Not supported",
+          "Fully supported"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "During static binding, the JVM emits an invokestatic or invokespecial bytecode instruction, bypassing any dynamic dispatch mechanisms because the method owner is strictly frozen in stone at compilation.",
+        "Dynamic binding relies heavily on the invokevirtual (and invokeinterface) bytecode instructions, which query a class-specific virtual method table (vtable) populated during class loading to resolve method overrides in O(1) time.",
+        "Field shadowing does not participate in dynamic binding; instance variables are resolved statically based on the declared reference type, meaning polymorphism only applies to methods, not fields."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class BindingDemo {\n    static class Animal {\n        public static void staticMethod() {\n            System.out.println(\"Animal static (Early Bound)\");\n        }\n        public void dynamicMethod() {\n            System.out.println(\"Animal instance (Late Bound)\");\n        }\n    }\n\n    static class Dog extends Animal {\n        public static void staticMethod() {\n            System.out.println(\"Dog static (Hides, not overrides)\");\n        }\n        @Override\n        public void dynamicMethod() {\n            System.out.println(\"Dog instance (Polymorphic dispatch)\");\n        }\n    }\n\n    public static void main(String[] args) {\n        Animal ref = new Dog();\n        ref.staticMethod();  // Resolved via Animal (Static Binding)\n        ref.dynamicMethod(); // Resolved via Dog (Dynamic Binding)\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic trap in enterprise codebases involves attempting to override static methods. Because static binding evaluates methods strictly by the reference type rather than the object instance, calling a static method on a polymorphic reference leads to method hiding rather than overriding. Always remember: static members belong to the Class metadata in the metaspace, not the object instance on the heap, making them invisible to the vtable used in dynamic binding."
+    }
+  ],
+  "num": 499,
+  "title": "What is static vs dynamic binding?",
+  "category": "Core Java & Fundamentals"
+}

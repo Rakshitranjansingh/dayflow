@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "String Templates, introduced as a preview feature in Java 21 via JEP 430, radically modernize how Java developers combine literal text with dynamic expressions. Historically, Java developers relied on concatenation via the plus operator, which creates hidden StringBuilder instances and pollutes the bytecode, StringBuilder or StringBuffer for mutable composition, String.format for locale-dependent formatting, or MessageFormat for localization. While functional, these approaches suffer from poor readability when nesting strings, lack compile-time safety against injection attacks, and introduce runtime performance overhead due to unoptimized intermediate allocations.\n\nString Templates solve these limitations by introducing template expressions composed of a template processor (like STR, FMT, or RAW) and a template consisting of literal text interspersed with embedded expressions prefixed by the backslash-brace sequence (\\{...}). Unlike naive string interpolation found in scripting languages, Java's template architecture is type-safe and extensible. The compiler validates the expressions inside the template and delegates the execution to the specified template processor, which can evaluate, validate, or sanitize the resulting values before producing a final String or domain-specific object graph. This architectural shift bridges the gap between raw string manipulation and secure, structured data handling."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Approach",
+        "Safety",
+        "Performance",
+        "Readability"
+      ],
+      "rows": [
+        [
+          "String Concatenation (+)",
+          "Low (prone to bugs/injection)",
+          "Poor (hidden StringBuilder churn)",
+          "Low for complex strings"
+        ],
+        [
+          "String.format()",
+          "Medium (throws runtime format exceptions)",
+          "Poor (parsing format string at runtime)",
+          "Medium"
+        ],
+        [
+          "String Templates (STR/FMT)",
+          "High (compile-time checking of expressions)",
+          "Optimized (invokedynamic under the hood)",
+          "High"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Under the hood, the Java compiler translates string template expressions into invokedynamic instructions targeting java.lang.runtime.StringTemplateFactory, minimizing runtime overhead and allowing future optimizations by the JIT compiler.",
+        "The STR processor is the default standard processor that evaluates embedded expressions and injects their string representations directly into the literal text spaces, mirroring straightforward interpolation.",
+        "The FMT processor extends STR by supporting java.util.Formatter-style format specifiers directly inside the expression delimiters, merging powerful formatting capabilities with concise template syntax.",
+        "The RAW processor produces a javax.lang.model.StringTemplate instance directly without evaluating the embedded expressions, allowing libraries to implement custom processors for SQL queries, JSON generation, or HTML sanitization to prevent injection vulnerabilities."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import static java.lang.StringTemplate.STR;\nimport static java.util.FormatProcessor.FMT;\n\npublic class StringTemplateDemo {\n    public static void main(String[] args) {\n        String firstName = \"Ada\";\n        String lastName = \"Lovelace\";\n        int age = 36;\n\n        // Standard STR Processor\n        String greeting = STR.\"My name is \\{firstName} \\{lastName} and I am \\{age} years old.\";\n        System.out.println(greeting);\n\n        // FMT Processor with formatting specifiers\n        double pi = Math.PI;\n        String formattedPi = FMT.\"Value of Pi to 4 decimal places: \\%(.4f\\{pi}%%\";\n        System.out.println(formattedPi);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Because String Templates are a preview feature across multiple JDK releases (such as Java 21 and Java 22), you must explicitly enable preview features using `--enable-preview` during both compilation and execution (`javac --enable-preview --release 21` and `java --enable-preview`). Furthermore, be aware that future iterations of Java may alter template processor syntax or APIs as feedback from the community matures."
+    }
+  ],
+  "num": 103,
+  "title": "String Templates (preview)",
+  "category": "Core Java & Fundamentals"
+}

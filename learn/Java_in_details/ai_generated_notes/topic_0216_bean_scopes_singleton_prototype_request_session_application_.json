@@ -1,0 +1,76 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Framework, bean scopes form the fundamental contract governing the lifecycle, visibility, and instantiation frequency of managed components within the Inversion of Control (IoC) container. Understanding bean scopes is critical when architecting scalable REST APIs, reactive WebFlux applications, and distributed microservices where thread safety, memory footprint, and state management dictate operational stability. The container supports several built-in scopes: singleton, prototype, request, session, application, and websocket. Each scope addresses distinct architectural boundaries, shifting from application-wide single instances to hyper-localized HTTP request or WebSocket session contexts.\n\nSingleton is the default scope, ensuring the container instantiates exactly one shared instance per Spring IoC container, optimized for stateless service and repository layers. Prototype scope shifts this behavior, creating a brand-new bean instance every time a request is made for that specific bean, acting as a factory mechanism for stateful components. Moving into web-aware architectures, request scope binds a bean to the lifecycle of a single HTTP request, making it ideal for tracking per-request transaction data or audit logs. Session scope extends this lifecycle to match an HTTP session, suitable for user-specific conversational state. Application scope scopes a bean to the lifecycle of a ServletContext, making it visible across multiple web applications sharing the same container. Finally, websocket scope aligns bean instantiation with the lifecycle of an active WebSocket handshake and session, crucial for real-time messaging systems built on Spring WebFlux or MVC."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Scope",
+        "Lifecycle Boundary",
+        "Thread Safety Requirement",
+        "Typical Use Case"
+      ],
+      "rows": [
+        [
+          "singleton",
+          "Entire Application Context",
+          "Must be thread-safe (stateless)",
+          "Services, Repositories, REST Controllers"
+        ],
+        [
+          "prototype",
+          "Per injection / getBean() call",
+          "Generally thread-safe (isolated instances)",
+          "Stateful objects, command beans, DTO assemblers"
+        ],
+        [
+          "request",
+          "Single HTTP Request",
+          "Thread-confined (single request thread)",
+          "Request-specific context, tracing, security context holders"
+        ],
+        [
+          "session",
+          "HTTP Session duration",
+          "Needs synchronization (shared across concurrent requests in same session)",
+          "Shopping carts, user session preferences"
+        ],
+        [
+          "application",
+          "ServletContext lifecycle",
+          "Must be thread-safe",
+          "Global web application configuration and counters"
+        ],
+        [
+          "websocket",
+          "WebSocket Session duration",
+          "Needs synchronization (multiplexed frames)",
+          "Real-time chat state, active socket subscriptions"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Singleton beans are eagerly initialized at context startup by default (unless marked lazy), and their references are cached inside the DefaultSingletonBeanRegistry, making dependency resolution extremely fast.",
+        "Prototype beans are never fully managed by the container throughout their lifecycle; Spring instantiates and configures the bean and hands it over to the caller, after which the container completely forgets about it and skips running destruction callbacks.",
+        "Web-scoped beans (request, session, application, websocket) require a special proxy-mode configuration (scopedProxy = ScopedProxyMode.TARGET_CLASS) when injected into a singleton bean, because the singleton is instantiated only once at startup and needs a dynamic proxy to resolve the current thread-bound target instance.",
+        "In reactive applications utilizing Spring WebFlux, traditional thread-local based request scopes do not function identically due to asynchronous, non-blocking execution models; Reactor's Context mechanism is often leveraged instead for request-scoped context propagation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/cart\")\npublic class ShoppingCartController {\n\n    @Autowired\n    private ShoppingCart sessionScopedCart;\n\n    @PostMapping(\"/item\")\n    public ResponseEntity<String> addItem(@RequestBody Item item) {\n        sessionScopedCart.addItem(item);\n        return ResponseEntity.ok(\"Item added to session cart\");\n    }\n}\n\n@Component\n@Scope(value = WebApplicationContext.SCOPE_SESSION, proxyMode = ScopedProxyMode.TARGET_CLASS)\nclass ShoppingCart implements Serializable {\n    private final List<Item> items = new ArrayList<>();\n\n    public void addItem(Item item) {\n        items.add(item);\n    }\n\n    public List<Item> getItems() {\n        return Collections.unmodifiableList(items);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap occurs when injecting a prototype-scoped bean directly into a singleton-scoped bean via standard @Autowired injection. Because the singleton is created only once at startup, the prototype bean is injected once and effectively behaves like a singleton, violating its intended behavior. To fix this, you must use a Provider<T>, ObjectFactory<T>, or configure method-injection via @Lookup to force the container to yield a fresh instance on every access."
+    }
+  ],
+  "num": 217,
+  "title": "Bean scopes — singleton, prototype, request, session, application, websocket",
+  "category": "REST APIs, WebFlux & Microservices"
+}

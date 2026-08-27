@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Cohesion and coupling are the twin architectural compasses that guide every meaningful code review. Cohesion measures the degree to which the elements inside a single module or class belong together, ensuring that a unit of code has a singular, well-defined responsibility aligned with the Single Responsibility Principle. High cohesion means a class focuses entirely on one thing, whereas low cohesion manifests as a God Object or a utility grab-bag where unrelated methods share space. Coupling, on the other hand, measures the degree of interdependence between separate software modules. Tight coupling means changes to one class ripple aggressively across the codebase, whereas loose coupling isolates subsystems through well-defined abstractions, interfaces, and clean dependency boundaries.\n\nIn the context of Exception Handling and I/O / NIO, spotting cohesion and coupling failures during code reviews becomes an exercise in survival. When developers mix low-level byte manipulation, direct file channel operations, and raw business logic inside a single monolithic class, they create catastrophically tightly coupled code. For instance, if a network I/O reader explicitly catches a low-level java.io.IOException, wraps it in a custom runtime exception, logs it using a static logging framework, and concurrently mutates domain state, that class suffers from abysmal cohesion. A code reviewer must catch these violations before they calcify into technical debt, ensuring that I/O concerns, error management strategies, and core domain rules remain strictly segregated through targeted abstractions."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric",
+        "High Cohesion / Loose Coupling",
+        "Low Cohesion / Tight Coupling"
+      ],
+      "rows": [
+        [
+          "Class Responsibility",
+          "Single, highly focused domain or I/O task",
+          "Mixed responsibilities (business logic + raw NIO channels + error parsing)"
+        ],
+        [
+          "Dependency Management",
+          "Injected via interfaces (e.g., AsynchronousFileChannel abstractions)",
+          "Hardcoded instantiations and direct concrete references"
+        ],
+        [
+          "Exception Strategy",
+          "Translates low-level I/O exceptions into bounded domain faults",
+          "Leaks raw SocketExceptions or closed channel exceptions up to the UI layer"
+        ],
+        [
+          "Testability",
+          "Easily unit-tested with mocked buffers and channels",
+          "Requires complex integration setups, live sockets, or disk I/O"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spotting tight coupling in NIO code reviews often starts with checking for direct usage of concrete classes like java.nio.channels.FileChannel or Selector inside high-level business services, rather than wrapping them behind repository or gateway abstractions.",
+        "Low cohesion in exception handling appears when catch blocks attempt to handle logging, retries, metric increments, and fallback state recovery all inline, rather than delegating these concerns to dedicated resilience decorators or aspect-oriented components.",
+        "Pay close attention to how ByteBuffer allocations are managed; if domain objects are directly managing direct byte buffers and clearing/flipping them across layer boundaries, coupling is dangerously high and memory leaks via dangling native pointers become imminent."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public interface DataGateway {\n    void persist(ByteBuffer buffer) throws DataTransferException;\n}\n\npublic class ChannelDataGateway implements DataGateway {\n    private final AsynchronousFileChannel fileChannel;\n\n    public ChannelDataGateway(AsynchronousFileChannel fileChannel) {\n        this.fileChannel = fileChannel;\n    }\n\n    @Override\n    public void persist(ByteBuffer buffer) {\n        fileChannel.write(buffer, 0, buffer, new CompletionHandler<Integer, ByteBuffer>() {\n            @Override\n            public void completed(Integer result, ByteBuffer attachment) {\n                attachment.clear();\n            }\n\n            @Override\n            public void failed(Throwable exc, ByteBuffer attachment) {\n                throw new DataTransferException(\"Failed to write bytes via NIO\", exc);\n            }\n        });\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "During code reviews, watch out for developers who pass raw java.nio.channels exceptions up through architectural tiers. This is a dead giveaway of poor exception decoupling. Always force the isolation of low-level I/O primitives at the infrastructure edge, translating them immediately into meaningful domain-level or application-level exceptions before crossing layer boundaries."
+    }
+  ],
+  "num": 40,
+  "title": "Cohesion & Coupling — spotting them in code reviews",
+  "category": "Exception Handling & I/O / NIO"
+}

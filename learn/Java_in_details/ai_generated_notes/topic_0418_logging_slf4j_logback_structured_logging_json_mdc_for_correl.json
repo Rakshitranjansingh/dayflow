@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java applications, reliable observability depends heavily on a robust logging architecture. When debugging production incidents across distributed microservices, standard text-based logs quickly fall short because tracing a single user transaction through asynchronous thread pools and network boundaries is nearly impossible with ad-hoc print statements. This is where the combination of Logging, SLF4J + Logback, structured logging in JSON format, and MDC (Mapped Diagnostic Context) for correlation IDs becomes indispensable. SLF4J (Simple Logging Facade for Java) acts as a universal abstraction layer, decoupling application code from specific logging implementations, while Logback serves as its native, high-performance implementation. By leveraging Logback encoders to emit logs in JSON format, log aggregation platforms like ElasticSearch, Splunk, or Grafana Loki can ingest, index, and query application logs without error-prone regex parsing. Furthermore, MDC utilizes a thread-local map to inject contextual attributes—most notably a correlation ID or trace ID—into every log event emitted within that thread execution lifecycle, preserving the causality chain across system boundaries."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component",
+        "Role in Architecture",
+        "Production Impact"
+      ],
+      "rows": [
+        [
+          "SLF4J",
+          "API Abstraction Facade",
+          "Prevents vendor lock-in, allows swapping logging frameworks without recompiling."
+        ],
+        [
+          "Logback",
+          "High-Performance Implementation",
+          "Provides asynchronous appenders and zero-garbage log event generation."
+        ],
+        [
+          "Structured Logging (JSON)",
+          "Machine-Readable Log Format",
+          "Enables fast ingestion and exact-match indexing in log analysis tools."
+        ],
+        [
+          "MDC",
+          "Thread-Bound Context Propagation",
+          "Ensures trace IDs are automatically appended to all logs on the current execution thread."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "SLF4J works via static binding at compile time, resolving to a specific logger implementation jar (such as logback-classic) on the runtime classpath, routing calls through a unified facade interface.",
+        "Logback implements asynchronous logging using LMAX Disruptor-like ring buffers or bounded ArrayBlockingQueues, decoupling I/O wait times from critical application execution threads.",
+        "Structured JSON encoders transform message arguments and MDC properties into native JSON keys, eliminating multiline log parsing issues caused by stack traces or nested payloads.",
+        "MDC relies on ThreadLocal storage, requiring explicit cleanup (MDC.clear()) at the end of thread execution to prevent memory leaks in thread-pooled environments like servlet containers or reactive schedulers."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\nimport org.slf4j.MDC;\nimport org.springframework.stereotype.Component;\nimport java.util.UUID;\n\n@Component\npublic class OrderProcessingService {\n    private static final Logger log = LoggerFactory.getLogger(OrderProcessingService.class);\n    private static final String CORRELATION_ID_KEY = \"correlationId\";\n\n    public void processOrder(String orderId) {\n        String correlationId = UUID.randomUUID().toString();\n        MDC.put(CORRELATION_ID_KEY, correlationId);\n        try {\n            log.info(\"Starting processing for orderId={}\", orderId);\n            // Business logic execution...\n        } catch (Exception e) {\n            log.error(\"Failed to process orderId={}\", orderId, e);\n            throw e;\n        } finally {\n            MDC.remove(CORRELATION_ID_KEY);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production hazard when using MDC with modern thread pools (like ForkJoinPool, Project Loom virtual threads, or Spring WebFlux reactive pipelines) is context leakage or context loss. Because MDC is fundamentally tied to a ThreadLocal, any thread handoff—such as switching threads via CompletableFuture.supplyAsync() or Mono.publishOn()—will silently drop the MDC context unless explicitly propagated. Always use Sentry, Micrometer Tracing, or custom thread decorators to capture and restore MDC state across asynchronous boundaries, and never forget to clear the MDC map in a finally block to prevent polluted context bleeding into subsequent requests handled by pooled server threads."
+    }
+  ],
+  "num": 419,
+  "title": "Logging — SLF4J + Logback, structured logging (JSON), MDC for correlation IDs",
+  "category": "Exception Handling & I/O / NIO"
+}

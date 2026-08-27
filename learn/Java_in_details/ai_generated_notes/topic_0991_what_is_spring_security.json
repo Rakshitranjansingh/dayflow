@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Security is a powerful, highly customizable authentication and access-control framework that serves as the de facto standard for securing Java-based enterprise applications. At its core, it solves the problem of protecting application entry points by providing a robust infrastructure to handle 'Who are you?' (Authentication) and 'Are you allowed to do this?' (Authorization). Unlike simple filter-based approaches, Spring Security leverages a sophisticated chain of Servlet Filters (DelegatingFilterProxy) that intercepts incoming HTTP requests before they reach your Controller layer, ensuring that security concerns remain decoupled from business logic.\n\nAuthentication in Spring Security is the process of verifying identity, typically via UserDetailsService, which loads user-specific data into an Authentication object. Authorization, conversely, is handled through AccessDecisionManagers and Voters, which evaluate whether the authenticated principal possesses the required GrantedAuthority or Role to access a specific resource. By abstracting these concerns into a declarative configuration model, Spring Security mitigates common web vulnerabilities like Cross-Site Request Forgery (CSRF), Session Fixation, and Clickjacking out of the box, providing a hardened security posture that evolves with modern standards like OAuth2, OIDC, and JWT."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Authentication",
+        "Authorization"
+      ],
+      "rows": [
+        [
+          "Primary Goal",
+          "Verify Identity",
+          "Verify Permissions"
+        ],
+        [
+          "Key Interface",
+          "AuthenticationProvider",
+          "AccessDecisionVoter"
+        ],
+        [
+          "Result",
+          "Authentication Object",
+          "AccessGranted/Denied"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The SecurityFilterChain acts as a pipeline of filters; when a request enters the application, the DelegatingFilterProxy delegates the request to the FilterChainProxy, which iterates through configured security filters like UsernamePasswordAuthenticationFilter or BearerTokenAuthenticationFilter.",
+        "SecurityContextHolder uses a ThreadLocal storage mechanism by default to hold the SecurityContext, ensuring that the authenticated user's details are available throughout the lifecycle of the request thread without needing to pass them explicitly.",
+        "The framework utilizes a 'Security Interceptor' pattern, where Method Security (via @PreAuthorize) uses AOP proxies to intercept method calls and validate permissions before the target method is ever executed.",
+        "CSRF protection is implemented by requiring a unique, cryptographically strong token for state-changing requests (POST, PUT, DELETE), which is validated against the session or a cookie to prevent unauthorized command execution."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\npublic class SecurityConfig {\n    @Bean\n    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {\n        http\n            .csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))\n            .authorizeHttpRequests(auth -> auth\n                .requestMatchers(\"/public/**\").permitAll()\n                .anyRequest().authenticated()\n            )\n            .formLogin(Customizer.withDefaults());\n        return http.build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is the 'SecurityContextHolder' thread-leak. Because it uses ThreadLocal by default, if you spawn custom threads (e.g., using @Async or manual ExecutorService) without configuring a DelegatingSecurityContextExecutor, the security context will not propagate, resulting in NullPointerExceptions or unauthorized access errors. Always ensure your thread pools are 'Security-aware' when dealing with asynchronous processing."
+    }
+  ],
+  "num": 992,
+  "title": "What is Spring Security?",
+  "category": "Spring Security & Web Security"
+}

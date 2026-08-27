@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java Concurrency model, Thread control methods are critical primitives that allow developers to influence the JVM's thread scheduler. The sleep() method is a static call that forces the currently executing thread to pause for a specified duration, moving it from the 'Runnable' state to the 'Timed Waiting' state. It is primarily used for pacing execution or polling, and crucially, it does not release any monitors or locks the thread may hold. Conversely, yield() is a hint to the thread scheduler that the current thread is willing to relinquish its current use of the processor. Unlike sleep(), yield() does not move the thread into a waiting state; the thread remains 'Runnable'. The scheduler is free to ignore this hint entirely, making it unreliable for synchronization logic. Finally, join() is an instance method used to synchronize the completion of threads. When thread A calls threadB.join(), thread A enters a 'Waiting' state until thread B terminates. This is the standard mechanism for orchestrating task dependencies where a parent thread must wait for the results of child worker threads before proceeding."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "sleep(ms)",
+        "yield()",
+        "join()"
+      ],
+      "rows": [
+        [
+          "State Change",
+          "Runnable to Timed Waiting",
+          "Remains Runnable",
+          "Runnable to Waiting"
+        ],
+        [
+          "Lock Release",
+          "No",
+          "No",
+          "No"
+        ],
+        [
+          "Scheduler Guarantee",
+          "Guaranteed pause",
+          "Optional hint",
+          "Guaranteed wait for termination"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "sleep() is implemented via native calls to the underlying OS thread sleep functionality, causing the JVM to remove the thread from the scheduler's run queue for the specified duration.",
+        "yield() is often used in high-contention scenarios to prevent a single thread from monopolizing a CPU core, though modern JVMs and OS schedulers are generally efficient enough that manual yielding is rarely necessary.",
+        "join() internally uses the Object.wait() mechanism. When a thread calls join(), it effectively calls wait() on the thread object it is joining, and the JVM notifies all waiting threads when that specific thread terminates."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void executeTask() throws InterruptedException {\n    Thread worker = new Thread(() -> {\n        // Simulate work\n        try { Thread.sleep(1000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }\n    });\n    \n    worker.start();\n    // Wait for worker to finish before proceeding\n    worker.join(); \n    \n    System.out.println(\"Worker completed, proceeding safely.\");\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is calling join() on a thread that never terminates, which will cause your main thread to hang indefinitely. Always use the overloaded join(long millis) to implement a timeout, ensuring your system remains responsive even if a worker thread deadlocks or enters an infinite loop. Furthermore, never rely on yield() for business logic; it is strictly a performance hint that behaves differently across various OS thread schedulers."
+    }
+  ],
+  "num": 648,
+  "title": "What is sleep()? What is yield()? What is join()?",
+  "category": "Core Java & Fundamentals"
+}

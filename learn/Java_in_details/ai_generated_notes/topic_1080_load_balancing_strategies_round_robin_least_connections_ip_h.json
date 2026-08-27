@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed, high-throughput network architectures, a single server instance is invariably a bottleneck and a single point of failure. To achieve massive scalability and high availability, traffic must be intelligently distributed across a cluster of backend servers. This is where Load Balancing Strategies come into play as the core routing mechanism at Layer 4 (Transport) or Layer 7 (Application) of the OSI model. When designing resilient I/O-bound systems, particularly those handling thousands of concurrent non-blocking NIO connections via frameworks like Netty or reactive web servers, choosing the correct scheduling algorithm dictates whether your cluster operates at maximum efficiency or suffers from cascading failures due to resource starvation.\n\nTo understand how traffic distribution algorithms solve real-world throughput and latency problems, we must deeply analyze the three primary strategies: Round Robin, Least Connections, and IP Hash. Round Robin is the simplest stateful or stateless scheduling technique, iterating through a sequential list of backend servers uniformly. While effective for homogeneous workloads, it fails when request processing times vary wildly. Least Connections solves this by maintaining active connection counters for every upstream target, dynamically routing incoming TCP sockets or HTTP requests to the node with the minimum current load. Finally, IP Hash addresses statefulness by computing a deterministic cryptographic or mathematical hash from the client's source IP address, mapping that specific client consistently to the same backend server. This ensures session affinity without requiring external distributed cache layers, though it introduces risks of hot-spotting if traffic originates behind a corporate NAT gateway."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Routing Determinant",
+        "Best Use Case",
+        "Failure Mode / Risk"
+      ],
+      "rows": [
+        [
+          "Round Robin",
+          "Sequential index rotation",
+          "Stateless, homogeneous backend instances",
+          "Resource imbalance if requests vary in duration"
+        ],
+        [
+          "Least Connections",
+          "Active open socket/connection count",
+          "Long-lived connections (WebSockets, gRPC)",
+          "Overhead of atomic counter tracking in cluster"
+        ],
+        [
+          "IP Hash",
+          "Source IP address cryptographic hash",
+          "Stateful sessions without sticky cookies",
+          "Hot-spotting behind corporate NAT / Proxies"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Round Robin maintains an atomic index pointer (often using Compare-And-Swap operations) across threads to avoid synchronization bottlenecks when selecting the next backend endpoint.",
+        "Least Connections requires the load balancer to track the lifecycle of every inbound and outbound channel, decrementing connection gauges precisely upon TCP FIN/RST or HTTP connection close events.",
+        "IP Hash uses algorithms like MurmurHash or consistent hashing rings to map client IPv4/IPv6 addresses, minimizing cache misses and re-allocations when scaling nodes up or down."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class LeastConnectionsLoadBalancer {\n    private final List<ServerNode> servers;\n    \n    public LeastConnectionsLoadBalancer(List<ServerNode> servers) {\n        this.servers = servers;\n    }\n\n    public ServerNode selectServer() {\n        return servers.stream()\n            .min(Comparator.comparingInt(ServerNode::getActiveConnections))\n            .orElseThrow(() -> new IllegalStateException(\n                \"No active backend servers available\"));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: When combining IP Hash with modern cloud environments utilizing layer-4 load balancers (like AWS NLBs) or corporate firewalls, remember that thousands of distinct corporate users may share a single public source IP address. This causes severe traffic skewing, routing an entire enterprise network's worth of requests to a single backend node while other cluster instances remain idle. Prefer cookie-based session affinity over IP Hash when application-layer routing is viable."
+    }
+  ],
+  "num": 1081,
+  "title": "Load Balancing Strategies: Round Robin, Least Connections, IP Hash.",
+  "category": "Exception Handling & I/O / NIO"
+}

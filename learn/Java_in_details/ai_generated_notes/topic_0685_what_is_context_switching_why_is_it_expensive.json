@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Context switching is the low-level mechanism by which the operating system kernel suspends the execution of one thread or process and resumes another. In the context of the JVM, this is a transition from user mode to kernel mode where the CPU saves the current state—specifically the Program Counter (PC), CPU registers, and stack pointers—of the running thread into a Process Control Block (PCB) or Thread Control Block (TCB). Once the state is saved, the kernel loads the state of the next thread from its respective control block and restores the CPU registers to resume execution. This is the fundamental cost of multitasking; the CPU is forced to perform administrative bookkeeping rather than executing your application's bytecode.\n\nContext switching is expensive primarily due to two factors: direct overhead and indirect performance degradation. The direct cost involves the CPU cycles required to execute kernel code to perform the save/restore operations. However, the more insidious cost is the 'cold cache' effect. Modern processors rely heavily on L1, L2, and L3 caches to minimize latency when accessing main memory. When a context switch occurs, the new thread likely requires different data, rendering the existing cache lines 'stale' or irrelevant. This forces the CPU to suffer cache misses, stalling execution while it fetches data from slower RAM. Furthermore, frequent switching triggers TLB (Translation Lookaside Buffer) flushes, which significantly slows down virtual-to-physical memory address translation."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Aspect",
+        "Direct Cost",
+        "Indirect Cost"
+      ],
+      "rows": [
+        [
+          "CPU Impact",
+          "Kernel mode transition cycles",
+          "Cache locality loss (L1/L2/L3)"
+        ],
+        [
+          "Memory Impact",
+          "Stack pointer/Register saving",
+          "TLB cache invalidation"
+        ],
+        [
+          "Application Impact",
+          "Increased latency",
+          "Throughput degradation"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Voluntary Context Switching: Occurs when a thread explicitly yields control, such as calling Thread.sleep(), Object.wait(), or blocking on an I/O operation or a synchronized lock.",
+        "Involuntary Context Switching: Occurs when the OS scheduler preempts a thread because its time slice has expired or a higher-priority thread has become runnable, forcing the current thread off the CPU.",
+        "The JVM's role: The JVM manages Java threads, but it maps them to native OS threads (usually 1:1). Consequently, heavy synchronization or excessive thread creation directly translates to OS-level context switching pressure.",
+        "Cache Locality: When a thread is swapped out, the CPU cache lines associated with its working set are gradually evicted, leading to a 'warm-up' period for the incoming thread where memory access latency is significantly higher."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Example of code that triggers voluntary context switches\npublic void processTasks(List<Task> tasks) {\n    for (Task task : tasks) {\n        // Blocking I/O forces the thread into WAITING state,\n        // triggering a context switch to another runnable thread.\n        task.execute(); \n        \n        // Explicitly yielding may trigger a switch if other threads are ready\n        Thread.yield(); \n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Do not confuse 'high CPU usage' with 'high context switching'. A system can have 100% CPU utilization with very few context switches if a few threads are compute-bound. Conversely, a system can have low CPU utilization but terrible performance if thousands of threads are constantly fighting for the CPU, causing the kernel to spend more time managing threads than executing them. Always monitor 'cs' (context switches) via `vmstat` or `pidstat` when investigating latency spikes in high-concurrency Java applications."
+    }
+  ],
+  "num": 686,
+  "title": "What is context switching? Why is it expensive?",
+  "category": "Core Java & Fundamentals"
+}

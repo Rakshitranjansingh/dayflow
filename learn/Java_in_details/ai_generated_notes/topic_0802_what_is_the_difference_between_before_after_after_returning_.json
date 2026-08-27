@@ -1,0 +1,77 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Aspect-Oriented Programming (AOP), advice represents the actionable code executed at a specific join point, known as a pointcut. Understanding the execution timeline and interception semantics of before, after, after-returning, after-throwing, and around advice is crucial for cleanly separating cross-cutting concerns like security, transaction management, caching, and auditing from core business logic.\n\nBefore advice executes prior to the target method invocation and cannot stop the execution flow unless it throws an exception. After advice (often referred to as 'after finally') runs unconditionally when a join point finishes, regardless of whether it completed successfully or threw an exception, mimicking a traditional try-finally block. After-returning advice executes strictly when the join point completes normally without throwing any uncaught exceptions, granting access to the method's return value. Conversely, after-throwing advice executes only when the join point exits by throwing an exception, making it ideal for error logging, metric collection, or alarm triggers. Finally, around advice is the most powerful and comprehensive type, encompassing all other advice categories. It surrounds the join point entirely, giving the developer explicit programmatic control over whether to proceed with the method invocation, modify its arguments, catch exceptions, alter the return value, or bypass the target execution altogether."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Advice Type",
+        "Execution Timing",
+        "Access to Return Value",
+        "Can Prevent Method Execution?",
+        "Equivalent Construct"
+      ],
+      "rows": [
+        [
+          "Before",
+          "Before target method runs",
+          "No",
+          "Yes (by throwing an exception)",
+          "try { ... } entry"
+        ],
+        [
+          "After",
+          "After target method finishes (success or failure)",
+          "No",
+          "No",
+          "finally block"
+        ],
+        [
+          "After-Returning",
+          "Only after target method returns successfully",
+          "Yes (can inspect)",
+          "No",
+          "try block successful exit"
+        ],
+        [
+          "After-Throwing",
+          "Only after target method throws an exception",
+          "No (has access to exception)",
+          "No",
+          "catch block"
+        ],
+        [
+          "Around",
+          "Before and after target method",
+          "Yes (can inspect and modify)",
+          "Yes (by omitting proceeding join point)",
+          "Full custom wrapper proxy"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Before advice interceptors typically leverage JoinPoint arguments to inspect method metadata, parameters, and target bean instances without mutating state.",
+        "After-returning advice can utilize the returning attribute in AspectJ annotations to bind the returned object directly to a method parameter, but the parameter type must strictly match or be assignable from the actual return type.",
+        "After-throwing advice can bind thrown exceptions using the throwing attribute, enabling targeted handling of specific subclasses like DataAccessException without intercepting unrelated errors.",
+        "Around advice requires an explicit invocation of ProceedingJoinPoint.proceed() to delegate execution down the interception chain to the target method; forgetting to call proceed() halts the method execution permanently.",
+        "When multiple advices apply to the same join point, AspectJ and Spring AOP determine execution order using the @Order annotation or Ordered interface, following onion-shell semantics for around advice where inner wrappers nest inside outer wrappers."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.aop;\n\nimport org.aspectj.lang.ProceedingJoinPoint;\nimport org.aspectj.lang.annotation.*;\nimport org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\nimport org.springframework.stereotype.Component;\n\n@Aspect\n@Component\npublic class AuditAspect {\n    private static final Logger log = LoggerFactory.getLogger(AuditAspect.class);\n\n    @Before(\"execution(* com.example.service.*.*(..))\")\n    public void logBefore() {\n        log.info(\"Executing before advice: Method is about to run.\");\n    }\n\n    @AfterReturning(pointcut = \"execution(* com.example.service.*.*(..))\", returning = \"result\")\n    public void logAfterReturning(Object result) {\n        log.info(\"Executing after-returning advice: Result = {}\", result);\n    }\n\n    @AfterThrowing(pointcut = \"execution(* com.example.service.*.*(..))\", throwing = \"ex\")\n    public void logAfterThrowing(Throwable ex) {\n        log.error(\"Executing after-throwing advice: Exception = {}\", ex.getMessage());\n    }\n\n    @After(\"execution(* com.example.service.*.*(..))\")\n    public void logAfter() {\n        log.info(\"Executing after (finally) advice.\");\n    }\n\n    @Around(\"execution(* com.example.service.*.*(..))\")\n    public Object measureExecutionTime(ProceedingJoinPoint pjp) throws Throwable {\n        long start = System.currentTimeMillis();\n        try {\n            Object result = pjp.proceed();\n            long duration = System.currentTimeMillis() - start;\n            log.info(\"Around advice: Method {} executed in {}ms\", pjp.getSignature().toShortString(), duration);\n            return result;\n        } catch (Throwable t) {\n            log.error(\"Around advice caught exception, rethrowing...\");\n            throw t;\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall in Spring AOP is mixing around advice with after-returning or after-throwing advice on the exact same method. Because around advice manually wraps and handles the execution flow (including catching exceptions and returning values), it can intercept and swallow exceptions or return statements that after-throwing and after-returning advice rely on to trigger. If you use around advice, perform your exception handling and result modification directly inside that advice block to avoid unpredictable execution ordering and duplicated logging."
+    }
+  ],
+  "num": 803,
+  "title": "What is the difference between before, after, after-returning, after-throwing, and around advice?",
+  "category": "Core Java & Fundamentals"
+}

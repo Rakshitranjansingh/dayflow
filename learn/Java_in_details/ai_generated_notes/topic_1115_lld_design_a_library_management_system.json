@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a Library Management System (LMS) at the Low-Level Design (LLD) stage requires a shift from high-level business requirements to concrete class hierarchies, state management, and thread-safe interactions. The core of this system revolves around modeling the physical and digital assets—Books, Members, and Loans—while enforcing business invariants like maximum checkout limits and reservation queues. We must leverage Object-Oriented Design (OOD) principles, specifically encapsulation to protect the integrity of book availability, and polymorphism to handle different types of library items (e.g., Journals vs. Hardcover Books). The system must handle concurrent access to the same book record, necessitating robust synchronization strategies to prevent race conditions during checkout operations."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component",
+        "Responsibility",
+        "Design Pattern"
+      ],
+      "rows": [
+        [
+          "BookItem",
+          "Represents a physical instance of a book",
+          "POJO/Entity"
+        ],
+        [
+          "LibraryCatalog",
+          "Searchable index of all books",
+          "Singleton/Strategy"
+        ],
+        [
+          "CheckoutService",
+          "Handles state transitions of loans",
+          "Facade/Command"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "State Management: Use an Enum for BookStatus (AVAILABLE, RESERVED, LOANED, LOST) to ensure type-safe transitions and prevent invalid state mutations.",
+        "Concurrency Control: Use ReentrantLocks or atomic references on the book's availability flag to ensure that two threads cannot checkout the same physical copy simultaneously.",
+        "Search Optimization: Implement the Catalog using a HashMap for ISBN lookups (O(1)) and a secondary index (e.g., TreeMap or List) for title/author searches to balance memory overhead and query performance.",
+        "Observer Pattern: Utilize a notification system to alert members when a reserved book becomes available, decoupling the checkout logic from the notification engine."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class BookItem {\n    private final String barcode;\n    private final String isbn;\n    private BookStatus status;\n    private final Lock lock = new ReentrantLock();\n\n    public boolean checkout(Member member) {\n        lock.lock();\n        try {\n            if (status != BookStatus.AVAILABLE) return false;\n            this.status = BookStatus.LOANED;\n            return true;\n        } finally {\n            lock.unlock();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common pitfall in LLD interviews is over-engineering the database schema before defining the domain model. Focus on the 'Service' layer first: ensure your checkout logic is idempotent. If the system crashes after updating the book status but before creating the Loan record, you have a data inconsistency. Always wrap state-changing operations in a transaction or use a Saga-like pattern if the persistence layer is distributed."
+    }
+  ],
+  "num": 1116,
+  "title": "LLD: Design a Library Management System",
+  "category": "Core Java & Fundamentals"
+}

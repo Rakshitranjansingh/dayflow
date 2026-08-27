@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Boot 3 AOT (Ahead-of-Time) compilation is a transformative shift in how the Spring Framework initializes its application context. Historically, Spring relied heavily on runtime reflection, dynamic proxies, and classpath scanning to instantiate beans, which necessitated a 'warm-up' phase where the JVM JIT (Just-In-Time) compiler would profile code and optimize it over time. AOT compilation moves this heavy lifting to the build phase. By analyzing the application context at compile-time, the Spring AOT engine generates source code and metadata that allows the application to start with a static, pre-configured bean factory. This is the foundational technology that enables Spring Boot 3 to run as a native executable via GraalVM Native Image, drastically reducing startup latency and memory footprint by eliminating the need for runtime bytecode generation and complex reflection-based lookups."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "JIT (Standard JVM)",
+        "AOT (Native Image)"
+      ],
+      "rows": [
+        [
+          "Startup Time",
+          "Seconds (Warm-up required)",
+          "Milliseconds (Instant)"
+        ],
+        [
+          "Memory Footprint",
+          "High (Metaspace/Code Cache)",
+          "Low (Static memory layout)"
+        ],
+        [
+          "Reflection",
+          "Dynamic/Unlimited",
+          "Requires explicit configuration"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The AOT engine processes @Configuration classes and bean definitions to create 'BeanDefinitions' that are serialized into static Java code, bypassing the need for runtime classpath scanning.",
+        "GraalVM's 'Reachability Analysis' tracks every code path from the main method; any class or method not reachable is stripped away, resulting in a significantly smaller binary size.",
+        "Runtime reflection is replaced by static metadata stored in JSON files (reflect-config.json), which tells the GraalVM compiler exactly which classes must be accessible at runtime, as it cannot infer this through dynamic code execution.",
+        "Proxies, which are typically generated at runtime using CGLIB or JDK Dynamic Proxies, are replaced by static proxy classes generated during the build, ensuring that AOP (Aspect Oriented Programming) still functions in a closed-world environment."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "xml",
+      "content": "<plugin>\n    <groupId>org.springframework.boot</groupId>\n    <artifactId>spring-boot-maven-plugin</artifactId>\n    <configuration>\n        <image>\n            <builder>paketobuildpacks/builder:tiny</builder>\n        </image>\n    </configuration>\n</plugin>"
+    },
+    {
+      "type": "note",
+      "content": "The biggest trap for developers moving to AOT is the 'Closed World Assumption.' If your application uses libraries that rely on heavy reflection or dynamic class loading (like certain older ORMs or legacy serialization frameworks), they will fail at runtime because the AOT compiler couldn't predict their usage. Always check for 'Native Compatibility' in your dependencies. If you encounter a 'ClassNotFoundException' or 'NoSuchMethodException' only in native mode, it is almost certainly a missing reflection hint that you must manually register in a 'RuntimeHintsRegistrar' implementation."
+    }
+  ],
+  "num": 812,
+  "title": "What is Spring Boot 3 AOT compilation?",
+  "category": "JVM Architecture & Memory Tuning"
+}

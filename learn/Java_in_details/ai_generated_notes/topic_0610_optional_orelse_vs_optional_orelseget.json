@@ -1,0 +1,62 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When dealing with null-safety and modern Java paradigms introduced in Java 8, java.util.Optional is the ubiquitous container type designed to explicitly model the absence of a value. Within its API, the methods Optional.orElse() and Optional.orElseGet() serve the exact same semantic goal: provide a fallback default value when the underlying Optional instance is empty. However, their internal execution models and performance profiles are fundamentally different. Understanding the distinction between eager evaluation (orElse) and lazy evaluation (orElseGet) is critical for writing performant, bug-free production code, especially when the fallback value requires computation, object allocation, or I/O operations."
+    },
+    {
+      "type": "prose",
+      "content": "The core discrepancy lies in how Java evaluates method arguments. In Optional.orElse(T other), the parameter 'other' is evaluated eagerly before the method is even invoked, regardless of whether the Optional contains a value or not. If your fallback involves creating a new object via 'new ExpensiveObject()' or executing a database query, that code executes every single time. Conversely, Optional.orElseGet(Supplier<? extends T> supplier) accepts a functional interface. Because the fallback logic is wrapped inside a Supplier lambda, the execution is deferred (lazy). The supplier's get() method is only invoked if the Optional evaluates to empty, completely bypassing unnecessary CPU cycles, memory allocation, and database overhead when a value is already present."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Optional.orElse()",
+        "Optional.orElseGet()"
+      ],
+      "rows": [
+        [
+          "Evaluation Strategy",
+          "Eager (evaluated unconditionally)",
+          "Lazy (evaluated only if Optional is empty)"
+        ],
+        [
+          "Parameter Type",
+          "Direct value (T other)",
+          "Functional interface (Supplier<? extends T>)"
+        ],
+        [
+          "Performance Impact",
+          "High if the fallback involves heavy computation or allocation",
+          "Optimal, skips execution when value is present"
+        ],
+        [
+          "Best Use Case",
+          "Static defaults, constants, primitive wrappers already in memory",
+          "Dynamic calculations, database queries, object instantiation"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Eager execution in orElse means any method calls passed as arguments are executed on the stack frame before Optional methods execute, destroying the optimization intent of Optional.",
+        "Lazy execution via orElseGet leverages invokedynamic and lambda meta-factories under the hood in modern JVMs, instantiating a supplier or invoking a hidden static method only on demand.",
+        "Using orElse with pre-instantiated constants or literal values (e.g., Optional.orElse(\"N/A\")) is completely safe and incurs zero performance penalty since no computation is required."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.Optional;\n\npublic class OptionalDemo {\n    public static void main(String[] args) {\n        String cachedName = \"Enterprise-Service\";\n\n        // ANTI-PATTERN: orElse executes the expensive fallback even when cachedName is present\n        String badResult = Optional.ofNullable(cachedName)\n                .orElse(fetchFallbackFromDatabase());\n\n        // BEST PRACTICE: orElseGet defers execution; fetchFallbackFromDatabase() is never called\n        String goodResult = Optional.ofNullable(cachedName)\n                .orElseGet(() -> fetchFallbackFromDatabase());\n    }\n\n    private static String fetchFallbackFromDatabase() {\n        System.out.println(\"Executing expensive database query...\");\n        return \"Fallback-Service\";\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap occurs when developers replace null checks with Optional.orElse() while passing a method call as the argument. If that method hits a remote API, performs a database read, or logs heavily, your application will suffer severe latency degradation even when the cache hits 100% of the time. Always use orElseGet when your fallback is derived from logic, and reserve orElse strictly for static constants or primitive defaults."
+    }
+  ],
+  "num": 611,
+  "title": "Optional.orElse() vs Optional.orElseGet()?",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Structuring logs for enterprise aggregators like Splunk or ELK (Elasticsearch, Logstash, Kibana) requires moving away from human-readable plain text strings toward machine-parsable JSON logging and cross-thread context propagation via MDC (Mapped Diagnostic Context). In a high-throughput, distributed microservices environment, unstructured logs force log ingestion pipelines to rely on brittle, CPU-intensive regular expression grok filters to extract fields like user IDs, correlation IDs, or HTTP status codes. By emitting logs natively as structured JSON objects, we decouple the log generation format from the ingestion parsing logic, allowing search engines to index fields automatically and efficiently. Furthermore, MDC bridges the gap between asynchronous execution threads, letting us bind contextual metadata—such as a request-scoped transaction ID or authenticated user principal—to every log event emitted down the execution stack without polluting method signatures."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric",
+        "Unstructured Plain Text Logs",
+        "Structured JSON Logs with MDC"
+      ],
+      "rows": [
+        [
+          "Parsing Overhead",
+          "High (Requires heavy Regex/Grok pattern matching at ingest)",
+          "Zero (Schema-on-write or explicit JSON mapping, highly performant)"
+        ],
+        [
+          "Context Tracking",
+          "Manual inclusion in every log statement (error-prone)",
+          "Automatic injection via ThreadLocal MDC across call stacks"
+        ],
+        [
+          "Query Latency",
+          "Slow (Full-text scanning and regex matching over indices)",
+          "Fast (Direct term queries and range filters on indexed keys)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "MDC internally leverages a ThreadLocal map managed by logging frameworks like SLF4J and Logback, ensuring that metadata written at the thread entry point persists across every downstream logging call within that same thread.",
+        "When dealing with thread pools (e.g., Spring's @Async or ExecutorService), plain MDC contexts are dropped because ThreadLocal values do not automatically cross thread boundaries; this necessitates custom task decorators or wrapper Runnables to copy MDC state.",
+        "JSON log layoutters (like Logstash-Logback-Encoder) serialize the composite event—including message, exception stack traces, logger name, thread, and all MDC key-value pairs—into a single-line JSON payload optimized for network transport via Filebeat or Fluentd."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\nimport org.slf4j.MDC;\nimport org.springframework.stereotype.Component;\nimport java.util.UUID;\n\n@Component\npublic class OrderProcessingService {\n    private static final Logger log = LoggerFactory.getLogger(OrderProcessingService.class);\n\n    public void processOrder(String orderId, String userId) {\n        try {\n            MDC.put(\"correlationId\", UUID.randomUUID().toString());\n            MDC.put(\"userId\", userId);\n            MDC.put(\"orderId\", orderId);\n            \n            log.info(\"Initiating order processing workflow\");\n            // Business logic execution...\n            log.info(\"Order successfully processed\");\n        } finally {\n            // CRITICAL: Prevent ThreadLocal memory leaks in thread pools\n            MDC.clear();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The single most dangerous production trap when using MDC is failing to clear the ThreadLocal context in a finally block. Because application servers like Tomcat or Netty use thread pools to service requests, threads are reused across multiple independent transactions. If MDC.clear() is omitted, subsequent requests handled by that same thread will inherit stale metadata (such as another user's ID or an old correlation ID), causing severe data contamination in your log aggregator and potential privacy compliance violations."
+    }
+  ],
+  "num": 1179,
+  "title": "How do you structure logs for a log aggregator like Splunk/ELK? (JSON logging, MDC)",
+  "category": "Core Java & Fundamentals"
+}

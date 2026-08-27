@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Java Virtual Machine (JVM) employs a sophisticated reachability analysis algorithm to determine object eligibility for garbage collection. Rather than using simple reference counting—which fails to handle circular references—the JVM utilizes a 'Mark-and-Sweep' or 'Mark-and-Compact' approach based on the concept of GC Roots. An object is considered reachable if there is a path of references from any GC Root to that object. If no such path exists, the object is deemed unreachable and is eligible for reclamation during the next GC cycle. This mechanism is critical for memory management because it allows the JVM to reclaim heap space occupied by objects that are no longer accessible by the application code, thereby preventing memory leaks and ensuring the heap remains available for new allocations."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "GC Root Type",
+        "Description",
+        "Example"
+      ],
+      "rows": [
+        [
+          "Local Variables",
+          "References currently on the thread stack",
+          "Method parameters or local variables in active frames"
+        ],
+        [
+          "Static Fields",
+          "References held by classes loaded in the Metaspace",
+          "static variables in singleton classes"
+        ],
+        [
+          "JNI References",
+          "Native code references that are not tracked by the JVM",
+          "Global or local JNI handles"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The marking phase begins by traversing the object graph starting from GC Roots. Every object encountered is marked as 'live'.",
+        "The JVM uses a 'Stop-the-World' (STW) pause to identify the initial set of roots, ensuring the object graph remains consistent during the marking phase.",
+        "Generational GC (like G1 or Parallel GC) optimizes this by focusing on the Young Generation, treating objects referenced from the Old Generation as additional roots to avoid scanning the entire heap.",
+        "Finalization and phantom references can temporarily delay the reclamation of objects, even if they are technically unreachable, by placing them in a finalizer queue."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class MemoryLeakExample {\n    // This static reference acts as a GC Root, preventing reclamation\n    private static List<Object> cache = new ArrayList<>();\n\n    public void process() {\n        Object obj = new Object();\n        cache.add(obj); // Object is now reachable via the static 'cache' root\n    }\n    // Once 'cache' is cleared, the objects become unreachable and eligible for GC\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is the 'unintentional object retention' caused by static collections or long-lived thread-local variables. Even if you nullify local references, if an object is still reachable through a static map or a ThreadLocal that isn't cleared, the GC will never reclaim it. Always use WeakReferences or clear your caches explicitly to avoid OutOfMemoryErrors in long-running services."
+    }
+  ],
+  "num": 450,
+  "title": "How does GC decide which objects to collect? (reachability)",
+  "category": "JVM Architecture & Memory Tuning"
+}

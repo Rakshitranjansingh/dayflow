@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Session-based authentication is the traditional stateful approach to web security. When a user logs in, the server creates a session object in its memory (or a distributed cache like Redis) and issues a session ID, typically stored in a browser cookie. On subsequent requests, the browser sends this cookie, and the server maps it back to the session data to verify identity. This model is tightly coupled to the server's memory, making horizontal scaling more complex because session state must be synchronized across nodes. In contrast, token-based authentication is stateless. The server generates a cryptographically signed token—most commonly a JSON Web Token (JWT)—that contains the user's identity and claims. This token is sent to the client, which stores it (e.g., in localStorage or an HttpOnly cookie) and includes it in the Authorization header for every API call. Because the server does not store session state, it simply validates the token's signature and expiration time, allowing the application to scale horizontally without sticky sessions."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Session-based",
+        "Token-based"
+      ],
+      "rows": [
+        [
+          "State",
+          "Stateful (Server-side)",
+          "Stateless (Client-side)"
+        ],
+        [
+          "Storage",
+          "Server Memory/Redis",
+          "Client (Header/Cookie)"
+        ],
+        [
+          "Scalability",
+          "Requires Session Replication",
+          "Highly Scalable"
+        ],
+        [
+          "Revocation",
+          "Immediate (Delete session)",
+          "Complex (Requires Blacklist/Rotation)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Session-based authentication relies on the JSESSIONID cookie, which is automatically managed by the browser, providing built-in protection against XSS if the HttpOnly and Secure flags are set.",
+        "Token-based authentication moves the burden of state to the client, which is ideal for RESTful APIs and microservices, but introduces the challenge of token revocation since the server doesn't track active sessions.",
+        "In Spring Security, session management is handled via SecurityContextPersistenceFilter, which loads the SecurityContext from the HttpSession, whereas token-based flows typically use a custom Filter to extract the JWT from the Authorization header and populate the SecurityContextHolder manually.",
+        "Token-based systems are vulnerable to CSRF if stored in cookies, but immune if stored in memory; conversely, session-based systems are inherently vulnerable to CSRF and require explicit protection like Anti-CSRF tokens."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Bean\npublic SecurityFilterChain filterChain(HttpSecurity http) throws Exception {\n    return http\n        .csrf(csrf -> csrf.disable()) // Typical for stateless APIs\n        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))\n        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)\n        .build();\n}"
+    },
+    {
+      "type": "note",
+      "content": "The biggest trap in token-based authentication is the 'infinite lifetime' fallacy. Never set a long expiration time for your JWTs. If a token is stolen, you have no way to invalidate it without a complex blacklist mechanism. Always use short-lived access tokens (e.g., 15 minutes) paired with a secure, database-backed refresh token rotation strategy."
+    }
+  ],
+  "num": 994,
+  "title": "What is session-based authentication? What is token-based authentication?",
+  "category": "Spring Security & Web Security"
+}

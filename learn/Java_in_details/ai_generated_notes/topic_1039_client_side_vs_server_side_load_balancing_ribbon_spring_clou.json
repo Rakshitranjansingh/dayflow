@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Load balancing is the architectural strategy of distributing incoming network traffic across multiple backend instances to ensure high availability and reliability. In a distributed system, we distinguish between two primary paradigms: Server-side and Client-side load balancing. Server-side load balancing typically involves a dedicated hardware appliance or software proxy (like Nginx or HAProxy) sitting between the client and the service cluster. The client sends a request to a single static endpoint, and the proxy makes the routing decision. This approach is transparent to the client but introduces a potential single point of failure and an extra network hop.\n\nClient-side load balancing, popularized in the Java ecosystem by Netflix Ribbon and now the Spring Cloud LoadBalancer, shifts the routing logic to the service consumer. The client maintains a registry of available service instances—often fetched from a discovery service like Eureka or Consul—and executes the load-balancing algorithm locally before sending the request. This eliminates the central proxy bottleneck, reduces latency, and allows for more granular, application-aware routing decisions. While Ribbon was the industry standard for years, it has reached end-of-life, leading the Spring team to develop the reactive-ready Spring Cloud LoadBalancer as its successor, providing a more modular and non-blocking alternative."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Server-side LB",
+        "Client-side LB"
+      ],
+      "rows": [
+        [
+          "Network Hops",
+          "Two (Client -> Proxy -> Service)",
+          "One (Client -> Service)"
+        ],
+        [
+          "Complexity",
+          "Low (Client is agnostic)",
+          "Higher (Client needs discovery logic)"
+        ],
+        [
+          "Single Point of Failure",
+          "Yes (The Proxy)",
+          "No (Distributed across clients)"
+        ],
+        [
+          "Implementation",
+          "Infrastructure/Network Layer",
+          "Application/Framework Layer"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Ribbon utilized a 'DynamicServerListLoadBalancer' which periodically polled a registry to refresh the server list, relying heavily on the 'IRule' interface to determine the target instance via strategies like RoundRobinRule or AvailabilityFilteringRule.",
+        "Spring Cloud LoadBalancer operates on a 'ServiceInstanceListSupplier' abstraction, which supports both reactive (Flux-based) and blocking execution models, allowing it to integrate seamlessly with WebClient or RestTemplate.",
+        "The client-side approach requires the client to be 'service-discovery aware,' meaning it must handle its own caching of service endpoints to prevent constant, expensive round-trips to the discovery registry.",
+        "Server-side load balancers often perform deep packet inspection and SSL termination, whereas client-side balancers usually operate at the application layer (L7), making them better suited for microservices communication (East-West traffic)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class LoadBalancerConfig {\n    @Bean\n    public ServiceInstanceListSupplier serviceInstanceListSupplier(ConfigurableApplicationContext context) {\n        return ServiceInstanceListSupplier.builder()\n                .withBlockingDiscoveryClient()\n                .withCaching()\n                .build(context);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall with client-side load balancing is 'stale cache syndrome.' If your service instances scale down rapidly, the client's local cache of available IPs might still point to terminated instances, causing 'Connection Refused' errors. Always ensure your LoadBalancer implementation has a robust 'ServiceInstanceListSupplier' with a short TTL or an event-driven cache invalidation strategy to avoid routing traffic to dead nodes."
+    }
+  ],
+  "num": 1040,
+  "title": "Client-side vs Server-side Load Balancing? (Ribbon/Spring Cloud LoadBalancer)",
+  "category": "Core Java & Fundamentals"
+}

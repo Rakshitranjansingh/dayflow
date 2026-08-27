@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Encapsulation is the foundational pillar of object-oriented design that enforces data hiding and modularity. At its core, it is the practice of bundling the state (fields) and the behavior (methods) that operates on that state within a single unit—the class—while restricting direct access to the internal representation. By declaring fields as private and exposing them only through controlled public getters and setters, you create a protective barrier that prevents external code from putting an object into an invalid state. This is not just about 'hiding' variables; it is about maintaining class invariants and providing a stable contract for consumers. In the context of Exception Handling and I/O, encapsulation is critical. When dealing with complex I/O operations, such as reading from a FileChannel or managing a SocketChannel in NIO, encapsulation allows you to hide the messy details of buffer management, selector loops, and byte-to-char decoding behind a clean, high-level interface. This ensures that the calling code doesn't need to know how the underlying bytes are being processed, only that it can read or write data safely."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Encapsulated Design",
+        "Exposed Design"
+      ],
+      "rows": [
+        [
+          "Access Control",
+          "Private fields with controlled access",
+          "Public fields (direct access)"
+        ],
+        [
+          "Maintenance",
+          "Internal logic can change without breaking clients",
+          "Clients break if internal structure changes"
+        ],
+        [
+          "Validation",
+          "Logic inside setters/methods",
+          "No validation possible"
+        ],
+        [
+          "NIO Context",
+          "Buffer lifecycle managed internally",
+          "Buffer exposed to external manipulation"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Encapsulation enables the 'Tell, Don't Ask' principle: instead of asking an object for its data to perform a calculation, you tell the object to perform the calculation itself, keeping the internal state private.",
+        "In NIO, encapsulating a ByteBuffer within a wrapper class prevents external classes from accidentally modifying the position or limit of the buffer, which would otherwise lead to race conditions or corrupted data streams.",
+        "By encapsulating exception handling logic (e.g., catching IOException and rethrowing a domain-specific custom exception), you prevent low-level I/O implementation details from leaking into your business service layer, maintaining a clean separation of concerns."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class SecureFileReader {\n    private final Path path;\n\n    public SecureFileReader(Path path) {\n        this.path = path;\n    }\n\n    // Encapsulates the NIO complexity, hiding the buffer and channel lifecycle\n    public String readContent() throws DataAccessException {\n        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {\n            ByteBuffer buffer = ByteBuffer.allocate(1024);\n            channel.read(buffer);\n            buffer.flip();\n            return StandardCharsets.UTF_8.decode(buffer).toString();\n        } catch (IOException e) {\n            throw new DataAccessException(\"Failed to read file: \" + path, e);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common trap for junior developers is 'leaky encapsulation' via mutable objects. If you have a private field that is a List or a Date, simply providing a getter for that field allows the caller to modify the internal state of your object directly. Always return defensive copies or unmodifiable views (e.g., Collections.unmodifiableList) to maintain true encapsulation of your internal state."
+    }
+  ],
+  "num": 490,
+  "title": "What is encapsulation?",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Exception chaining is a critical design pattern in Java that allows an application to maintain the full diagnostic context of a failure by wrapping a low-level exception inside a higher-level one. In complex systems, a high-level service (e.g., a REST controller) often encounters an error that is actually caused by a deeper, more granular failure (e.g., a SQLException or an IOException). Without chaining, the original root cause is lost when the exception is caught and rethrown, forcing developers to debug using incomplete stack traces. By utilizing the 'cause' parameter in the Throwable constructor, Java preserves the entire causal chain, allowing the JVM to print the 'Caused by:' stack trace, which is essential for identifying the exact point of failure across architectural layers."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Throwable class provides a dedicated 'cause' field and the initCause(Throwable) method, which is the mechanism that links one exception to another.",
+        "When an exception is chained, the stack trace of the original exception is preserved, and the JVM automatically traverses these links during the printStackTrace() call.",
+        "Exception chaining is vital for abstraction; it allows a service layer to throw a domain-specific exception (e.g., OrderProcessingException) while still providing the underlying technical cause (e.g., DatabaseConnectionException) for logging and monitoring.",
+        "Once an exception's cause is set via the constructor or initCause(), it becomes immutable; attempting to overwrite it will throw an IllegalStateException."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void processData() {\n    try {\n        performLowLevelIO();\n    } catch (IOException e) {\n        // Wrapping the low-level exception to preserve the root cause\n        throw new DataProcessingException(\"Failed to process user input\", e);\n    }\n}\n\n// Custom exception implementation\npublic class DataProcessingException extends RuntimeException {\n    public DataProcessingException(String message, Throwable cause) {\n        super(message, cause);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common 'gotcha' for junior developers is to use e.toString() or e.getMessage() when logging an exception instead of passing the exception object itself to the logger. If you log only the message, you lose the entire chained stack trace, effectively blinding yourself to the root cause. Always pass the Throwable object to your logging framework (e.g., log.error(\"Context\", e)) to ensure the full chain is serialized into your log management system."
+    }
+  ],
+  "num": 584,
+  "title": "What is exception chaining?",
+  "category": "Exception Handling & I/O / NIO"
+}

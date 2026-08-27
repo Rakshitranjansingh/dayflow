@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Content negotiation is the mechanism in HTTP that allows a client and server to interact and agree upon the most appropriate representation of a resource to return in a response. Rather than forcing a server to maintain distinct URLs for every possible format—such as `/users/123.json` or `/users/123.xml`—content negotiation enables a single URI (like `/users/123`) to serve different data formats based on client preferences. This paradigm relies heavily on standard HTTP headers passed during the request lifecycle, ensuring decoupling between resource identification and resource representation. In modern Java enterprise architectures, particularly within Spring MVC and Jakarta RESTful Web Services (JAX-RS), content negotiation bridges the gap between structured backend domain models and varied client consumers, ranging from single-page web applications demanding JSON to legacy integrations requiring XML.\n\nHTTP headers are metadata key-value pairs exchanged between user agents and origin servers, acting as the primary communication channel for network directives, security contexts, caching policies, and payload descriptions. Specifically for content negotiation, request headers like Accept, Accept-Language, Accept-Encoding, and Accept-Charset convey the client's strict preferences and capabilities. Conversely, the server responds with corresponding representation headers—such as Content-Type, Content-Language, and Content-Encoding—to explicitly declare the format of the payload contained within the response body. Understanding how these headers interact at the transport and framework layers is essential for building robust, interoperable APIs that gracefully handle media-type routing and encoding variants without throwing unhandled serialization exceptions."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Header Category",
+        "Request Headers (Client to Server)",
+        "Response Headers (Server to Client)"
+      ],
+      "rows": [
+        [
+          "Media Type (MIME)",
+          "Accept: application/json, application/xml",
+          "Content-Type: application/json;charset=UTF-8"
+        ],
+        [
+          "Character Encoding",
+          "Accept-Charset: utf-8, iso-8859-1",
+          "Content-Type includes charset parameter"
+        ],
+        [
+          "Data Compression",
+          "Accept-Encoding: gzip, deflate, br",
+          "Content-Encoding: gzip"
+        ],
+        [
+          "Natural Language",
+          "Accept-Language: en-US, en;q=0.9, fr;q=0.8",
+          "Content-Language: en-US"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Quality values (q-factors): Clients can assign weights ranging from 0.0 to 1.0 to their header preferences (e.g., Accept: text/html, application/xhtml+xml, application/xml;q=0.9). The server parses these values, resolves conflicts, and selects the media type with the highest precedence matching its available message converters.",
+        "Spring MVC execution flow: When a request hits a DispatcherServlet, the framework evaluates the Accept header against registered HttpMessageConverters using strategies like HeaderContentNegotiationStrategy or PathExtensionContentNegotiationStrategy to determine the correct serialization format.",
+        "Fallback mechanisms: If a client requests a media type that the server cannot produce (e.g., requesting application/x-yaml from a standard Spring Boot application), the server typically responds with an HTTP 406 Not Acceptable status code, unless a default content type has been explicitly configured."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.demo.controller;\n\nimport org.springframework.http.MediaType;\nimport org.springframework.http.ResponseEntity;\nimport org.springframework.web.bind.annotation.GetMapping;\nimport org.springframework.web.bind.annotation.PathVariable;\nimport org.springframework.web.bind.annotation.RequestMapping;\nimport org.springframework.web.bind.annotation.RestController;\n\n@RestController\n@RequestMapping(\"/api/users\")\npublic class UserNegotiationController {\n\n    @GetMapping(value = \"/{id}\", produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE })\n    public ResponseEntity<UserDto> getUser(@PathVariable Long id) {\n        UserDto user = new UserDto(id, \"Jane Doe\", \"jane.doe@example.com\");\n        // Spring MVC automatically selects Jackson (JSON) or JAXB (XML) \n        // based on the incoming HTTP Accept header.\n        return ResponseEntity.ok(user);\n    }\n}\n\nrecord UserDto(Long id, String name, String email) {}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap involves path extension content negotiation (e.g., matching /users/123.json). While convenient for legacy browsers, relying on file extensions opens the door to Reflected File Download (RFD) security vulnerabilities and contradicts RESTful design principles. Modern specifications and frameworks discourage path extensions in favor of strict Accept header evaluation. Furthermore, always explicitly set produces and consumes flags on your controller methods to avoid unexpected fallback behavior when clients omit or supply wildcard (*/*) Accept headers."
+    }
+  ],
+  "num": 971,
+  "title": "What is content negotiation? What are HTTP headers used for?",
+  "category": "Exception Handling & I/O / NIO"
+}

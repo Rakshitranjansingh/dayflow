@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Core Java, preventing a class from being subclassed is a foundational design decision often tied to immutability, security enforcement, and predictable domain modeling. When you declare a class as final, you explicitly command the Java Virtual Machine (JVM) and the compiler that this type represents a terminal node in the class hierarchy. This structural constraint stops any derived classes from overriding its internal behavior, ensuring that security-sensitive methods cannot be hijacked via polymorphism or dynamic method dispatch. For instance, core Java classes like String and Integer are marked final to protect their internal states and guarantee consistent behavior across the entire runtime environment.\n\nFrom a bytecode and Just-In-Time (JIT) compilation perspective, making a class non-subclassable gives the JVM powerful optimization hooks. When the HotSpot VM loads a class and verifies it has the ACC_FINAL access flag set, it knows with absolute certainty that no subclasses exist anywhere in the application runtime. This eliminates the need for virtual method table (vtable) lookups when invoking methods on references of this concrete type, allowing the JIT compiler to aggressively inline method bodies directly into the calling code. This optimization completely bypasses dynamic dispatch overhead, reducing CPU instruction counts and improving execution throughput in performance-critical code paths."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Bytecode Representation: The ACC_FINAL flag is stamped directly into the class file's access flags during compilation, which the ClassLoader validates during linking.",
+        "JIT Devirtualization: Compilers can devirtualize method calls on final types, transforming interface or virtual invocations into direct static invocations.",
+        "API Design Safety: Prevents fragile base class problems where internal modifications to superclass methods inadvertently break unknown subclass implementations."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public final class SecurityToken {\n    private final String encryptedPayload;\n\n    public SecurityToken(String payload) {\n        this.encryptedPayload = payload;\n    }\n\n    public String getPayload() {\n        return encryptedPayload;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Beware that making a class final also makes it inherently difficult to mock using modern test frameworks like Mockito, unless you explicitly enable inline mocking plugins (which use ByteBuddy to dynamically bypass JVM access restrictions). If unit testing requires subclassing for test doubles, consider designing against an interface instead."
+    }
+  ],
+  "num": 487,
+  "title": "How do you prevent a class from being subclassed?",
+  "category": "Core Java & Fundamentals"
+}

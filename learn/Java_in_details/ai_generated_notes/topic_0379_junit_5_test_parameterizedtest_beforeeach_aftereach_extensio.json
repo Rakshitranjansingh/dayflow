@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Modern unit testing in the Java ecosystem has evolved significantly from the rigid, monolithic structures of JUnit 3 and 4. JUnit 5, modularized into JUnit Platform, JUnit Jupiter, and JUnit Vintage, introduces a powerful and expressive programming and extension model. At the heart of this model lies the @Test annotation, signaling an executable test method, while @ParameterizedTest elevates testing by executing the same test logic across multiple distinct argument sources without boilerplate looping. To maintain test isolation and manage state lifecycle, @BeforeEach and @AfterEach provide fine-grained hooks executed prior to and following every individual test method execution. Furthermore, JUnit 5 shifts away from static rule-based runners of the past, introducing a flexible, interface-driven extension model via the Extension API that intercepts execution phases for custom behaviors such as dependency injection, timing, or resource management. Coupled with assertions—housed within standard static utility classes and advanced libraries like AssertJ—these features allow developers to write clean, resilient, and highly readable tests that integrate smoothly with modern continuous integration pipelines and build tools."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The JUnit 5 Extension Model relies on marker interfaces (like BeforeEachCallback, AfterTestExecutionCallback, and ParameterResolver) that are registered declaratively using @ExtendWith, programmatically, or via Java Service Loader mechanisms.",
+        "Parameterized tests consume argument providers through explicit annotations like @ValueSource, @CsvSource, or custom implementations of ArgumentsProvider, which feed stream-based data directly into parameterized method signatures.",
+        "Assertions in JUnit 5 support functional composition via Executable interfaces, allowing multiple assertions to execute and fail collectively via Assertions.assertAll(), preventing short-circuiting during assertion evaluation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.testing;\n\nimport org.junit.jupiter.api.*;\nimport org.junit.jupiter.params.ParameterizedTest;\nimport org.junit.jupiter.params.provider.CsvSource;\nimport org.junit.jupiter.api.extension.ExtendWith;\nimport static org.junit.jupiter.api.Assertions.*;\n\n@ExtendWith(TimingExtension.class)\npublic class DataProcessorTest {\n\n    private ResourceBuffer buffer;\n\n    @BeforeEach\n    void setUp() {\n        buffer = new ResourceBuffer(1024);\n        buffer.initialize();\n    }\n\n    @AfterEach\n    void tearDown() {\n        buffer.release();\n    }\n\n    @Test\n    void testBufferState() {\n        assertAll(\n            () -> assertTrue(buffer.isOpen(), \"Buffer should be open after init\"),\n            () -> assertEquals(1024, buffer.capacity(), \"Capacity must match allocation\")\n        );\n    }\n\n    @ParameterizedTest\n    @CsvSource({\"input_a.txt, 150\", \"input_b.txt, 300\"})\n    void testDataIngestion(String fileName, int expectedBytes) {\n        int processed = buffer.ingest(fileName);\n        assertEquals(expectedBytes, processed);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha when utilizing @BeforeEach and @AfterEach with I/O or NIO resources is assuming that state is fully thread-safe or automatically garbage-collected. JUnit instantiates a new test class instance for *every* test method by default (TestInstance.Lifecycle.PER_METHOD). If you mutate static fields or fail to properly close NIO channels in @AfterEach due to an uncaught assertion failure, you will leak file descriptors across tests, leading to flaky suites and intermittent OS-level 'Too many open files' exceptions."
+    }
+  ],
+  "num": 380,
+  "title": "JUnit 5 — @Test, @ParameterizedTest, @BeforeEach/@AfterEach, extensions, assertions",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Thundering Herd problem occurs in distributed systems and high-concurrency Java applications when a large number of threads or processes wake up simultaneously to compete for a resource that has just become available or expired. In a typical cache-aside pattern, if a popular key expires, multiple concurrent requests will see a cache miss and all attempt to recompute the value by hitting the underlying database simultaneously. This creates a massive, unnecessary spike in latency and CPU load, effectively turning a simple cache miss into a potential system-wide outage. Preventing this requires shifting from a 'first-come, first-served' race condition to a controlled synchronization strategy that ensures only one thread performs the expensive computation while others either wait or serve stale data."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Double-Checked Locking: Use a volatile variable to check the cache state, then synchronize on a monitor object. The second check inside the synchronized block ensures that only the first thread performs the work, while subsequent threads see the newly populated cache.",
+        "Probabilistic Early Recomputation (XFetch): Instead of waiting for a hard expiration, attach a random 'probabilistic' expiry to the cache key. Threads calculate a 'delta' based on the time remaining; if the random check fails, the thread refreshes the cache early, effectively spreading the load over time.",
+        "Mutex/Semaphore Guarding: Use a 'lock-per-key' approach with a ConcurrentHashMap of locks. This allows fine-grained synchronization where only threads requesting the same specific key are blocked, preventing global application lock contention.",
+        "Stale-While-Revalidate: Configure your cache provider to return the expired value for a short window while a background thread asynchronously refreshes the data, ensuring the user never experiences the latency of the recomputation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public V get(K key) {\n    V val = cache.get(key);\n    if (val == null) {\n        synchronized (locks.computeIfAbsent(key, k -> new Object())) {\n            val = cache.get(key);\n            if (val == null) {\n                val = database.fetch(key);\n                cache.put(key, val);\n            }\n        }\n    }\n    return val;\n}"
+    },
+    {
+      "type": "note",
+      "content": "Beware of 'lock striping' overhead. While using a ConcurrentHashMap of locks prevents global contention, creating millions of lock objects can lead to significant GC pressure. Always use a fixed-size pool of locks or a dedicated library like Guava's Striped<Lock> to manage memory footprint in high-throughput systems."
+    }
+  ],
+  "num": 1068,
+  "title": "How to prevent the \"Thundering Herd\" problem?",
+  "category": "Core Java & Fundamentals"
+}

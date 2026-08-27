@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A database connection leak occurs when an application acquires a connection from a pool but fails to return it, effectively 'orphaning' that resource. In modern Java applications, we rely on connection pools like HikariCP or Apache DBCP to manage the expensive handshake process of TCP/IP and authentication. When a developer forgets to close a connection—typically by failing to wrap the JDBC 'Connection' object in a try-with-resources block—that connection remains marked as 'in-use' by the pool indefinitely. Over time, as these leaked connections accumulate, the pool reaches its maximum capacity, leading to 'ConnectionTimeoutException' errors. This effectively halts all database operations for the application, creating a cascading failure that often requires a full JVM restart to clear the stale handles."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Symptom",
+        "Immediate Impact",
+        "Long-term Consequence"
+      ],
+      "rows": [
+        [
+          "Pool Exhaustion",
+          "Threads block waiting for connections",
+          "Application-wide latency spikes"
+        ],
+        [
+          "Resource Leaks",
+          "OS file descriptors remain open",
+          "JVM process crashes (Too many open files)"
+        ],
+        [
+          "Transaction Stalls",
+          "Uncommitted work stays in DB",
+          "Database lock contention and deadlocks"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The JVM heap does not automatically reclaim JDBC connections because they are native resources managed by the database driver; the Garbage Collector only cleans up the small wrapper object, leaving the socket open.",
+        "Connection pools utilize 'leak detection' thresholds (e.g., HikariCP's leakDetectionThreshold) which log stack traces when a connection is held longer than a configured limit, serving as an early warning system.",
+        "In NIO-based reactive stacks (like R2DBC), connection leaks are even more dangerous as they can lead to event-loop starvation, where the non-blocking threads become permanently occupied waiting for a resource that will never be released."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void executeQuery(String sql) {\n    // Always use try-with-resources to ensure AutoCloseable is invoked\n    try (Connection conn = dataSource.getConnection();\n         PreparedStatement stmt = conn.prepareStatement(sql)) {\n        stmt.executeQuery();\n    } catch (SQLException e) {\n        logger.error(\"Database operation failed\", e);\n    }\n    // Connection is automatically returned to the pool here, even if an exception occurs\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never rely on finalizers or the GC to clean up connections. If you are working with legacy code that doesn't use try-with-resources, check for 'Connection.close()' in a 'finally' block. Furthermore, if you see 'Connection is not closed' warnings in your logs, investigate the thread stack trace immediately—it often points to a long-running business logic process that is accidentally performing a blocking I/O operation while holding a database lock, which is a recipe for a production outage."
+    }
+  ],
+  "num": 892,
+  "title": "What is a Database Connection Leak?",
+  "category": "Exception Handling & I/O / NIO"
+}

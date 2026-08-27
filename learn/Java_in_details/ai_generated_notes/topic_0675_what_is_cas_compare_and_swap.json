@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Compare-And-Swap (CAS) is the cornerstone of non-blocking synchronization in the Java Virtual Machine. At its core, CAS is an atomic instruction provided by the CPU—such as LOCK CMPXCHG on x86 architectures—that allows a thread to update a memory location only if its current value matches an expected value. Unlike traditional synchronization mechanisms like 'synchronized' blocks or 'ReentrantLock', which rely on pessimistic locking and thread suspension (context switching), CAS facilitates optimistic concurrency. When a thread attempts to update a shared variable, it assumes no contention exists; if the underlying hardware detects that the variable has changed since it was last read, the operation fails, and the thread is typically tasked with retrying the operation in a spin-loop. This approach eliminates the heavy overhead of kernel-level thread parking and unparking, making it significantly more performant under low-to-moderate contention scenarios."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Pessimistic Locking (Synchronized)",
+        "Optimistic Concurrency (CAS)"
+      ],
+      "rows": [
+        [
+          "Thread State",
+          "Blocked/Suspended",
+          "Active/Spinning"
+        ],
+        [
+          "Performance",
+          "High overhead (Context switch)",
+          "Low overhead (CPU instruction)"
+        ],
+        [
+          "Contention Handling",
+          "Queueing/Blocking",
+          "Retry/Busy-wait"
+        ],
+        [
+          "Deadlock Risk",
+          "Possible",
+          "Impossible"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "CAS relies on the Unsafe class or the VarHandle API (introduced in Java 9) to perform direct memory access, bypassing standard object field accessors to reach the memory address of a volatile variable.",
+        "The operation is composed of three operands: the memory location (V), the expected old value (A), and the new value (B). The hardware guarantees that the update to B occurs if and only if V == A, ensuring atomicity at the instruction level.",
+        "The ABA problem is a classic pitfall where a value changes from A to B and back to A, causing a CAS operation to succeed erroneously. Java mitigates this in AtomicStampedReference by associating a version stamp with the object reference.",
+        "Under extreme contention, CAS can lead to 'livelock' or high CPU usage due to constant spinning, which is why classes like LongAdder are preferred for high-throughput counters as they reduce contention by striping the value across multiple cells."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.atomic.AtomicInteger;\n\npublic class Counter {\n    private final AtomicInteger count = new AtomicInteger(0);\n\n    public void increment() {\n        int oldValue, newValue;\n        do {\n            oldValue = count.get();\n            newValue = oldValue + 1;\n        } while (!count.compareAndSet(oldValue, newValue));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Never assume CAS is always faster than 'synchronized'. While CAS avoids context switching, it generates significant cache-coherency traffic (MESI protocol) across CPU cores. If you have high thread contention, the cost of cache-line invalidation and constant retries can actually make CAS perform worse than a traditional lock that puts threads to sleep. Always benchmark your specific concurrency profile."
+    }
+  ],
+  "num": 676,
+  "title": "What is CAS (Compare-And-Swap)?",
+  "category": "Multithreading & Java Concurrency"
+}

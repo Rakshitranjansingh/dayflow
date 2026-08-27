@@ -1,0 +1,49 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The CAP theorem, formulated by Eric Brewer, posits that in a distributed data store, you can only guarantee two out of three properties: Consistency, Availability, and Partition Tolerance. Consistency ensures that every read receives the most recent write or an error. Availability guarantees that every request receives a (non-error) response, without the guarantee that it contains the most recent write. Partition Tolerance ensures the system continues to operate despite an arbitrary number of messages being dropped or delayed by the network between nodes. In real-world distributed systems, network partitions are inevitable, making Partition Tolerance a non-negotiable requirement. Consequently, architects must choose between Consistency (CP) or Availability (AP) when a partition occurs."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "System Type",
+        "Primary Focus",
+        "Trade-off"
+      ],
+      "rows": [
+        [
+          "Relational DB (ACID)",
+          "Consistency & Availability",
+          "Sacrifices Partition Tolerance"
+        ],
+        [
+          "Cassandra/MongoDB",
+          "Availability & Partition Tolerance",
+          "Sacrifices Strict Consistency"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Relational Databases (RDBMS) like PostgreSQL or MySQL typically prioritize CA. They rely on synchronous replication and two-phase commits to ensure ACID compliance, which breaks down when the network partitions the cluster.",
+        "Cassandra and MongoDB are designed as AP systems. They utilize eventual consistency models, such as gossip protocols and hinted handoffs, to ensure the system remains writable and readable even when nodes are isolated.",
+        "In Cassandra, consistency is tunable via Read/Write consistency levels (e.g., QUORUM, ALL, ONE). While it is fundamentally AP, you can force CP behavior by requiring a majority quorum for both reads and writes, though this increases latency and reduces availability during partitions.",
+        "MongoDB operates primarily as a CP system by default in a replica set configuration. It routes all writes to the primary node; if the primary is partitioned, the system stops accepting writes until a new primary is elected, favoring data integrity over constant availability."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Example of tuning consistency in a Cassandra client\nimport com.datastax.oss.driver.api.core.ConsistencyLevel;\nimport com.datastax.oss.driver.api.core.cql.SimpleStatement;\n\nSimpleStatement statement = SimpleStatement.builder(\"SELECT * FROM users WHERE id = ?\")\n    .addPositionalValue(userId)\n    .setConsistencyLevel(ConsistencyLevel.QUORUM) // Balancing consistency and availability\n    .build();"
+    },
+    {
+      "type": "note",
+      "content": "Senior engineers often fall into the trap of thinking CAP is a binary choice. In reality, it is a spectrum. Modern systems often implement 'PACELC', which extends CAP by stating that even when the system is running normally (no partition), one must choose between Latency (L) and Consistency (C). Always verify if your 'Availability' requirement allows for stale reads, as this is the primary lever for scaling distributed systems."
+    }
+  ],
+  "num": 884,
+  "title": "Explain the CAP Theorem. Which two can a Relational DB provide? Which two does Cassandra/MongoDB provide?",
+  "category": "Multithreading & Java Concurrency"
+}

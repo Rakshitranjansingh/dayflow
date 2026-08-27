@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java concurrency, the choice between extending the Thread class and implementing the Runnable interface is a fundamental architectural decision that dictates how your application manages execution units. Extending Thread involves creating a subclass that inherits all methods of the Thread class, effectively locking your class into a single inheritance hierarchy. Because Java does not support multiple inheritance, this approach prevents your class from extending any other business logic base classes. Conversely, implementing Runnable decouples the task logic from the execution mechanism. By passing a Runnable instance to a Thread object, you treat the task as a data object that can be executed by various mechanisms, including Thread pools, ExecutorServices, or even virtual threads in modern JDKs. This separation of concerns is the cornerstone of robust concurrent design, as it allows for better code reuse and cleaner separation between the 'what' (the task) and the 'how' (the thread execution)."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Extending Thread",
+        "Implementing Runnable"
+      ],
+      "rows": [
+        [
+          "Inheritance",
+          "Consumes single inheritance slot",
+          "Allows extending other classes"
+        ],
+        [
+          "Coupling",
+          "Task and Thread are tightly coupled",
+          "Task and Thread are decoupled"
+        ],
+        [
+          "Resource Management",
+          "Creates a new Thread object per task",
+          "Compatible with ThreadPools/Executors"
+        ],
+        [
+          "Flexibility",
+          "Limited",
+          "High (Functional Interface/Lambda support)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "When you extend Thread, you override the run() method directly. The JVM calls this method when start() is invoked. However, this binds your business logic to the thread lifecycle, making it difficult to unit test the logic in isolation from the threading overhead.",
+        "Implementing Runnable allows you to leverage the ExecutorService framework. By submitting a Runnable to a pool, you avoid the heavy memory cost of creating new OS-level threads for every task, which is critical for preventing OutOfMemoryErrors under high load.",
+        "Runnable is a @FunctionalInterface, meaning you can pass lambda expressions to threads, significantly reducing boilerplate code compared to anonymous inner classes or explicit subclasses."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// The modern, decoupled approach using Runnable\npublic class TaskProcessor {\n    public void execute() {\n        Runnable task = () -> System.out.println(\"Executing in: \" + Thread.currentThread().getName());\n        \n        // Decoupled from the execution strategy\n        ExecutorService executor = Executors.newFixedThreadPool(4);\n        executor.submit(task);\n        executor.shutdown();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Never extend Thread unless you are building a custom threading framework that needs to override low-level methods like interrupt() or setPriority(). In production systems, extending Thread is often considered a code smell because it prevents the task from being easily offloaded to a ForkJoinPool or a virtual thread, effectively creating a scalability bottleneck."
+    }
+  ],
+  "num": 644,
+  "title": "What is the difference between extending Thread and implementing Runnable?",
+  "category": "Multithreading & Java Concurrency"
+}

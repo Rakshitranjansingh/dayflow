@@ -1,0 +1,62 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When designing modern microservice architectures, particularly those built on reactive paradigms like Spring WebFlux, documenting API contracts accurately is non-negotiable. OpenAPI 3.0 and Swagger form the industry-standard specification framework for describing RESTful web services. OpenAPI 3.0 represents the machine-readable specification format itself—standardized by the Linux Foundation—while Swagger encompasses the broader tooling ecosystem (such as Swagger UI and Swagger Editor) designed to render, test, and interact with these specifications. In reactive and asynchronous environments, where traditional servlet-based thread-per-request blocking behavior is eliminated, documenting non-blocking endpoints, Mono and Flux return types, and streaming data payloads requires a granular understanding of the OpenAPI schema structure."
+    },
+    {
+      "type": "prose",
+      "content": "At its core, an OpenAPI 3.0 document is a hierarchical JSON or YAML document structured around several top-level fields: `openapi`, `info`, `servers`, `paths`, `components`, and `security`. The `openapi` field specifies the version string (e.g., '3.0.3'), while `info` contains metadata such as title, version, and description. The `paths` object maps out every available endpoint route and the HTTP methods they support, embedding parameters, request bodies, and responses. Reusability is achieved through the `components` object, which acts as a centralized dictionary for schemas, parameters, request bodies, and security schemes, preventing massive duplication across massive microservice graphs."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "OpenAPI Component",
+        "OpenAPI 2.0 (Swagger) Behavior",
+        "OpenAPI 3.0 Behavior"
+      ],
+      "rows": [
+        [
+          "Root Specification",
+          "Swagger: 2.0",
+          "openapi: 3.0.x"
+        ],
+        [
+          "Base Path & Hosts",
+          "host, basePath, schemes combined",
+          "servers array supporting absolute URLs and templating"
+        ],
+        [
+          "Request Body",
+          "Parameters array with in: body",
+          "Dedicated requestBody object distinct from parameters"
+        ],
+        [
+          "Component Reusability",
+          "definitions object",
+          "components object with schemas, responses, and parameters dictionaries"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The `paths` object does not support extensions directly on HTTP method objects unless prefixed with `x-`, acting as the routing backbone for service discovery and API gateways.",
+        "The `components/schemas` section leverages JSON Schema specifications, enabling strict data validation rules including pattern matching, range bounds, and discriminator-based polymorphism.",
+        "In reactive Spring WebFlux applications, integration tools like springdoc-openapi automatically inspect functional routers or annotated controllers to infer streaming payload types (like Flux<T>) and map them to multi-status or Server-Sent Events (SSE) specifications."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "openapi: 3.0.3\ninfo:\n  title: Microservice Telemetry API\n  version: 1.0.0\nservers:\n  - url: https://api.service.internal/v1\npaths:\n  /telemetry:\n    get:\n      summary: Stream real-time metrics\n      responses:\n        '200':\n          description: Successful event stream\n          content:\n            text/event-stream:\n              schema:\n                $ref: '#/components/schemas/MetricEvent'\ncomponents:\n  schemas:\n    MetricEvent:\n      type: object\n      properties:\n        timestamp:\n          type: integer\n          format: int64\n        value:\n          type: number\n          format: double"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha when combining OpenAPI 3.0 with reactive frameworks like WebFlux is handling ResponseEntity<Flux<T>> or deferred types without explicit schema hints. If you rely solely on runtime reflection, springdoc-openapi may misinterpret the wrapper and generate a schema pointing to the reactive container class instead of the inner generic payload type. Always use explicit annotations like @Parameter or @ArraySchema to guide the specification builder."
+    }
+  ],
+  "num": 314,
+  "title": "OpenAPI 3.0 / Swagger — specification structure",
+  "category": "REST APIs, WebFlux & Microservices"
+}

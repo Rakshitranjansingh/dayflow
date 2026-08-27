@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Clean Architecture, as popularized by Robert C. Martin, is an architectural pattern designed to decouple software components by enforcing a strict dependency rule: dependencies must point inward toward the center of the system. The Core or Domain layer sits at the absolute center of this onion. It is the 'business heart' of your application, containing the entities and use cases that define what the system actually does, entirely agnostic of the delivery mechanism (REST, gRPC, CLI) or the persistence mechanism (SQL, NoSQL, File System). By isolating the Domain layer, you ensure that your business logic remains testable, maintainable, and resilient to the inevitable churn of external frameworks and infrastructure upgrades."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Entities: These are the high-level business objects that encapsulate enterprise-wide business rules. They are typically POJOs that hold state and methods representing critical business logic, remaining completely unaware of database annotations like @Entity or @Table.",
+        "Use Cases (Interactors): These represent application-specific business rules. They orchestrate the flow of data to and from entities, directing those entities to use their business logic to achieve a specific goal, such as 'ProcessOrder' or 'CalculateInvoice'.",
+        "Domain Exceptions: Custom business exceptions (e.g., InsufficientFundsException) reside here, allowing the domain to signal business-level failures without leaking implementation details like SQLState codes or HTTP 500 status codes.",
+        "Interfaces (Ports): The Domain layer defines interfaces for external dependencies (e.g., UserRepository). These are 'ports' that the infrastructure layer will eventually implement, ensuring the Domain layer never depends on concrete database drivers or external APIs."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class Order {\n    private final UUID id;\n    private final List<Item> items;\n\n    public void validate() {\n        if (items.isEmpty()) throw new EmptyOrderException(\"Cannot place empty order\");\n    }\n}\n\npublic interface OrderRepository {\n    void save(Order order);\n}\n\npublic class PlaceOrderUseCase {\n    private final OrderRepository repository;\n    public void execute(Order order) {\n        order.validate();\n        repository.save(order);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common 'Clean Architecture' trap is the 'Anemic Domain Model' where Entities become simple data bags with getters and setters, and all logic is pushed into Service classes. If your Domain objects don't contain behavior, you aren't doing Domain-Driven Design; you are just doing CRUD. Always ensure your Entities enforce their own invariants—if an object cannot exist in an invalid state, the constructor or methods should throw exceptions immediately, preventing the system from ever entering an inconsistent state."
+    }
+  ],
+  "num": 1228,
+  "title": "Clean Architecture: What belongs in the Core/Domain layer?",
+  "category": "Core Java & Fundamentals"
+}

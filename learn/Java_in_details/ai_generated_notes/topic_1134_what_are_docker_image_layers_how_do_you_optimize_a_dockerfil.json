@@ -1,0 +1,55 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Docker image layers are the fundamental building blocks of a container image, implementing an immutable, stackable file system based on union mounts (overlay filesystems like OverlayFS). Every instruction in a Dockerfile—such as FROM, COPY, RUN, or ADD—creates a distinct, read-only layer containing only the delta of file changes made during that build step. When a container starts, Docker adds a thin, read-write container layer on top of these read-only layers to capture runtime mutations. For a Java and Spring Boot application, naively packaging an entire monolithic uber-jar into a single layer introduces heavy deployment inefficiencies. Because the application classes and dependency libraries change at vastly different frequencies, any trivial line change in business logic invalidates the cache for the entire combined archive, forcing container registries and orchestration engines to re-download hundreds of megabytes.\n\nTo solve this, optimizing a Dockerfile for a Spring Boot app requires decomposing the monolithic artifact into distinct layers or utilizing advanced tooling. Traditional manual optimization relies on multi-stage builds. In a multi-stage build, the first container stage handles compilation and packaging using a heavy SDK image (like Maven with JDK), while the final runtime stage pulls only the resulting binaries into a lean JRE image. By leveraging Spring Boot's 'layertools' feature, we can extract the uber-jar into separate categories: dependencies, spring-boot-loader, snapshot-dependencies, and application classes. This ensures that stable third-party libraries remain cached in the Docker layer store, while only the lightweight application code layer updates on subsequent builds. Alternatively, Google's Jib plugin bypasses the Docker daemon entirely by compiling Java bytecode directly into OCI-compliant image layers structured specifically for Java applications, maximizing layer caching and eliminating the need for a local Dockerfile during development."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Build Speed",
+        "Image Size",
+        "Complexity"
+      ],
+      "rows": [
+        [
+          "Single-Stage Uber-Jar",
+          "Slow (re-downloads full deps)",
+          "Very Large",
+          "Low"
+        ],
+        [
+          "Multi-Stage + Layertools",
+          "Fast (cached dependencies)",
+          "Optimized",
+          "Medium"
+        ],
+        [
+          "Google Jib Plugin",
+          "Blazing Fast (no Docker daemon)",
+          "Highly Optimized",
+          "Low (handled in build tool)"
+        ]
+      ]
+    },
+    {
+      "bullet_list": [
+        "OverlayFS Union Mounts: Docker stacks image layers sequentially using pointers and whiteout files to mask deletions, enabling extreme storage efficiency and instant container instantiation.",
+        "Layer Caching Invalidation: If a layer changes, every subsequent layer downstream breaks its cache validity, making layer ordering (placing rarely changing instructions like dependency copies before frequently changing source code copies) paramount.",
+        "Spring Boot Layertools Extraction: The command 'java -jarmode=layertools jar app.jar extract' reads the jar's nested class loader metadata and splits the archive into four deterministic directories for optimal layer separation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "dockerfile",
+      "content": "FROM eclipse-temurin:17-jdk-alpine AS builder\nWORKDIR /build\nCOPY . .\nRUN ./mvnw clean package -DskipTests\nRUN java -Djarmode=layertools -jar target/*.jar extract\n\nFROM eclipse-temurin:17-jre-alpine\nWORKDIR /app\nCOPY --from=builder /build/dependencies/ ./\nCOPY --from=builder /build/spring-boot-loader/ ./\nCOPY --from=builder /build/snapshot-dependencies/ ./\nCOPY --from=builder /build/application/ ./\nENTRYPOINT [\"java\", \"org.springframework.boot.loader.JarLauncher\"]"
+    },
+    {
+      "note": "A common production gotcha when using multi-stage builds with Spring Boot is failing to order your COPY commands correctly. If you copy your entire exploded application folder before the libraries, a single typo fix in a controller will invalidate the dependency cache layer, completely negating the benefit of layer optimization and ballooning your CI/CD pipeline push times."
+    }
+  ],
+  "num": 1135,
+  "title": "What are Docker image layers? How do you optimize a Dockerfile for a Spring Boot app? (Multi-stage builds, Jib)",
+  "category": "Spring Boot & Spring Framework"
+}

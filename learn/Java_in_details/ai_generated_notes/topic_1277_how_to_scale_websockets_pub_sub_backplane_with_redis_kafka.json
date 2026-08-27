@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Scaling WebSockets in a distributed environment presents a unique challenge: the stateful nature of the TCP connection. Unlike stateless HTTP, where any load balancer can route a request to any server, a WebSocket connection is pinned to a specific server instance. When you have multiple instances of your application, a client connected to Server A cannot receive a message pushed by a process running on Server B because the connection context only exists on Server A. This is where a Pub/Sub backplane becomes mandatory. By introducing a message broker like Redis or Kafka, you decouple the message producer from the connection handler. When an event occurs, the application publishes a message to the backplane, and every instance of your WebSocket service subscribes to that channel, broadcasting the payload to the locally connected clients."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Redis Pub/Sub",
+        "Apache Kafka"
+      ],
+      "rows": [
+        [
+          "Latency",
+          "Ultra-low (sub-millisecond)",
+          "Low (milliseconds)"
+        ],
+        [
+          "Persistence",
+          "None (fire-and-forget)",
+          "High (log-based retention)"
+        ],
+        [
+          "Complexity",
+          "Low (easy to manage)",
+          "High (requires Zookeeper/KRaft)"
+        ],
+        [
+          "Use Case",
+          "Real-time ephemeral notifications",
+          "Event sourcing and high-throughput streams"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Connection Affinity: Use sticky sessions at the Load Balancer level to ensure the initial HTTP handshake and subsequent WebSocket upgrade stay on the same node, though the backplane handles the cross-node communication logic.",
+        "Redis Pub/Sub Mechanics: Redis maintains a list of subscribers per channel. When a message is published, Redis iterates through the subscriber list and pushes the message to each client's socket buffer. This is highly efficient for ephemeral data.",
+        "Kafka Consumer Groups: In a WebSocket cluster, each server instance should ideally belong to a unique consumer group if you want every instance to receive every message, or share a group if you want to distribute load (though for broadcasting, you typically want every node to receive the message).",
+        "Backpressure and Buffer Management: When scaling, ensure your WebSocket handlers are non-blocking. If the backplane sends messages faster than the client can consume, the server's outbound buffer will grow, potentially leading to OutOfMemoryErrors."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class WebSocketBroadcaster {\n    private final RedisTemplate<String, String> redisTemplate;\n    private final SimpMessagingTemplate messagingTemplate;\n\n    public void publishToAll(String message) {\n        // Publish to Redis channel so all nodes receive the event\n        redisTemplate.convertAndSend(\"websocket-broadcast\", message);\n    }\n\n    // This method is triggered by the Redis MessageListener\n    public void onMessage(String message) {\n        // Broadcast to local clients connected to THIS instance\n        messagingTemplate.convertAndSend(\"/topic/updates\", message);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is the 'Broadcast Storm.' If you have 100 nodes and 10,000 clients, publishing a single event to a global channel triggers 100 nodes to attempt to write to their respective local sockets simultaneously. Always implement a circuit breaker or a rate-limiter on your outbound message pipeline to prevent the WebSocket thread pool from saturating during peak traffic, which would otherwise cause a cascading failure across your cluster."
+    }
+  ],
+  "num": 1278,
+  "title": "How to scale WebSockets? (Pub/Sub backplane with Redis/Kafka)",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

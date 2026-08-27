@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Event-Driven Architecture (EDA) is a software design pattern where the flow of execution is determined by the occurrence of 'events'—significant changes in state—rather than traditional request-response cycles. In a monolithic system, components are tightly coupled through direct method calls, creating a synchronous dependency chain that often leads to cascading failures. EDA decouples these components by introducing an event broker or message bus. A producer emits an event (a simple POJO or JSON payload) to a channel, and one or more consumers react asynchronously. This shift from 'commanding' to 'notifying' allows systems to scale horizontally, as producers do not need to know the identity or existence of their consumers. It solves the problem of high latency in distributed systems by allowing non-blocking operations, where the system can acknowledge a request immediately while processing the side effects in the background."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Request-Response (Synchronous)",
+        "Event-Driven (Asynchronous)"
+      ],
+      "rows": [
+        [
+          "Coupling",
+          "Tight (Direct reference)",
+          "Loose (Via Event Broker)"
+        ],
+        [
+          "Scalability",
+          "Vertical/Limited",
+          "Horizontal/High"
+        ],
+        [
+          "Failure Mode",
+          "Cascading (Blocking)",
+          "Isolated (Eventual Consistency)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Event Producers: Components that detect state changes (e.g., OrderPlaced) and publish them to a topic or exchange without waiting for downstream processing.",
+        "Event Brokers: The middleware (e.g., Kafka, RabbitMQ) that manages the lifecycle of events, ensuring persistence and delivery semantics like 'at-least-once' or 'exactly-once'.",
+        "Event Consumers: Independent services that subscribe to specific topics, processing events at their own pace, which effectively acts as a natural load-leveling buffer during traffic spikes.",
+        "Eventual Consistency: Because state updates are distributed, the system does not guarantee immediate global consistency, requiring developers to implement compensating transactions or sagas to handle failures."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class OrderService {\n    private final ApplicationEventPublisher publisher;\n\n    public void placeOrder(Order order) {\n        repository.save(order);\n        // Decoupled notification: OrderService doesn't know about EmailService or InventoryService\n        publisher.publishEvent(new OrderPlacedEvent(order.getId()));\n    }\n}\n\n@Component\npublic class InventoryListener {\n    @EventListener\n    public void handleOrderPlaced(OrderPlacedEvent event) {\n        inventoryService.reserve(event.getOrderId());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The biggest trap for juniors in EDA is the 'Distributed Monolith' anti-pattern. If your services are so tightly coupled that an event in Service A requires a synchronous response from Service B to complete, you have lost all benefits of EDA and added the complexity of network partitions. Always design for idempotency in your consumers; since message brokers often guarantee 'at-least-once' delivery, your event handlers must be able to process the same event multiple times without corrupting the database state."
+    }
+  ],
+  "num": 928,
+  "title": "What is event-driven architecture?",
+  "category": "Core Java & Fundamentals"
+}

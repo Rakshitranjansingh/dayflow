@@ -1,0 +1,48 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java architectures, particularly when bridging distinct layers of abstraction like database persistence, network I/O, or service boundaries, low-level infrastructural failures must never leak upward untouched. Exception wrapping and exception translation are foundational patterns used to decouple domain logic from specific technology stacks. Exception wrapping involves catching a low-level, checked, or unchecked exception (such as a java.sql.SQLException or java.io.IOException) and encapsulating it inside a new, usually runtime exception, preserving the root cause via the constructor chain. Exception translation goes a step further by mapping low-level technology-specific exceptions to domain-specific or application-wide runtime exceptions (such as converting a DataAccessException into a ResourceNotFoundException). This isolates the service and presentation layers from JDBC, Hibernate, or NIO implementation details, ensuring clean architectural boundaries and maintaining maintainability."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Primary Goal",
+        "Typical Use Case"
+      ],
+      "rows": [
+        [
+          "Exception Wrapping",
+          "Preserve root cause while adapting exception types across layers",
+          "Wrapping checked IOExceptions into unchecked DataAccessExceptions"
+        ],
+        [
+          "Exception Translation",
+          "Map technical errors to meaningful domain or business exceptions",
+          "Translating a SQLException with error code 23505 into a DuplicateUserException"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Preserving stack traces is critical; always pass the original exception as the cause parameter to the wrapper exception's constructor to prevent debugging visibility loss.",
+        "Spring Framework heavily relies on exception translation by abstracting JDBC and Hibernate SQLExceptions into a unified, unchecked DataAccessException hierarchy.",
+        "Unchecked wrapping avoids polluting method signatures with verbose throws clauses, aligning with modern Java design philosophies for non-recoverable systemic failures."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class UserRepository {\n    public User findById(long id) {\n        String sql = \"SELECT * FROM users WHERE id = ?\";\n        try (Connection conn = dataSource.getConnection();\n             PreparedStatement stmt = conn.prepareStatement(sql)) {\n            stmt.setLong(1, id);\n            ResultSet rs = stmt.executeQuery();\n            if (rs.next()) {\n                return mapRow(rs);\n            }\n            throw new UserNotFoundException(\"User not found with id: \" + id);\n        } catch (SQLException e) {\n            // Exception Translation & Wrapping\n            throw new DataPersistenceException(\"Failed to query user by id: \" + id, e);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Beware of anti-patterns where wrapping exceptions strips away critical vendor-specific error codes or SQL states. If your error recovery logic depends on inspecting deep native database error codes, ensure your translation layer extracts and retains those metadata fields rather than blindly masking them inside a generic message string."
+    }
+  ],
+  "num": 77,
+  "title": "Exception wrapping / translation pattern",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In a microservices architecture, the choice between REST and GraphQL fundamentally changes how your service mesh handles data aggregation and network overhead. REST (Representational State Transfer) relies on fixed resource endpoints, which often leads to the 'over-fetching' or 'under-fetching' problem—where clients receive too much data or must perform multiple round-trips to assemble a complete view of an entity. This is particularly painful in microservices where a single UI view might require data from five different downstream services. GraphQL, by contrast, acts as a strongly-typed query layer that allows clients to request exactly the fields they need. While GraphQL solves the N+1 problem at the client level, it introduces significant complexity in the backend, specifically regarding schema federation, caching strategies, and security. In a WebFlux-based reactive stack, REST is naturally non-blocking and maps cleanly to HTTP semantics, whereas GraphQL requires careful implementation of DataLoaders to prevent blocking the Event Loop when resolving nested fields across disparate service boundaries."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "REST",
+        "GraphQL"
+      ],
+      "rows": [
+        [
+          "Caching",
+          "Native HTTP caching (ETags, Cache-Control)",
+          "Complex; requires persisted queries or custom logic"
+        ],
+        [
+          "Data Fetching",
+          "Multiple endpoints, potential over-fetching",
+          "Single endpoint, precise field selection"
+        ],
+        [
+          "Versioning",
+          "URI versioning (v1/v2)",
+          "Schema evolution (deprecated fields)"
+        ],
+        [
+          "Error Handling",
+          "Standard HTTP status codes (4xx, 5xx)",
+          "Always 200 OK with errors array in payload"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "REST leverages standard HTTP infrastructure like CDNs and browser caches effectively because each resource has a unique URL, whereas GraphQL's POST-based nature renders traditional edge caching largely ineffective.",
+        "In WebFlux, GraphQL resolvers must be carefully designed; if a resolver blocks the thread to wait for a downstream service call, it negates the benefits of the non-blocking event loop.",
+        "GraphQL schema federation (e.g., Apollo Federation) allows microservices to contribute to a unified graph, but it introduces a 'gateway' bottleneck that must be horizontally scaled.",
+        "REST is superior for public-facing APIs where discoverability and standard tooling (OpenAPI/Swagger) are critical, while GraphQL excels in internal microservice communication where complex graph relationships are frequent."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\npublic class UserRestController {\n    // REST: Multiple round trips required for complex views\n    @GetMapping(\"/users/{id}\")\n    public Mono<User> getUser(@PathVariable String id) { ... }\n}\n\n// GraphQL: Single query, DataLoaders prevent N+1\npublic CompletableFuture<User> userResolver(String id, DataFetchingEnvironment env) {\n    return dataLoader.load(id);\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Avoid the 'GraphQL as a Silver Bullet' trap. If your microservices are simple CRUD operations, GraphQL adds unnecessary overhead in schema management and query parsing. Furthermore, GraphQL exposes your internal service graph to potential DoS attacks via deeply nested queries; always implement query depth limiting and cost analysis in production environments."
+    }
+  ],
+  "num": 468,
+  "title": "What are the trade-offs of GraphQL vs REST for microservices?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

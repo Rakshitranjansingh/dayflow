@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a real-time messaging system like WhatsApp or Messenger requires balancing low-latency delivery with strict consistency guarantees. WebSockets serve as the transport layer, providing full-duplex communication over a single TCP connection, which bypasses the overhead of repeated HTTP handshakes. Unlike traditional REST, WebSockets maintain a persistent state on the server, requiring a distributed pub/sub architecture (like Redis or NATS) to route messages between nodes. XMPP (Extensible Messaging and Presence Protocol) acts as the application-level XML-based protocol that defines how messages, presence updates, and roster management are structured. While modern systems often use Protobuf over WebSockets for efficiency, XMPP provides a battle-tested standard for federated messaging. Message ordering is the most complex constraint; in a distributed environment, you cannot rely on system clocks. We must implement logical clocks, such as Lamport timestamps or Vector Clocks, to ensure that messages appear in the correct sequence on the client side, even if they arrive out of order due to network jitter or server-side re-routing."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "WebSocket",
+        "XMPP"
+      ],
+      "rows": [
+        [
+          "Transport",
+          "TCP/TLS (Binary/Text)",
+          "TCP/TLS (XML)"
+        ],
+        [
+          "Overhead",
+          "Minimal (Framing)",
+          "High (XML Verbosity)"
+        ],
+        [
+          "Standardization",
+          "RFC 6455",
+          "RFC 6120/6121"
+        ],
+        [
+          "Use Case",
+          "Raw Low-Latency Streams",
+          "Federated/Presence-Heavy Systems"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "WebSocket connection management requires NIO (Non-blocking I/O) to handle thousands of concurrent idle connections without exhausting thread pools; each connection is mapped to a Selector key.",
+        "Message ordering is enforced at the application layer by assigning sequence numbers per conversation ID, allowing the client to buffer and re-sort packets before rendering them in the UI.",
+        "To handle 'Presence' (online/offline status), we use a distributed hash table to track which server node holds the active WebSocket connection for a specific UserID.",
+        "Backpressure must be implemented at the WebSocket frame level; if the client's network is slow, the server must drop non-critical updates or buffer messages to prevent heap exhaustion."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class MessageHandler extends TextWebSocketHandler {\n    private final AtomicLong sequenceGenerator = new AtomicLong(0);\n\n    @Override\n    protected void handleTextMessage(WebSocketSession session, TextMessage message) {\n        long seq = sequenceGenerator.incrementAndGet();\n        MessagePayload payload = deserialize(message.getPayload());\n        payload.setSequenceId(seq);\n        // Push to Kafka for persistence and ordering before broadcasting\n        kafkaTemplate.send(\"chat-topic\", payload.getConversationId(), payload);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The classic 'gotcha' in chat architecture is the 'Ghost Connection' problem. When a mobile device switches from Wi-Fi to 4G, the TCP connection may hang in a half-open state. Always implement application-level heartbeats (ping/pong) every 30-60 seconds. If a heartbeat fails, explicitly close the WebSocket session and trigger a cleanup of the user's presence status in your distributed cache to prevent 'zombie' sessions from consuming memory or routing messages to dead sockets."
+    }
+  ],
+  "num": 1092,
+  "title": "How would you design a Chat Application (WhatsApp/Messenger)? (WebSockets, XMPP, Message ordering)",
+  "category": "Exception Handling & I/O / NIO"
+}

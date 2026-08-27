@@ -1,0 +1,70 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed architectures, monolithic applications are shattered into decentralized services communicating over the network. Because networks are inherently unreliable, faults are not a matter of if, but when. To maintain high availability and prevent cascading failures across the entire topology, engineers must implement explicit resilience patterns: Circuit Breaker, Bulkhead, Retry, Timeout, and Fallback. These patterns isolate failures, prevent resource exhaustion, and gracefully degrade service functionality when downstream systems stumble.\n\nA Circuit Breaker acts like an electrical fuse, tracking failures across a sliding window of downstream calls and transitioning through three states: Closed, Open, and Half-Open. When failure rates cross a configured threshold, the breaker trips to Open, instantly failing fast without wasting CPU cycles or network threads on a dead service. A Bulkhead partitions system resources—such as thread pools, connection pools, or semaphores—into isolated pools, ensuring that a slow or failing dependency cannot consume all available application threads and starve unrelated operations. Retries handle transient network hiccups by re-invoking failed operations, but must always be paired with exponential backoff and jitter to prevent thundering herd problems. Timeouts bound the maximum duration an operation can block a caller thread, preventing rogue tasks from leaking sockets and stacking up indefinitely. Finally, a Fallback provides an alternative execution path—such as returning cached data, a default value, or a degraded response—when the primary execution fails or is blocked by an open circuit."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Pattern",
+        "Primary Objective",
+        "Failure Mode Addressed",
+        "Mitigation Strategy"
+      ],
+      "rows": [
+        [
+          "Circuit Breaker",
+          "Fail fast during persistent outages",
+          "Cascading failures / Thread starvation",
+          "Transitions to OPEN state to short-circuit calls"
+        ],
+        [
+          "Bulkhead",
+          "Isolate resource consumption",
+          "Exhaustion of shared thread/connection pools",
+          "Partitioning pools per upstream service"
+        ],
+        [
+          "Retry",
+          "Overcome transient network errors",
+          "Intermittent packet loss / brief disconnects",
+          "Re-invocation with exponential backoff and jitter"
+        ],
+        [
+          "Timeout",
+          "Bound worst-case latency",
+          "Hanging socket connections / deadlocks",
+          "Aborting operations exceeding a strict time limit"
+        ],
+        [
+          "Fallback",
+          "Maintain user-facing availability",
+          "Complete execution failure",
+          "Executing a degraded, local alternative"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Circuit Breakers use sliding windows (either time-based or count-based) to track failure rates. In the Closed state, requests pass through. When the failure rate exceeds the threshold (e.g., 50%), it enters the Open state, rejecting requests immediately with a CallNotPermittedException. After a designated wait duration, it enters Half-Open, allowing a limited number of trial requests to test if the downstream service has recovered.",
+        "Bulkheads are typically implemented using two distinct strategies: Semaphore isolation and ThreadPool isolation. Semaphore isolation limits the concurrent number of calls without creating new threads, incurring lower overhead. ThreadPool isolation delegates calls to a dedicated bounded queue and thread pool, completely decoupling the caller's thread from the execution of the target dependency.",
+        "Retries must never be executed blindly. Uncoordinated retries from thousands of clients hitting a recovering service can instantly crash it again via a thundering herd. Implementing decorrelated or full jitter alongside exponential backoff spreads out retry attempts over a randomized time window.",
+        "Timeouts must be applied at every network boundary. If service A calls service B with a 3-second timeout, but service B calls service C with a 5-second timeout, service A will time out first, leaving orphaned threads running downstream and wasting cluster capacity."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.resilience;\n\nimport io.github.resilience4j.bulkhead.annotation.Bulkhead;\nimport io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;\nimport io.github.resilience4j.retry.annotation.Retry;\nimport io.github.resilience4j.timelimiter.annotation.TimeLimiter;\nimport org.springframework.stereotype.Service;\nimport java.util.Collections;\nimport java.util.List;\nimport java.util.concurrent.CompletableFuture;\n\n@Service\npublic class PaymentServiceClient {\n\n    @CircuitBreaker(name = \"paymentService\", fallbackMethod = \"fallbackGetPayments\")\n    @Bulkhead(name = \"paymentService\", type = Bulkhead.Type.THREADPOOL)\n    @Retry(name = \"paymentService\")\n    @TimeLimiter(name = \"paymentService\")\n    public CompletableFuture<List<String>> fetchUserPayments(String userId) {\n        return CompletableFuture.supplyAsync(() -> {\n            // Simulated network call to an external payment gateway\n            return externalPaymentApiCall(userId);\n        });\n    }\n\n    private CompletableFuture<List<String>> fallbackGetPayments(String userId, Throwable t) {\n        // Fallback must return the exact same return type (wrapped in CompletableFuture for TimeLimiter)\n        return CompletableFuture.completedFuture(Collections.singletonList(\"DEFAULT_CACHED_PAYMENT\"));\n    }\n\n    private List<String> externalPaymentApiCall(String userId) {\n        // Implementation details of remote HTTP call\n        return List.of(\"PAYMENT_1\", \"PAYMENT_2\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern is wrapping a Retry annotation *outside* of a Circuit Breaker without understanding execution order. If your Retry wraps the Circuit Breaker, a single failed call will instantly exhaust all its retries against an open circuit, hammering the circuit breaker state machine and bloating logs. Always ensure that the Circuit Breaker wraps the Retry mechanism (or use framework defaults like Resilience4j which order decorators correctly: CircuitBreaker -> RateLimiter -> TimeLimiter -> Retry -> Bulkhead)."
+    }
+  ],
+  "num": 194,
+  "title": "Circuit Breaker, Bulkhead, Retry, Timeout, Fallback",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

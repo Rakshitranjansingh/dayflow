@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Global Exception Handling in Spring-based architectures is the practice of centralizing error logic to decouple business concerns from cross-cutting concerns like error reporting and HTTP status mapping. In a typical REST API or WebFlux microservice, allowing exceptions to bubble up to the servlet container or the Netty event loop results in inconsistent, non-standardized error responses that leak implementation details. @ControllerAdvice acts as a specialized interceptor—a component-scanned bean that uses AOP under the hood to capture exceptions thrown by any @Controller or @RestController. By centralizing this, you ensure that every 404, 400, or 500 error follows a strict, predictable JSON schema, which is vital for maintaining robust contract-first API development."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Standard Try-Catch",
+        "@ControllerAdvice"
+      ],
+      "rows": [
+        [
+          "Code Duplication",
+          "High (per controller)",
+          "Zero (Centralized)"
+        ],
+        [
+          "Separation of Concerns",
+          "Low (Business logic mixed with error handling)",
+          "High (Clean business logic)"
+        ],
+        [
+          "Consistency",
+          "Difficult to enforce",
+          "Guaranteed via global mapping"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The @ControllerAdvice annotation is a specialized @Component, meaning it is picked up by component scanning and registered as a bean in the ApplicationContext.",
+        "When an exception is thrown, the DispatcherServlet (or WebHandler in WebFlux) iterates through registered ExceptionHandlers to find the most specific match based on the exception hierarchy.",
+        "In WebFlux, @ControllerAdvice works asynchronously; the handler methods can return Mono or Flux, allowing non-blocking error transformation without stalling the event loop.",
+        "The @ExceptionHandler annotation within the advice class acts as the selector; if you define a method for 'RuntimeException.class', it will catch all subclasses unless a more specific handler exists."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@ControllerAdvice\npublic class GlobalExceptionHandler {\n\n    @ExceptionHandler(ResourceNotFoundException.class)\n    public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex) {\n        ErrorResponse error = new ErrorResponse(\"NOT_FOUND\", ex.getMessage());\n        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);\n    }\n\n    @ExceptionHandler(Exception.class)\n    public ResponseEntity<ErrorResponse> handleGeneral(Exception ex) {\n        return new ResponseEntity<>(new ErrorResponse(\"INTERNAL_ERROR\", \"Contact support\"), HttpStatus.INTERNAL_SERVER_ERROR);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Be wary of catching 'Exception.class' too broadly. If you swallow exceptions that should trigger a circuit breaker (like Hystrix or Resilience4j), you mask underlying microservice instability. Always log the full stack trace at the ERROR level before returning the sanitized response to the client; otherwise, you'll be debugging 'silent' failures in production with no visibility."
+    }
+  ],
+  "num": 1216,
+  "title": "What is global exception handling with @ControllerAdvice?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

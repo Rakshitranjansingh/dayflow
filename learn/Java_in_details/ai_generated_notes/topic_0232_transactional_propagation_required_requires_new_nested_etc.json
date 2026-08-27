@@ -1,0 +1,74 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring's declarative transaction management relies heavily on the `@Transactional` annotation and its transaction propagation attributes. When services invoke one another, Spring's transaction interceptor, backed by dynamic proxies (either JDK dynamic proxies or CGLIB), inspects the propagation behavior to determine how the current execution thread associates with a physical database transaction. Understanding propagation is critical for maintaining data integrity, ensuring atomicity across complex business domains, and preventing unintended rollbacks or uncommitted dirty reads.\n\nThe core propagation behaviors—such as REQUIRED, REQUIRES_NEW, NESTED, SUPPORTS, NOT_SUPPORTED, MANDATORY, and NEVER—dictate whether a new physical transaction must be initiated, an existing one suspended, or whether execution should proceed without any transactional boundary. By default, Spring uses REQUIRED, which joins an existing transaction or starts a new one if none exists. Choosing the wrong propagation level can lead to bugs where child operations roll back the parent transaction unexpectedly, or conversely, where critical mutations bypass transactional consistency entirely."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Propagation Setting",
+        "Existing Transaction Present",
+        "No Existing Transaction Present"
+      ],
+      "rows": [
+        [
+          "REQUIRED",
+          "Participates in the existing transaction",
+          "Creates a new physical transaction"
+        ],
+        [
+          "REQUIRES_NEW",
+          "Suspends existing transaction, creates a new one",
+          "Creates a new physical transaction"
+        ],
+        [
+          "NESTED",
+          "Creates a savepoint within the existing transaction",
+          "Creates a new physical transaction"
+        ],
+        [
+          "SUPPORTS",
+          "Participates in the existing transaction",
+          "Executes non-transactionally"
+        ],
+        [
+          "NOT_SUPPORTED",
+          "Suspends existing transaction, executes non-transactionally",
+          "Executes non-transactionally"
+        ],
+        [
+          "MANDATORY",
+          "Participates in the existing transaction",
+          "Throws an IllegalTransactionStateException"
+        ],
+        [
+          "NEVER",
+          "Throws an IllegalTransactionStateException",
+          "Executes non-transactionally"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "REQUIRED checks for an active transaction synchronization on the current thread (managed by TransactionSynchronizationManager). If found, it reuses the underlying database connection and resource holder; otherwise, it acquires a new connection from the DataSource and binds it.",
+        "REQUIRES_NEW relies on the underlying transaction manager (like DataSourceTransactionManager) to physically suspend the current transaction resource. It extracts the current transaction's synchronization state, unbinds it from the thread, and opens a completely isolated second connection and transaction.",
+        "NESTED leverages JDBC 3.0 savepoints rather than a distinct database transaction. If a nested transaction rolls back, execution falls back to the savepoint created when entering the nested method, allowing the outer transaction to catch the exception and potentially commit its own changes.",
+        "Self-invocation bypasses Spring AOP proxies entirely. If a method calls another method within the same class, even if annotated with a different propagation behavior like REQUIRES_NEW, the call goes directly to the 'this' reference, rendering the annotation completely ineffective."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class BillingService {\n\n    @Autowired\n    private AuditLogService auditLogService;\n\n    @Autowired\n    private InvoiceRepository invoiceRepository;\n\n    @Transactional(propagation = Propagation.REQUIRED)\n    public void processInvoice(Invoice invoice) {\n        invoiceRepository.save(invoice);\n        try {\n            // REQUIRES_NEW ensures audit log is written even if billing fails later\n            auditLogService.recordAuditTrail(\"INVOICE_PROCESSED\", invoice.getId());\n        } catch (Exception e) {\n            // Handle audit failure separately\n        }\n        if (invoice.getAmount().compareTo(BigDecimal.ZERO) < 0) {\n            throw new IllegalArgumentException(\"Invalid amount\");\n        }\n    }\n}\n\n@Service\npublic class AuditLogService {\n\n    @Autowired\n    private AuditRepository auditRepository;\n\n    @Transactional(propagation = Propagation.REQUIRES_NEW)\n    public void recordAuditTrail(String action, Long entityId) {\n        auditRepository.save(new AuditLog(action, entityId));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap with REQUIRES_NEW is database connection pool exhaustion. If you have high concurrency and your child methods consume a second connection while the parent connection sits idle waiting, your connection pool (e.g., HikariCP) can quickly run out of connections, causing thread starvation and cascading application timeouts. Furthermore, remember that checked exceptions do not trigger rollbacks by default; you must explicitly specify rollbackFor = Exception.class if your legacy code relies on checked exceptions for failure flows."
+    }
+  ],
+  "num": 233,
+  "title": "@Transactional — propagation (REQUIRED, REQUIRES_NEW, NESTED, etc.)",
+  "category": "Spring Boot & Spring Framework"
+}

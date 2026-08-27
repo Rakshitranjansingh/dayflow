@@ -1,0 +1,31 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Spring Bean lifecycle governs the complete journey of a bean instance managed by the Spring IoC (Inversion of Control) container, spanning from its structural definition in metadata all the way to its eventual garbage collection. Understanding this lifecycle is critical for architecting resilient enterprise applications that handle resource acquisition, state initialization, and graceful shutdown correctly. The lifecycle orchestrates several distinct phases: bean definition parsing, instantiation, property population (dependency injection), awareness interface callbacks, custom initialization callbacks, execution of business logic, and finally, destruction callbacks.\n\nAt its core, the BeanFactory or ApplicationContext container reads bean definitions—whether declared via XML, Java configuration classes, or component scanning annotations like @Component. Once instantiated via reflection or factory methods, Spring populates the bean properties, injecting collaborators. Before the bean is handed over to the application code for use, Spring invokes a series of extension points, notably BeanPostProcessors, which can intercept and wrap bean instances with dynamic proxies (the mechanism powering Spring AOP, transactional management, and security). Mastering these hooks prevents common memory leaks, resource exhaustion, and race conditions during application bootstrapping."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Instantiation and Property Population: The container locates the BeanDefinition, instantiates the class (typically via reflection using a constructor), and injects resolved dependencies into fields or setter methods.",
+        "Awareness Interfaces Injection: If the bean implements interfaces like BeanNameAware, BeanFactoryAware, or ApplicationContextAware, Spring injects infrastructural references directly into the bean instance.",
+        "BeanPostProcessor (Before Initialization): The postProcessBeforeInitialization method is executed on all registered BeanPostProcessors, enabling custom modifications or proxy creation prior to setup.",
+        "Initialization Callbacks: Spring invokes methods annotated with @PostConstruct, methods specified via initializing-bean interfaces (InitializingBean.afterPropertiesSet), or custom init-method attributes.",
+        "BeanPostProcessor (After Initialization): The postProcessAfterInitialization method runs, providing the final opportunity for post-processing, often returning a proxy instead of the raw bean instance.",
+        "Destruction Phase: Upon container shutdown (e.g., calling context.close()), singleton beans implementing DisposableBean, annotated with @PreDestroy, or configured with custom destroy-methods have their teardown logic executed."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.lifecycle;\n\nimport jakarta.annotation.PostConstruct;\nimport jakarta.annotation.PreDestroy;\nimport org.springframework.beans.BeansException;\nimport org.springframework.beans.factory.BeanNameAware;\nimport org.springframework.beans.factory.DisposableBean;\nimport org.springframework.beans.factory.InitializingBean;\nimport org.springframework.context.ApplicationContext;\nimport org.springframework.context.ApplicationContextAware;\nimport org.springframework.stereotype.Component;\n\n@Component\npublic class EnterpriseResourceBean implements BeanNameAware, ApplicationContextAware, InitializingBean, DisposableBean {\n\n    private String beanName;\n    private ApplicationContext applicationContext;\n\n    public EnterpriseResourceBean() {\n        System.out.println(\"1. Instantiation: Constructor invoked.\");\n    }\n\n    @Override\n    public void setBeanName(String name) {\n        this.beanName = name;\n        System.out.println(\"2. BeanNameAware: Bean name is set to -> \" + name);\n    }\n\n    @Override\n    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {\n        this.applicationContext = applicationContext;\n        System.out.println(\"3. ApplicationContextAware: Context reference injected.\");\n    }\n\n    @PostConstruct\n    public void customPostConstruct() {\n        System.out.println(\"4. @PostConstruct: Custom initialization annotation executed.\");\n    }\n\n    @Override\n    public void afterPropertiesSet() throws Exception {\n        System.out.println(\"5. InitializingBean: afterPropertiesSet() called.\");\n    }\n\n    public void customInitMethod() {\n        System.out.println(\"6. Custom Init Method: XML or @Bean(initMethod) triggered.\");\n    }\n\n    @Override\n    public void destroy() throws Exception {\n        System.out.println(\"8. DisposableBean: destroy() called during container shutdown.\");\n    }\n\n    @PreDestroy\n    public void customPreDestroy() {\n        System.out.println(\"7. @PreDestroy: Teardown annotation executed.\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production pitfall involves prototype-scoped beans versus singleton-scoped beans regarding the destruction lifecycle. While Spring fully manages the initialization lifecycle for prototype beans, it DOES NOT manage their destruction lifecycle. The Spring container instantiates, injects, and initializes prototype beans, handing them over to the client code, after which it completely forgets about them. If a prototype bean opens database connections, file handles, or network sockets and implements DisposableBean or @PreDestroy, those teardown methods will never be called automatically by the container. You must implement a custom BeanPostProcessor or use alternative design patterns to clean up prototype-scoped resources."
+    }
+  ],
+  "num": 453,
+  "title": "Explain Spring Bean lifecycle in detail",
+  "category": "Spring Boot & Spring Framework"
+}

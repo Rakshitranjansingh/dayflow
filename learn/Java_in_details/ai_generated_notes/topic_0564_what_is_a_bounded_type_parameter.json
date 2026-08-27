@@ -1,0 +1,56 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java type system, a bounded type parameter is a generic type parameter restricted by an upper bound using the extends keyword, or a lower bound using the super keyword. When writing reusable code, raw or unbounded type parameters like <T> default to having an upper bound of java.lang.Object, limiting the compiler to only what is available in the Object contract—such as toString(), equals(), and hashCode(). By applying a bounded type parameter, you instruct the compiler that the generic placeholder must be a specific type or a subtype of that type, unlocking the API surface of that bound across the entire generic class, interface, or method."
+    },
+    {
+      "type": "prose",
+      "content": "This mechanism bridges the gap between generic polymorphism and strong static typing. Without bounds, performing domain-specific operations (like comparing numbers or invoking custom methods) inside a generic body would require unsafe explicit downcasting or reflection, both of which erode type safety and introduce runtime ClassCastException risks. Bounded type parameters ensure that type erasure replaces the generic placeholder with the bound (or Object if the bound is a class/interface), allowing the compiler to insert necessary checkcasts safely while keeping source code clean and strictly verified."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Bound Type",
+        "Syntax Example",
+        "Compiler Guarantee & Behavior"
+      ],
+      "rows": [
+        [
+          "Upper Bound",
+          "<T extends Number>",
+          "Type must be Number or a subclass. Exposes all methods of Number (e.g., intValue()) inside the generic body via erasure to Number."
+        ],
+        [
+          "Multiple Bounds",
+          "<T extends Comparable<T> & Serializable>",
+          "Type must implement all listed bounds. First bound can be a class or interface; subsequent bounds must be interfaces. Avoids diamond problem limitations."
+        ],
+        [
+          "Lower Bound",
+          "<? super Integer>",
+          "Type must be Integer or a superclass. Used primarily in wildcards (PECS: Producer Extends, Consumer Super) for safe item insertion."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Type Erasure Mechanics: During compilation, the Java compiler replaces the bounded type parameter <T extends Number> with its leftmost bound, Number. If multiple bounds are used like <T extends Character & Serializable>, erasure substitutes it with the first type, Character, and inserts synthetic checkcasts for the secondary interface bounds.",
+        "The PECS Principle (Producer Extends, Consumer Super): Upper bounds (extends) are used when you only read from a generic structure because it guarantees safe covariant type production. Lower bounds (super) are used when you write into a structure because it guarantees contravariant type consumption."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class StatisticsEngine<T extends Number & Comparable<T>> {\n    private final List<T> dataPoints;\n\n    public StatisticsEngine(List<T> dataPoints) {\n        this.dataPoints = dataPoints;\n    }\n\n    public double computeAverage() {\n        double sum = 0.0;\n        for (T number : dataPoints) {\n            // Safe to call doubleValue() because 'Number' is an upper bound\n            sum += number.doubleValue();\n        }\n        return dataPoints.isEmpty() ? 0.0 : sum / dataPoints.size();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common trap when using multiple bounds is ordering them incorrectly. In Java, if you specify a class and multiple interfaces as bounds, the class MUST come first in the declaration list (e.g., <T extends ArrayList<String> & Serializable>). Placing an interface before a class will result in a hard compilation error. Furthermore, remember that primitive types (like int or double) cannot be substituted directly into bounded type parameters unless you rely on auto-boxing to their wrapper counterparts (Integer, Double), which can subtly introduce heap memory overhead through object allocations in tight loops."
+    }
+  ],
+  "num": 565,
+  "title": "What is a bounded type parameter?",
+  "category": "Generics & Type System"
+}

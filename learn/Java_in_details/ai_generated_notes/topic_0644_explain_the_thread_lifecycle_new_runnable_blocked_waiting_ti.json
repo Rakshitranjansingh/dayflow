@@ -1,0 +1,69 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the realm of Java concurrency, managing threads efficiently requires a deep understanding of the Thread Lifecycle, which dictates the exact states a thread traverses from its inception to its ultimate destruction. Defined by the java.lang.Thread.State enumeration, these states are New, Runnable, Blocked, Waiting, Timed Waiting, and Terminated. Mastering these states is critical for diagnosing deadlocks, mitigating thread starvation, and tuning thread pools in high-throughput enterprise applications.\n\nWhen a thread is instantiated via the 'new' keyword, it resides in the New state; at this point, no native OS-level thread has been allocated. Transitioning to Runnable occurs once the start() method is invoked. A Runnable thread may either be currently executing on a CPU core or sitting in the operating system's ready queue waiting for CPU time slices. Concurrency bottlenecks frequently materialize when threads transition into non-runnable states such as Blocked, Waiting, or Timed Waiting due to synchronization locks, volatile memory barriers, or explicit parking mechanisms. Finally, a thread reaches the Terminated state after its run() method completes normally or terminates abruptly due to an uncaught exception, freeing its stack memory and associated OS resources."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Thread State",
+        "Triggering Condition",
+        "Resumption / Wake-up Mechanism"
+      ],
+      "rows": [
+        [
+          "New",
+          "Instantiation of Thread object (new Thread())",
+          "Calling thread.start()"
+        ],
+        [
+          "Runnable",
+          "OS scheduler allocates time or start() is invoked",
+          "Acquiring CPU time slice"
+        ],
+        [
+          "Blocked",
+          "Attempting to enter a synchronized block/method held by another thread",
+          "Release of the intrinsic monitor lock by the owner thread"
+        ],
+        [
+          "Waiting",
+          "Invoking Object.wait(), Thread.join(), or LockSupport.park() without timeout",
+          "Object.notify()/notifyAll() or LockSupport.unpark()"
+        ],
+        [
+          "Timed Waiting",
+          "Invoking Thread.sleep(millis), Object.wait(timeout), or LockSupport.parkNanos()",
+          "Expiration of timeout or explicit unpark signal"
+        ],
+        [
+          "Terminated",
+          "Completion of run() method or unhandled exception",
+          "None (terminal state)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Blocked state is specifically tied to Java intrinsic monitors (synchronized blocks). It occurs when a thread is competing for a monitor lock and is forced to wait until the holding thread exits the critical section.",
+        "The Waiting and Timed Waiting states are broader, encompassing park operations. For instance, java.util.concurrent locks (like ReentrantLock) park threads using LockSupport, placing them into a Waiting or Timed Waiting state rather than Blocked.",
+        "JVM thread states do not map 1:1 to operating system thread states. Modern JVMs often map Java's Runnable state to multiple underlying OS thread scheduling queues, and blocking operations may utilize futexes or native kernel scheduling primitives.",
+        "Thread interruption (Thread.interrupt()) acts as a signaling mechanism to force threads out of Waiting and Timed Waiting states by throwing an InterruptedException, but it has zero effect on a thread stuck in the Blocked state waiting for an intrinsic monitor lock."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ThreadLifecycleDemo {\n    public static void main(String[] args) throws InterruptedException {\n        Object lock = new Object();\n\n        Thread worker = new Thread(() -> {\n            synchronized (lock) {\n                try {\n                    // Transitions to TIMED_WAITING\n                    Thread.sleep(500);\n                    // Transitions to WAITING\n                    lock.wait();\n                } catch (InterruptedException e) {\n                    Thread.currentThread().interrupt();\n                }\n            }\n        }, \"Worker-Thread\");\n\n        System.out.println(\"State after creation: \" + worker.getState()); // NEW\n        worker.start();\n        System.out.println(\"State after start(): \" + worker.getState()); // RUNNABLE\n\n        Thread.sleep(100);\n        System.out.println(\"State during sleep(): \" + worker.getState()); // TIMED_WAITING\n\n        Thread.sleep(600);\n        System.out.println(\"State during wait(): \" + worker.getState()); // WAITING\n\n        synchronized (lock) {\n            lock.notify();\n        }\n\n        worker.join();\n        System.out.println(\"State after completion: \" + worker.getState()); // TERMINATED\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern involves confusing the Blocked state with Waiting. Junior engineers often assume a thread waiting on a CountDownLatch or Future.get() is in the 'Blocked' state when inspecting thread dumps. In reality, these threads reside in the WAITING or TIMED_WAITING states because they utilize LockSupport.park() under the hood. When analyzing thread dumps (e.g., via jstack or APM tools), always distinguish between monitor contention (Blocked) and park/unpark synchronization primitives (Waiting)."
+    }
+  ],
+  "num": 645,
+  "title": "Explain the Thread Lifecycle (New, Runnable, Blocked, Waiting, Timed Waiting, Terminated).",
+  "category": "Multithreading & Java Concurrency"
+}

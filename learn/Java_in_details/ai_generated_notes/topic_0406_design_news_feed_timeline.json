@@ -1,0 +1,51 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a high-throughput, low-latency News Feed and Timeline service in a Core Java environment requires a mastery of concurrent data structures, memory-efficient caching hierarchies, and specialized fan-out strategies. A news feed aggregates content from followed entities (fan-out-on-write or push architecture), whereas a timeline typically focuses on a user's own generated posts (fan-out-on-read or pull architecture). In a production Java backend, handling millions of concurrent timeline requests without violating garbage collection (GC) latency SLAs demands careful allocation tracking, lock-free ring buffers, and optimized priority queues. We must leverage non-blocking concurrency primitives like ConcurrentSkipListMap or custom off-heap memory mapping via Unsafe or Foreign Function & Memory APIs to avoid JVM heap exhaustion during massive fan-out storms."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architecture Strategy",
+        "Write Complexity",
+        "Read Latency",
+        "Storage Footprint"
+      ],
+      "rows": [
+        [
+          "Fan-out-on-write (Push)",
+          "High (O(N) where N = followers)",
+          "Ultra-Low (O(1) pre-computed feed)",
+          "High (Data duplication per follower)"
+        ],
+        [
+          "Fan-out-on-read (Pull)",
+          "Low (O(1) write to author log)",
+          "High (O(F) merge across F followings)",
+          "Low (Normalized singular storage)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Hybrid Fan-out Strategy: Push updates to active users with small follower counts while pulling on-demand for celebrity accounts with millions of followers to prevent cascading write amplification.",
+        "Concurrent Priority Merging: Using a custom Min-Heap or Tournament Tree backed by custom comparators to merge timestamp-ordered streams from multiple followed partition logs in O(K log M) time.",
+        "Off-Heap Ring Buffers: Utilizing LMAX Disruptor patterns within the JVM to pass feed mutation events between network ingress handlers and fan-out worker threads without incurring lock contention or object allocation overhead."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class TimelineFeedMerger {\n    private final Comparator<Post> postComparator = Comparator.comparingLong(Post::getTimestamp).reversed();\n\n    public List<Post> mergeTimelines(List<Iterator<Post>> userStreams, int limit) {\n        PriorityQueue<BufferedIterator> minHeap = new PriorityQueue<>(\n            Comparator.comparing(bi -> bi.current, (p1, p2) -> postComparator.compare(p2, p1))\n        );\n\n        for (Iterator<Post> stream : userStreams) {\n            if (stream.hasNext()) {\n                minHeap.offer(new BufferedIterator(stream));\n            }\n        }\n\n        List<Post> result = new ArrayList<>(limit);\n        while (!minHeap.isEmpty() && result.size() < limit) {\n            BufferedIterator bi = minHeap.poll();\n            result.add(bi.current);\n            if (bi.iterator.hasNext()) {\n                bi.current = bi.iterator.next();\n                minHeap.offer(bi);\n            }\n        }\n        return result;\n    }\n\n    private static class BufferedIterator {\n        private final Iterator<Post> iterator;\n        private Post current;\n        BufferedIterator(Iterator<Post> iterator) {\n            this.iterator = iterator;\n            this.current = iterator.next();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Never store unbounded user feeds in standard java.util.ArrayList inside a Singleton cache bean. During high-volume timeline pagination, this causes massive object promotion to the old generation, triggering Stop-The-World (STW) Garbage Collection pauses. Instead, use bounded circular buffers, primitive arrays, or Redis sorted sets (ZSET) partitioned by user ID."
+    }
+  ],
+  "num": 407,
+  "title": "Design News Feed / Timeline",
+  "category": "Core Java & Fundamentals"
+}

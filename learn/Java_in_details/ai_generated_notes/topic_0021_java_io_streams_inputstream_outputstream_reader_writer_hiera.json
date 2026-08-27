@@ -1,0 +1,65 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The java.io package is built around a clean, symmetrical hierarchy designed to handle input and output operations. This hierarchy is fundamentally split into two distinct tracks: byte streams and character streams. Byte streams, rooted in the abstract classes InputStream and OutputStream, process raw 8-bit bytes. They are the foundational building blocks for reading and writing binary data, such as images, audio files, network packets, and serialized Java objects. Character streams, rooted in the abstract classes Reader and Writer, process 16-bit Unicode characters. This dichotomy exists because raw bytes do not inherently map to human-readable text without an encoding scheme. Readers and Writers abstract away character-set translation, ensuring that text files are correctly decoded and encoded across different platforms and locales.\n\nTo prevent class explosion while supporting diverse functionalities like buffering, decompression, and object serialization, java.io heavily leverages the Decorator structural pattern. Instead of creating a subclass for every possible combination of features (e.g., a buffered, zipped, file-based input stream), Java provides specialized filter streams. You wrap a concrete stream (like FileInputStream) inside a decorator stream (like BufferedInputStream), which in turn can be wrapped inside another decorator (like GZIPInputStream). This design allows developers to dynamically compose complex I/O pipelines at runtime, keeping individual stream implementations highly cohesive and single-purposed."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Dimension",
+        "Byte Streams (InputStream / OutputStream)",
+        "Character Streams (Reader / Writer)"
+      ],
+      "rows": [
+        [
+          "Fundamental Unit",
+          "8-bit byte (primitive byte)",
+          "16-bit char (Unicode character)"
+        ],
+        [
+          "Primary Use Cases",
+          "Binary data (images, video, encrypted files, network sockets, serialization)",
+          "Textual data (plain text, JSON, XML, CSV, configuration files)"
+        ],
+        [
+          "Encoding Awareness",
+          "None. Treats data as raw, uninterpreted binary streams.",
+          "Highly aware. Translates bytes to characters using a specified or default Charset."
+        ],
+        [
+          "Key Base Classes",
+          "FileInputStream, FileOutputStream, ByteArrayInputStream, ByteArrayOutputStream",
+          "FileReader, FileWriter, StringReader, StringWriter"
+        ],
+        [
+          "Common Decorators",
+          "BufferedInputStream, GZIPInputStream, ObjectInputStream, DataInputStream",
+          "BufferedReader, BufferedWriter, PrintWriter, LineNumberReader"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "System Call Minimization: Reading or writing a single byte or character directly to disk triggers an expensive OS-level system call. BufferedInputStream and BufferedReader maintain an internal memory buffer (typically 8KB). Read operations pull from this buffer, and disk access occurs only when the buffer is exhausted, dramatically improving I/O throughput.",
+        "The Encoding Bridge: InputStreamReader and OutputStreamWriter act as the architectural bridges between byte streams and character streams. They read bytes from an underlying InputStream and decode them into characters using a specified CharsetDecoder, or encode characters into bytes for an OutputStream using a CharsetEncoder.",
+        "Resource Leakage and File Descriptors: Java streams hold native OS resources (file descriptors, sockets). Simply relying on the Garbage Collector to reclaim these resources via finalizers is a critical anti-pattern that leads to resource exhaustion. Streams must be closed deterministically via AutoCloseable and try-with-resources.",
+        "Modern Stream Transfer: Java 9 introduced InputStream.transferTo(OutputStream), which allows direct piping of bytes from an input stream to an output stream. This method optimizes bulk transfers by bypassing intermediate JVM heap allocations where possible, reducing GC pressure during large file copies.",
+        "Null Streams for Testing and Discarding: Modern Java (Java 9+) provides InputStream.nullInputStream(), OutputStream.nullOutputStream(), Reader.nullReader(), and Writer.nullWriter(). These act as virtual '/dev/null' destinations, highly useful for stubbing dependencies in unit tests or discarding unwanted output without writing custom mock classes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.io.*;\nimport java.nio.charset.StandardCharsets;\nimport java.util.Objects;\n\npublic class StreamPipelineProcessor {\n\n    /**\n     * Reads a UTF-8 encoded text file, converts all text to uppercase, and writes it to an output file.\n     * Demonstrates the decorator pattern, explicit encoding, and modern try-with-resources.\n     */\n    public void processTextFile(File source, File destination) throws IOException {\n        Objects.requireNonNull(source, \"Source file cannot be null\");\n        Objects.requireNonNull(destination, \"Destination file cannot be null\");\n\n        // Decorator chain: File -> Buffered Byte Stream -> Character Bridge -> Buffered Character Stream\n        try (InputStream fis = new FileInputStream(source);\n             BufferedInputStream bis = new BufferedInputStream(fis);\n             Reader reader = new InputStreamReader(bis, StandardCharsets.UTF_8);\n             BufferedReader bufferedReader = new BufferedReader(reader);\n             \n             OutputStream fos = new FileOutputStream(destination);\n             BufferedOutputStream bos = new BufferedOutputStream(fos);\n             Writer writer = new OutputStreamWriter(bos, StandardCharsets.UTF_8);\n             BufferedWriter bufferedWriter = new BufferedWriter(writer)) {\n\n            String line;\n            while ((line = bufferedReader.readLine()) != null) {\n                bufferedWriter.write(line.toUpperCase());\n                bufferedWriter.newLine();\n            }\n            // Flush is implicitly called when BufferedWriter closes, but explicit flush ensures data integrity before exit\n            bufferedWriter.flush();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A notorious production trap is the 'Double Buffering' anti-pattern. Developers often wrap a BufferedInputStream inside an InputStreamReader, and then wrap that inside a BufferedReader. This creates redundant memory buffers (one byte-based, one character-based) and causes unnecessary array copies in memory, increasing CPU cache misses and GC pressure. If you are using a BufferedReader, wrap it directly around an InputStreamReader that wraps a raw, unbuffered FileInputStream. The BufferedReader's internal buffer is highly efficient at pulling chunks of bytes from the bridge reader, making the underlying BufferedInputStream redundant and wasteful."
+    }
+  ],
+  "num": 22,
+  "title": "java.io streams — InputStream, OutputStream, Reader, Writer hierarchy",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

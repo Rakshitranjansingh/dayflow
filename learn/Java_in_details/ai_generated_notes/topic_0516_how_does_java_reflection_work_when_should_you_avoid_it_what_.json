@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Java Reflection is a powerful API built into the java.lang.class and java.lang.reflect packages that allows a running Java application to inspect and manipulate its own internals—classes, interfaces, fields, methods, and constructors—at runtime. While standard Java compilation statically binds types and checks access modifiers at compile time, reflection bypasses these static constraints. It provides the foundational capability required for frameworks like Spring, Hibernate, and Jackson to dynamically instantiate objects, wire dependencies, map database result sets, and serialize JSON without knowing concrete types at compile time. However, this dynamic introspection introduces significant runtime overhead, bypasses compile-time safety, and presents unique security challenges.\n\nEncapsulation is the object-oriented principle of hiding internal state and requiring all interaction to be performed through an object's designated methods. Reflection and encapsulation exist in direct tension. Through mechanisms like setAccessible(true), reflection can break through access control boundaries (private, protected, package-private) to inspect and mutate private fields or invoke private methods. While this is essential for frameworks that need to populate unexposed fields during object mapping or dependency injection, it completely shatters the invariants enforced by class designers, leading to fragile architectures where internal implementation details leak across boundaries."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Static Java (Standard)",
+        "Java Reflection"
+      ],
+      "rows": [
+        [
+          "Type Checking",
+          "Compile-time (Fail-fast)",
+          "Runtime (Throws ClassCastException / NoSuchMethodException)"
+        ],
+        [
+          "Performance",
+          "Optimized by JIT (Inlining, direct memory access)",
+          "Slower (Method dispatch overhead, native transitions, un-inlinable)"
+        ],
+        [
+          "Access Control",
+          "Enforced by compiler and JVM verifier",
+          "Bypassed via AccessibleObject.setAccessible(true)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Reflection relies on dynamic class loading and JVM metadata structures (Klass and Method structures in the HotSpot VM). When getMethod() or getDeclaredField() is invoked, the JVM must perform searches through arrays of internal metadata, causing CPU overhead and memory allocation for temporary wrapper objects.",
+        "To mitigate performance degradation, the JVM uses inflation. For the first few invocations of a reflected method, it uses a Java Native Interface (JNI) accessor. If the method is invoked frequently, the JVM inflates the accessor to generate a dynamic bytecode implementation directly, matching the speed of direct invocation.",
+        "Using setAccessible(true) disables Java language access checks via the SecurityManager or module system checks (Project Jigsaw encapsulation), allowing deep inspection of private state at the cost of breaking encapsulation guarantees."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.lang.reflect.Field;\n\npublic class ReflectionEncapsulationDemo {\n    private String secret = \"Confidential Data\";\n\n    public static void main(String[] args) throws Exception {\n        ReflectionEncapsulationDemo demo = new ReflectionEncapsulationDemo();\n        \n        Field field = ReflectionEncapsulationDemo.class.getDeclaredField(\"secret\");\n        \n        // Breaking encapsulation explicitly\n        field.setAccessible(true);\n        \n        String value = (String) field.get(demo);\n        System.out.println(\"Extracted via reflection: \" + value);\n        \n        field.set(demo, \"Hacked State\");\n        System.out.println(\"Modified via reflection: \" + demo.secret);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Avoid reflection in performance-critical execution paths, hot loops, and domain logic where standard polymorphism or interfaces can achieve the same dynamic behavior. Furthermore, modern Java modularity (JPMS - Java Platform Module System) restricts deep reflection across module boundaries unless explicitly opened via 'opens' declarations in module-info.java. Overusing reflection makes static analysis tools, code refactoring tools, and bytecode obfuscators virtually useless."
+    }
+  ],
+  "num": 517,
+  "title": "How does Java Reflection work? When should you avoid it? What is the relationship between reflection and encapsulation?",
+  "category": "Exception Handling & I/O / NIO"
+}

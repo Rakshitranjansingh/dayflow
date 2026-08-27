@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Backpressure is an essential design pattern and feedback mechanism in asynchronous stream processing systems to prevent a fast data producer from overwhelming a slower consumer. In distributed systems, message queues, and reactive programming pipelines, components rarely process data at identical speeds. When a publisher emits events downstream at a rate higher than the subscriber can handle, buffers start filling up. Left unchecked, this inevitably leads to unbounded memory consumption, OutOfMemoryError exceptions, and catastrophic system crashes. Backpressure solves this by establishing a dynamic, flow-controlled contract where the consumer explicitly signals its processing capacity to the producer, dictating how many items it is ready to receive at any given moment."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Mechanism",
+        "Risk / Trade-off"
+      ],
+      "rows": [
+        [
+          "Pull-based (Reactive Streams)",
+          "Consumer requests exact demand via request(n)",
+          "Requires state tracking; idle time if consumer is slow"
+        ],
+        [
+          "Dropping",
+          "Discarding incoming events when buffer is full",
+          "Data loss; requires idempotency or drop-metrics"
+        ],
+        [
+          "Buffering",
+          "Queueing excess items in memory (bounded/unbounded)",
+          "Risk of OutOfMemoryError if unbounded; latency spikes if bounded"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Reactive Streams specification formalizes backpressure through the Subscription.request(long n) method, shifting control from a push model to an async push-pull hybrid.",
+        "Bounded queues paired with backpressure strategies prevent memory exhaustion by dropping, buffering, or failing-fast when capacity thresholds are breached.",
+        "Operators likeonBackpressureBuffer, onBackpressureDrop, and onBackpressureLatest in libraries like Project Reactor or RxJava manage flow mismatches declaratively."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import reactor.core.publisher.Flux;\nimport java.time.Duration;\n\npublic class BackpressureExample {\n    public static void main(String[] args) throws InterruptedException {\n        Flux.range(1, 100)\n            .log()\n            .limitRate(10)\n            .subscribe(new org.reactivestreams.Subscriber<Integer>() {\n                private org.reactivestreams.Subscription s;\n\n                @Override\n                public void onSubscribe(org.reactivestreams.Subscription s) {\n                    this.s = s;\n                    s.request(5); // Initial demand\n                }\n\n                @Override\n                public void onNext(Integer integer) {\n                    System.out.println(\"Consumed: \" + integer);\n                    // Simulate slow processing and request more dynamically\n                    try { Thread.sleep(100); } catch (InterruptedException e) {}\n                    s.request(1);\n                }\n\n                @Override\n                public void onError(Throwable t) { t.printStackTrace(); }\n\n                @Override\n                public void onComplete() { System.out.println(\"Done\"); }\n            });\n        Thread.sleep(5000);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is wrapping blocking I/O operations (like standard JDBC database calls) inside a reactive stream without offloading them to a dedicated scheduler (e.g., using subscribeOn(Schedulers.boundedElastic())). Even if backpressure logic is correctly implemented at the framework level, blocking threads starves the execution pool, rendering backpressure signals ineffective because downstream operators cannot yield execution capacity in time."
+    }
+  ],
+  "num": 943,
+  "title": "What is backpressure?",
+  "category": "Core Java & Fundamentals"
+}

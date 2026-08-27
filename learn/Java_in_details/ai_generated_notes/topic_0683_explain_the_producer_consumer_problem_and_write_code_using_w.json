@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Producer-Consumer problem is a classic concurrency design pattern that addresses the synchronization of threads sharing a common, fixed-size buffer. The 'Producer' thread generates data and places it into the buffer, while the 'Consumer' thread removes and processes that data. The core challenge is preventing the Producer from adding data to a full buffer (overflow) and preventing the Consumer from removing data from an empty buffer (underflow). Without proper coordination, these threads would suffer from race conditions or busy-waiting, which wastes CPU cycles. In Java, we solve this using low-level monitor locks via wait/notify or high-level abstractions like BlockingQueue, which encapsulates the synchronization logic internally."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "wait/notify (Manual)",
+        "BlockingQueue (Managed)"
+      ],
+      "rows": [
+        [
+          "Complexity",
+          "High (Manual lock management)",
+          "Low (Thread-safe abstraction)"
+        ],
+        [
+          "Error Handling",
+          "Prone to lost wakeups/deadlocks",
+          "Robust, built-in signaling"
+        ],
+        [
+          "Performance",
+          "Requires explicit condition checks",
+          "Highly optimized, lock-striping/CAS"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In the wait/notify approach, the 'wait()' call must always be wrapped in a 'while' loop rather than an 'if' statement to handle spurious wakeups, where a thread might wake up without a signal.",
+        "BlockingQueue implementations like ArrayBlockingQueue use ReentrantLock and two Condition objects (notEmpty, notFull) to signal threads, effectively offloading the state management from the developer.",
+        "The Producer-Consumer pattern acts as a natural back-pressure mechanism; if the consumer is slower than the producer, the queue fills up, forcing the producer to block until space becomes available."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.*;\n\npublic class ProducerConsumer {\n    // Using BlockingQueue for thread-safe handoff\n    private final BlockingQueue<Integer> queue = new ArrayBlockingQueue<>(10);\n\n    public void produce() throws InterruptedException {\n        int value = 0;\n        while (true) {\n            queue.put(value++); // Blocks if full\n        }\n    }\n\n    public void consume() throws InterruptedException {\n        while (true) {\n            Integer val = queue.take(); // Blocks if empty\n            System.out.println(\"Consumed: \" + val);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall with wait/notify is using 'notify()' instead of 'notifyAll()'. If you have multiple producers and consumers, 'notify()' might wake up another producer when you actually needed to wake up a consumer, leading to a deadlock where all threads are waiting indefinitely. Always prefer 'notifyAll()' unless you have strictly proven that only one thread can proceed."
+    }
+  ],
+  "num": 684,
+  "title": "Explain the Producer-Consumer problem and write code using wait/notify and BlockingQueue.",
+  "category": "Core Java & Fundamentals"
+}

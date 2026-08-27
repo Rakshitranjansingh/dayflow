@@ -1,0 +1,76 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java Virtual Machine, java.lang.Object sits at the absolute root of the class hierarchy. Every class implicitly or explicitly extends Object, inheriting a core set of methods designed to facilitate object identity, lifecycle management, string representation, and low-level thread synchronization. Understanding these methods is not merely an academic exercise; it is fundamental to writing correct, high-performance, and thread-safe Java applications. At the heart of object identity are equals(Object) and hashCode(). These two methods govern how objects are compared and stored in hash-based collections like HashMap and HashSet. The toString() method provides a diagnostic window into an object's state, crucial for logging and debugging. The clone() method provides a legacy mechanism for field-by-field copying, though it is fraught with architectural design flaws. The getClass() method serves as the entry point to Java's reflection API, returning the runtime Class metadata. Finally, wait(), notify(), and notifyAll() are the fundamental concurrency primitives built directly into the JVM's monitor model, allowing threads to coordinate state transitions without burning CPU cycles in busy-wait loops."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Method",
+        "JVM / Language Role",
+        "Overriding Best Practice",
+        "Common Production Pitfall"
+      ],
+      "rows": [
+        [
+          "equals(Object)",
+          "Defines logical equivalence between two object instances.",
+          "Must be reflexive, symmetric, transitive, consistent, and handle null.",
+          "Violating the Liskov Substitution Principle by using getClass() instead of instanceof when subclassing is intended."
+        ],
+        [
+          "hashCode()",
+          "Returns an integer hash value for bucket distribution in hash tables.",
+          "Must return the same integer for objects that are equal according to equals().",
+          "Using mutable fields in the hash calculation, leading to unretrievable elements in HashSets."
+        ],
+        [
+          "toString()",
+          "Provides a textual representation of the object's state.",
+          "Include key identifying fields; avoid exposing sensitive PII or credentials.",
+          "Triggering infinite recursion and StackOverflowErrors in JPA entities with circular relationships."
+        ],
+        [
+          "clone()",
+          "Creates and returns a copy of the object (shallow copy by default).",
+          "Avoid entirely. Use copy constructors, factory methods, or serialization instead.",
+          "Forgetting to deeply clone mutable nested objects, leading to shared-state side effects."
+        ],
+        [
+          "getClass()",
+          "Returns the runtime Class object representing the actual concrete type.",
+          "Cannot be overridden (it is declared final in java.lang.Object).",
+          "Assuming getClass() matches parent classes during polymorphic comparisons."
+        ],
+        [
+          "wait() / notify()",
+          "Coordinates thread execution by releasing/acquiring object monitors.",
+          "Cannot be overridden (final). Must only be called within a synchronized context.",
+          "Calling wait() outside a loop condition, making the thread vulnerable to spurious wakeups."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Object Header Layout: Every Java object on the heap contains an object header consisting of a Mark Word and a Klass Word. The Mark Word stores runtime metadata such as the identity hashcode, GC generational age, and locking states (unlocked, biased, thin/lightweight lock, or fat lock/inflated monitor).",
+        "The equals() and hashCode() Contract: If two objects are equal according to equals(Object), they must return the same integer from hashCode(). The inverse is not true (collisions are allowed). If this contract is broken, hash-based collections will fail to locate elements, causing memory leaks and duplicate keys.",
+        "Monitor Entry and Wait Sets: Every object has an associated monitor. When a thread calls wait(), the JVM suspends the thread, atomically releases the lock, and places the thread into the object's Wait Set. When another thread calls notify() or notifyAll(), threads are moved from the Wait Set back to the Entry Set to compete for the lock again.",
+        "Cloneable Marker Interface: The clone() method in Object is protected. To expose it publicly, a class must implement the Cloneable interface (a marker interface with no methods) and override clone() as public. If Cloneable is not implemented, calling super.clone() throws a CloneNotSupportedException."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.Objects;\n\npublic final class ThreadSafeBoundedBuffer<T> {\n    private final T[] array;\n    private int head = 0, tail = 0, count = 0;\n\n    @SuppressWarnings(\"unchecked\")\n    public ThreadSafeBoundedBuffer(int capacity) {\n        this.array = (T[]) new Object[capacity];\n    }\n\n    // Correct usage of wait() inside a synchronized block and a while-loop\n    public synchronized void put(T item) throws InterruptedException {\n        while (count == array.length) {\n            wait(); // Releases monitor lock, enters Wait Set, guards against spurious wakeups\n        }\n        array[tail] = item;\n        tail = (tail + 1) % array.length;\n        count++;\n        notifyAll(); // Wakes up all waiting threads to re-evaluate their loop conditions\n    }\n\n    public synchronized T take() throws InterruptedException {\n        while (count == 0) {\n            wait();\n        }\n        T item = array[head];\n        array[head] = null; // Prevent memory leak\n        head = (head + 1) % array.length;\n        count--;\n        notifyAll();\n        return item;\n    }\n\n    // Standard, robust implementation of equals, hashCode, and toString\n    @Override\n    public boolean equals(Object o) {\n        if (this == o) return true;\n        if (o == null || getClass() != o.getClass()) return false;\n        ThreadSafeBoundedBuffer<?> that = (ThreadSafeBoundedBuffer<?>) o;\n        return count == that.count && Objects.deepEquals(array, that.array);\n    }\n\n    @Override\n    public int hashCode() {\n        return Objects.hash(count, Objects.hashCode(array));\n    }\n\n    @Override\n    public String toString() {\n        return String.format(\"BoundedBuffer[size=%d, capacity=%d]\", count, array.length);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "In production environments, never use wait() and notify() for application-level concurrency unless you are writing low-level framework code. Modern Java concurrency utilities in java.util.concurrent (like ReentrantLock, Condition, and BlockingQueue) provide much safer, highly optimized, and readable abstractions. Additionally, beware of using mutable fields in your hashCode() implementations. If an object is added to a HashSet and one of its fields used in hashCode() is subsequently mutated, the object's hash bucket changes. The collection will look in the wrong bucket during contains() or remove() operations, rendering the object unretrievable and causing a silent memory leak."
+    }
+  ],
+  "num": 14,
+  "title": "Object class methods — toString, equals, hashCode, clone, getClass, wait/notify",
+  "category": "Core Java & Fundamentals"
+}

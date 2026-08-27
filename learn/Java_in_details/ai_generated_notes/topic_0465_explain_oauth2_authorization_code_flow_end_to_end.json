@@ -1,0 +1,61 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The OAuth2 Authorization Code flow is the gold standard for securing web applications, designed specifically to prevent the exposure of sensitive credentials to the user agent. Unlike the Implicit flow, which is now deprecated due to security risks, the Authorization Code flow uses a two-step exchange process. It begins when the client redirects the user to the Authorization Server. Upon successful authentication, the server returns a short-lived, single-use authorization code via a browser redirect. The client then exchanges this code—along with its client secret—for an access token via a back-channel server-to-server request. This architecture ensures that the access token is never exposed to the browser's history or local storage, effectively mitigating interception risks."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component",
+        "Responsibility",
+        "Security Role"
+      ],
+      "rows": [
+        [
+          "Resource Owner",
+          "The end-user granting access",
+          "Identity Provider"
+        ],
+        [
+          "Client",
+          "The application requesting access",
+          "Requestor"
+        ],
+        [
+          "Authorization Server",
+          "Validates credentials and issues tokens",
+          "Trust Anchor"
+        ],
+        [
+          "Resource Server",
+          "Validates access tokens to serve data",
+          "Data Protector"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The flow initiates with a GET request to the /authorize endpoint, including the client_id, redirect_uri, response_type=code, and scope.",
+        "The Authorization Server authenticates the user (via session cookie or MFA) and prompts for consent if necessary.",
+        "The server redirects back to the client's redirect_uri with a temporary code parameter, which the client must capture immediately.",
+        "The client performs a POST request to the /token endpoint, including the code, client_id, and client_secret to verify identity.",
+        "The Authorization Server validates the code and secret, then returns a JSON response containing the access_token, token_type, and optionally a refresh_token.",
+        "The client stores these tokens securely (server-side session) and uses the access_token in the Authorization header for subsequent API calls."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\npublic class SecurityConfig {\n    @Bean\n    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {\n        http.oauth2Login(oauth2 -> oauth2\n            .clientRegistrationRepository(clientRegistrationRepository())\n            .authorizedClientService(authorizedClientService())\n        );\n        return http.build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Always implement PKCE (Proof Key for Code Exchange) even for server-side web apps. While originally designed for mobile/SPA clients to avoid storing client secrets, PKCE adds a layer of defense-in-depth by binding the authorization code to a cryptographically generated code_verifier, preventing authorization code injection attacks even if the redirect URI is intercepted."
+    }
+  ],
+  "num": 466,
+  "title": "Explain OAuth2 Authorization Code flow end-to-end",
+  "category": "Spring Security & Web Security"
+}

@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Redis Cluster represents a decentralized, master-slave sharded architecture designed to scale out caching and in-memory data grids horizontally across multiple nodes. In a standalone Redis instance, memory, CPU, and network throughput are bounded by the physical capacity of a single machine. Redis Cluster solves this bottleneck by introducing Data Sharding, the practice of breaking down a massive dataset and partitioning subsets of it across a cluster of independent Redis nodes. By splitting the operational load, Redis Cluster achieves both horizontal scalability and high availability without relying on a centralized proxy or coordination tier."
+    },
+    {
+      "type": "prose",
+      "content": "At the core of Redis Cluster data sharding is the concept of the Hash Slot. Instead of mapping keys directly to nodes, Redis Cluster divides the entire keyspace into a fixed number of 16,384 hash slots. Every key stored in the cluster is assigned to one of these hash slots using a deterministic formula: CRC16(key) modulo 16,384. If the key contains a hash tag (denoted by curly braces, such as {user121}:profile), only the substring inside the braces is fed into the CRC16 algorithm, forcing related keys to map to the exact same hash slot and node. Each master node in the cluster takes responsibility for a contiguous subset of these 16,384 hash slots. When a client issues a command, it computes the hash slot locally and routes the request directly to the responsible node. If the client targets the wrong node, the cluster responds with a MOVED redirection error, instructing the client to update its local slot mapping cache and retry against the correct node."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Standalone Redis",
+        "Redis Cluster & Sharding"
+      ],
+      "rows": [
+        [
+          "Data Distribution",
+          "Single node (All keys in one memory space)",
+          "Partitioned across 16,384 Hash Slots across multiple nodes"
+        ],
+        [
+          "High Availability",
+          "Requires external sentinel or manual failover",
+          "Built-in master-slave replication and automatic failover"
+        ],
+        [
+          "Client Routing",
+          "Direct connection to single instance",
+          "Smart clients tracking slot-to-node maps with MOVED/ASK redirects"
+        ],
+        [
+          "Multi-Key Operations",
+          "Fully supported across any keys",
+          "Restricted to keys sharing the exact same Hash Tag"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Hash Slot Partitioning: The keyspace is strictly partitioned into 16,384 slots, ensuring balanced distribution and predictable overhead when rebalancing nodes.",
+        "Gossip Protocol: Nodes continuously communicate via an internal cluster bus using a gossip protocol to discover new nodes, broadcast state changes, and detect node failures without a central coordinator like ZooKeeper.",
+        "Automatic Failover: If a master node fails, its replicas participate in an election process. Once a replica wins, it promotes itself to master and takes over the failed node's hash slots.",
+        "MOVED vs ASK Redirection: MOVED redirection indicates a permanent slot migration to a new node, updating the client's routing table. ASK redirection is transient, used when a slot is currently being migrated via CLUSTERSETSLOT commands during a resharding phase."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import redis.clients.jedis.HostAndPort;\nimport redis.clients.jedis.JedisCluster;\nimport redis.clients.jedis.JedisPoolConfig;\nimport java.util.HashSet;\nimport java.util.Set;\n\npublic class RedisClusterClientExample {\n    public static void main(String[] args) {\n        Set<HostAndPort> clusterNodes = new HashSet<>();\n        clusterNodes.add(new HostAndPort(\"192.168.1.101\", 6379));\n        clusterNodes.add(new HostAndPort(\"192.168.1.102\", 6379));\n        clusterNodes.add(new HostAndPort(\"192.168.1.103\", 6379));\n\n        JedisPoolConfig poolConfig = new JedisPoolConfig();\n        poolConfig.setMaxTotal(128);\n        poolConfig.setMaxIdle(32);\n\n        try (JedisCluster jedisCluster = new JedisCluster(clusterNodes, poolConfig)) {\n            // Using hash tags to guarantee keys land on the same shard\n            String userKey = \"{user:42}:profile\";\n            String cartKey = \"{user:42}:cart\";\n\n            jedisCluster.set(userKey, \"{\"name\":\"Alice\"}\");\n            jedisCluster.hset(cartKey, \"item_99\", \"2\");\n\n            System.out.println(\"User Profile: \" + jedisCluster.get(userKey));\n        } catch (Exception e) {\n            e.printStackTrace();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in Redis Cluster is executing multi-key commands (like MGET, MSET, or transactional MULTI/EXEC blocks) across keys that hash to different slots. Because Redis Cluster shards data across distinct network boundaries, executing operations across multiple nodes violates atomicity and throws a CROSSSLOT keys in request don't hash to the same slot error. Always enforce hash tagging ({user_id}) for related keys that must be queried together in batch operations."
+    }
+  ],
+  "num": 917,
+  "title": "Explain Redis Cluster and Data Sharding.",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

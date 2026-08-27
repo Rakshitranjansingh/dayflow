@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of containerizing Java applications, understanding the nuances of Dockerfile instructions is critical for both runtime behavior and build-time efficiency. CMD and ENTRYPOINT define how your JVM process starts. CMD provides default arguments to an entrypoint, making it easy for users to override parameters at runtime (e.g., passing different -Xmx heap settings). Conversely, ENTRYPOINT configures a container to run as an executable, ensuring that the primary process PID 1 is your Java application, which is essential for receiving OS signals like SIGTERM for graceful shutdowns. If you use ENTRYPOINT, CMD becomes the default parameters passed to that executable.\n\nRegarding filesystem operations, COPY and ADD are the primary mechanisms for moving artifacts into the image. COPY is the standard, preferred instruction for moving local files or directories into the image filesystem. It is deterministic and simple. ADD, while functionally similar, includes 'magic' features: it can automatically extract local tar archives and fetch remote URLs. In production-grade CI/CD pipelines, we strictly prefer COPY to avoid unexpected side effects, such as hidden network calls during build or non-deterministic extraction behavior that could bloat your image or introduce security vulnerabilities."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Instruction",
+        "Primary Use Case",
+        "Behavioral Nuance"
+      ],
+      "rows": [
+        [
+          "CMD",
+          "Default runtime arguments",
+          "Easily overridden by CLI args"
+        ],
+        [
+          "ENTRYPOINT",
+          "Defining the main executable",
+          "Harder to override; preserves PID 1"
+        ],
+        [
+          "COPY",
+          "Moving local artifacts",
+          "Strictly copies files/dirs"
+        ],
+        [
+          "ADD",
+          "Complex file operations",
+          "Supports remote URLs and auto-extraction"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Using ENTRYPOINT [\"java\", \"-jar\", \"app.jar\"] ensures the JVM receives the SIGTERM signal directly from Docker, allowing your Spring Boot or Micronaut application to trigger shutdown hooks and close database connection pools.",
+        "When using COPY, Docker evaluates the checksum of the source files. If the files haven't changed, Docker reuses the cached layer, which significantly accelerates build times for large fat-JARs.",
+        "ADD can lead to non-deterministic builds if it fetches a remote URL, as the content at that URL might change without a change to your Dockerfile, effectively breaking the layer cache unexpectedly.",
+        "Shell form vs Exec form: Always prefer Exec form ([\"executable\", \"param\"]) to avoid spawning a shell process (/bin/sh -c), which often fails to propagate signals to the JVM."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "dockerfile",
+      "content": "FROM eclipse-temurin:17-jre-alpine\nWORKDIR /app\n# Use COPY for deterministic builds\nCOPY target/my-service.jar app.jar\n# Use Exec form for ENTRYPOINT to ensure PID 1\nENTRYPOINT [\"java\", \"-Xmx512m\", \"-jar\", \"app.jar\"]\n# CMD provides default flags that can be overridden\nCMD [\"--server.port=8080\"]"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is using the shell form of ENTRYPOINT (e.g., ENTRYPOINT java -jar app.jar). Because this spawns a shell process, the shell becomes PID 1 and does not forward signals to the JVM. Consequently, your application will be killed via SIGKILL after a 10-second timeout instead of shutting down gracefully, leading to potential data corruption in your database or incomplete I/O operations."
+    }
+  ],
+  "num": 1134,
+  "title": "Dockerfile instructions: CMD vs ENTRYPOINT? ADD vs COPY?",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "MethodReplacer is a legacy Spring Framework interface that allows you to override the implementation of a specific method in a bean at runtime without modifying the original class source code. In the context of Spring's Inversion of Control (IoC) container, it acts as a form of dynamic proxying or method injection. When a bean is defined in XML, you can associate a method name with a MethodReplacer implementation. Whenever that method is invoked on the target bean, the Spring container intercepts the call and delegates execution to the reimplement() method defined in your replacer class. This mechanism was primarily designed to support legacy codebases where you might need to inject dynamic behavior into a class that you cannot refactor or subclass easily, essentially providing a way to perform 'hot-swapping' of logic during the bean lifecycle."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "MethodReplacer",
+        "AOP (AspectJ/Spring AOP)"
+      ],
+      "rows": [
+        [
+          "Primary Goal",
+          "Complete method body replacement",
+          "Cross-cutting concern injection"
+        ],
+        [
+          "Configuration",
+          "XML-based (replaced-method)",
+          "Annotations/Java Config"
+        ],
+        [
+          "Complexity",
+          "High (requires Method object)",
+          "Low (declarative)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring uses CGLIB to dynamically subclass the target bean at runtime to implement method replacement, which means the target class must not be final and the method to be replaced must not be final.",
+        "The reimplement method provides the target object instance, the Method object being intercepted, and an Object array of arguments, allowing for full reflection-based control over the execution context.",
+        "MethodReplacer is strictly bound to the Spring XML configuration via the <replaced-method> tag, making it largely incompatible with modern pure-Java configuration styles."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class MyMethodReplacer implements MethodReplacer {\n    @Override\n    public Object reimplement(Object obj, Method method, Object[] args) throws Throwable {\n        // Logic to replace the original method\n        return \"Replaced result for \" + args[0];\n    }\n}\n\n// XML Configuration\n<bean id=\"myBean\" class=\"com.example.MyBean\">\n    <replaced-method name=\"compute\" replacer=\"myMethodReplacer\"/>\n</bean>"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Avoid using MethodReplacer in modern Spring Boot applications. It is considered a 'code smell' and a maintenance nightmare because it hides logic outside the class definition, making debugging extremely difficult. If you find yourself needing this, you should almost certainly refactor the code to use the Strategy Pattern or standard Spring AOP, which are type-safe and much easier to trace through IDE debuggers."
+    }
+  ],
+  "num": 810,
+  "title": "What is MethodReplacer in Spring?",
+  "category": "Core Java & Fundamentals"
+}

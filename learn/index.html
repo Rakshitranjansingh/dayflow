@@ -122,6 +122,30 @@
 <div class="section">
   <div class="section-title">Available Courses</div>
 
+  <!-- Java Deep Dive & Microtopics (7+ YOE) -->
+  <div class="course-card" id="card-Java_in_details">
+    <div class="course-banner" style="background: linear-gradient(135deg, #FF6B35 0%, #E25C1A 100%); color: #fff;">☕</div>
+    <div class="course-body">
+      <div class="course-header">
+        <div class="course-title" style="color: var(--accent);">Java Deep Dive & Microtopics (7+ YOE)</div>
+        <span class="course-badge badge-new" id="badge-Java_in_details">New</span>
+      </div>
+      <div class="course-desc">Master 1,270+ Java roadmap microtopics: Virtual Threads, JVM tuning, Concurrency, Spring Boot, JPA, Kafka & 7 YOE interview depth demands.</div>
+      <div class="course-meta">
+        <span>📚 1,272 microtopics</span>
+        <span>⚡ Java 21+ & JVM</span>
+        <span>🎯 7 YOE Depth</span>
+      </div>
+      <div class="course-progress" id="progress-Java_in_details" style="display:none">
+        <div class="course-progress-fill" id="progress-fill-Java_in_details" style="width:0%"></div>
+      </div>
+      <div class="course-footer">
+        <span class="course-progress-text" id="progress-text-Java_in_details"></span>
+        <button class="enroll-btn btn-enroll" id="btn-Java_in_details" onclick="handleCourseAction('Java_in_details')">Enroll Free</button>
+      </div>
+    </div>
+  </div>
+
   <!-- High-Level System Design (HLD) -->
   <div class="course-card" id="card-High_level_design">
     <div class="course-banner" style="background: linear-gradient(135deg, #6C63FF 0%, #00D4AA 100%); color: #fff;">🏗️</div>
@@ -307,6 +331,25 @@ function loadState() {
         };
       }
     }
+  // Backup sync for Java Deep Dive (Java_in_details)
+  try {
+    const javaDetailsDoneStr = localStorage.getItem('java_in_details_done_v1');
+    if (javaDetailsDoneStr) {
+      const doneArr = JSON.parse(javaDetailsDoneStr);
+      if (Array.isArray(doneArr)) {
+        const existing = stateObj.learning.enrollments.Java_in_details || {};
+        const pct = Math.round((doneArr.length / 1272) * 100);
+        stateObj.learning.enrollments.Java_in_details = {
+          enrolled: true,
+          enrolledDate: existing.enrolledDate || new Date().toISOString().split('T')[0],
+          completed: doneArr,
+          progress: pct,
+          lastStudied: existing.lastStudied || new Date().toISOString()
+        };
+      }
+    }
+  } catch(e) {}
+
   // Backup sync for High-Level Design
   try {
     const hldDoneStr = localStorage.getItem('High_level_design_done_v1') || localStorage.getItem('hld_course_done_v1');
@@ -347,7 +390,7 @@ function init() {
 
 function updateHeroStats() {
   const enrollments = state.learning?.enrollments || {};
-  const activeCourseIds = ['blind75', 'java_at_a_glance', 'High_level_design'];
+  const activeCourseIds = ['Java_in_details', 'blind75', 'java_at_a_glance', 'High_level_design'];
   const activeEnrollments = activeCourseIds.map(id => enrollments[id]).filter(e => e && e.enrolled);
 
   const enrolled = activeEnrollments.length;
@@ -360,6 +403,7 @@ function updateHeroStats() {
 }
 
 function updateCourseCards() {
+  updateCourseCard('Java_in_details');
   updateCourseCard('High_level_design');
   updateCourseCard('java_at_a_glance');
   updateCourseCard('blind75');
@@ -381,8 +425,8 @@ function updateCourseCard(courseId) {
     progressBar.style.display = 'block';
     progressFill.style.width = (enrollment.progress || 0) + '%';
     const done = enrollment.completed?.length || 0;
-    const total = courseId === 'blind75' ? 75 : courseId === 'High_level_design' ? 18 : 12;
-    const unit = courseId === 'blind75' ? 'problems' : courseId === 'High_level_design' ? 'topics' : 'items';
+    const total = courseId === 'Java_in_details' ? 1272 : courseId === 'blind75' ? 75 : courseId === 'High_level_design' ? 18 : 12;
+    const unit = courseId === 'Java_in_details' ? 'microtopics' : courseId === 'blind75' ? 'problems' : courseId === 'High_level_design' ? 'topics' : 'items';
     progressText.textContent = `${done}/${total} ${unit} · ${enrollment.progress || 0}%`;
   }
 }
@@ -396,7 +440,7 @@ function handleCourseAction(courseId) {
   const enrollment = state.learning?.enrollments?.[courseId];
   if (enrollment?.enrolled) {
     // Already enrolled — go to course
-    window.location.href = courseId === 'High_level_design' ? `High_level_design/index.html` : courseId === 'blind75' ? `blind75/index.html` : `java-at-a-glance/index.html`;
+    window.location.href = courseId === 'Java_in_details' ? `Java_in_details/index.html` : courseId === 'High_level_design' ? `High_level_design/index.html` : courseId === 'blind75' ? `blind75/index.html` : `java-at-a-glance/index.html`;
   } else {
     // Show enroll modal
     pendingCourse = courseId;
@@ -405,7 +449,18 @@ function handleCourseAction(courseId) {
     const modalSub = document.getElementById('modal-sub');
     const modalStats = document.getElementById('modal-stats');
 
-    if (courseId === 'High_level_design') {
+    if (courseId === 'Java_in_details') {
+      if (modalIcon) modalIcon.textContent = '☕';
+      if (modalTitle) modalTitle.textContent = 'Java Deep Dive & Microtopics (7+ YOE)';
+      if (modalSub) modalSub.textContent = 'Master 1,270+ microtopics covering Virtual Threads, JVM Internals, Concurrency, Spring Boot, JPA, Kafka & 7 YOE Senior Interview Demands.';
+      if (modalStats) {
+        modalStats.innerHTML = `
+          <div class="modal-stat"><div class="modal-stat-val">1272</div><div class="modal-stat-lbl">Microtopics</div></div>
+          <div class="modal-stat"><div class="modal-stat-val">15</div><div class="modal-stat-lbl">Modules</div></div>
+          <div class="modal-stat"><div class="modal-stat-val">Free</div><div class="modal-stat-lbl">Cost</div></div>
+        `;
+      }
+    } else if (courseId === 'High_level_design') {
       if (modalIcon) modalIcon.textContent = '🏗️';
       if (modalTitle) modalTitle.textContent = 'High-Level System Design (HLD)';
       if (modalSub) modalSub.textContent = 'Master 18 core system design topics: OSI layers, CAP theorem, microservices, consistent hashing, rate limiters, Kafka, caching & security.';

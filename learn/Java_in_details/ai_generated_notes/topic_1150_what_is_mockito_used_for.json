@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Mockito is a foundational open-source mocking framework for Java that enables developers to isolate units of code under test by creating dynamic proxies of dependencies. In modern enterprise architecture, classes rarely exist in a vacuum; they collaborate with repositories, external HTTP clients, message brokers, and complex service collaborators. When writing fast, deterministic unit tests, spinning up an embedded database or hitting a live socket introduces unacceptable flakiness, latency, and environmental dependencies. Mockito solves this by intercepting method calls on interface or class surrogates, allowing developers to stub exact return behaviors, simulate network timeouts or exceptions, and strictly verify interaction protocols without executing real production logic."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Mockito",
+        "Traditional Stubbing (Hand-written)"
+      ],
+      "rows": [
+        [
+          "Boilerplate Code",
+          "Minimal; uses dynamic proxies and bytecode generation",
+          "Extensive; requires manual anonymous inner classes or subclassing"
+        ],
+        [
+          "Verification",
+          "Built-in fluent verification API (verify(mock).method())",
+          "Manual boolean flags or invocation counters in custom stubs"
+        ],
+        [
+          "Maintenance",
+          "Resilient; compiler-safe via modern argument matchers",
+          "Fragile; signature changes break manual stubs silently or noisily"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Mockito leverages advanced runtime bytecode manipulation libraries (historically cglib/Byte Buddy) to subclass concrete classes and implement interfaces on the fly without requiring explicit disk compilation of mock classes.",
+        "Stubbing behavior is stored in an internal thread-safe invocation container managed by Mockito's framework core, matching incoming arguments against predefined matchers using structural equality or custom Answer implementations.",
+        "Verification operates by querying an internal invocation recorder after the test execution phase, asserting that specific methods were called exact numbers of times with precise parameter constraints."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.junit.jupiter.api.Test;\nimport org.junit.jupiter.api.extension.ExtendWith;\nimport org.mockito.InjectMocks;\nimport org.mockito.Mock;\nimport org.mockito.junit.jupiter.MockitoExtension;\nimport static org.mockito.Mockito.*;\nimport static org.junit.jupiter.api.Assertions.*;\n\n@ExtendWith(MockitoExtension.class)\nclass OrderServiceTest {\n\n    @Mock\n    private PaymentGateway paymentGateway;\n\n    @InjectMocks\n    private OrderService orderService;\n\n    @Test\n    void shouldProcessOrderSuccessfully() {\n        when(paymentGateway.charge(anyString(), anyDouble())).thenReturn(true);\n\n        boolean result = orderService.placeOrder(\"order-123\", 99.99);\n\n        assertTrue(result);\n        verify(paymentGateway, times(1)).charge(\"order-123\", 99.99);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic trap for intermediate developers is attempting to mock final classes, private methods, or static methods without enabling Mockito's inline mock maker. Historically, Mockito could not mock final classes due to bytecode subclassing limitations. While modern Mockito supports this via the 'mockito-inline' artifact (or native support in recent versions) using instrumentation API agents, overusing mocks on static or final utilities is a strong code smell indicating poor architectural boundaries. Favor dependency injection over static state wherever possible."
+    }
+  ],
+  "num": 1151,
+  "title": "What is Mockito used for?",
+  "category": "Testing, Observability & Cloud Native"
+}

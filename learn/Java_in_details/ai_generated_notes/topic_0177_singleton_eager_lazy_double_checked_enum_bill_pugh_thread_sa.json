@@ -1,0 +1,75 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Singleton design pattern is a creational pattern ensuring a class has only one instance while providing a global access point to it. In enterprise architectures like Spring Data JPA and Hibernate ORM, Singleton semantics govern services, stateless components, connection pools, and configuration caches. However, naive implementations introduce severe race conditions, memory visibility bugs, and concurrency bottlenecks. Eager initialization guarantees thread safety by instantiating the object at class loading time, but wastes memory if the resource is expensive and never used. Conversely, lazy initialization defers creation until first access, but without proper synchronization, multiple threads can concurrently pass null checks, spawning duplicate instances and breaking the single-instance invariant.\n\nTo balance thread-safety and performance, advanced idioms emerged. Double-Checked Locking (DCL) mitigates synchronization overhead by checking the instance state twice—once without locking and once inside a synchronized block—requiring the volatile keyword to prevent instruction reordering in the Java Memory Model. The Bill Pugh Singleton (Initialization-on-Demand Holder idiom) leverages the Java Virtual Machine's class-loading guarantees: a static inner helper class holds the instance, ensuring lazy initialization and thread safety natively without explicit synchronization overhead. Finally, Enum Singletons, pioneered by Joshua Bloch, provide absolute thread safety, immunity against complex serialization attacks, and protection against reflection-based instantiations via AccessibleObject.setAccessible(true)."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Implementation Strategy",
+        "Thread Safe?",
+        "Lazy Initialization?",
+        "Performance Impact",
+        "Serialization/Reflection Safe?"
+      ],
+      "rows": [
+        [
+          "Eager Initialization",
+          "Yes",
+          "No",
+          "None",
+          "No"
+        ],
+        [
+          "Lazy (Unsynchronized)",
+          "No",
+          "Yes",
+          "Minimal",
+          "No"
+        ],
+        [
+          "Double-Checked Locking",
+          "Yes",
+          "Yes",
+          "Low (with volatile)",
+          "No"
+        ],
+        [
+          "Bill Pugh (Holder)",
+          "Yes",
+          "Yes",
+          "None (Native JVM)",
+          "No"
+        ],
+        [
+          "Enum Singleton",
+          "Yes",
+          "No",
+          "None",
+          "Yes (Guaranteed by JVM)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In Double-Checked Locking, omitting the volatile keyword allows the JVM or CPU to reorder write operations (allocating memory, invoking the constructor, and assigning the reference to the instance variable), exposing a partially initialized object to concurrent threads.",
+        "The Bill Pugh pattern relies on the Java Language Specification (JLS) guarantees that class initialization is thread-safe and executed by the JVM during the phase where a class or interface is actively used, avoiding explicit synchronization locks.",
+        "Enum singletons implicitly extend java.lang.Enum, where the JVM handles instantiation entirely during class loading and explicitly forbids cloning, reflection-based bypassing, and custom serialization vulnerabilities."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public final class DatabaseConnectionManager {\n    \n    private DatabaseConnectionManager() {\n        if (Holder.INSTANCE != null) {\n            throw new IllegalStateException(\"Singleton instance already created. Reflection attack blocked.\");\n        }\n    }\n\n    private static class Holder {\n        private static final DatabaseConnectionManager INSTANCE = new DatabaseConnectionManager();\n    }\n\n    public static DatabaseConnectionManager getInstance() {\n        return Holder.INSTANCE;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: In modern Spring applications, relying on manual singletons like Bill Pugh or Enum for business logic is usually an anti-pattern. Spring's ApplicationContext manages beans as singletons by default via its IoC container. However, if you manually instantiate objects within JPA EntityListeners, or mix manual singletons with Spring's scope-proxy mechanics, you risk thread-safety issues with non-thread-safe state (e.g., storing EntityManager references in instance fields)."
+    }
+  ],
+  "num": 178,
+  "title": "Singleton — eager, lazy, double-checked, enum, Bill Pugh, thread-safety issues",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

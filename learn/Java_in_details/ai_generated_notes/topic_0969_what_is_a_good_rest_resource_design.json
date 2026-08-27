@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A good REST resource design centers on the concept of 'Resources' as nouns, not actions. In a microservices architecture, especially when utilizing WebFlux for non-blocking I/O, your API design must prioritize discoverability and state representation. A resource is an abstraction of an entity—like a User, Order, or Product—that is uniquely identified by a URI. The design should follow the Uniform Interface constraint, where standard HTTP methods (GET, POST, PUT, PATCH, DELETE) dictate the semantics of the interaction. By decoupling the client from the server's internal implementation, you ensure that your microservices can evolve independently. Effective design avoids 'RPC-style' endpoints like /api/updateUserStatus and instead favors state transitions on the resource itself, such as PATCH /users/{id} with a JSON body representing the partial update."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Design Principle",
+        "Anti-Pattern (RPC-Style)",
+        "RESTful Resource Design"
+      ],
+      "rows": [
+        [
+          "Naming",
+          "/api/getAllUsers",
+          "/users"
+        ],
+        [
+          "Action",
+          "/api/deleteUserById?id=1",
+          "DELETE /users/1"
+        ],
+        [
+          "State",
+          "/api/activateUser",
+          "PATCH /users/1 { \"status\": \"ACTIVE\" }"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Use hierarchical URIs to express relationships, such as /users/{userId}/orders/{orderId}, to maintain a clear resource graph.",
+        "Leverage HTTP status codes (201 Created, 204 No Content, 404 Not Found, 422 Unprocessable Entity) to communicate the outcome of the request, rather than wrapping status in a 200 OK JSON body.",
+        "Implement HATEOAS (Hypermedia as the Engine of Application State) to allow clients to discover available actions dynamically via links, reducing hardcoded URL coupling in microservices.",
+        "In WebFlux, ensure your resource controllers return Mono or Flux types to prevent blocking the event loop, allowing the server to handle high concurrency with minimal thread overhead."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/v1/orders\")\npublic class OrderController {\n    @GetMapping(\"/{id}\")\n    public Mono<ResponseEntity<Order>> getOrder(@PathVariable String id) {\n        return orderService.findById(id)\n            .map(ResponseEntity::ok)\n            .defaultIfEmpty(ResponseEntity.notFound().build());\n    }\n\n    @PostMapping\n    public Mono<ResponseEntity<Order>> createOrder(@RequestBody Order order) {\n        return orderService.save(order)\n            .map(saved -> ResponseEntity.status(HttpStatus.CREATED).body(saved));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common pitfall in high-scale microservices is 'Chatty APIs' caused by poor resource granularity. If your frontend needs to hit five different endpoints to render one view, your resource design is likely too fragmented. Conversely, don't over-fetch. Use 'Field Filtering' (e.g., /users?fields=id,name) to keep payloads lean, which is critical when dealing with the memory constraints of reactive streams in WebFlux."
+    }
+  ],
+  "num": 970,
+  "title": "What is a good REST resource design?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When architecting distributed microservice ecosystems in Java, selecting the right data-fetching layer between clients and backend services is a critical architectural decision. REST (Representational State Transfer) has long been the industry standard for web APIs, relying on standard HTTP methods, stateless interactions, and resource-oriented URI paths. It maps cleanly to domain models and leverages standard HTTP caching mechanisms, making it exceptional for public-facing APIs, content delivery networks (CDNs), and straightforward CRUD operations. However, REST frequently suffers from over-fetching—where clients receive monolithic JSON payloads containing unneeded fields—and under-fetching, forcing multiple round-trips to aggregate related resources.\n\nOn the other hand, GraphQL introduces a query language and runtime for your API that flips the paradigm from server-driven resource representation to client-driven data specification. By exposing a single endpoint (typically `/graphql`) that processes strongly-typed queries and mutations, GraphQL eliminates over-fetching completely, empowering mobile and web clients to retrieve precise object graphs in a single network round-trip. In high-throughput reactive microservice architectures—such as those built using Spring WebFlux—GraphQL sits atop a reactive execution engine, resolving fields asynchronously. Yet, this flexibility comes with steep trade-offs: caching becomes significantly more complex because queries are typically submitted via HTTP POST requests, and backend data layers are vulnerable to the dreaded N+1 query problem if execution rules and data loaders are not carefully implemented."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "REST",
+        "GraphQL"
+      ],
+      "rows": [
+        [
+          "Network Efficiency",
+          "Prone to over-fetching and under-fetching (multiple round-trips).",
+          "Exact data retrieval in a single round-trip."
+        ],
+        [
+          "Caching & Infrastructure",
+          "Native HTTP caching via GET methods, ETags, and CDNs.",
+          "Complex caching due to arbitrary POST queries and nested fields."
+        ],
+        [
+          "API Evolution",
+          "Requires versioning strategies (/api/v1/, /api/v2/) or additive schema changes.",
+          "Continuous evolution via deprecation directives without breaking versions."
+        ],
+        [
+          "Error Handling",
+          "Standard HTTP status codes (200, 400, 404, 500).",
+          "HTTP 200 OK universally, with an explicit 'errors' array inside the JSON payload."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In a Spring Boot and Spring WebFlux environment, GraphQL execution utilizes DataFetchers and ReactiveDataFetchers to return Mono or Flux publishers, allowing non-blocking I/O down to the database driver.",
+        "The GraphQL N+1 problem occurs when fetching a list of parent entities (e.g., Orders) triggers a separate database query for each child entity (e.g., LineItems), which is systematically solved using the DataLoader pattern to batch and cache downstream requests within a single execution cycle.",
+        "REST strictly decouples transport semantics from application logic using HTTP verbs (GET, POST, PUT, DELETE, PATCH), whereas GraphQL collapses almost all operations down to POST payloads while routing business logic through schema types."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Controller\npublic class UserGraphQLController {\n\n    private final UserService userService;\n    private final DataLoaderRegistry dataLoaderRegistry;\n\n    public UserGraphQLController(UserService userService) {\n        this.userService = userService;\n    }\n\n    @QueryMapping\n    public Mono<User> userById(@Argument String id) {\n        return userService.findUserById(id);\n    }\n\n    @SchemaMapping(typeName = \"User\", field = \"orders\")\n    public CompletableFuture<List<Order>> orders(User user, DataLoader<String, List<Order>> loader) {\n        return loader.load(user.getId());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when adopting GraphQL in microservices is failing to limit query depth and complexity. Because clients dictate the shape of the response, malicious or poorly optimized queries (e.g., deeply nested cyclic relationships like User -> Friends -> Friends -> Friends) can easily exhaust database connection pools or trigger OutOfMemoryErrors on the JVM. Always implement query complexity analysis and depth-limiting parsers at the gateway level before forwarding requests to your execution engine."
+    }
+  ],
+  "num": 323,
+  "title": "GraphQL vs REST — trade-offs, when to choose which",
+  "category": "REST APIs, WebFlux & Microservices"
+}

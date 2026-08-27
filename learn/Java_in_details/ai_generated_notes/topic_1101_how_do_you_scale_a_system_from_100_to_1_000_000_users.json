@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Scaling from 100 to 1,000,000 users is not merely about throwing more hardware at the problem; it is a fundamental shift from monolithic, stateful architectures to distributed, stateless, and asynchronous systems. At 100 users, your primary bottleneck is often development velocity, where a single JVM instance with an embedded database suffices. However, as you approach the million-user threshold, you encounter the 'Thundering Herd' problem, database connection exhaustion, and the physical limits of vertical scaling. To survive, you must decouple your services using message brokers (like Kafka or RabbitMQ) to handle traffic spikes asynchronously, implement aggressive caching strategies (Redis/Memcached) to shield your primary data store, and move toward a microservices architecture where individual components can be scaled independently based on CPU or memory pressure."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric",
+        "100 Users (Monolith)",
+        "1,000,000 Users (Distributed)"
+      ],
+      "rows": [
+        [
+          "Data Access",
+          "Direct JDBC/JPA",
+          "Read-replicas & Sharding"
+        ],
+        [
+          "State Management",
+          "HttpSession (In-memory)",
+          "Externalized Session (Redis)"
+        ],
+        [
+          "Concurrency",
+          "Synchronous Thread-per-request",
+          "Reactive/Non-blocking (Project Loom/Netty)"
+        ],
+        [
+          "Deployment",
+          "Single JAR/WAR",
+          "Kubernetes Orchestrated Containers"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Database Connection Pooling: At scale, HikariCP configuration becomes critical. You must tune maximumPoolSize based on the number of CPU cores and disk I/O to prevent context switching overhead.",
+        "Statelessness: By moving session state out of the JVM heap and into a distributed cache, you enable horizontal autoscaling, allowing the load balancer to route requests to any available node without session affinity requirements.",
+        "Asynchronous Processing: Offload heavy lifting (e.g., email notifications, report generation) to background workers using a message queue to keep the request-response cycle under 200ms.",
+        "Circuit Breakers: Implement patterns like Resilience4j to prevent cascading failures in a distributed environment; if a downstream service latency spikes, the breaker trips to protect your system's overall stability."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderService {\n    // Use CompletableFuture for non-blocking I/O to handle high concurrency\n    public CompletableFuture<OrderResponse> processOrderAsync(OrderRequest request) {\n        return CompletableFuture.supplyAsync(() -> {\n            // Offload to thread pool to avoid blocking the main request thread\n            return orderRepository.save(request);\n        }, customExecutor);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common trap for engineers scaling to 1M users is 'premature database optimization.' Before implementing complex sharding or NoSQL migration, ensure your query execution plans are optimal and that you have proper indexing. A single missing index on a table with 10 million rows will kill your system faster than any lack of microservices architecture ever could. Always profile before you scale."
+    }
+  ],
+  "num": 1102,
+  "title": "How do you scale a system from 100 to 1,000,000 users?",
+  "category": "Core Java & Fundamentals"
+}

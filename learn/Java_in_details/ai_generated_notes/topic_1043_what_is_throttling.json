@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Throttling is a traffic-shaping mechanism used to limit the rate at which an operation is performed or a resource is accessed. In the context of Java and distributed systems, it acts as a gatekeeper to prevent system degradation, cascading failures, or exhaustion of downstream dependencies. Unlike debouncing, which delays execution until a period of inactivity, throttling enforces a strict maximum throughput, ensuring that your application remains responsive under heavy load by rejecting or delaying excess requests. This is critical for protecting shared resources like database connection pools, external API quotas, or CPU-bound worker threads from being overwhelmed by spikes in traffic."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Behavior",
+        "Use Case"
+      ],
+      "rows": [
+        [
+          "Fixed Window",
+          "Resets count at fixed intervals",
+          "Simple rate limiting"
+        ],
+        [
+          "Token Bucket",
+          "Allows bursts up to bucket capacity",
+          "API Gateway traffic shaping"
+        ],
+        [
+          "Leaky Bucket",
+          "Processes at a constant, steady rate",
+          "Smoothing jittery traffic"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Token Bucket Algorithm: A bucket is initialized with N tokens. Each request consumes one token. Tokens are refilled at a constant rate. If the bucket is empty, the request is rejected or blocked, allowing for controlled bursts.",
+        "Semaphore-based Throttling: In Java, java.util.concurrent.Semaphore is the standard primitive for limiting concurrent access. It maintains a set of permits; threads must acquire a permit before proceeding, effectively capping the concurrency level.",
+        "Backpressure Propagation: When a system is throttled, it must signal the caller (e.g., via HTTP 429 Too Many Requests or throwing a custom RejectedExecutionException) to prevent the accumulation of requests in the JVM heap, which would otherwise lead to OutOfMemoryErrors.",
+        "Thread Pool Saturation: Throttling is often implemented by configuring a ThreadPoolExecutor with a custom RejectedExecutionHandler, which defines the policy for when the task queue is full."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class RateLimiter {\n    private final Semaphore semaphore;\n\n    public RateLimiter(int permits) {\n        this.semaphore = new Semaphore(permits);\n    }\n\n    public void execute(Runnable task) throws InterruptedException {\n        if (semaphore.tryAcquire()) {\n            try {\n                task.run();\n            } finally {\n                semaphore.release();\n            }\n        } else {\n            throw new RuntimeException(\"Rate limit exceeded\");\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Be wary of 'distributed throttling' pitfalls. Implementing throttling locally within a single JVM is trivial, but in a microservices architecture, you must use a centralized store like Redis (using Lua scripts for atomic increments) to track state. If you rely on local counters across multiple nodes, you will inadvertently allow N times the intended traffic, where N is the number of instances."
+    }
+  ],
+  "num": 1044,
+  "title": "What is throttling?",
+  "category": "Core Java & Fundamentals"
+}

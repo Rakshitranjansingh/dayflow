@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In highly scalable, containerized microservices architectures, static IP addresses and port configurations are entirely unviable. Pods scale up and down dynamically, cloud instances are terminated by autoscalers, and network topologies shift continuously. This creates an immediate need for Service Discovery—a centralized or decentralized mechanism allowing services to find and communicate with each other without hardcoded network coordinates. To solve this problem, three prominent paradigms have emerged: Netflix Eureka, HashiCorp Consul, and Kubernetes DNS. Eureka acts as an application-level registry where clients pull and cache registries locally, prioritizing availability over consistency under the CAP theorem. Consul, built on the Raft consensus algorithm, offers a robust CP (Consistency/Partition tolerance) system that integrates health checking, a key-value store, and multi-datacenter capabilities out of the box. Meanwhile, Kubernetes DNS leverages core infrastructure primitives (CoreDNS) baked directly into the container orchestrator, mapping DNS queries straight to ClusterIP services and headless endpoints without requiring application-level SDK integration."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Metric",
+        "Netflix Eureka",
+        "HashiCorp Consul",
+        "Kubernetes DNS"
+      ],
+      "rows": [
+        [
+          "CAP Theorem Stance",
+          "AP (Available / Partition-tolerant)",
+          "CP (Consistent / Partition-tolerant)",
+          "AP/CP (Infrastructure-dependent, CoreDNS)"
+        ],
+        [
+          "Registration Model",
+          "Explicit client-side self-registration",
+          "Agent-based or API-driven registration",
+          "Automatic via K8s API server & EndpointSlices"
+        ],
+        [
+          "Health Checking",
+          "HTTP/TCP heartbeats sent to server",
+          "Advanced checks (HTTP, TCP, Script, gRPC)",
+          "Liveness and Readiness probes managed by kubelet"
+        ],
+        [
+          "Language Binding",
+          "Mainly Java (Spring Cloud ecosystem)",
+          "Agile/Multi-language (HTTP API, DNS interface)",
+          "Language-agnostic (Standard DNS resolution)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Eureka's self-preservation mode is triggered when a high percentage of heartbeats are lost within a short window, protecting the registry from cascading failures during network partitions by assuming clients are still alive rather than evicting them.",
+        "Consul relies on the Raft consensus protocol to maintain strongly consistent state across its server cluster, electing a leader to handle writes while followers handle reads or forward them upstream.",
+        "Kubernetes DNS translates standard domain name queries (e.g., my-svc.my-namespace.svc.cluster.local) into target IP addresses via CoreDNS, often bypassing load-balancing overhead entirely when utilizing headless services for direct peer-to-peer discovery."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@SpringBootApplication\n@EnableEurekaClient\npublic class PaymentServiceApplication {\n    public static void main(String[] args) {\n        SpringApplication.run(PaymentServiceApplication.class, args);\n    }\n}\n\n@RestController\n@RequestMapping(\"/payments\")\npublic class PaymentController {\n    @Autowired\n    private DiscoveryClient discoveryClient;\n\n    @GetMapping(\"/instances\")\n    public List<ServiceInstance> getInstances() {\n        return this.discoveryClient.getInstances(\"order-service\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production failure mode when migrating from Eureka to Kubernetes DNS is ignoring connection caching. Eureka clients aggressively cache registry endpoints locally, whereas Kubernetes relies on standard DNS resolution. If your Java application uses short TTLs or doesn't properly configure pooled HTTP clients (like Apache HttpClient or OkHttp) with connection reuse, DNS lookups can lead to stale IP routing or excessive latency under high throughput."
+    }
+  ],
+  "num": 331,
+  "title": "Service Discovery — Eureka, Consul, Kubernetes DNS",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

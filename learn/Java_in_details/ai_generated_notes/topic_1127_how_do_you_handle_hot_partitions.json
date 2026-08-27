@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A hot partition occurs when a single node or shard in a distributed system experiences a disproportionate amount of I/O, CPU, or memory load compared to its peers. This usually manifests in systems using consistent hashing or range-based partitioning, where a specific key (the 'hot key') or a range of keys receives a sudden spike in traffic. In the context of NIO (Non-blocking I/O) and high-throughput systems, this creates a bottleneck where the event loop handling that specific partition becomes saturated, leading to increased latency and potential buffer overflows in the underlying selector channels. If left unaddressed, the thread handling the hot partition will block or lag, causing backpressure to propagate upstream, potentially crashing the entire service cluster."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Mechanism",
+        "Best Use Case"
+      ],
+      "rows": [
+        [
+          "Key Salting",
+          "Appending random suffixes to keys",
+          "Write-heavy workloads with hotspots"
+        ],
+        [
+          "Virtual Nodes",
+          "Increasing shard granularity",
+          "Uniformizing uneven data distributions"
+        ],
+        [
+          "Local Caching",
+          "Serving reads from memory",
+          "Read-heavy hotspots on static data"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Implement request hedging: Send the same request to multiple replicas if the primary partition latency exceeds a p99 threshold, effectively bypassing the hot node.",
+        "Utilize adaptive load balancing: Instead of round-robin, use 'power of two choices' (P2C) to route requests based on the current queue depth of the NIO event loop.",
+        "Apply rate limiting at the ingress layer: Use a token bucket algorithm keyed by the partition ID to drop or delay requests before they hit the saturated NIO selector.",
+        "Monitor selector latency: Track the time spent in the 'select()' call versus processing time to identify if the event loop is blocked by CPU-intensive tasks rather than I/O."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public String getPartitionKey(String rawKey, boolean isHot) {\n    // Salting strategy to distribute hot keys across multiple shards\n    if (isHot) {\n        int salt = ThreadLocalRandom.current().nextInt(10);\n        return rawKey + \":\" + salt;\n    }\n    return rawKey;\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: The biggest trap with hot partitions is the 'thundering herd' effect during recovery. If you use a circuit breaker to drop traffic to a hot partition, ensure you implement jittered retries. If all clients retry simultaneously once the partition recovers, you will instantly recreate the hot partition state, leading to a death spiral of constant restarts."
+    }
+  ],
+  "num": 1128,
+  "title": "How do you handle hot partitions?",
+  "category": "Exception Handling & I/O / NIO"
+}

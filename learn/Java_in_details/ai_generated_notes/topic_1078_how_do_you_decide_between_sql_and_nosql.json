@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Deciding between SQL (Relational) and NoSQL (Non-Relational) database systems is one of the most critical architectural decisions a senior software engineer can make when designing scalable Java applications. SQL databases, such as PostgreSQL and MySQL, organize data into structured tables with strict schemas enforced by Foreign Key constraints, ACID (Atomicity, Consistency, Isolation, Durability) guarantees, and normalization rules. They excel at handling complex relational queries via JOIN operations and maintaining strict data integrity, making them the default choice for financial ledgers, transactional e-commerce systems, and core domain models where consistency is paramount.\n\nOn the other hand, NoSQL databases—spanning document stores like MongoDB, key-value stores like Redis, wide-column stores like Cassandra, and graph databases like Neo4j—abandon the rigid tabular structure in favor of flexible schemas, horizontal scalability (sharding), and optimized access patterns. They are engineered to solve the 'impedance mismatch' and scaling bottlenecks inherent in relational engines when dealing with massive volumes of unstructured or semi-structured data, high-velocity writes, and distributed multi-region environments. Choosing between them requires balancing CAP theorem trade-offs, query complexity, write-versus-read throughput ratios, and long-term domain evolution."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "SQL (Relational)",
+        "NoSQL (Non-Relational)"
+      ],
+      "rows": [
+        [
+          "Data Model",
+          "Normalized tables, rows, columns, strict schemas",
+          "Documents, key-value pairs, wide-columns, graphs"
+        ],
+        [
+          "Scalability",
+          "Vertically scalable (scale-up); horizontal sharding is complex",
+          "Horizontally scalable by design (scale-out via partitioning)"
+        ],
+        [
+          "Transactions",
+          "Robust ACID compliance across multiple tables",
+          "Often BASE (Basically Available, Soft state, Eventual consistency); limited multi-document transactions"
+        ],
+        [
+          "Query Flexibility",
+          "Ad-hoc querying via SQL, powerful JOINs and aggregations",
+          "Pre-defined access paths; complex queries require denormalization"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "ACID guarantees in SQL rely on write-ahead logging (WAL) and two-phase locking (2PL) or multi-version concurrency control (MVCC), which can create contention hotspots under extreme concurrent write loads.",
+        "NoSQL databases prioritize availability and partition tolerance (AP systems in CAP theorem terminology) by distributing data across multiple nodes with leaderless replication or consistent hashing rings, trading immediate consistency for low-latency global reads and writes.",
+        "Object-Relational Mapping (ORM) frameworks like Hibernate bridge the gap for SQL databases, but can suffer from the N+1 select problem if relationships are fetched lazily without proper batching or entity graphs.",
+        "NoSQL data modeling requires query-driven design rather than entity-driven design; instead of normalizing data to avoid duplication, documents or wide-columns are intentionally denormalized to fulfill specific application read use cases in a single network round-trip."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Entity\n@Table(name = \"orders\")\npublic class OrderEntity {\n    @Id\n    @GeneratedValue(strategy = GenerationType.IDENTITY)\n    private Long id;\n\n    @Column(nullable = false)\n    private String customerId;\n\n    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)\n    @JoinColumn(name = \"order_id\")\n    private List<OrderItemEntity> items = new ArrayList();\n\n    @Version\n    private Long version; // Optimistic locking for concurrent updates\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production anti-pattern is choosing NoSQL simply because data volume is expected to grow, without analyzing access patterns. If your domain requires frequent updates to highly interconnected data with strict financial consistency, forcing a NoSQL architecture will result in painful custom application-level joins and eventual consistency bugs. Conversely, attempting to store rapidly evolving, schema-less event streams or high-frequency telemetry data in a heavily normalized SQL database will quickly degrade write performance and exhaust connection pools."
+    }
+  ],
+  "num": 1079,
+  "title": "How do you decide between SQL and NoSQL?",
+  "category": "Core Java & Fundamentals"
+}

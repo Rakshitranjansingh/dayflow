@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Java Platform Module System (JPMS), delivered under Project Jigsaw in Java 9, fundamentally alters how large-scale applications and the JDK itself are structured, packaged, and executed. Before Java 9, the runtime relied on a monolithic classpath where all classes shared a single flat namespace, forcing reliance on brittle mechanisms like jar-hell checking, internal sun.misc.Unsafe APIs, and the notorious 'fat JAR' anti-pattern. JPMS introduces strong encapsulation, explicit module dependencies declared in module-info.java files, and reliable configuration at both compile and runtime. By breaking the monolithic rt.jar into discrete, enforceable modules (such as java.base, java.sql, and java.logging), Project Jigsaw enables the Java runtime to scale down for resource-constrained microservices and embedded environments while protecting internal APIs from unauthorized external reflection."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Legacy Classpath (Java 8 and earlier)",
+        "Java 9+ Module System (JPMS)"
+      ],
+      "rows": [
+        [
+          "Encapsulation",
+          "Weak; all public classes in all JARs are globally accessible.",
+          "Strong; types are hidden unless explicitly exported via 'exports'."
+        ],
+        [
+          "Dependency Resolution",
+          "Implicit; failures discovered at runtime via ClassNotFoundException.",
+          "Explicit; verified at compile-time and module-resolution time."
+        ],
+        [
+          "JDK Architecture",
+          "Monolithic rt.jar containing all platform APIs.",
+          "Modularized JDK allowing custom runtime images via jlink."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Strong Encapsulation: A module must explicitly use the 'exports' keyword to make a package accessible to other modules, and 'opens' to permit runtime deep reflection, preventing unauthorized access to internal classes.",
+        "Reliable Configuration: The JVM validates all module dependencies at startup, failing fast with a descriptive resolution error if a required module or transitive service provider is missing.",
+        "Custom Runtime Images: Utilizing the 'jlink' tool, developers can bundle only the application modules and the exact JDK modules they depend on, drastically shrinking container image footprints.",
+        "Scalability and Performance: Class loading overhead is reduced because the JVM can optimize module graphs and avoid searching through massive flat classpaths."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "module com.enterprise.billing {\n    requires java.base;\n    requires transitive com.enterprise.common;\n    requires java.sql;\n\n    exports com.enterprise.billing.service;\n    opens com.enterprise.billing.model to spring.core, spring.beans;\n\n    uses com.enterprise.billing.spi.TaxCalculator;\n    provides com.enterprise.billing.spi.TaxCalculator with com.enterprise.billing.internal.DefaultTaxCalculator;\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall when migrating legacy libraries to JPMS is the 'Split Package' problem—where two different JARs on the classpath (or module path) contain classes in the exact same package name. JPMS strictly forbids this and will throw a compilation or startup error. Furthermore, frameworks utilizing heavy reflection (like older versions of Hibernate or Jackson) will break under strong encapsulation unless you explicitly use the 'opens' directive in your module-info.java or add JVM add-opens flags."
+    }
+  ],
+  "num": 631,
+  "title": "(Java 9) What is the Java Module System (Project Jigsaw)? Benefits?",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

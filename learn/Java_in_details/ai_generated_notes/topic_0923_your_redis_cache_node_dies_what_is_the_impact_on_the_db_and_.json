@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When a Redis cache node fails, the primary consequence is a 'cache stampede' or 'thundering herd' effect. Since the application layer relies on the cache to shield the primary database from high-read volume, the sudden absence of the cache forces all concurrent requests to bypass the missing layer and hit the persistence store directly. This often leads to a cascading failure where the database, overwhelmed by the sudden spike in connection pool exhaustion and CPU-intensive query execution, becomes unresponsive. Redis Sentinel and Redis Cluster are the two primary architectural patterns designed to mitigate this. Sentinel acts as a monitoring and automated failover system for a primary-replica setup, promoting a replica to primary when the master dies. Redis Cluster, conversely, implements data sharding across multiple nodes, ensuring that a single node failure only impacts a subset of the keyspace rather than the entire dataset."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Redis Sentinel",
+        "Redis Cluster"
+      ],
+      "rows": [
+        [
+          "Architecture",
+          "Primary-Replica (Master-Slave)",
+          "Multi-master Sharding"
+        ],
+        [
+          "Failure Scope",
+          "Full dataset availability",
+          "Partial dataset availability"
+        ],
+        [
+          "Client Logic",
+          "Requires Sentinel-aware client",
+          "Requires Cluster-aware client"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Sentinel uses a quorum-based voting mechanism (S_DOWN/O_DOWN states) to prevent split-brain scenarios during network partitions, ensuring that a failover only triggers if a majority of sentinels agree the master is unreachable.",
+        "Redis Cluster uses a hash-slot mechanism (16,384 slots). When a node dies, the cluster marks the node as failed and redistributes the hash slots to remaining nodes, maintaining availability for the unaffected slots.",
+        "During the failover window, the 'cache miss' rate spikes. To protect the DB, implement 'probabilistic early expiration' or 'mutex locks' in your application code to ensure only one request repopulates the cache while others wait or return stale data."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public Object getWithCacheProtection(String key) {\n    Object value = redisTemplate.opsForValue().get(key);\n    if (value == null) {\n        synchronized (this) {\n            value = redisTemplate.opsForValue().get(key);\n            if (value == null) {\n                value = dbRepository.findById(key);\n                redisTemplate.opsForValue().set(key, value, Duration.ofMinutes(10));\n            }\n        }\n    }\n    return value;\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Do not rely solely on Redis failover to protect your DB. Even with sub-second failover, the latency spike during the transition is often enough to trigger circuit breakers. Always implement a 'Circuit Breaker' pattern (like Resilience4j) on your DB access layer to fail fast when Redis is down, preventing the DB from locking up entirely."
+    }
+  ],
+  "num": 924,
+  "title": "Your Redis cache node dies. What is the impact on the DB, and how does Sentinel/Cluster handle it?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

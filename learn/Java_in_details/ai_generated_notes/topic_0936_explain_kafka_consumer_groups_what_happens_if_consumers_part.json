@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed event-driven architectures, Kafka Consumer Groups represent a foundational abstraction for achieving both horizontally scalable event processing and fault-tolerant publish-subscribe semantics. A consumer group is a collection of independent consumer instances that cooperate to consume data from a single Apache Kafka topic. Each consumer within the group is assigned a unique identifier (group.instance.id for static membership, or automatically via consumer.id) and collaborates with its peers through a centralized coordination protocol governed by a designated broker known as the Group Coordinator. This architecture guarantees that each message published to a specific topic partition is delivered to exactly one consumer member within each active consumer group, allowing applications to split heavy ingestion pipelines across multiple threads or machines.\n\nHowever, scaling this model introduces a strict topological constraint regarding the ratio between active consumers and topic partitions. When the number of consumers exceeds the number of partitions (consumers > partitions) within a given topic, a specific architectural imbalance occurs. Because Kafka's partition assignment strategy dictates that a single partition can only be consumed by one consumer within a single consumer group at any given moment, having more consumer instances than partitions means that surplus consumers will inevitably be left idle. During the rebalance phase orchestrated by the Group Coordinator, these excess consumers are assigned zero partitions. They maintain their connection to the cluster, sending periodic heartbeats to the coordinator to remain part of the group, but they receive no data payloads. This state persists until the partition topology scales up or the excess consumers are gracefully shut down, rendering those extra compute resources entirely dormant."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric / Behavior",
+        "Consumers < Partitions",
+        "Consumers > Partitions"
+      ],
+      "rows": [
+        [
+          "Partition Assignment",
+          "Each consumer handles one or more partitions.",
+          "Every partition is consumed, but surplus consumers get 0 partitions."
+        ],
+        [
+          "Throughput Scaling",
+          "Scales horizontally with additional consumers up to the partition limit.",
+          "Capped by partition count; adding more consumers yields zero throughput gain."
+        ],
+        [
+          "Resource Utilization",
+          "Efficient; CPU, memory, and threads actively process records.",
+          "Inefficient; idle consumers waste compute threads, connections, and memory."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Group Coordinator assigns partitions using configured strategies like Range, RoundRobin, or CooperativeSticky, strictly enforcing the cardinality rule that $\\text{Active Consumers Assigned} \\le \\text{Total Partitions}$.",
+        "Idle consumers in a surplus scenario still participate in the consumer group heartbeat protocol, maintaining network overhead and consumer session timeouts without contributing to actual record consumption.",
+        "Static membership protocols (introduced in KIP-345) help mitigate unnecessary rebalances when idle or extra consumers experience brief network drops, preventing cascading stop-the-world group rebalance storms."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "Properties props = new Properties();\nprops.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, \"localhost:9092\");\nprops.put(ConsumerConfig.GROUP_ID_CONFIG, \"order-processing-group\");\nprops.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());\nprops.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());\n// If topic has 3 partitions, spinning up 5 instances of this consumer results in 2 idle instances\nKafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);\nconsumer.subscribe(Collections.singletonList(\"orders-topic\"));\n\nwhile (true) {\n    ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));\n    for (ConsumerRecord<String, String> record : records) {\n        processOrder(record.value());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production anti-pattern is auto-scaling Kubernetes Deployments running Kafka consumers based purely on CPU utilization without factoring in the underlying Kafka topic partition count. If an autoscaler scales up the pod replicas beyond the number of partitions, the newly spawned pods will sit entirely idle as unassigned consumers while continuing to consume cluster resources and consumer thread pools. Always ensure your Horizontal Pod Autoscaler (HPA) references a custom metric tied to consumer lag or strictly caps maximum replicas at the static partition count of the target topic."
+    }
+  ],
+  "num": 937,
+  "title": "Explain Kafka Consumer Groups. What happens if consumers > partitions?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

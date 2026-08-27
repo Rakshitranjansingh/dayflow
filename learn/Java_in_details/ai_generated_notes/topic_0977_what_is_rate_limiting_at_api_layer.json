@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Rate limiting at the API layer is a critical architectural pattern designed to control the rate of incoming requests to a service, ensuring system stability, preventing resource exhaustion, and protecting downstream dependencies from cascading failures. At its core, it acts as a traffic controller that enforces a threshold on the number of requests a client can make within a specific time window. Without this, a single malicious actor or a misconfigured microservice could saturate your thread pools, exhaust your connection pool, or trigger excessive Garbage Collection cycles, effectively leading to a Denial of Service (DoS) for legitimate users. By implementing this at the API gateway or entry-point filter, you decouple the concern of traffic shaping from your business logic, allowing your core services to operate within their defined capacity limits."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Algorithm",
+        "Mechanism",
+        "Use Case"
+      ],
+      "rows": [
+        [
+          "Fixed Window",
+          "Counter resets at fixed intervals",
+          "Simple usage tracking"
+        ],
+        [
+          "Token Bucket",
+          "Tokens added at rate; requests consume tokens",
+          "Burst-tolerant traffic"
+        ],
+        [
+          "Leaky Bucket",
+          "Requests enter queue; processed at constant rate",
+          "Smooth traffic shaping"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Token Bucket implementation: A bucket holds a maximum capacity of tokens. Every incoming request must acquire a token. If the bucket is empty, the request is rejected (HTTP 429). Tokens are replenished at a fixed rate, allowing for short-term bursts while maintaining a long-term average.",
+        "Distributed State: In a clustered environment, rate limiting must be stateful across nodes. This is typically achieved using Redis to store atomic counters or Lua scripts to execute the bucket logic server-side, preventing race conditions between concurrent requests.",
+        "Filter Chain Integration: In a Java/Spring ecosystem, this is best implemented as a Filter or an Interceptor. By placing it early in the filter chain, you reject unauthorized traffic before the overhead of authentication, object mapping, or database transaction initialization occurs."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Component\npublic class RateLimitFilter extends OncePerRequestFilter {\n    private final Bucket bucket = Bucket4j.builder()\n        .addLimit(Bandwidth.classic(100, Refill.greedy(100, Duration.ofMinutes(1))))\n        .build();\n\n    @Override\n    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {\n        if (bucket.tryConsume(1)) {\n            chain.doFilter(request, response);\n        } else {\n            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());\n            response.getWriter().write(\"Rate limit exceeded\");\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never implement rate limiting based solely on IP addresses in modern cloud environments. Behind NATs or corporate proxies, hundreds of legitimate users may share a single IP, leading to 'collateral damage' where innocent users are blocked. Always prefer a combination of API keys, JWT sub-claims, or session IDs for granular, identity-aware rate limiting."
+    }
+  ],
+  "num": 978,
+  "title": "What is rate limiting at API layer?",
+  "category": "Core Java & Fundamentals"
+}

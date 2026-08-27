@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java applications, maintaining persistent accountability by tracking who modified data and when is a non-negotiable compliance requirement. Spring Data JPA addresses this through a robust, transparent auditing subsystem that removes the boilerplate of manually setting creation and modification timestamps or user references in every service method. By leveraging domain model annotations alongside infrastructure configuration interfaces, the framework automates lifecycle tracking seamlessly.\n\nThe foundation of this capability rests on three primary pillars: `@CreatedDate`, `@LastModifiedDate`, and `AuditorAware`. When placed on entity fields, `@CreatedDate` intercepts the initial entity persistence lifecycle event to stamp the exact instant a record is written, while `@LastModifiedDate` updates automatically on both insertions and subsequent database updates. However, tracking *when* something happened is only half the battle; knowing *who* triggered the change requires context about the current security principal or execution thread. This is where `AuditorAware<T>` comes into play. It is a functional SPI interface that acts as a bridge between your application's security context (such as Spring Security) and the data access layer, querying the active user or system thread to provide the identifier for `@CreatedBy` and `@LastModifiedBy` fields.\n\nUnder the hood, this mechanism is powered by JPA EntityListeners and lifecycle callbacks like `@PrePersist` and `@PreUpdate`. When Spring Data's `AuditingEntityListener` is registered on an entity via `@EntityListeners`, the persistence engine inspects the object graph prior to executing SQL statements. If fields annotated with the auditing annotations are detected, the infrastructure populates them using configured providers. This completely decouples auditing logic from business services, ensuring that even if a developer forgets to set a date or user, the persistence layer enforces consistency uniformly across the entire data access tier."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component",
+        "Primary Responsibility",
+        "Trigger / Lifecycle Phase"
+      ],
+      "rows": [
+        [
+          "@CreatedDate",
+          "Captures the timestamp when the entity is first persisted to the database.",
+          "PrePersist (Insert only)"
+        ],
+        [
+          "@LastModifiedDate",
+          "Captures the timestamp of the latest modification or initial creation.",
+          "PrePersist and PreUpdate"
+        ],
+        [
+          "AuditorAware<T>",
+          "Provides the current principal/user identifier for auditing annotations.",
+          "Invoked dynamically during entity insertion and update lifecycles"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "To activate auditing globally, you must explicitly enable it on a configuration class using the @EnableJpaAuditing annotation, which registers the AuditingEntityListener bean in the Spring ApplicationContext.",
+        "The AuditorAware implementation relies heavily on thread-bound state, typically extracting the authentication object from Spring Security's SecurityContextHolder. Care must be taken in asynchronous or reactive boundaries where ThreadLocal contexts do not automatically propagate.",
+        "Auditing dates are mapped to modern Java time types (such as java.time.Instant, LocalDateTime, or OffsetDateTime). Using java.time.Instant is strongly recommended as it guarantees UTC normalization across globally distributed database nodes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.auditing;\n\nimport org.springframework.context.annotation.Bean;\nimport org.springframework.context.annotation.Configuration;\nimport org.springframework.data.domain.AuditorAware;\nimport org.springframework.data.jpa.repository.config.EnableJpaAuditing;\nimport org.springframework.security.core.Authentication;\nimport org.springframework.security.core.context.SecurityContextHolder;\n\nimport java.time.Instant;\nimport java.util.Optional;\n\n@Configuration\n@EnableJpaAuditing(auditorAwareRef = \"springSecurityAuditorAware\")\npublic class AuditConfiguration {\n\n    @Bean\n    public AuditorAware<String> springSecurityAuditorAware() {\n        return () -> {\n            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();\n            if (authentication == null || !authentication.isAuthenticated() || authentication.getPrincipal().equals(\"anonymousUser\")) {\n                return Optional.of(\"SYSTEM\");\n            }\n            return Optional.of(authentication.getName());\n        };\n    }\n}\n\n// --- Entity Usage Example ---\npackage com.example.auditing.model;\n\nimport jakarta.persistence.*;\nimport org.springframework.data.annotation.CreatedDate;\nimport org.springframework.data.annotation.LastModifiedDate;\nimport org.springframework.data.jpa.domain.support.AuditingEntityListener;\n\nimport java.time.Instant;\n\n@Entity\n@EntityListeners(AuditingEntityListener.class)\npublic class Article {\n\n    @Id\n    @GeneratedValue(strategy = GenerationType.IDENTITY)\n    private Long id;\n\n    private String title;\n\n    @CreatedDate\n    @Column(nullable = false, updatable = false)\n    private Instant createdDate;\n\n    @LastModifiedDate\n    @Column(nullable = false)\n    private Instant lastModifiedDate;\n\n    // Getters and Setters omitted for brevity\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall occurs when performing bulk updates using JPQL or native queries (e.g., UPDATE Article a SET a.title = ?1). JPA lifecycle callbacks and EntityListeners are completely bypassed during bulk updates because execution is pushed directly to the database without loading entities into the persistence context. Consequently, @LastModifiedDate will NOT be updated, leading to stale modification timestamps. Always rely on entity-loading updates or explicitly handle modification dates in bulk query strings when performance optimization requires non-entity updates."
+    }
+  ],
+  "num": 264,
+  "title": "Auditing — @CreatedDate, @LastModifiedDate, AuditorAware",
+  "category": "Core Java & Fundamentals"
+}

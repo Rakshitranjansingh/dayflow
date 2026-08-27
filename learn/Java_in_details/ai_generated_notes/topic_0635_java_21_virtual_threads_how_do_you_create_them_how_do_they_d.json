@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Java 21 introduced Virtual Threads (Project Loom) as a paradigm shift in how we handle concurrency. Unlike Platform Threads, which are thin wrappers around OS-level threads (1:1 mapping), Virtual Threads are lightweight, user-mode threads managed by the JVM (M:N mapping). A Platform Thread is expensive, typically consuming 1MB of stack space and requiring a costly kernel context switch when blocked. In contrast, Virtual Threads are 'cheap'—they are multiplexed onto a small pool of carrier threads (the ForkJoinPool.commonPool() by default). When a Virtual Thread performs a blocking I/O operation, the JVM unmounts it from the carrier thread, allowing the carrier to execute other tasks, and remounts the Virtual Thread once the I/O completes. This solves the 'thread-per-request' scalability bottleneck, allowing applications to handle millions of concurrent tasks without exhausting system resources."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Platform Threads",
+        "Virtual Threads"
+      ],
+      "rows": [
+        [
+          "Implementation",
+          "OS Kernel Thread",
+          "JVM Managed Object"
+        ],
+        [
+          "Stack Size",
+          "Fixed (Large, ~1MB)",
+          "Dynamic (Starts small, ~bytes)"
+        ],
+        [
+          "Blocking",
+          "Blocks OS Thread",
+          "Unmounts from Carrier"
+        ],
+        [
+          "Context Switch",
+          "Kernel Mode (Expensive)",
+          "User Mode (Cheap)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Virtual Threads are not intended to be pooled. Because they are lightweight, you should create a new one for every task, effectively treating threads as disposable objects rather than expensive resources.",
+        "The JVM uses a 'carrier thread' (a platform thread) to execute the code inside a virtual thread. If you execute synchronized blocks or native methods, the carrier thread is 'pinned', meaning it cannot be unmounted, which can lead to performance degradation.",
+        "Virtual Threads are daemon threads by nature. They cannot be changed to non-daemon, and their priority is always set to Thread.NORM_PRIORITY.",
+        "The underlying scheduler is a FIFO work-stealing ForkJoinPool, which ensures that carrier threads stay busy even when individual virtual threads are waiting on network or file I/O."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Creating a Virtual Thread using the Thread Builder API\nThread vThread = Thread.ofVirtual().start(() -> {\n    System.out.println(\"Running in: \" + Thread.currentThread());\n});\n\n// Using an ExecutorService for structured concurrency\ntry (var executor = Executors.newVirtualThreadPerTaskExecutor()) {\n    executor.submit(() -> performIoTask());\n}"
+    },
+    {
+      "type": "note",
+      "content": "Watch out for 'Thread Pinning'. If your code enters a synchronized block or calls a native method while performing blocking I/O, the JVM cannot unmount the virtual thread from the carrier thread. This effectively turns your virtual thread into a platform thread for the duration of that block, potentially leading to thread starvation in high-concurrency scenarios. Use ReentrantLock instead of synchronized blocks to avoid pinning."
+    }
+  ],
+  "num": 636,
+  "title": "(Java 21) Virtual Threads — How do you create them? How do they differ from Platform Threads?",
+  "category": "Virtual Threads & Concurrency"
+}

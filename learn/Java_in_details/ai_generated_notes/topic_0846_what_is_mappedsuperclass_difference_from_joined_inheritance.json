@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In object-oriented domain modeling using JPA and Hibernate, sharing common state and behavior across multiple entity types is a ubiquitous requirement. The @MappedSuperclass annotation allows developers to designate a Java class as a state and mapping holder whose persistence properties are inherited by its subclasses. Unlike standard entities, a mapped superclass does not represent a discrete relation in the relational database schema; it has no table of its own. Instead, when sub-entities inherit from a @MappedSuperclass, its fields are simply copied directly into the physical tables generated for each concrete subclass. This mechanism provides code reuse at the object model level without imposing the schema complexities of relational inheritance strategies.\n\nContrasting this with JOINED inheritance strategy reveals a fundamental divergence in both object-oriented modeling and relational database design. JOINED inheritance implements the Table-per-Class-Hierarchy-Type pattern where every class in the hierarchy—both parent and child—maps to its own distinct database table. To reconstruct an instance of a subclass, Hibernate must execute an inner or outer join across the parent table (which stores the shared attributes) and the child table (which stores the subclass-specific attributes) using a shared foreign key primary key association. While JOINED inheritance allows for polymorphic queries targeting the superclass type directly against the database, it incurs a persistent runtime query penalty due to complex multi-table joins. Conversely, @MappedSuperclass avoids polymorphic queries across the entire hierarchy because there is no unified superclass table, but it executes faster by flattening the schema and eliminating joins during read operations."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "@MappedSuperclass",
+        "JOINED Inheritance (@Inheritance(strategy = JOINED))"
+      ],
+      "rows": [
+        [
+          "Database Schema",
+          "No table generated. Fields are flattened into subclass tables.",
+          "Separate tables for parent and every child; joined via foreign keys."
+        ],
+        [
+          "Polymorphic Queries",
+          "Not supported. Cannot query the parent class directly using JPQL.",
+          "Fully supported. Querying the parent fetches subclasses via joins."
+        ],
+        [
+          "Performance Impact",
+          "Optimal read performance (no joins required for fetching entity state).",
+          "Degraded read performance due to mandatory multi-table JOIN operations."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "A @MappedSuperclass can define state (@Column, @Transient), relationships (@ManyToOne, @OneToMany), and lifecycle callbacks (@PrePersist, @PreUpdate), which are seamlessly inherited by subclasses.",
+        "Subclasses extending a @MappedSuperclass must still be annotated with @Entity and must explicitly define their own @Table and primary key specifications.",
+        "In a JOINED inheritance mapping, the parent class itself is annotated with @Entity and @Inheritance(strategy = InheritanceType.JOINED), whereas a mapped superclass never carries the @Entity annotation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@MappedSuperclass\npublic abstract class AuditableEntity {\n    @Id\n    @GeneratedValue(strategy = GenerationType.IDENTITY)\n    protected Long id;\n\n    @Column(name = \"created_at\", nullable = false, updatable = false)\n    protected LocalDateTime createdAt;\n\n    @PrePersist\n    public void prePersist() {\n        this.createdAt = LocalDateTime.now();\n    }\n}\n\n@Entity\n@Table(name = \"users\")\npublic class User extends AuditableEntity {\n    @Column(nullable = false)\n    private String username;\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap with @MappedSuperclass is attempting to write JPQL queries like 'createQuery(\"SELECT a FROM AuditableEntity a\")'. Because a mapped superclass is not a managed entity in the EntityManager factory persistence context, this query will throw an IllegalArgumentException. If you need polymorphic queries across shared properties, use JOINED or TABLE_PER_CLASS inheritance instead."
+    }
+  ],
+  "num": 847,
+  "title": "What is @MappedSuperclass? Difference from JOINED inheritance?",
+  "category": "OOPs & Design Patterns"
+}

@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "REST (Representational State Transfer) and Messaging represent two distinct architectural paradigms for inter-service communication in distributed systems. REST is a synchronous, resource-oriented protocol typically built over HTTP/1.1 or HTTP/2, relying on a request-response cycle where the client blocks until the server processes the request and returns a status code. It is ideal for CRUD operations where immediate feedback is required, such as fetching a user profile or querying a product catalog. Because it is stateless and utilizes standard HTTP semantics, it is highly interoperable and easy to debug using standard network tooling.\n\nIn contrast, Messaging (often implemented via brokers like RabbitMQ, Kafka, or Pulsar) facilitates asynchronous, event-driven communication. Instead of a direct point-to-point connection, the producer sends a message to a queue or topic, and the consumer processes it at its own pace. This decouples the services entirely; the producer does not need to know if the consumer is online, healthy, or even how many instances are running. This pattern is the backbone of reactive microservices, as it provides inherent backpressure handling and resilience against cascading failures, which are common pitfalls in synchronous REST chains."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "REST",
+        "Messaging"
+      ],
+      "rows": [
+        [
+          "Coupling",
+          "Temporal/Spatial",
+          "Decoupled"
+        ],
+        [
+          "Communication",
+          "Synchronous (Blocking)",
+          "Asynchronous (Non-blocking)"
+        ],
+        [
+          "Failure Handling",
+          "Immediate (HTTP 5xx)",
+          "Retry/DLQ (Dead Letter Queue)"
+        ],
+        [
+          "Throughput",
+          "Limited by request latency",
+          "High (Batching/Parallelism)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "REST relies on the HTTP protocol's request-response lifecycle, which consumes thread resources on both the client and server during the wait period. In high-load scenarios, this can lead to thread pool exhaustion unless using non-blocking I/O like Project Reactor's WebFlux.",
+        "Messaging systems utilize a broker-mediated architecture, allowing for 'store-and-forward' capabilities. If a downstream service crashes, the message persists in the broker, ensuring eventual consistency without the need for complex distributed transaction protocols like 2PC.",
+        "REST is inherently request-scoped, making it difficult to handle long-running background tasks without implementing polling mechanisms or WebSockets, whereas messaging naturally supports fire-and-forget workflows.",
+        "Messaging allows for the 'Pub/Sub' pattern, enabling a single event to trigger multiple independent downstream services without the producer needing to manage a list of subscribers."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// REST: Synchronous call using WebClient\npublic Mono<UserDto> getUser(String id) {\n    return webClient.get().uri(\"/users/{id}\", id).retrieve().bodyToMono(UserDto.class);\n}\n\n// Messaging: Asynchronous event emission using Spring Cloud Stream\npublic void publishOrder(OrderEvent event) {\n    streamBridge.send(\"order-out-0\", event);\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common architectural trap is 'Distributed Monolith' syndrome, where developers chain REST calls across five microservices. If service A calls B, which calls C, and C fails, the entire chain collapses. Always prefer messaging for write-heavy operations or cross-service state changes to ensure your system remains resilient. Use REST only for read-heavy operations where the user expects an immediate response."
+    }
+  ],
+  "num": 1036,
+  "title": "What is the difference between REST and messaging?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern microservices architectures, ensuring data consistency across service boundaries without relying on traditional, tightly coupled distributed ACID transactions (like 2PC, which destroys system availability) requires an eventual consistency model. This is where the Saga pattern comes into play. A saga is a sequence of local transactions where each transaction updates data within a single service and publishes an event or triggers a command to trigger the next step in the saga. If a step fails, the saga executes a series of compensating transactions that logically undo the changes made by the preceding steps.\n\nThe two primary implementation topologies for managing this distributed workflow are choreography and orchestration. Saga choreography is a decentralized approach where each participating service listens to domain events and decides independently whether to act and what next event to emit. It completely eliminates central control points, making it lightweight for simple workflows, but it scales poorly in complexity, quickly leading to chaotic event meshes and circular dependencies. Conversely, Saga orchestration introduces a centralized coordinator—the orchestrator—which is responsible for centralizing the business logic of the workflow, issuing commands to participant services, and tracking the global state. This makes complex error-handling, auditing, and multi-step rollbacks vastly more maintainable, though it introduces a single component that must be engineered for high availability."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Choreography",
+        "Orchestration"
+      ],
+      "rows": [
+        [
+          "Control Flow",
+          "Decentralized (Event-driven publishers/subscribers)",
+          "Centralized (Dedicated orchestrator service)"
+        ],
+        [
+          "Coupling",
+          "Low service coupling, high temporal event coupling",
+          "Higher dependency on orchestrator, clean domain contracts"
+        ],
+        [
+          "Visibility of Workflow",
+          "Fragmented across all participating log streams",
+          "Centralized in the orchestrator database/state store"
+        ],
+        [
+          "Complexity Management",
+          "Becomes unmaintainable as step count grows (>4 steps)",
+          "Scales gracefully with complex conditional branches and rollbacks"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Compensating transactions must be designed to be idempotent because message delivery guarantees in distributed event systems are typically at-least-once, meaning a compensation message could be processed multiple times.",
+        "Orchestrated sagas typically persist their execution state (e.g., saga ID, current state, payload snapshot) to a relational or document database using the Outbox Pattern to ensure reliable execution across crashes.",
+        "Choreographed systems rely heavily on correlation IDs passed down the event headers to stitch together distributed traces across independent service boundaries."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Component\npublic class OrderSagaOrchestrator {\n    private final OrderServiceClient orderClient;\n    private final PaymentServiceClient paymentClient;\n    private final InventoryServiceClient inventoryClient;\n\n    public void executeSaga(OrderCreateDto dto) {\n        String sagaId = UUID.randomUUID().toString();\n        try {\n            var order = orderClient.createPendingOrder(dto, sagaId);\n            paymentClient.processPayment(order.getId(), order.getAmount(), sagaId);\n            inventoryClient.reserveStock(order.getItems(), sagaId);\n            orderClient.completeOrder(order.getId(), sagaId);\n        } catch (PaymentFailedException | InventoryOutOfStockException e) {\n            rollbackSaga(sagaId, dto);\n        }\n    }\n\n    private void rollbackSaga(String sagaId, OrderCreateDto dto) {\n        inventoryClient.releaseStockCompensate(dto, sagaId);\n        paymentClient.refundCompensate(sagaId);\n        orderClient.cancelOrderCompensate(sagaId);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in Saga architectures is ignoring the non-isolated nature of the pattern. Because sagas use local transactions, dirty reads and data remanence are entirely possible—other transactions can read intermediate uncommitted states before a compensation runs. If absolute isolation is required, you must implement application-level concurrency control mechanisms like semantic locks (marking records as 'PENDING_VALIDATION') or pessimistic state flags in your database schemas."
+    }
+  ],
+  "num": 192,
+  "title": "Saga pattern (choreography vs orchestration)",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

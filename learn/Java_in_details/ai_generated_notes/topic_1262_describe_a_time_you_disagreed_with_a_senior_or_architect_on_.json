@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In high-throughput distributed systems, handling backpressure and data streams requires deep knowledge of Java Exception Handling & I/O / NIO (Non-blocking I/O). A classic architectural disagreement I faced with a Principal Architect involved our asynchronous network ingestion pipeline. The architect mandated using standard blocking I/O (java.io) combined with a massive cached thread pool to absorb high-volume TCP socket traffic, arguing that simpler synchronous code paths prevented complexity and subtle bug states. I strongly disagreed, recognizing that thread-per-connection scaling models would inevitably crash under sudden traffic spikes due to OS thread exhaustion, thread context-switching overhead, and unmanaged memory usage within the JVM heap and off-heap direct buffers.\n\nTo resolve this technical divergence without escalating friction, I chose a data-driven engineering approach. Rather than arguing theoretical design patterns, I constructed a targeted proof-of-concept (PoC) comparing our legacy blocking model against a non-blocking Reactor pattern utilizing Java NIO Selectors, Channels, and Buffers, coupled with resilient custom exception handlers. I ran identical simulated load tests using Gatling, pushing 10,000 concurrent payload connections. The results were undeniable: the blocking design exhausted OS native threads and threw OutOfMemoryErrors at 3,500 connections, while the NIO-based multiplexed architecture handled all 10,000 connections smoothly, maintaining sub-millisecond tail latencies and gracefully recovering from intermittent network socket resets via structured exception interception."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric / Design Dimension",
+        "Blocking I/O (java.io)",
+        "Non-blocking NIO (java.nio)"
+      ],
+      "rows": [
+        [
+          "Concurrency Model",
+          "Thread-per-connection (High footprint)",
+          "Event-driven multiplexing via Selectors (Low footprint)"
+        ],
+        [
+          "Memory Overhead",
+          "High (Each thread requires dedicated stack space)",
+          "Low (Shared selector loops and reusable ByteBuffers)"
+        ],
+        [
+          "Exception Granularity",
+          "Synchronous try-catch, prone to thread blocking during recovery",
+          "Asynchronous completion handlers and channel-level fault isolation"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Leveraged java.nio.channels.AsynchronousSocketChannel and Selector to monitor multiple active TCP sockets using a single event loop thread.",
+        "Implemented robust exception handling paradigms to catch ClosedChannelException, AsynchronousCloseException, and ClosedSelectorException gracefully without tearing down the selector loop.",
+        "Managed Direct ByteBuffers explicitly to minimize JNI boundary memory copying and avoid JVM garbage collection pauses under high network I/O load."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.io.IOException;\nimport java.net.InetSocketAddress;\nimport java.nio.ByteBuffer;\nimport java.nio.channels.*;\nimport java.util.Iterator;\nimport java.util.Set;\n\npublic class ResilientNioServer {\n    public static void main(String[] args) throws IOException {\n        Selector selector = Selector.open();\n        ServerSocketChannel serverChannel = ServerSocketChannel.open();\n        serverChannel.bind(new InetSocketAddress(8080));\n        serverChannel.configureBlocking(false);\n        serverChannel.register(selector, SelectionKey.OP_ACCEPT);\n\n        while (true) {\n            try {\n                selector.select();\n                Set<SelectionKey> selectedKeys = selector.selectedKeys();\n                Iterator<SelectionKey> iterator = selectedKeys.iterator();\n\n                while (iterator.hasNext()) {\n                    SelectionKey key = iterator.next();\n                    iterator.remove();\n\n                    if (!key.isValid()) continue;\n\n                    if (key.isAcceptable()) {\n                        ServerSocketChannel server = (ServerSocketChannel) key.channel();\n                        SocketChannel client = server.accept();\n                        client.configureBlocking(false);\n                        client.register(selector, SelectionKey.OP_READ);\n                    } else if (key.isReadable()) {\n                        readData(key);\n                    }\n                }\n            } catch (IOException e) {\n                System.err.println(\"Selector loop recovery intercepted error: \" + e.getMessage());\n            }\n        }\n    }\n\n    private static void readData(SelectionKey key) {\n        SocketChannel channel = (SocketChannel) key.channel();\n        ByteBuffer buffer = ByteBuffer.allocate(256);\n        try {\n            int bytesRead = channel.read(buffer);\n            if (bytesRead == -1) {\n                channel.close();\n                key.cancel();\n                return;\n            }\n            buffer.flip();\n            // Process payload\n        } catch (IOException e) {\n            try {\n                channel.close();\n            } catch (IOException ignored) {}\n            key.cancel();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "When dealing with Java NIO and low-level exception handling, beware of the 'Selector spin bug' where the JVM CPU usage spikes to 100% due to a spurious wakeup. Always wrap your selector selection logic with safeguards against empty or cancelled keys, and ensure channels are explicitly closed inside finally blocks or try-with-resources to prevent native file descriptor leaks."
+    }
+  ],
+  "num": 1263,
+  "title": "Describe a time you disagreed with a Senior or Architect on a design choice. How did you resolve it?",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java concurrency, java.util.concurrent.locks.ReentrantLock provides a sophisticated, flexible alternative to the intrinsic synchronized monitor lock. As a reentrant mutual exclusion implementation, it allows threads to acquire the same lock multiple times without self-deadlocking, utilizing an underlying AbstractQueuedSynchronizer (AQS) state variable to track acquisition counts and holding threads. However, moving beyond basic mutual exclusion introduces critical design decisions around thread scheduling policies, non-blocking acquisition attempts, and thread interruption handling. Understanding the nuances between fair vs non-fair modes, non-blocking tryLock execution, and interrupt-responsive lockInterruptibly acquisition is vital for building low-latency, resilient concurrent systems on the JVM."
+    },
+    {
+      "type": "prose",
+      "content": "The choice of scheduling policy dictates how contending threads queue up for the lock. A non-fair lock permits barge-in behavior: an arriving thread attempts to acquire the lock immediately upon invocation, bypassing threads currently queued in the AQS FIFO queue. This maximizes throughput by exploiting CPU cache locality and context-switch minimization, even though it risks thread starvation. Conversely, a fair lock strictly respects acquisition order. Arriving threads check the AQS queue; if any other thread has been waiting longer, the newcomer is automatically enqueued, eliminating starvation at the cost of significant throughput degradation due to frequent thread parking and unparking overhead. Meanwhile, tryLock introduces conditional, non-blocking semantics, allowing a thread to poll the lock state and proceed immediately if available, or execute alternative logic if contested. Finally, lockInterruptibly integrates thread interruption into the waiting phase, allowing a blocked thread to abort its wait state instantly when Thread.interrupt() is invoked, preventing threads from becoming permanently unresponsive while waiting for an unavailable monitor."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "ReentrantLock (Fair)",
+        "ReentrantLock (Non-Fair)"
+      ],
+      "rows": [
+        [
+          "Throughput",
+          "Lower due to frequent context switches and strict queue enforcement.",
+          "Higher due to barging optimizations and reduced thread suspension overhead."
+        ],
+        [
+          "Starvation Risk",
+          "None. FIFO ordering guarantees every thread eventually acquires the lock.",
+          "High under heavy contention, as newly arriving threads can continuously bypass waiting ones."
+        ],
+        [
+          "AQS Queue Handling",
+          "Inspects queue state via hasQueuedPredecessors() before CAS acquisition.",
+          "Attempts immediate atomic CAS on state, falling back to queue only on failure."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Fair locks inspect AQS queue invariants via hasQueuedPredecessors(), forcing threads to queue up even if the lock is momentarily released during an unlock operation.",
+        "Non-fair locks attempt a blind compare-and-swap (CAS) on the state word immediately, short-circuiting the queue logic to keep CPU cores active.",
+        "tryLock() can be executed with or without a timeout, bypassing the AQS queue entirely on the initial attempt for rapid state interrogation.",
+        "lockInterruptibly() checks the Thread's interrupted status while parked inside the AQS node queue, throwing an InterruptedException immediately upon signal."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.locks.Lock;\nimport java.util.concurrent.locks.ReentrantLock;\nimport java.util.concurrent.TimeUnit;\n\npublic class ConcurrencyService {\n    // Non-fair by default for optimal throughput\n    private final Lock lock = new ReentrantLock(false);\n\n    public void performCriticalWork() throws InterruptedException {\n        // Interrupt-responsive acquisition\n        lock.lockInterruptibly();\n        try {\n            // Safe execution zone\n        } finally {\n            lock.unlock();\n        }\n    }\n\n    public boolean executeWithTryLock() {\n        // Non-blocking conditional acquisition attempt\n        if (lock.tryLock()) {\n            try {\n                // Acquired immediately\n                return true;\n            } finally {\n                lock.unlock();\n            }\n        }\n        // Lock was held by another thread; fallback logic here\n        return false;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Never call lock() outside the try-finally block. A common production bug involves placing the lock() invocation directly inside the try block before the acquisition succeeds; if an exception occurs during locking or if lockInterruptibly throws an InterruptedException before acquisition, the finally block will execute unlock(), causing an IllegalMonitorStateException and potentially masking the root exception."
+    }
+  ],
+  "num": 129,
+  "title": "ReentrantLock — fair vs non-fair, tryLock, lockInterruptibly",
+  "category": "Multithreading & Java Concurrency"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java's java.util.concurrent framework, the ExecutorService interface provides two distinct mechanisms for lifecycle management: shutdown() and shutdownNow(). These methods are critical for preventing thread leaks and ensuring application stability during context teardowns, such as when a web container stops or a background worker finishes its task queue. The shutdown() method initiates an orderly transition where the executor stops accepting new tasks, but allows previously submitted tasks—including those currently waiting in the work queue—to complete execution. It is a graceful shutdown strategy that prioritizes task integrity over immediate termination. Conversely, shutdownNow() is an aggressive attempt to halt the executor. It stops the acceptance of new tasks, attempts to stop actively executing tasks via Thread.interrupt(), and returns a list of tasks that were awaiting execution in the queue but were never started. Choosing between them depends on whether your tasks are idempotent and whether you can tolerate partial execution state."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "shutdown()",
+        "shutdownNow()"
+      ],
+      "rows": [
+        [
+          "New Task Acceptance",
+          "Rejected",
+          "Rejected"
+        ],
+        [
+          "Queued Tasks",
+          "Executed to completion",
+          "Returned as List"
+        ],
+        [
+          "Active Tasks",
+          "Allowed to finish",
+          "Sent interrupt() signal"
+        ],
+        [
+          "Primary Use Case",
+          "Graceful resource cleanup",
+          "Emergency stop/Timeout"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "shutdown() sets the executor state to SHUTDOWN, which causes subsequent calls to execute() to throw RejectedExecutionException. It does not wait for tasks to finish; you must call awaitTermination() to block until the pool actually reaches the TERMINATED state.",
+        "shutdownNow() uses Thread.interrupt() on active tasks. For this to be effective, your Runnable or Callable logic must respect the interrupt flag by checking Thread.currentThread().isInterrupted() or by calling blocking methods like sleep() or wait() that throw InterruptedException.",
+        "The list returned by shutdownNow() contains only the tasks that were sitting in the internal blocking queue (e.g., LinkedBlockingQueue) at the moment the method was invoked; it does not include tasks that were already handed off to worker threads."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void gracefulShutdown(ExecutorService pool) {\n    pool.shutdown();\n    try {\n        if (!pool.awaitTermination(60, TimeUnit.SECONDS)) {\n            pool.shutdownNow();\n            if (!pool.awaitTermination(60, TimeUnit.SECONDS))\n                System.err.println(\"Pool did not terminate\");\n        }\n    } catch (InterruptedException ie) {\n        pool.shutdownNow();\n        Thread.currentThread().interrupt();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is forgetting that shutdown() is non-blocking. If your main thread exits immediately after calling shutdown(), the JVM will terminate, potentially killing your worker threads mid-execution. Always pair shutdown() with awaitTermination() to ensure your cleanup logic actually completes before the process exits. Furthermore, never assume shutdownNow() will instantly kill a thread; if your task is performing heavy non-interruptible I/O or a tight CPU loop without checks, it will continue running until completion despite the interrupt signal."
+    }
+  ],
+  "num": 670,
+  "title": "What is shutdown() vs shutdownNow() in ExecutorService?",
+  "category": "Multithreading & Java Concurrency"
+}

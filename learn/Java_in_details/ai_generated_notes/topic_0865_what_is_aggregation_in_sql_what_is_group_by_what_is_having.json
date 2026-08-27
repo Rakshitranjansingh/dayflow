@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Aggregation in SQL refers to the process of condensing multiple rows of data into a single summary value, typically using mathematical or statistical functions like SUM, AVG, COUNT, MIN, or MAX. It is the backbone of analytical querying, allowing you to derive insights from raw transactional data. The GROUP BY clause is the mechanism that defines the scope of these aggregations; it partitions the result set into buckets based on one or more column values. Without GROUP BY, an aggregate function operates on the entire table as a single set. Once the data is grouped and aggregated, the HAVING clause acts as a filter on those resulting summary rows. While the WHERE clause filters individual rows before they are processed by the engine, HAVING is applied post-aggregation, allowing you to exclude groups based on the calculated values (e.g., finding all departments where the average salary exceeds $100,000)."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "WHERE Clause",
+        "HAVING Clause"
+      ],
+      "rows": [
+        [
+          "Execution Order",
+          "Before aggregation",
+          "After aggregation"
+        ],
+        [
+          "Target",
+          "Individual rows",
+          "Grouped summary rows"
+        ],
+        [
+          "Aggregate Support",
+          "Cannot use aggregate functions",
+          "Supports aggregate functions"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The SQL execution engine typically processes a query in the order: FROM -> WHERE -> GROUP BY -> HAVING -> SELECT -> ORDER BY. This explains why aliases defined in the SELECT clause are often unavailable in the WHERE clause but can sometimes be referenced in HAVING depending on the dialect.",
+        "When using GROUP BY, every column in your SELECT list that is not wrapped in an aggregate function must be present in the GROUP BY clause; otherwise, the database engine cannot determine which row's value to return for that specific bucket.",
+        "Internally, databases often use Hash Aggregation or Sort Aggregation to group data. Hash aggregation builds an in-memory hash table where keys are the grouping columns and values are the running totals/counts, which is highly efficient for large datasets if the cardinality of the grouping key is manageable."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "sql",
+      "content": "SELECT department_id, COUNT(employee_id) as headcount, AVG(salary) as avg_sal\nFROM employees\nWHERE status = 'ACTIVE'\nGROUP BY department_id\nHAVING AVG(salary) > 80000\nORDER BY avg_sal DESC;"
+    },
+    {
+      "type": "note",
+      "content": "A common performance trap is using HAVING to filter rows that could have been filtered by WHERE. Always apply filters as early as possible in the pipeline. If you are filtering by a non-aggregated column, use WHERE; using HAVING for non-aggregated columns forces the database to perform the grouping operation on data that will ultimately be discarded, which is a significant waste of CPU and memory resources."
+    }
+  ],
+  "num": 866,
+  "title": "What is aggregation in SQL? What is GROUP BY? What is HAVING?",
+  "category": "Exception Handling & I/O / NIO"
+}

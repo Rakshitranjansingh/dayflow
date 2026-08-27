@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When evaluating database execution plans in enterprise Java applications utilizing JPA, Hibernate, or direct JDBC, understanding the operational delta between an index scan and a full table scan is critical for performance tuning. A full table scan requires the database storage engine to read every single data block of a table sequentially from disk into the buffer pool, inspecting every row regardless of whether it matches the query predicate. This O(N) linear time complexity operation causes massive disk I/O, evicts hot pages from the database buffer cache, and severely throttles database throughput under heavy concurrency. Conversely, an index scan leverages a pre-sorted tree structure (typically a B-Tree) to locate specific target keys in O(log N) logarithmic time. By traversing the root, branch, and leaf nodes of the index, the database engine narrows down the exact physical disk addresses (RowIDs or clustered primary keys) needed to fetch only the matching rows, minimizing physical I/O and latch contention."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Operational Dimension",
+        "Full Table Scan",
+        "Index Scan"
+      ],
+      "rows": [
+        [
+          "Time Complexity",
+          "O(N) - Linear scan of all table blocks",
+          "O(log N) - B-Tree traversal plus data block fetch"
+        ],
+        [
+          "Buffer Pool Impact",
+          "High; causes cache pollution by reading entire tables",
+          "Low; targets specific leaf pages and data blocks"
+        ],
+        [
+          "Selectivity Threshold",
+          "Optimal for low selectivity queries (>15-20% of rows)",
+          "Optimal for high selectivity queries (<5% of rows)"
+        ],
+        [
+          "I/O Pattern",
+          "Multiblock sequential read",
+          "Single-block random read (unless index-only scan)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "B-Tree index structure: Internal nodes contain search keys and child pointers, while leaf nodes contain the actual keys and row locators (or primary keys in secondary indexes), doubly linked for efficient range scans.",
+        "Index Range Scan mechanics: The database traverses the B-Tree down to the first matching leaf node, then walks horizontally across the leaf node chain until the ending bound is reached.",
+        "Covering Index optimization: If all columns requested by the query exist within the index itself, the engine performs an index-only scan, completely avoiding lookups to the underlying table data blocks.",
+        "Cost-based optimizer (CBO) decisions: The optimizer computes statistics on data distribution, cardinality, and clustering factor to decide whether a full table scan is cheaper than an index scan due to random I/O overhead."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Repository\npublic class UserRepository {\n    @PersistenceContext\n    private EntityManager entityManager;\n\n    // Triggers an Index Scan assuming 'email' has an active B-Tree index\n    public User findByEmail(String email) {\n        TypedQuery<User> query = entityManager.createQuery(\n            \"SELECT u FROM User u WHERE u.email = :email\", User.class);\n        query.setParameter(\"email\", email);\n        return query.getResultStream().findFirst().orElse(null);\n    }\n\n    // Potentially triggers a Full Table Scan if 'status' has low cardinality and no index\n    public List<User> findByStatus(String status) {\n        TypedQuery<User> query = entityManager.createQuery(\n            \"SELECT u FROM User u WHERE u.status = :status\", User.class);\n        query.setParameter(\"status\", status);\n        return query.getResultList();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is wrapping indexed columns in functions within JPQL or SQL (e.g., WHERE LOWER(u.email) = 'test@test.com'). This renders the B-Tree index useless because the index stores the raw column values, forcing the database to execute a full table scan. Always store pre-normalized data or utilize functional/expression indexes to maintain index scan capabilities."
+    }
+  ],
+  "num": 873,
+  "title": "What is an index scan versus full table scan?",
+  "category": "Core Java & Fundamentals"
+}

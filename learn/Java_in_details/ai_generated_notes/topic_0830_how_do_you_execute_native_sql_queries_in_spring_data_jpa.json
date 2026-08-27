@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Executing native SQL queries in Spring Data JPA bridges the abstraction gap between the object-relational mapping (ORM) layer and database-specific query optimization. While JPQL and the Criteria API operate on domain entities and database-agnostic concepts, real-world enterprise applications frequently encounter scenarios demanding complex analytical functions, recursive Common Table Expressions (CTEs), or proprietary SQL performance hints that Hibernate cannot translate from abstract JPQL. Spring Data JPA provides native query execution capabilities via the @Query annotation by setting its nativeQuery attribute to true, allowing developers to write raw database queries directly on repository interfaces.\n\nHowever, shifting from JPQL to native SQL introduces distinct impedance mismatches. Because native queries bypass the Hibernate Entity Manager's transparent mapping layer for non-standard return types, returning arbitrary projections or partial columns requires explicit mapping strategies such as @SqlResultSetMapping, interface-based projections, or DTO constructor expressions in JPQL-like syntax adapted for native results. Understanding how the underlying Hibernate Session executes these queries using NativeQueryImpl, flushes persistence contexts to prevent dirty reads, and handles parameter binding via positional or named parameters is essential for building high-performance, resilient data access layers."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "JPQL (Java Persistence Query Language)",
+        "Native SQL Queries"
+      ],
+      "rows": [
+        [
+          "Target Execution",
+          "Translated to database-specific SQL by Hibernate Dialect.",
+          "Executed raw against the underlying relational database."
+        ],
+        [
+          "Portability",
+          "High; abstracts underlying database engine differences.",
+          "Low; tied directly to database vendor syntax and functions."
+        ],
+        [
+          "Entity Mapping",
+          "Seamlessly returns managed entities and tracks persistence state.",
+          "Can return entities if selected columns match, but often returns Object[] or unmanaged DTOs."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Parameter binding in native queries supports both positional indexes (?1, ?2) and named parameters (:paramName), though named parameters require explicit @Param annotations on repository interface methods unless compiled with the -parameters compiler flag.",
+        "When a native query modifies state (INSERT, UPDATE, DELETE), the method must be annotated with @Modifying to instruct Spring Data JPA to execute it as an update query rather than a select query, triggering appropriate persistence context flushing and clearing.",
+        "Unmanaged projections can be seamlessly mapped using Spring Data interface-based projections or closed/open accessor methods, avoiding the overhead of instantiating full Hibernate entity graphs when only subset attributes are required."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.repository;\n\nimport com.example.dto.UserSummaryDto;\nimport com.example.model.User;\nimport org.springframework.data.jpa.repository.JpaRepository;\nimport org.springframework.data.jpa.repository.Modifying;\nimport org.springframework.data.jpa.repository.Query;\nimport org.springframework.data.repository.query.Param;\nimport org.springframework.stereotype.Repository;\n\nimport java.util.List;\n\n@Repository\npublic interface UserRepository extends JpaRepository<User, Long> {\n\n    @Query(value = \"SELECT id, username, email FROM users WHERE status = :status\", nativeQuery = true)\n    List<UserSummaryDto> findActiveUserSummaries(@Param(\"status\") String status);\n\n    @Modifying\n    @Query(value = \"UPDATE users SET status = 'INACTIVE' WHERE last_login < NOW() - INTERVAL '1 year'\", nativeQuery = true)\n    int deactivateStaleUsers();\n}"
+    },
+    {
+      "type": "note",
+      "content": "A critical production gotcha when using @Modifying native queries is that Hibernate's first-level cache (the Persistence Context) is not automatically synchronized with database modifications made outside the Session's knowledge. If your application modifies entities via a native @Modifying query and subsequently fetches those same entities within the exact same transaction, stale data from the persistence context will be returned instead of the freshly updated database state. Always set clearAutomatically = true on the @Modifying annotation if you need the persistence context to be flushed and cleared immediately following execution."
+    }
+  ],
+  "num": 831,
+  "title": "How do you execute native SQL queries in Spring Data JPA?",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Docker Compose is a declarative tool engineered to define, run, and orchestrate multi-container Docker applications through a single YAML configuration file. In modern software engineering, applications rarely operate in isolation; a typical microservice environment relies heavily on backing services like relational databases, message brokers, and distributed caches. Managing these dependencies via raw shell scripts and individual docker run commands introduces non-deterministic behavior, networking friction, and severe maintenance overhead. Docker Compose solves this by abstracting container lifecycles, volumes, and bridge networks into an immutable orchestration model. By executing a single command like docker compose up, developers can spin up an entire production-like topology locally, ensuring environment parity from development workstations to CI/CD pipelines."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Network Isolation: Docker Compose automatically provisions a dedicated default bridge network for each project, allowing containers to resolve each other via their service names as internal DNS hostnames.",
+        "Volume Persistence: Named volumes defined in the compose specification prevent data loss by decoupling container filesystems from host-mounted directories or managed Docker volumes.",
+        "Lifecycle Management: The dependency graph is evaluated at startup, enabling explicit ordering constraints via depends_on and health check condition evaluations to ensure backing services are fully initialized before dependent applications boot.",
+        "Environment Interpolation: Compose natively parses .env files and environment block declarations, injecting runtime configurations safely into containerized processes without hardcoding secrets."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "version: '3.8'\n\nservices:\n  app:\n    build: .\n    container_name: spring-boot-api\n    ports:\n      - \"8080:8080\"\n    environment:\n      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/app_db\n      - SPRING_DATASOURCE_USERNAME=postgres\n      - SPRING_DATASOURCE_PASSWORD=secret\n    depends_on:\n      postgres:\n        condition: service_healthy\n    networks:\n      - backend\n\n  postgres:\n    image: postgres:15-alpine\n    container_name: postgres-db\n    environment:\n      POSTGRES_DB: app_db\n      POSTGRES_USER: postgres\n      POSTGRES_PASSWORD: secret\n    ports:\n      - \"5432:5432\"\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n    healthcheck:\n      test: [\"CMD-SHELL\", \"pg_isready -U postgres -d app_db\"]\n      interval: 5s\n      timeout: 5s\n      retries: 5\n    networks:\n      - backend\n\nvolumes:\n  pgdata:\n\nnetworks:\n  backend:\n    driver: bridge"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha when using Docker Compose for integration testing in CI/CD environments is relying solely on depends_on without healthcheck conditions. While depends_on ensures the container process has started, it does not wait for the application inside that container (like PostgreSQL or Kafka) to actually accept traffic. This leads to intermittent connection-refused failures in test suites. Always pair depends_on with service_healthy conditions to guarantee true readiness."
+    }
+  ],
+  "num": 429,
+  "title": "Docker Compose",
+  "category": "Testing, Observability & Cloud Native"
+}

@@ -1,0 +1,51 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Events provide a robust, decoupled publish-subscribe mechanism within the Spring IoC container, allowing beans to communicate asynchronously or synchronously without holding direct references to one another. At the heart of this architecture lies ApplicationEventPublisher, an interface implemented by the ApplicationContext that acts as the event broker, broadcasting custom domain events to any registered listener. To consume these events, developers annotate listener methods with @EventListener, which leverages metadata processing to inspect method signatures, handle payload adaptation, and support SpEL-based conditional filtering. By default, Spring event dispatching is strictly synchronous, executing listeners in the same thread and transaction context as the publisher—which presents distinct challenges for error propagation and resource management. To decouple execution and prevent a slow or failing downstream listener from blocking the main transaction or request thread, @Async events come into play. When paired with a properly configured TaskExecutor, @Async transforms synchronous execution into a non-blocking asynchronous flow, executing listeners on separate threads while requiring deliberate thought around thread pool exhaustion, boundary context propagation, and exception handling since uncaught exceptions in async listeners will not bubble up to the publishing caller."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Execution Mechanism",
+        "Thread Context",
+        "Transaction Alignment",
+        "Error Handling"
+      ],
+      "rows": [
+        [
+          "Synchronous (@EventListener)",
+          "Same thread as publisher",
+          "Inherits caller transaction (Phase-aware)",
+          "Propagates directly to caller"
+        ],
+        [
+          "Asynchronous (@Async + @EventListener)",
+          "Managed TaskExecutor thread",
+          "Runs outside caller transaction (detached)",
+          "Handled by AsyncUncaughtExceptionHandler"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "ApplicationEventPublisher delegates to an internal SimpleApplicationEventMulticaster, which iterates over matching ApplicationListener beans and dispatches payloads either sequentially (sync) or via a TaskExecutor (async).",
+        "@EventListener supports conditional execution using SpEL expressions via the condition attribute, allowing fine-grained filtering before the method body is ever invoked.",
+        "@TransactionalEventListener allows binding listener execution to specific phases of the publisher's transaction lifecycle (e.g., AFTER_COMMIT, BEFORE_COMMIT, AFTER_ROLLBACK, AFTER_COMPLETION), ensuring state changes are fully persisted before downstream notifications trigger."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.enterprise.events;\n\nimport org.springframework.context.ApplicationEventPublisher;\nimport org.springframework.context.event.EventListener;\nimport org.springframework.scheduling.annotation.Async;\nimport org.springframework.stereotype.Component;\nimport org.springframework.transaction.event.TransactionPhase;\nimport org.springframework.transaction.event.TransactionalEventListener;\n\npublic record OrderCreatedEvent(Long orderId, String customerEmail) {}\n\n@Component\npublic class OrderPublisher {\n    private final ApplicationEventPublisher publisher;\n\n    public OrderPublisher(ApplicationEventPublisher publisher) {\n        this.publisher = publisher;\n    }\n\n    public void processOrder(Long orderId, String email) {\n        // Business logic execution...\n        publisher.publishEvent(new OrderCreatedEvent(orderId, email));\n    }\n}\n\n@Component\npublic class OrderEventListener {\n\n    @Async(\"taskExecutor\")\n    @EventListener\n    public void handleOrderAsync(OrderCreatedEvent event) {\n        // Executes on a separate thread pool thread; safe for slow I/O like email dispatching\n        System.out.println(\"Sending async confirmation email for order: \" + event.orderId());\n    }\n\n    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)\n    public void handleOrderCommitted(OrderCreatedEvent event) {\n        // Executes only after the surrounding database transaction successfully commits\n        System.out.println(\"Order committed to DB, updating audit logs for: \" + event.orderId());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "When using @Async events, remember that ThreadLocal-based contexts—such as Spring Security's SecurityContext or Hibernate's Session—do not automatically cross thread boundaries. If your asynchronous listener requires authentication details or lazy-loaded database associations from the parent thread, you must explicitly configure a TaskDecorator or manually wrap your Runnable to propagate the necessary context."
+    }
+  ],
+  "num": 226,
+  "title": "Spring Events — ApplicationEventPublisher, @EventListener, @Async events",
+  "category": "Exception Handling & I/O / NIO"
+}

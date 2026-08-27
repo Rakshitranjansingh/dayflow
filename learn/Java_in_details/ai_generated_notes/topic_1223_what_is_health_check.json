@@ -1,0 +1,49 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of distributed systems and JVM-based microservices, a health check is a diagnostic mechanism used to determine the operational status of an application instance. It serves as a heartbeat, allowing external orchestrators like Kubernetes or load balancers to decide whether a service is capable of processing requests. A health check typically bifurcates into two distinct states: Liveness and Readiness. Liveness probes determine if the JVM process is alive and responsive—if this fails, the orchestrator kills and restarts the container to recover from deadlock or unrecoverable state. Readiness probes, conversely, signal whether the application is prepared to accept traffic; this is critical during startup phases where the application might be initializing database connection pools, warming up JIT caches, or loading heavy configuration beans into the ApplicationContext."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Probe Type",
+        "Primary Objective",
+        "Failure Consequence"
+      ],
+      "rows": [
+        [
+          "Liveness",
+          "Process Health",
+          "Container Restart"
+        ],
+        [
+          "Readiness",
+          "Traffic Readiness",
+          "Remove from Load Balancer"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Liveness checks should be lightweight to avoid triggering false positives due to transient GC pauses; they often simply return a 200 OK or check if the main thread is blocked.",
+        "Readiness checks must be exhaustive, verifying downstream dependencies like RDBMS connectivity, message broker availability, or cache cluster health, as failing these prevents the service from entering the load balancer rotation.",
+        "The JVM's internal state, such as memory pressure (e.g., Old Gen exhaustion), should be factored into health checks to prevent 'zombie' services that are technically running but incapable of meaningful work.",
+        "In Spring Boot, the Actuator module provides a standardized '/health' endpoint that aggregates multiple 'HealthIndicators', allowing developers to customize exactly what constitutes a 'healthy' state."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Component\npublic class DatabaseHealthIndicator implements HealthIndicator {\n    @Override\n    public Health health() {\n        boolean isHealthy = checkDatabaseConnection();\n        return isHealthy ? Health.up().build() : Health.down().withDetail(\"Error\", \"DB Connection Timeout\").build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is creating a 'circular dependency' in health checks. If your readiness probe requires a database connection, and your database connection pool initialization requires the service to be fully started, you can end up in a deadlock where the service never reports as ready. Always ensure your health check logic is decoupled from the business logic that requires the service to be 'ready' to function."
+    }
+  ],
+  "num": 1224,
+  "title": "What is health check?",
+  "category": "Core Java & Fundamentals"
+}

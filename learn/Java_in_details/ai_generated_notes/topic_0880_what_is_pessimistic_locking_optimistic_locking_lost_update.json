@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In relational database systems managed via Java Persistence API (JPA) and Hibernate, concurrent modifications to the same database row can introduce severe data integrity anomalies if left unchecked. A lost update occurs when two or more transactions read the same record, modify their respective in-memory states, and write back to the database without accounting for the other's changes, thereby silently overwriting the earlier commit. To prevent this, concurrency control strategies are divided into two distinct paradigms: pessimistic locking and optimistic locking.\n\nPessimistic locking assumes that data contention is high and concurrent transactions will likely conflict. It leverages the underlying database management system's locking mechanisms by executing statements with clauses like `SELECT ... FOR UPDATE`. This immediately acquires an exclusive or shared lock on the targeted database rows, blocking any concurrent transaction from reading or writing those rows until the current transaction commits or rolls back. While completely safe against concurrency anomalies, it degrades throughput by increasing thread blocking and potential deadlock risks.\n\nOptimistic locking, conversely, operates on the assumption that transaction conflicts are rare. It avoids holding database locks during read-modify-write cycles. Instead, it tracks row versions using a dedicated version column or timestamp. When an entity is updated, Hibernate executes an SQL `UPDATE` statement that includes a check matching the original version number read at the start of the transaction. If another transaction has updated the record in the interim, the version mismatch results in zero affected rows, causing Hibernate to throw an immediate `OptimisticLockException`."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy Dimension",
+        "Pessimistic Locking",
+        "Optimistic Locking"
+      ],
+      "rows": [
+        [
+          "Database Concurrency Assumption",
+          "High contention; conflicts are probable.",
+          "Low contention; conflicts are rare."
+        ],
+        [
+          "Underlying Mechanism",
+          "Database row/table locks (SELECT ... FOR UPDATE).",
+          "Application-level version checks (Version columns)."
+        ],
+        [
+          "Performance Impact",
+          "Reduces throughput, increases lock contention and wait times.",
+          "Maximizes throughput, keeps database connections unblocked."
+        ],
+        [
+          "Failure Mode",
+          "Blocks concurrent threads or throws pessimistic lock exceptions.",
+          "Throws StaleObjectStateException or OptimisticLockException."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Lost updates manifest when Thread A and Thread B read entity version 1 at t1, both compute updates based on version 1, and Thread B commits first updating the version to 2. When Thread A writes back, it updates version 1, effectively wiping out Thread B's persisted changes.",
+        "In Hibernate, optimistic locking is enabled via the @Version annotation on a numeric (Integer, Long) or temporal field within an entity. The persistence context automatically increments this value upon flushing an update.",
+        "Pessimistic locking is explicitly requested in Spring Data JPA by annotating repository query methods with @Lock(LockModeType.PESSIMISTIC_WRITE), which forces Hibernate to translate the request into locking syntax native to the target SQL dialect.",
+        "LockModeType.PESSIMISTIC_READ acquires a shared lock allowing other transactions to read the row but preventing updates, whereas PESSIMISTIC_WRITE acquires an exclusive lock preventing both reads and writes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Entity\n@Table(name = \"accounts\")\npublic class Account {\n\n    @Id\n    @GeneratedValue(strategy = GenerationType.IDENTITY)\n    private Long id;\n\n    private BigDecimal balance;\n\n    @Version\n    private Long version;\n\n    // Getters, setters, and business methods\n}\n\npublic interface AccountRepository extends JpaRepository<Account, Long> {\n\n    @Lock(LockModeType.PESSIMISTIC_WRITE)\n    @Query(\"SELECT a FROM Account a WHERE a.id = :id\")\n    Optional<Account> findByIdWithPessimisticLock(@Param(\"id\") Long id);\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap with optimistic locking occurs inside long-running OSIV (Open Session in View) patterns or multi-step web flows. If an entity is loaded in one request, serialized to a client UI, and sent back in a subsequent request for updating, ensure the version field is explicitly preserved in the payload. Omitting the version field from your DTO causes Hibernate to treat the incoming entity as detached with a null or uninitialized version, bypassing version checks and silently reintroducing lost updates or triggering unexpected insertions."
+    }
+  ],
+  "num": 881,
+  "title": "What is pessimistic locking? Optimistic locking? Lost update?",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

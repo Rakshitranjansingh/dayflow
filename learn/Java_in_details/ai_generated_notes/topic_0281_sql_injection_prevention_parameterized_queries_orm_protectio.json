@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "SQL injection prevention is a paramount security concern when designing enterprise Java applications that interface with relational databases. In legacy or poorly written systems, raw SQL strings are dynamically concatenated using user-supplied input. This practice allows malicious actors to manipulate the Abstract Syntax Tree (AST) of the executed query, bypassing authentication logic, extracting unauthorized data, or executing destructive data-definition operations. To combat this, modern architectures rely heavily on parameterized queries and Object-Relational Mapping (ORM) protections.\n\nParameterized queries—often referred to as prepared statements—utilize bind variables (represented by question marks or named placeholders) in the database driver layer. Instead of sending an executable string containing both code and data, the database engine parses, compiles, and optimizes the query plan strictly based on the SQL structure first. The parameters are then transmitted out-of-band and inserted directly into the execution context as literal values, completely neutralizing any payload trying to alter the statement semantics. Meanwhile, ORM frameworks like Hibernate abstract raw SQL entirely into an object graph manipulation paradigm. Using either Java Persistence Query Language (JPQL), Criteria APIs, or native queries executed through parameterized TypedQuery objects, ORMs structurally insulate the database interaction layer from arbitrary string injection vectors."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Defense Mechanism",
+        "Parsing Stage",
+        "Risk Profile",
+        "Abstraction Level"
+      ],
+      "rows": [
+        [
+          "String Concatenation",
+          "Parsed together with injected data",
+          "Extremely High (Critical Vulnerability)",
+          "Raw JDBC / Unsafe"
+        ],
+        [
+          "Parameterized Queries",
+          "Pre-compiled without data, bound later",
+          "Zero (Data cannot escape literal context)",
+          "Low-Level JDBC Prepared Statement"
+        ],
+        [
+          "ORM Protections (JPQL/Criteria)",
+          "Parsed by ORM parser into SQL AST",
+          "Zero (when using parameters correctly)",
+          "High-Level Object Mapping"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Prepared statements leverage the database engine's query cache by reusing the compiled execution plan for identical SQL structures, offering performance benefits alongside security isolation.",
+        "When using ORM frameworks like Hibernate, string interpolation via concatenation within JPQL strings (e.g., 'FROM User u WHERE u.name = ' + userInput) remains vulnerable; parameters must be bound using colon prefixes like ':name'.",
+        "JDBC drivers communicate parameterized inputs using binary wire protocols, ensuring strict type safety and preventing truncation or casting exploits at the socket boundary."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import jakarta.persistence.EntityManager;\nimport jakarta.persistence.TypedQuery;\nimport org.springframework.stereotype.Repository;\nimport java.util.List;\n\n@Repository\npublic class SecureUserRepository {\n\n    private final EntityManager entityManager;\n\n    public SecureUserRepository(EntityManager entityManager) {\n        this.entityManager = entityManager;\n    }\n\n    public List<User> findUsersByUsernameSafe(String rawUserInput) {\n        // SAFE: Utilizing JPQL with named parameters\n        String jpql = \"SELECT u FROM User u WHERE u.username = :username\";\n        TypedQuery<User> query = entityManager.createQuery(jpql, User.class);\n        query.setParameter(\"username\", rawUserInput);\n        return query.getResultList();\n    }\n}\n"
+    },
+    {
+      "type": "note",
+      "content": "A common production antipattern is developers using ORM criteria builders or JPQL and assuming they are automatically immune to SQL injection. If you use concatenation inside a JPQL string or pass dynamic column names/sorting clauses directly into native queries without whitelist validation, you recreate the vulnerability at the ORM layer. Always use bind variables for data values and strict enums or whitelist maps for structural SQL clauses."
+    }
+  ],
+  "num": 282,
+  "title": "SQL injection prevention — parameterized queries, ORM protections",
+  "category": "Exception Handling & I/O / NIO"
+}

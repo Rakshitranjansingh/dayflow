@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing an enterprise-grade autocomplete and typeahead system requires balancing sub-millisecond retrieval latencies with massive dataset scales where millions of terms must be filtered as a user types character by character. Standard relational databases fail at this task because executing a SQL query with a trailing wildcard prefix (LIKE 'term%') forces a full table scan or fails to leverage standard B-Tree indexes effectively for left-unbounded wildcards. To solve this, system architects turn to the Trie data structure (also known as a prefix tree), a specialized, tree-like node-based structure engineered specifically for efficient string retrieval and prefix matching. In a Trie, every node represents a single character of a word, and paths down the tree trace out valid words, allowing a search for all completions of a prefix to lock onto the exact subtree in O(K) time complexity, where K is the length of the prefix, completely independent of the total number of words stored in the system."
+    },
+    {
+      "type": "prose",
+      "content": "When implementing a Trie in Core Java, memory layout and garbage collection overhead are primary architectural concerns. A naive implementation uses standard node classes containing a HashMap<Character, TrieNode> to store children. While flexible, this introduces massive object allocation overhead, pointer chasing in the JVM heap, and significant memory fragmentation due to wrapper objects. High-performance production systems instead utilize fixed-size arrays (e.g., TrieNode[26] for lowercase English alphabets) or compact bit-manipulation techniques. Furthermore, to support typeahead ranking—where the most popular or relevant completions surface first—each Trie node or internal edge must maintain top-K cached priority lists of suggestions, precomputed and sorted by frequency or scoring metrics during background ingestion jobs."
+    },
+    {
+      "table": {
+        "headers": [
+          "Metric / Feature",
+          "Standard B-Tree / SQL LIKE",
+          "Custom Java Trie"
+        ],
+        "rows": [
+          [
+            "Prefix Search Complexity",
+            "O(N) - Full table scan for wildcards",
+            "O(K) - Dependent only on prefix length K"
+          ],
+          [
+            "Memory Efficiency",
+            "Optimized by storage engine pages",
+            "High heap usage; requires careful node pooling"
+          ],
+          [
+            "Ranking Support",
+            "Requires costly ORDER BY and filesort",
+            "O(1) if top-K results are cached inside nodes"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Node Allocation Strategy: Avoid allocating individual TrieNode objects dynamically on every insertion if write-throughput is high; instead, employ custom off-heap memory mapping or object pooling to mitigate Garbage Collection Stop-The-World pauses.",
+        "Prefix Subtree Isolation: Traversing down a Trie to a prefix node bypasses the search space for all unrelated strings, instantly isolating the candidate pool for downstream sorting and filtering.",
+        "Memory Footprint Reduction: Using compressed Tries (Radix Trees or Patricia Tries) merges chains of single-child nodes together, drastically reducing the node count and pointer overhead in memory."
+      ]
+    },
+    {
+      "code": {
+        "language": "java",
+        "content": "import java.util.*;\n\npublic class AutocompleteTrie {\n    private final TrieNode root = new TrieNode();\n\n    private static class TrieNode {\n        private final Map<Character, TrieNode> children = new HashMap<>();\n        private boolean isEndOfWord;\n        private final List<String> topCompletions = new ArrayList<>();\n\n        public void addCompletion(String word, int limit) {\n            if (!topCompletions.contains(word)) {\n                topCompletions.add(word);\n                topCompletions.sort(Comparator.naturalOrder());\n                if (topCompletions.size() > limit) {\n                    topCompletions.remove(topCompletions.size() - 1);\n                }\n            }\n        }\n    }\n\n    public void insert(String word, int limit) {\n        TrieNode current = root;\n        for (char ch : word.toCharArray()) {\n            current = current.children.computeIfAbsent(ch, c -> new TrieNode());\n            current.addCompletion(word, limit);\n        }\n        current.isEndOfWord = true;\n    }\n\n    public List<String> getCompletions(String prefix) {\n        TrieNode current = root;\n        for (char ch : prefix.toCharArray()) {\n            current = current.children.get(ch);\n            if (current == null) {\n                return Collections.emptyList();\n            }\n        }\n        return current.topCompletions;\n    }\n}"
+      }
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Storing millions of dynamic strings in a Java-native Trie will quickly cause an OutOfMemoryError (java.lang.OutOfMemoryError: Java heap space) due to HashMap entry overhead and object header padding for every single character node. For distributed or large-scale systems, consider serializing the Trie structure into an off-heap byte buffer using ByteBuffer, or offloading the typeahead search to specialized distributed search engines like Elasticsearch or Apache Solr, which utilize Finite State Transducers (FSTs) under the hood for highly compressed, memory-mapped prefix lookups."
+    }
+  ],
+  "num": 1125,
+  "title": "How do you design an autocomplete/typeahead system? (Trie data structure)",
+  "category": "Core Java & Fundamentals"
+}

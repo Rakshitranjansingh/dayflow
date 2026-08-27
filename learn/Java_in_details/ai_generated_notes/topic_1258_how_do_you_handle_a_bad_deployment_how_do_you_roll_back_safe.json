@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Handling a bad deployment and executing a safe rollback in a production Java environment requires a rigorous operational strategy that bridges CI/CD pipelines, JVM state management, and database schema compatibility. When a faulty artifact reaches production—manifesting as skyrocketing HTTP 500 errors, severe memory leaks, or thread pool exhaustion—the immediate priority is service restoration via rollback, followed by root-cause analysis. Safe rollbacks in Java applications are rarely as simple as reverting a JAR or container image; they demand strict adherence to backward compatibility, particularly concerning database schemas, external API contracts, and cached state.\n\nExecuting a rollback safely in a cloud-native ecosystem relies on immutable infrastructure, blue-green deployment strategies, or rolling updates coupled with health check probes. However, application-level state presents significant hurdles. If the newly deployed version has written serialized objects to distributed caches like Redis or executed irreversible database migrations—such as dropping a column or modifying a table constraint—a simple binary downgrade will trigger runtime exceptions (e.g., ClassCastException or SQL syntax errors). Therefore, professional Java engineers design deployment architectures using the Expand-Contract pattern for database migrations and ensure strict schema backward compatibility before any production release occurs."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Rollback Mechanism",
+        "Pros",
+        "Cons",
+        "Best Suited For"
+      ],
+      "rows": [
+        [
+          "Blue-Green Deployment",
+          "Instant switchover, zero downtime, instant rollback capability.",
+          "Requires double the hardware/cloud resources during transition.",
+          "Stateless microservices, critical high-availability systems."
+        ],
+        [
+          "Rolling Update",
+          "Resource efficient, gradual traffic shift.",
+          "Slow rollback, potential version overlap during transition.",
+          "Large cluster environments with backward-compatible APIs."
+        ],
+        [
+          "Database Backward-Compatible Migrations",
+          "Prevents breaking changes during rollbacks.",
+          "Adds architectural complexity, requires multiple release cycles.",
+          "Enterprise applications with persistent relational state."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "JVM State Preservation: During a bad deployment, verify if the failure caused off-heap memory exhaustion, native memory leaks, or deadlock scenarios in the thread pool that might require a hard SIGKILL instead of a graceful SIGTERM.",
+        "Feature Flags as a First Line of Defense: Decouple deployment from release. If a newly deployed microservice exhibits bugs, toggling a feature flag can neutralize the issue instantly without triggering a full pipeline rollback.",
+        "Flyway/Liquibase Migration Constraints: Never include destructive DDL statements (DROP TABLE, DROP COLUMN) in the same release as application code that relies on them. Always use multi-phase additive migrations.",
+        "Readiness and Liveness Probe Tuning: Ensure Kubernetes or orchestrator probes do not prematurely terminate rolling updates or mask rolling-back pods by capturing faulty states into downstream load balancers."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/v1/orders\")\npublic class OrderController {\n\n    private final FeatureFlagService featureFlagService;\n    private final OrderServiceV2 orderServiceV2;\n    private final OrderServiceV1 orderServiceV1;\n\n    public OrderController(FeatureFlagService featureFlagService, \n                           OrderServiceV2 orderServiceV2, \n                           OrderServiceV1 orderServiceV1) {\n        this.featureFlagService = featureFlagService;\n        this.orderServiceV2 = orderServiceV2;\n        this.orderServiceV1 = orderServiceV1;\n    }\n\n    @PostMapping\n    public ResponseEntity<OrderResponse> createOrder(@RequestBody OrderRequest request) {\n        // Safe deployment pattern: Fallback to V1 logic dynamically if V2 flags an anomaly\n        if (featureFlagService.isEnabled(\"use-legacy-order-pipeline\")) {\n            return ResponseEntity.ok(orderServiceV1.process(request));\n        }\n        try {\n            return ResponseEntity.ok(orderServiceV2.process(request));\n        } catch (Exception e) {\n            // Automated circuit breaking / fallback mechanism during partial deployment degradation\n            return ResponseEntity.ok(orderServiceV1.process(request));\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap during rollbacks is ignoring connection pooling and Hibernate second-level caches. If a rolled-back version of a Spring Boot application attempts to read an entity mapped to a database schema modified by the bad deployment, Hibernate's second-level cache may retain stale entity metadata, leading to persistent transaction rollbacks. Always invalidate distributed L2 caches (like EhCache or Infinispan) during an emergency rollback event."
+    }
+  ],
+  "num": 1259,
+  "title": "How do you handle a bad deployment? How do you roll back safely?",
+  "category": "Core Java & Fundamentals"
+}

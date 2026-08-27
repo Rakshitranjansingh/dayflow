@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Choosing between synchronous and asynchronous boundaries is a fundamental architectural decision that dictates how your application manages thread lifecycle, latency, and resource utilization. A synchronous boundary implies a blocking request-response cycle where the calling thread remains idle, waiting for the downstream service or computation to complete. This is the default in Java due to its simplicity and the ease of debugging stack traces, but it creates a 'thread-per-request' bottleneck that can lead to thread pool exhaustion under high load. Conversely, an asynchronous boundary decouples the caller from the execution, typically via CompletableFuture, Project Loom's Virtual Threads, or message-driven architectures. This allows the calling thread to return to the pool immediately, significantly increasing throughput and system resilience by preventing cascading failures during downstream latency spikes."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric",
+        "Synchronous Boundary",
+        "Asynchronous Boundary"
+      ],
+      "rows": [
+        [
+          "Thread Usage",
+          "High (Blocked until completion)",
+          "Low (Non-blocking/Event-loop)"
+        ],
+        [
+          "Error Handling",
+          "Standard try-catch blocks",
+          "Callback chains/Completion stages"
+        ],
+        [
+          "Latency",
+          "Lower overhead for trivial tasks",
+          "Higher overhead due to context switching"
+        ],
+        [
+          "Debugging",
+          "Linear stack traces",
+          "Fragmented stack traces"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Synchronous boundaries are preferred when the operation is CPU-bound or requires strict consistency where the immediate result is mandatory for the next instruction.",
+        "Asynchronous boundaries are essential for I/O-bound tasks, such as remote API calls or database queries, to prevent blocking the platform threads that handle incoming HTTP requests.",
+        "With the introduction of Project Loom (JEP 444), the performance penalty of synchronous code is mitigated by Virtual Threads, which allow blocking operations to be suspended at the JVM level without pinning the underlying OS thread.",
+        "Context propagation is the hidden cost of asynchronous boundaries; you must explicitly handle ThreadLocal variables (like MDC for logging or security contexts) as they do not automatically migrate across thread boundaries."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public CompletableFuture<User> fetchUserAsync(String id) {\n    return CompletableFuture.supplyAsync(() -> userRepository.findById(id), executorService)\n        .thenApply(user -> enrichUser(user))\n        .exceptionally(ex -> { \n            log.error(\"Failed to fetch user\", ex);\n            return User.empty(); \n        });\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common production trap is 'Async-all-the-things' syndrome. If your asynchronous boundary is too granular, the overhead of context switching and object allocation for CompletableFuture wrappers will outweigh the performance gains. Always measure your P99 latency before and after refactoring to async; if the task is purely in-memory, the overhead of async orchestration often makes the system slower than simple synchronous execution."
+    }
+  ],
+  "num": 1112,
+  "title": "How do you choose synchronous versus asynchronous boundaries?",
+  "category": "Core Java & Fundamentals"
+}

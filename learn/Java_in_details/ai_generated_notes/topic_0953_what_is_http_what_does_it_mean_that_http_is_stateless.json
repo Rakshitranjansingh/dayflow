@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "HTTP, or Hypertext Transfer Protocol, is the foundational application-layer protocol that governs how data is exchanged across the World Wide Web. At its core, it functions as a request-response model where a client (typically a browser or a Java-based HTTP client like HttpClient) sends a request to a server, and the server returns a response containing the requested resource or a status code. It operates over TCP, usually on port 80 or 443 for HTTPS, providing the structure for headers, methods (GET, POST, PUT, DELETE), and payload bodies that allow distributed systems to communicate.\n\nWhen we say HTTP is stateless, we mean that the protocol itself does not maintain any persistent memory of previous interactions. Each request is treated as an isolated event, completely independent of any requests that came before it. From the server's perspective, it has no inherent way to know if a request from User A is related to a request User A made five seconds ago. This design choice was made to simplify server architecture, allowing for massive scalability because servers do not need to consume memory or CPU cycles to track the state of millions of concurrent connections. However, this creates a challenge for modern web applications that require user sessions, such as shopping carts or authenticated dashboards, necessitating external mechanisms like cookies, session IDs, or JWTs to 're-introduce' state into a stateless architecture."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Stateless Protocol (HTTP)",
+        "Stateful Protocol (e.g., FTP/TCP)"
+      ],
+      "rows": [
+        [
+          "Server Memory",
+          "Minimal (no session tracking)",
+          "High (tracks connection state)"
+        ],
+        [
+          "Scalability",
+          "High (easy to load balance)",
+          "Lower (requires session affinity)"
+        ],
+        [
+          "Complexity",
+          "Lower (simple request-response)",
+          "Higher (requires state management)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Statelessness forces the client to carry the burden of context; every request must contain all necessary information, such as authentication tokens or session identifiers, to be processed correctly.",
+        "Because HTTP is stateless, load balancers can route consecutive requests from the same user to different backend servers without breaking the application logic, provided the session data is stored in a distributed cache like Redis.",
+        "The lack of state prevents 'zombie' sessions from consuming heap space on the server, as the server does not need to maintain an object graph representing the user's history after the response is flushed to the socket.",
+        "In Java, frameworks like Spring Security leverage this stateless nature by using stateless authentication (JWT), where the server validates the token on every request rather than looking up a session object in the HttpSession."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Example of a stateless request using Java 11+ HttpClient\nHttpClient client = HttpClient.newHttpClient();\nHttpRequest request = HttpRequest.newBuilder()\n    .uri(URI.create(\"https://api.example.com/data\"))\n    .header(\"Authorization\", \"Bearer \" + jwtToken) // Explicitly providing state every time\n    .GET()\n    .build();\n\nHttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: A common trap for juniors is assuming that 'stateless' means the application cannot have state. It simply means the *protocol* is stateless. You must manage state externally (Database, Redis, or Client-side tokens). If you find yourself trying to store user-specific data in static variables or singletons within your Spring Beans, you are creating a memory leak and a concurrency nightmare, as those beans are shared across all requests."
+    }
+  ],
+  "num": 954,
+  "title": "What is HTTP? What does it mean that HTTP is stateless?",
+  "category": "Core Java & Fundamentals"
+}

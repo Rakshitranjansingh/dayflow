@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern distributed systems, gRPC has emerged as a high-performance, open-source universal RPC framework developed by Google. Built on top of HTTP/2 and utilizing Protocol Buffers (Protobuf) as its interface definition language (IDL) and serialization mechanism, gRPC allows client and server applications to communicate transparently and efficiently across heterogeneous environments. At the core of every gRPC architecture lies the service definition, which dictates the shape of the RPC contract between microservices. Unlike traditional RESTful architectures that rely on rigid HTTP method semantics and resource URIs, a gRPC service definition uses the `service` keyword in a `.proto` file to declare strongly-typed remote methods along with their request and response message types. \n\nThe true power of gRPC service definitions lies in their native support for four distinct communication paradigms: unary, server streaming, client streaming, and bidirectional streaming. A unary RPC is the direct analog of a classic request-response cycle, where the client sends a single request and receives a single response over the HTTP/2 stream, mirroring traditional synchronous method calls. Server streaming allows the client to send a single request to the server, after which the server responds with a continuous stream of messages, closing the stream only when all data has been exhausted—ideal for real-time market data feeds or log streaming. Conversely, client streaming enables the client to write a sequence of messages and send them to the server over the established stream, waiting for the server to read all messages and return a single computed response, which suits bulk telemetry uploads or file transfers. Finally, bidirectional streaming bridges both worlds: both client and server can send a sequence of messages independently using a read-write stream, operating asynchronously and concurrently, which is the foundational pattern for chat applications, collaborative editing tools, and real-time command-and-control systems."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "RPC Paradigm",
+        "Client Payload",
+        "Server Payload",
+        "Typical Use Case"
+      ],
+      "rows": [
+        [
+          "Unary",
+          "Single message",
+          "Single message",
+          "Standard CRUD operations, database queries"
+        ],
+        [
+          "Server Streaming",
+          "Single message",
+          "Stream of messages",
+          "Real-time stock tickers, pagination of large data sets"
+        ],
+        [
+          "Client Streaming",
+          "Stream of messages",
+          "Single message",
+          "IoT sensor batch uploads, file chunk ingestion"
+        ],
+        [
+          "Bidirectional Streaming",
+          "Stream of messages",
+          "Stream of messages",
+          "Chat systems, interactive gaming, live telemetry pipelines"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Protocol Buffers compilation leverages binary serialization via packed varints and fixed-size fields, resulting in wire formats significantly smaller and faster to parse than JSON payloads.",
+        "Underneath the four communication modes, gRPC multiplexes all streams over a single TCP connection utilizing HTTP/2 framing, eliminating head-of-line blocking at the application layer and reducing connection overhead.",
+        "Flow control is managed at the HTTP/2 stream and connection levels using window update frames, preventing fast producers from overwhelming slow consumers across all streaming variants.",
+        "Generated stubs and service skeletons handle serialization, connection multiplexing, and deadline propagation automatically, exposing clean reactive or asynchronous callback APIs to developers."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "protobuf",
+      "content": "syntax = \"proto3\";\n\npackage telemetry;\n\nservice TelemetryService {\n  // Unary RPC\n  rpc GetSystemStatus (StatusRequest) returns (StatusResponse);\n\n  // Server Streaming RPC\n  rpc StreamMetrics (MetricsRequest) returns (stream MetricData);\n\n  // Client Streaming RPC\n  rpc UploadLogs (stream LogChunk) returns (UploadSummary);\n\n  // Bidirectional Streaming RPC\n  rpc InteractiveDiagnostics (stream DiagnosticCommand) returns (stream DiagnosticEvent);\n}\n\nmessage StatusRequest { string node_id = 1; }\nmessage StatusResponse { string status = 1; int64 uptime_seconds = 2; }\nmessage MetricsRequest { string node_id = 1; int32 interval_seconds = 2; }\nmessage MetricData { int64 timestamp = 1; double cpu_usage = 2; double memory_usage = 3; }\nmessage LogChunk { string node_id = 1; bytes data = 2; }\nmessage UploadSummary { int64 total_bytes_received = 1; bool success = 2; }\nmessage DiagnosticCommand { string command = 1; }\nmessage DiagnosticEvent { int64 timestamp = 1; string output = 2; }"
+    },
+    {
+      "type": "note",
+      "content": "When designing streaming gRPC services (especially client and bidirectional streaming), be acutely aware of memory management and backpressure. If a server reads messages from a client stream faster than it can process them without applying explicit reactive flow control or chunking, the JVM heap will rapidly accumulate uncollected `StreamObserver` payloads, triggering catastrophic `OutOfMemoryError` exceptions. Always ensure deadlines (`CallOptions.withDeadline`) and cancellation tokens are propagated correctly across streaming connections to prevent orphaned threads and leaked socket channels."
+    }
+  ],
+  "num": 325,
+  "title": "gRPC service definition — unary, server streaming, client streaming, bidirectional",
+  "category": "REST APIs, WebFlux & Microservices"
+}

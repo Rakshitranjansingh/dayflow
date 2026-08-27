@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Logging levels act as a hierarchical filtering mechanism for diagnostic output in Java applications, allowing developers to control the granularity of information emitted at runtime without modifying source code. In production environments, logging is the primary observability tool for post-mortem analysis and real-time monitoring. By assigning a severity level to each log statement—ranging from TRACE for granular execution flow to FATAL for system-ending failures—you effectively create a signal-to-noise filter. This is critical because excessive logging at high verbosity can cause I/O bottlenecks, disk space exhaustion, and significant CPU overhead due to string concatenation and object allocation within the logging framework."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Level",
+        "Primary Use Case",
+        "Production Suitability"
+      ],
+      "rows": [
+        [
+          "TRACE/DEBUG",
+          "Deep diagnostics, variable state, loop iterations",
+          "Rarely (High performance cost)"
+        ],
+        [
+          "INFO",
+          "Application lifecycle, major state changes",
+          "Standard"
+        ],
+        [
+          "WARN/ERROR",
+          "Recoverable issues or critical failures",
+          "Mandatory"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Log levels follow a strict ordinal hierarchy (e.g., TRACE < DEBUG < INFO < WARN < ERROR < FATAL). When a level is set for a logger, all messages with a lower priority are discarded by the framework.",
+        "Modern logging frameworks like Logback or Log4j2 utilize 'lazy' evaluation. Using parameterized logging (e.g., logger.debug(\"User {}\", id)) prevents the expensive string construction of the message if the current logging level is disabled.",
+        "Effective log management requires consistent level usage across microservices to ensure that log aggregation tools like ELK or Splunk can accurately filter and alert on production incidents."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "private static final Logger log = LoggerFactory.getLogger(OrderService.class);\n\npublic void processOrder(String orderId) {\n    // Use parameterized logging to avoid unnecessary string concatenation\n    log.debug(\"Processing order with ID: {}\", orderId);\n    \n    try {\n        executePayment();\n    } catch (PaymentException e) {\n        // Use ERROR for actionable issues, include the stack trace\n        log.error(\"Payment failed for order: {}\", orderId, e);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is logging sensitive data (PII) at DEBUG level. Even if you don't intend to expose this data, a developer might temporarily bump the log level to DEBUG to troubleshoot a production issue, inadvertently writing clear-text passwords or credit card numbers to persistent storage, violating compliance standards like PCI-DSS or GDPR."
+    }
+  ],
+  "num": 1174,
+  "title": "What is the significance of logging levels?",
+  "category": "Core Java & Fundamentals"
+}

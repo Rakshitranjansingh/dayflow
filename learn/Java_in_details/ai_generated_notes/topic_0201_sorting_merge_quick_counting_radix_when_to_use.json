@@ -1,0 +1,69 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Understanding algorithm selection for sorting—specifically balancing merge sort, quick sort, counting sort, and radix sort—is a hallmark of a senior Java engineer. When architecting high-throughput systems processing millions of records, choosing the wrong algorithm directly impacts CPU cache locality, branch prediction, and garbage collection pressure. Merge sort provides a stable divide-and-conquer strategy guaranteeing O(N log N) worst-case performance, making it the bedrock for objects requiring stable ordering or external sorting of massive datasets exceeding RAM capacity. Quick sort relies on in-place partitioning with an average-case O(N log N) runtime, which, due to its exceptional cache-line efficiency, typically outperforms merge sort in raw speed for primitive arrays, despite a degraded O(N^2) worst case when partitioned poorly. Counting sort and radix sort deviate entirely from comparison-based boundaries, offering O(N) linear-time execution under specific constraints. Counting sort acts as an integer distribution sort ideal for small, bounded keys, while radix sort processes keys digit-by-digit (or byte-by-byte), serving as the ultimate tool for fixed-length strings or dense integer primitives where the key space is structured."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Algorithm",
+        "Time Complexity (Avg/Worst)",
+        "Space Complexity",
+        "Stable?",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "Merge Sort",
+          "O(N log N) / O(N log N)",
+          "O(N)",
+          "Yes",
+          "Object sorting, stable ordering, external sorting"
+        ],
+        [
+          "Quick Sort",
+          "O(N log N) / O(N^2)",
+          "O(log N)",
+          "No",
+          "Primitive arrays, in-place sorting, raw CPU speed"
+        ],
+        [
+          "Counting Sort",
+          "O(N + K) / O(N + K)",
+          "O(K)",
+          "Yes",
+          "Bounded integer keys, frequency distribution arrays"
+        ],
+        [
+          "Radix Sort",
+          "O(W * N) / O(W * N)",
+          "O(N + W)",
+          "Yes",
+          "Fixed-width keys, dense integer primitives, strings"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Merge sort allocates auxiliary arrays during the merge phase, which can trigger significant Minor GC overhead if executed repeatedly in tight loops over large object graphs; Java's TimSort (used in Arrays.sort for objects) optimizes this by merging existing run segments.",
+        "Quick sort performance heavily depends on pivot selection. Dual-pivot strategies (used in java.util.Arrays.sort for primitives) partition the array into three parts, mitigating worst-case quadratic behavior on patterned or duplicate-heavy data.",
+        "Counting sort trades space for time by allocating an auxiliary frequency array of size K (the range of input values). It completely bypasses CPU branch mispredictions inherent in comparison sorts, making it exceptionally fast for narrow value ranges.",
+        "Radix sort relies on a stable inner sort (typically counting sort) applied across successive digit positions from least significant to most significant (LSD) or vice versa (MSD), scaling linearly with the key length W."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class SortingStrategies {\n    public static void countingSort(int[] arr, int maxValue) {\n        int[] count = new int[maxValue + 1];\n        for (int num : arr) {\n            count[num]++;\n        }\n        int index = 0;\n        for (int i = 0; i <= maxValue; i++) {\n            while (count[i] > 0) {\n                arr[index++] = i;\n                count[i]--;\n            }\n        }\n    }\n\n    public static void main(String[] args) {\n        int[] data = {4, 2, 2, 8, 3, 3, 1};\n        countingSort(data, 8);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Beware of blindly using standard library sorts in performance-critical microservices. While Arrays.sort() intelligently switches between Dual-Pivot Quicksort for primitives and TimSort for objects, misuse of object sorting on large wrapper object arrays (e.g., Integer[] instead of int[]) creates massive memory fragmentation and pointer-chasing overhead. For non-comparison sorts like counting and radix, always validate that your key space K is tightly bound; otherwise, you risk catastrophic OutOfMemoryError exceptions due to massive frequency table allocations."
+    }
+  ],
+  "num": 202,
+  "title": "Sorting — merge, quick, counting, radix (when to use)",
+  "category": "Core Java & Fundamentals"
+}

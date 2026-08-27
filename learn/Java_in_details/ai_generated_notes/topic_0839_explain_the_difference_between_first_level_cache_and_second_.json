@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Hibernate, caching is the primary mechanism for reducing database round-trips and improving application throughput. The First Level Cache (L1) is the Session-scoped cache, which is mandatory and enabled by default. It acts as a transactional buffer, ensuring that within a single unit of work, multiple requests for the same entity ID return the exact same object reference, thereby maintaining object identity and preventing redundant SQL SELECT statements. Because it is tied to the Persistence Context, it is automatically cleared when the session closes.\n\nThe Second Level Cache (L2) is an optional, SessionFactory-scoped cache that persists across multiple sessions. It is designed to cache entity data across the entire application lifecycle, significantly reducing load on the database for frequently read, rarely modified data. Unlike the L1 cache, which stores entity instances, the L2 cache typically stores the 'dehydrated' state of the entity (the values of the fields) rather than the object instance itself. This requires a third-party provider like Ehcache, Infinispan, or Redis to manage the storage and eviction policies."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "First Level Cache (L1)",
+        "Second Level Cache (L2)"
+      ],
+      "rows": [
+        [
+          "Scope",
+          "Session (Unit of Work)",
+          "SessionFactory (Application)"
+        ],
+        [
+          "Visibility",
+          "Single Thread/Session",
+          "Global/Shared across Sessions"
+        ],
+        [
+          "Mandatory",
+          "Yes",
+          "No (Optional)"
+        ],
+        [
+          "Storage",
+          "Entity Object Instances",
+          "Dehydrated State (Arrays/Maps)"
+        ],
+        [
+          "Eviction",
+          "Automatic (Session close)",
+          "Configurable (TTL, LRU, LFU)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "L1 Cache Mechanics: When you call session.get() or load(), Hibernate first checks the Persistence Context. If the entity is present, it returns the reference immediately. If not, it executes the SQL and puts the result into the L1 cache before returning it to the application.",
+        "L2 Cache Mechanics: When an entity is requested, Hibernate checks L1 first. If a miss occurs, it checks the L2 cache. If found in L2, Hibernate re-hydrates the entity into the current Session's L1 cache. If both miss, it hits the database.",
+        "Concurrency and Consistency: L2 cache requires careful configuration of concurrency strategies (read-only, nonstrict-read-write, read-write, transactional). Using an incorrect strategy in a high-concurrency environment can lead to stale data or phantom reads.",
+        "Dirty Checking: The L1 cache is integral to Hibernate's dirty checking mechanism. During flush, Hibernate compares the current state of entities in the L1 cache against their original snapshot to generate minimal UPDATE statements."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Entity\n@Cacheable\n@org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_WRITE)\npublic class Product {\n    @Id\n    private Long id;\n    private String name;\n}\n\n// Usage in Service\nSession session = sessionFactory.openSession();\nProduct p1 = session.get(Product.class, 1L); // Hits DB, populates L1 and L2\nsession.close();\n\nSession session2 = sessionFactory.openSession();\nProduct p2 = session2.get(Product.class, 1L); // Hits L2, populates L1 of session2"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is enabling L2 caching on entities that are frequently updated. Because L2 cache requires synchronization, the overhead of invalidating cache entries across a cluster can actually make your application slower than hitting the database directly. Only enable L2 caching for 'Reference Data' (e.g., countries, categories, configuration settings) that changes infrequently. Also, remember that L2 cache is not enabled by default; you must explicitly annotate entities with @Cacheable and define a provider in your persistence.xml or application.yml."
+    }
+  ],
+  "num": 840,
+  "title": "Explain the difference between First Level Cache and Second Level Cache in Hibernate.",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

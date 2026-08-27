@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In relational database systems, a standard View is a virtual table constructed by executing a persistent SQL query against underlying base tables. It contains no data of its own; instead, every time a query references the view, the database engine dynamically rewrites and executes the underlying defining query against the live base tables. This provides immense value for encapsulating complex joins, abstracting schema modifications, and enforcing row- or column-level security policies without duplicating state.\n\nConversely, a Materialized View physically computes, stores, and persists the result set of its defining query on disk. Unlike a regular view that acts as a macro substitute, a materialized view behaves like a physical table containing pre-computed aggregates, joins, or remote data subsets. This design fundamentally trades off storage space and update overhead for dramatic read performance improvements, effectively eliminating heavy join-time and aggregation penalties in analytical workloads."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Standard View",
+        "Materialized View"
+      ],
+      "rows": [
+        [
+          "Storage Requirement",
+          "None (Zero physical disk footprint, stores only metadata)",
+          "High (Persists rows and indexes physically on disk)"
+        ],
+        [
+          "Query Execution",
+          "Dynamic evaluation against base tables at runtime",
+          "Direct read from pre-computed stored data"
+        ],
+        [
+          "Data Freshness",
+          "Always real-time (reflects current base table states)",
+          "Stale until explicitly refreshed (complete or incremental)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Standard views are optimized by the database cost-based optimizer via query merging or view flattening, where the view query block is merged directly into the outer query block to allow holistic index selection.",
+        "Materialized views require explicit refresh strategies—such as ON COMMIT (synchronous refresh on base table modification) or ON DEMAND (asynchronous batch scheduling)—to balance data freshness against write-amplification overhead.",
+        "Advanced engines support query rewrite optimizations, automatically routing standard queries targeting base tables to an existing materialized view if the engine determines it satisfies the predicate and can return stale-tolerant results."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "sql",
+      "content": "-- Creating a Standard View for encapsulation and security\nCREATE VIEW active_employee_salaries AS\nSELECT emp_id, first_name, last_name, salary\nFROM employees\nWHERE status = 'ACTIVE';\n\n-- Creating a Materialized View for heavy analytical aggregates\nCREATE MATERIALIZED VIEW mv_monthly_department_spend\nBUILD IMMEDIATE\nREFRESH COMPLETE ON DEMAND\nAS\nSELECT department_id, SUM(salary) AS total_spend, COUNT(*) as headcount\nFROM employees\nGROUP BY department_id;"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap with materialized views is assuming they automatically update like normal tables. If your ETL pipeline modifies base tables and you fail to trigger a refresh (e.g., REFRESH MATERIALIZED VIEW), your reporting services will silently serve stale data. Always monitor the staleness lag in your database system catalogs (such as user_mviews in Oracle or pg_stat_all_tables in PostgreSQL) to prevent silent reporting anomalies."
+    }
+  ],
+  "num": 877,
+  "title": "What is a View? What is a Materialized View?",
+  "category": "Core Java & Fundamentals"
+}

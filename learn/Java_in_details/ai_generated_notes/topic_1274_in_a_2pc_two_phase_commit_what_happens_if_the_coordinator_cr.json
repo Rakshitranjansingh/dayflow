@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In a distributed transaction managed by a Two-Phase Commit (2PC) protocol, the coordinator node orchestrates the atomic execution across multiple independent resource managers, such as databases or message brokers. During the first phase, known as the prepare phase, the coordinator sends a prepare request to all participants, asking them if they are ready to commit their local transactions. Each participant flushes its undo and redo logs to stable storage, acquires the necessary row or table locks, and replies with a vote of either VOTE_COMMIT or VOTE_ABORT. \n\nIf the coordinator crashes immediately after this prepare phase—specifically, after it has received all votes but before it can dispatch the final global commit or global abort command—the distributed system enters a precarious state of uncertainty. Because the coordinator's volatile state is lost, the survival of the transaction depends entirely on whether it persisted its global decision to non-volatile storage before failing. If the coordinator died without writing a commit record to its own disk log, the system suffers from a blocking failure mode. The participants that voted to commit are now left hanging: they must hold their local locks open, maintain their transaction logs, and refuse to release resources to other concurrent transactions because an incoming COMMIT or ABORT message could still arrive once the coordinator recovers. This phenomenon illustrates the fundamental blocking nature of standard 2PC, where a single point of failure in the coordinator can freeze downstream resource access indefinitely across the entire enterprise topology."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Uncertainty Period: Participants enter a blocked state where locks are retained, reducing database concurrency and potentially triggering cascading timeouts or connection pool exhaustion in upstream applications.",
+        "Recovery Protocol Behavior: Upon crash recovery, the coordinator reads its write-ahead log. If it finds no definitive commit or abort record prior to the crash, it must conservatively assume a failure occurred and broadcast a global abort.",
+        "Heuristic Decisions: As an escape hatch during extended outages, database administrators can manually force a heuristic commit or heuristic abort on a participant, risking data inconsistency across nodes if other participants chose differently."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class TwoPhaseCommitCoordinator {\n    public void executeCommit(List<ResourceParticipant> participants) throws TransactionException {\n        // Phase 1: Prepare\n        boolean allPrepared = true;\n        Map<ResourceParticipant, Vote> votes = new HashMap<>();\n        \n        for (ResourceParticipant participant : participants) {\n            Vote vote = participant.prepare();\n            votes.put(participant, vote);\n            if (vote != Vote.VOTE_COMMIT) {\n                allPrepared = false;\n            }\n        }\n\n        // Write decision to durable log BEFORE sending commands\n        if (allPrepared) {\n            durableLog.write(TransactionState.GLOBAL_COMMIT);\n            durableLog.force(); // Ensure disk sync\n            \n            // Phase 2: Commit (If coordinator crashes here, recovery reads log and retries)\n            for (ResourceParticipant participant : participants) {\n                participant.commit();\n            }\n        } else {\n            durableLog.write(TransactionState.GLOBAL_ABORT);\n            durableLog.force();\n            for (ResourceParticipant participant : participants) {\n                participant.rollback();\n            }\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "In high-throughput distributed systems, relying purely on blocking 2PC is an architectural antipattern due to this exact crash vulnerability. Senior engineers typically mitigate coordinator crash deadlocks by migrating from 2PC to Three-Phase Commit (3PC) to introduce a non-blocking pre-commit phase, or better yet, adopting modern consensus algorithms like Paxos or Raft combined with Saga patterns and eventual consistency for distributed mutations."
+    }
+  ],
+  "num": 1275,
+  "title": "In a 2PC (Two-Phase Commit), what happens if the coordinator crashes after the \"prepare\" phase?",
+  "category": "Core Java & Fundamentals"
+}

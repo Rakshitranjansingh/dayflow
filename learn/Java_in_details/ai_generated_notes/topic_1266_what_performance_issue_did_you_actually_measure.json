@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When senior engineers discuss performance issues, they separate gut feelings from empirically measured bottlenecks using profiling tools like Async Profiler, Java Flight Recorder (JFR), or JMH (Java Microbenchmark Harness). When asked 'What performance issue did you actually measure?', an amateur talks about slow loops or missing caching, while a seasoned engineer points to concrete telemetry: allocation rate spikes triggering frequent Minor GCs, lock contention on a synchronized collection causing thread starvation, or high CPU consumption due to excessive regex matching and boxing/unboxing overhead in tight loops.\n\nMeasuring a performance issue requires establishing a baseline, isolating the bottleneck via flame graphs or wall-clock profiling, and verifying that the optimization yields a statistically significant improvement. In high-throughput Core Java systems, unmeasured optimizations often introduce unnecessary code complexity while missing the actual culprit, which is frequently lurking deeper down the stack—such as off-heap memory exhaustion, rogue thread pools, or database connection pool starvation manifesting as blocked application threads."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric Category",
+        "Symptom",
+        "Diagnostic Tool"
+      ],
+      "rows": [
+        [
+          "Memory Allocation",
+          "High GC pause times, promotion failure",
+          "Java Flight Recorder (JFR) & GC logs"
+        ],
+        [
+          "CPU Utilization",
+          "Hot methods burning cycles, context switching",
+          "Async Profiler (Flame Graphs)"
+        ],
+        [
+          "Concurrency",
+          "Thread state BLOCKED or WAITING on monitor locks",
+          "Thread Dumps / jstack"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Use JMH for micro-benchmarking to eliminate JVM warm-up distortion, JIT compilation artifacts, and dead-code elimination traps.",
+        "Inspect allocation flame graphs to spot hot allocation sites that rapidly fill the Eden space and escalate Minor GC overhead.",
+        "Analyze lock contention metrics through JFR to distinguish between CAS spin-locks and OS-level thread park operations."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@State(Scope.Thread)\n@BenchmarkMode(Mode.AverageTime)\n@OutputTimeUnit(TimeUnit.NANOSECONDS)\n@Warmup(iterations = 3, time = 1)\n@Measurement(iterations = 5, time = 1)\npublic class StringConcatBenchmark {\n\n    @Benchmark\n    public String measureStringBuilder() {\n        StringBuilder sb = new StringBuilder();\n        for (int i = 0; i < 10; i++) {\n            sb.append(\"item-\").append(i);\n        }\n        return sb.toString();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Never trust microbenchmarks run without proper JIT warm-up phases. The JVM optimizes code based on execution profiles; if your benchmark doesn't allow Tiered Compilation to reach Tier 4 (C2 compiler), you are measuring interpreter or C1 overhead rather than production performance."
+    }
+  ],
+  "num": 1267,
+  "title": "What performance issue did you actually measure?",
+  "category": "Core Java & Fundamentals"
+}

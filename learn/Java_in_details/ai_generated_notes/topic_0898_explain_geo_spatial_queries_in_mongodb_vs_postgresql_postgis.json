@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Geo-spatial data processing requires specialized data structures and indexing algorithms to handle multi-dimensional coordinates efficiently. In modern enterprise applications, developers often choose between MongoDB and PostgreSQL with PostGIS depending on their domain requirements. MongoDB implements native geo-spatial indexing using GeoJSON formats backed by 2D spherical B-trees and R-tree indexes, making it an exceptional fit for high-throughput, unstructured or semi-structured document ingestion pipelines where horizontal scalability is prioritized over complex relational joins. Conversely, PostgreSQL combined with the PostGIS extension represents the gold standard for relational geographic information systems (GIS). PostGIS extends PostgreSQL by adding support for geographic objects, spatial operators, and specialized GiST (Generalized Search Tree) and SP-GiST indexes, enabling complex metric calculations, polygon unions, buffer intersections, and advanced topological validation that go far beyond basic bounding-box queries."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "MongoDB (GeoJSON / 2dsphere)",
+        "PostgreSQL (PostGIS / GiST)"
+      ],
+      "rows": [
+        [
+          "Underlying Index Structure",
+          "Modified R-tree via S2 Geometry Library",
+          "GiST / SP-GiST (R-Tree variants)"
+        ],
+        [
+          "Coordinate Reference System",
+          "WGS 84 (Spherical Earth)",
+          "Extensive support for thousands of CRS (SRID definitions)"
+        ],
+        [
+          "Query Complexity",
+          "Optimized for point-in-polygon, intersections, and near queries",
+          "Advanced spatial joins, topological matrices (DE-9IM), buffering"
+        ],
+        [
+          "Data Modeling",
+          "Document-oriented (JSON/BSON embedding)",
+          "Relational tables with strict typing and schema enforcement"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "MongoDB leverages Google's S2 library to map spherical geometries onto a hierarchical Hilbert space-filling curve. This allows 2dsphere indexes to compress multi-dimensional coordinate bounds into linear keys, speeding up intersection evaluations.",
+        "PostGIS uses GiST indexes which group spatial objects into bounding boxes at higher tree levels, pruning non-intersecting branches rapidly during traversals across complex geometries like Linestrings and Polygons.",
+        "When performing spatial joins in PostGIS, the query planner can optimize execution paths using index-backed operators like ST_Intersects alongside traditional B-tree join strategies, reducing algorithmic complexity from O(N^2) down to O(N log N)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.springframework.data.mongodb.core.geo.GeoJsonPoint;\nimport org.springframework.data.mongodb.core.query.Criteria;\nimport org.springframework.data.mongodb.core.query.Query;\nimport org.springframework.data.mongodb.core.MongoTemplate;\nimport org.springframework.stereotype.Repository;\nimport java.util.List;\n\n@Repository\npublic class LocationRepository {\n    private final MongoTemplate mongoTemplate;\n\n    public LocationRepository(MongoTemplate mongoTemplate) {\n        this.mongoTemplate = mongoTemplate;\n    }\n\n    public List<Store> findNearbyStores(double longitude, double latitude, double maxDistanceMeters) {\n        GeoJsonPoint referencePoint = new GeoJsonPoint(longitude, latitude);\n        Query query = new Query(Criteria.where(\"location\").nearSphere(referencePoint).maxDistance(maxDistanceMeters));\n        return mongoTemplate.find(query, Store.class);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when using MongoDB 2dsphere indexes is forgetting that distance metrics are calculated in meters along a spherical model, whereas older 2d flat indexes calculate Euclidean distances on a Cartesian plane. Mixing these up leads to catastrophic query miscalculations. Furthermore, in PostGIS, ensure that your geometries share the same SRID (Spatial Reference System Identifier) before executing spatial operations, as implicit reprojections during joins will disable index usage and trigger full sequential scans."
+    }
+  ],
+  "num": 899,
+  "title": "Explain Geo-spatial queries in MongoDB vs PostgreSQL (PostGIS).",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Handling exceptions in layered applications—spanning Presentation, Service, and Data Access layers—requires a structured strategy to maintain separation of concerns, protect internal system details, and provide meaningful feedback to clients. In a classic N-tier Java architecture, throwing low-level technical exceptions (such as SQLException or DataAccessException) straight up to the web controller tightly couples your persistence tier to your presentation layer. The best way to handle this is through a tiered translation strategy: catch low-level runtime or checked exceptions in the data access layer, translate them into domain-specific, unchecked runtime exceptions in the service layer, and globally catch these domain exceptions via a centralized mechanism like Spring's @ControllerAdvice to map them to clean, consistent HTTP status codes and error payloads.\n\nAt the core of this approach is the distinction between checked and unchecked exceptions. Modern enterprise Java strongly favors unchecked exceptions (subclassing RuntimeException) for application and business logic errors. Checked exceptions force unnecessary try-catch boilerplate or signature pollution across layers that cannot meaningfully recover from the failure. By establishing custom exception hierarchies in the service layer, such as ResourceNotFoundException or InsufficientInventoryException, application components remain decoupled. When these exceptions propagate to the boundary, a global exception handler intercepts them, serializes a standardized ProblemDetail or custom error response, and shields internal stack traces from malicious clients while logging the root cause securely on the server."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Layer",
+        "Primary Exception Types",
+        "Handling Responsibility"
+      ],
+      "rows": [
+        [
+          "Data Access Layer",
+          "SQLException, DataAccessException, ConstraintViolationException",
+          "Catch vendor-specific database exceptions and translate them into Spring's DataAccessException hierarchy or custom persistence faults."
+        ],
+        [
+          "Service Layer",
+          "Business Exceptions, Domain Rules, Validation Failures",
+          "Enforce business invariants. Throw custom unchecked runtime exceptions when business rules are violated without knowing about HTTP."
+        ],
+        [
+          "Presentation Layer",
+          "HTTP-mapped responses, Global Exception Handlers",
+          "Intercept service and data exceptions via @ControllerAdvice, translate them to appropriate HTTP status codes, and return safe error payloads."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Exception Translation Pattern: Never leak database schemas or ORM-specific details (like Hibernate's LazyInitializationException) to the API consumer. Map them centrally to neutral business codes.",
+        "Root Cause Preservation: When catching and rethrowing exceptions across layers, always pass the original exception as the 'cause' parameter in the constructor to preserve the full stack trace for log aggregation tools like ELK or Datadog.",
+        "Idempotency and Safety: Ensure that write operations (commands) cleanly roll back database transactions via declarative @Transactional annotation when runtime exceptions are thrown, preventing partial state modifications."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestControllerAdvice\npublic class GlobalExceptionHandler {\n\n    @ExceptionHandler(ResourceNotFoundException.class)\n    public ResponseEntity<ErrorResponse> handleResourceNotFound(ResourceNotFoundException ex, WebRequest request) {\n        ErrorResponse error = new ErrorResponse(\n            HttpStatus.NOT_FOUND.value(),\n            ex.getMessage(),\n            LocalDateTime.now()\n        );\n        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);\n    }\n\n    @ExceptionHandler(DataAccessException.class)\n    public ResponseEntity<ErrorResponse> handleDatabaseException(DataAccessException ex) {\n        // Log securely with unique correlation ID\n        log.error(\"Database failure encountered: {}\", ex.getMostSpecificCause().getMessage(), ex);\n        ErrorResponse error = new ErrorResponse(\n            HttpStatus.INTERNAL_SERVER_ERROR.value(),\n            \"An internal database error occurred. Please try again later.\",\n            LocalDateTime.now()\n        );\n        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is logging exceptions at every single layer as they propagate upward. If the Data Access layer, Service layer, and Global Controller Advice all log the same exception, your log files will be flooded with redundant stack traces, making debugging and log parsing extremely difficult. Adopt the rule of thumb: Log and swallow at the lowest level if you are handling it; otherwise, let it propagate without logging until it hits the final boundary handler."
+    }
+  ],
+  "num": 585,
+  "title": "What is the best way to handle exceptions in layered applications?",
+  "category": "Exception Handling & I/O / NIO"
+}

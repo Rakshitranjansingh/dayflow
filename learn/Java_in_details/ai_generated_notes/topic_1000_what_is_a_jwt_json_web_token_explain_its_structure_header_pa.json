@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern distributed and microservice-based system architectures, traditional stateful session-based authentication falls short due to horizontal scaling constraints, sticky sessions, and distributed session store overhead (like Redis clusters). A JWT (JSON Web Token), defined by the RFC 7519 open standard, solves this by encapsulating identity and authorization claims directly inside a cryptographically signed token. Instead of the server maintaining an active session state in memory, the client receives this token upon successful authentication and attaches it to subsequent HTTP requests via the Authorization header. Because the token contains all necessary user identity and permissions data, resource servers can validate it statelessly, inspecting the signature using a shared secret or a public/private key pair without querying a centralized database.\n\nA JSON Web Token is fundamentally composed of three distinct parts separated by dots: the Header, the Payload, and the Signature. The Header typically specifies the token type (JWT) and the underlying cryptographic signing algorithm, such as HMAC SHA256 or RSA. The Payload contains the claims—statements about an entity (typically, the user) and additional metadata, split into registered claim names (like iss, sub, exp), public claims, and private claims. Finally, the Signature is computed by taking the encoded header, the encoded payload, a secret, and the algorithm specified in the header, ensuring that the token's contents have not been tampered with in transit. This immutable structure guarantees both confidentiality and integrity in stateless web applications."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "JWT Component",
+        "Primary Responsibility",
+        "Common Contents / Fields"
+      ],
+      "rows": [
+        [
+          "Header",
+          "Defines the cryptographic context and token type",
+          "alg (algorithm), typ (type)"
+        ],
+        [
+          "Payload",
+          "Carries user identity, authorization claims, and metadata",
+          "sub (subject), exp (expiration), roles, custom claims"
+        ],
+        [
+          "Signature",
+          "Verifies that the token was not altered by a malicious actor",
+          "HMACSHA256(base64UrlEncode(header) + \".\" + base64UrlEncode(payload), secret)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Base64Url Encoding: The Header and Payload are independently serialized into JSON strings and subsequently encoded using Base64Url encoding (which avoids padding and unsafe URL characters), making them easily transportable within HTTP headers but entirely readable by anyone who intercepts the token.",
+        "Cryptographic Integrity: The Signature is generated using a symmetric secret key or an asymmetric private key. When a resource server validates a JWT, it re-computes the signature using the received header and payload; if even a single bit in the payload is modified, the computed signature will mismatch, and the request is rejected immediately.",
+        "Stateless Validation Flow: In Spring Security, a custom OncePerRequestFilter extracts the JWT from the Bearer token header, parses the claims without hitting the database, creates an Authentication object, and populates the SecurityContextHolder for the duration of that single thread execution."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import io.jsonwebtoken.Claims;\nimport io.jsonwebtoken.Jwts;\nimport io.jsonwebtoken.security.Keys;\nimport org.springframework.stereotype.Component;\nimport javax.crypto.SecretKey;\nimport java.nio.charset.StandardCharsets;\nimport java.util.Date;\n\n@Component\npublic class JwtTokenProvider {\n    \n    private final String jwtSecret = \"mySuperSecureSecretKeyThatIsAtLeast32BytesLong!\";\n    private final SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));\n    private final long jwtExpirationMs = 86400000;\n\n    public String generateToken(String username) {\n        Date now = new Date();\n        Date expiryDate = new Date(now.getTime() + jwtExpirationMs);\n\n        return Jwts.builder()\n                .subject(username)\n                .issuedAt(now)\n                .expiration(expiryDate)\n                .signWith(key)\n                .compact();\n    }\n\n    public String getUsernameFromJWT(String token) {\n        Claims claims = Jwts.parser()\n                .verifyWith(key)\n                .build()\n                .parseSignedClaims(token)\n                .getPayload();\n\n        return claims.getSubject();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap with JWTs is putting sensitive Personally Identifiable Information (PII) or overly large permission lists into the Payload. Remember that Base64Url encoding is NOT encryption; anyone with access to the network packet capture or browser local storage can decode the payload instantly. Furthermore, because JWTs are stateless, you cannot natively 'revoke' a valid token before its expiration time without implementing an explicit server-side token blacklist (like a Redis cache of revoked token JTIs) or keeping token lifetimes exceptionally short and pairing them with robust Refresh Token rotations."
+    }
+  ],
+  "num": 1001,
+  "title": "What is a JWT (JSON Web Token)? Explain its structure (Header, Payload, Signature).",
+  "category": "Spring Security & Web Security"
+}

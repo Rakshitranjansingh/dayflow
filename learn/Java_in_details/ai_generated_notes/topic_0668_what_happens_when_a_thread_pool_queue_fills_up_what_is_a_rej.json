@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java concurrency, managing asynchronous workloads efficiently often boils down to the mechanics of the java.util.concurrent.ThreadPoolExecutor. When you submit tasks to a thread pool faster than its core threads can process them, those incoming Runnable or Callable tasks are intercepted and held in a BlockingQueue while waiting for an available worker thread. However, finite queues are bound by memory limits and system sizing constraints. When the queue fills up to its maximum capacity, a tipping point is reached where the executor can no longer enqueue new submissions.\n\nAt this critical juncture, the ThreadPoolExecutor invokes its configured Rejection Policy via the RejectedExecutionHandler interface. A rejection policy determines the fate of the rejected task and acts as a backpressure mechanism to prevent OutOfMemoryErrors and thread starvation. If you fail to explicitly define a rejection policy, the executor defaults to the AbortPolicy, which abruptly throws a runtime RejectedExecutionException. Understanding these failure modes and configuring custom policies is essential for building resilient, high-throughput backend services that gracefully handle traffic spikes without cascading failures."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Rejection Policy",
+        "Default Behavior",
+        "Ideal Use Case"
+      ],
+      "rows": [
+        [
+          "ThreadPoolExecutor.AbortPolicy",
+          "Throws RejectedExecutionException immediately.",
+          "Strict systems where dropping a task is unacceptable."
+        ],
+        [
+          "ThreadPoolExecutor.CallerRunsPolicy",
+          "Executes the task on the submitting thread.",
+          "Natural backpressure throttling high-frequency producers."
+        ],
+        [
+          "ThreadPoolExecutor.DiscardPolicy",
+          "Silently drops the newly submitted task.",
+          "Non-critical metrics or telemetry gathering."
+        ],
+        [
+          "ThreadPoolExecutor.DiscardOldestPolicy",
+          "Drops the head of the queue to make room.",
+          "Real-time state updates where freshness beats history."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Queue capacity interacts heavily with corePoolSize and maximumPoolSize; threads are only spawned up to the maximum limit *after* the blocking queue is completely full (unless using a SynchronousQueue).",
+        "The CallerRunsPolicy introduces a subtle performance trade-off: by forcing the calling thread (often an I/O or servlet container thread) to execute the task, it temporarily halts the ingestion of new requests, effectively throttling the upstream producer.",
+        "Custom RejectedExecutionHandler implementations can be written to publish metrics to Micrometer or Prometheus, capturing exact dropped task counts for operational observability."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.ArrayBlockingQueue;\nimport java.util.concurrent.ThreadPoolExecutor;\nimport java.util.concurrent.TimeUnit;\n\npublic class CustomRejectionDemo {\n    public static void main(String[] args) {\n        ThreadPoolExecutor executor = new ThreadPoolExecutor(\n            2, 4, \n            60L, TimeUnit.SECONDS,\n            new ArrayBlockingQueue<>(2), \n            new ThreadPoolExecutor.CallerRunsPolicy()\n        );\n\n        for (int i = 0; i < 10; i++) {\n            final int taskId = i;\n            executor.submit(() -> {\n                try {\n                    Thread.sleep(1000);\n                    System.out.println(\"Executed by: \" + Thread.currentThread().getName() + \" - Task \" + taskId);\n                } catch (InterruptedException e) {\n                    Thread.currentThread().interrupt();\n                }\n            });\n        }\n        executor.shutdown();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production antipattern is using an unbounded queue like LinkedBlockingQueue() with a ThreadPoolExecutor. Because the capacity is effectively Integer.MAX_VALUE, the queue will never fill up, meaning maximumPoolSize is completely ignored, and the rejection policy is never triggered. Under heavy load, this invariably leads to a catastrophic java.lang.OutOfMemoryError on the JVM heap as millions of unexecuted tasks accumulate."
+    }
+  ],
+  "num": 669,
+  "title": "What happens when a thread pool queue fills up? What is a rejection policy?",
+  "category": "Multithreading & Java Concurrency"
+}

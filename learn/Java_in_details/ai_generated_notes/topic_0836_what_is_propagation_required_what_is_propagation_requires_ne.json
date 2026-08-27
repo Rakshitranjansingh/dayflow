@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When dealing with declarative transaction management in enterprise Java frameworks like Spring, transaction propagation behaviors dictate how transactional boundaries overlap and interact when one transactional method calls another. Understanding the nuances between propagation REQUIRED and propagation REQUIRES_NEW is critical for maintaining data integrity, avoiding unexpected commit/rollback cascades, and managing database connection pools safely.\n\nPropagation REQUIRED is the default transaction attribute in Spring. When a service method annotated with @Transactional(propagation = Propagation.REQUIRED) is invoked, the framework inspects the current execution thread for an active transaction. If an ongoing transaction already exists, the target method simply joins that existing transaction context, sharing the same physical database connection and transaction log. Conversely, if no transaction is active, Spring transparently spins up a brand new transaction. This ensures that a group of collaborative operations either completely succeed or completely fail together as a single atomic unit.\n\nOn the other hand, propagation REQUIRES_NEW completely isolates the inner transaction from the outer transaction. When a method annotated with @Transactional(propagation = Propagation.REQUIRES_NEW) is invoked, Spring suspends any currently active transaction on the thread and initiates a completely independent physical transaction with its own database connection and undo logs. The inner transaction can commit or roll back entirely independently of the outer transaction. If the inner transaction throws an exception and rolls back, it does not automatically force the outer transaction to roll back—provided the outer transaction catches and handles the exception. This makes REQUIRES_NEW indispensable for cross-cutting concerns like audit logging or metrics collection, where you need to persist execution history even if the primary business flow ultimately fails and aborts."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Behavioral Dimension",
+        "REQUIRED",
+        "REQUIRES_NEW"
+      ],
+      "rows": [
+        [
+          "Transaction Context",
+          "Joins existing transaction if present; creates one if none exists.",
+          "Always suspends existing transaction and starts a brand new one."
+        ],
+        [
+          "Database Connection",
+          "Shares the physical connection and thread-bound ConnectionHolder.",
+          "Acquires an additional physical connection from the data source pool."
+        ],
+        [
+          "Rollback Coupling",
+          "Rollback of inner transaction taints the entire shared transaction scope.",
+          "Inner rollback is isolated; outer can commit independently if exception is caught."
+        ],
+        [
+          "Common Use Case",
+          "Standard business logic execution where all steps must share atomicity.",
+          "Audit logging, independent counter increments, or side-effect operations."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Under REQUIRED propagation, nested method calls operate within a single physical transaction managed via a shared TransactionSynchronizationManager resource map bound to the thread.",
+        "When using REQUIRES_NEW, Spring explicitly saves the state of the suspended transaction inside a TransactionInfo object, yields control to the new transaction interceptor, and resumes the original transaction only after the new transaction commits or rolls back.",
+        "A critical pitfall of REQUIRES_NEW is connection pool exhaustion. Because two simultaneous database connections are held during the execution of the inner method, high-concurrency workloads can quickly deplete available JDBC connections if connection limits are not sized accordingly.",
+        "Self-invocation bypasses Spring AOP proxies entirely. Calling a REQUIRES_NEW method from another method within the same bean class executes it within the exact same transaction context, completely ignoring the propagation annotation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderService {\n\n    @Autowired\n    private BillingService billingService;\n\n    @Autowired\n    private AuditLogService auditLogService;\n\n    @Transactional(propagation = Propagation.REQUIRED)\n    public void placeOrder(Order order) {\n        // Core business logic runs in REQUIRED\n        orderRepository.save(order);\n        billingService.processPayment(order);\n\n        try {\n            // REQUIRES_NEW ensures audit log commits even if something else fails later\n            auditLogService.logSuccessAsync(order);\n        } catch (Exception e) {\n            logger.warn(\"Audit log failed to persist independently\", e);\n        }\n    }\n}\n\n@Service\npublic class AuditLogService {\n\n    @Transactional(propagation = Propagation.REQUIRES_NEW)\n    public void logSuccessAsync(Order order) {\n        auditRepository.save(new AuditRecord(order.getId(), \"COMPLETED\"));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Be extremely careful when combining REQUIRES_NEW with checked exceptions or asynchronous thread boundaries. If your outer method catches a RuntimeException thrown by a REQUIRES_NEW inner method, but you forgot to mark the inner transaction rollback-only or handle it cleanly, you might experience unexpected partial commits. Furthermore, remember that REQUIRES_NEW requires two separate database connections from your pool simultaneously; if your maximum pool size is too small, nested REQUIRES_NEW calls can easily trigger connection pool starvation and deadlock the application thread pool."
+    }
+  ],
+  "num": 837,
+  "title": "What is propagation REQUIRED? What is propagation REQUIRES_NEW?",
+  "category": "Exception Handling & I/O / NIO"
+}

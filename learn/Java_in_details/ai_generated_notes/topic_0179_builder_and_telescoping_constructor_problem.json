@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Builder design pattern is a creational pattern designed to solve the notorious telescoping constructor problem while enforcing clean, immutable object creation. In complex object-oriented domain models, entities often require numerous configuration parameters, many of which are optional. Without the Builder pattern, developers resort to the telescoping constructor anti-pattern—a cascading series of constructors where each one calls a constructor with more arguments, delegating to the master constructor. This makes client code unreadable, error-prone due to argument type confusion, and notoriously difficult to maintain when a new field must be injected in the middle of the parameter list."
+    },
+    {
+      "type": "prose",
+      "content": "The Builder pattern resolves this by extracting the construction logic into a dedicated static nested class. The target class keeps its constructor private and accepts only a fully populated builder instance. By chaining fluent setter-like methods that return the builder itself, developers achieve declarative instantiation with named parameters—a feature missing natively in Java. This guarantees that objects are either fully constructed in a valid state or fail compilation/runtime checks, eliminating partial object states and promoting thread safety through immutability."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Design Dimension",
+        "Telescoping Constructor",
+        "Builder Pattern"
+      ],
+      "rows": [
+        [
+          "Readability",
+          "Extremely poor; requires tracking positional arguments and guessing nulls.",
+          "High; self-documenting via fluent method chaining and named parameters."
+        ],
+        [
+          "Maintainability",
+          "Fragile; adding parameters breaks existing constructor signatures or requires overloads.",
+          "Robust; adding fields requires extending the builder without breaking client code."
+        ],
+        [
+          "Immutability",
+          "Hard to guarantee if setters are left exposed on the target class.",
+          "Native; target fields can be declared final since they are set once via the builder."
+        ],
+        [
+          "Validation",
+          "Scattered across constructors or duplicated in multiple initialization blocks.",
+          "Centralized inside the builder's build() method right before object instantiation."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The telescoping constructor anti-pattern forces developers to pass 'null' or default primitive values for optional arguments, leading to hidden bugs and severe cognitive load.",
+        "A proper Java builder uses a private constructor on the target domain class, forcing all initialization to flow through the static inner Builder class.",
+        "Validation logic must be executed inside the builder's build() method rather than the target constructor to ensure invariant checks happen atomically before reference escape.",
+        "Fluent method chaining relies on returning 'this' (the builder instance) after mutating internal state, enabling compact, highly readable multi-line configurations."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public final class DatabaseConfig {\n    private final String host;\n    private final int port;\n    private final int timeout;\n    private final boolean sslEnabled;\n\n    private DatabaseConfig(Builder builder) {\n        this.host = builder.host;\n        this.port = builder.port;\n        this.timeout = builder.timeout;\n        this.sslEnabled = builder.sslEnabled;\n    }\n\n    public static class Builder {\n        private final String host; // Required\n        private int port = 3306;    // Optional with default\n        private int timeout = 30;   // Optional with default\n        private boolean sslEnabled = false;\n\n        public Builder(String host) {\n            if (host == null || host.isBlank()) {\n                throw new IllegalArgumentException(\"Host cannot be null or blank\");\n            }\n            this.host = host;\n        }\n\n        public Builder port(int port) {\n            this.port = port;\n            return this;\n        }\n\n        public Builder timeout(int timeout) {\n            this.timeout = timeout;\n            return this;\n        }\n\n        public Builder sslEnabled(boolean sslEnabled) {\n            this.sslEnabled = sslEnabled;\n            return this;\n        }\n\n        public DatabaseConfig build() {\n            return new DatabaseConfig(this);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Beware of sharing a single Builder instance across multiple threads. Builders are stateful accumulators and are inherently thread-unsafe. Always instantiate a fresh builder per object creation cycle. Additionally, ensure that collections assigned via builders are defensively copied inside the build() method to prevent external mutation of your immutable domain objects."
+    }
+  ],
+  "num": 180,
+  "title": "Builder (and telescoping constructor problem)",
+  "category": "OOPs & Design Patterns"
+}

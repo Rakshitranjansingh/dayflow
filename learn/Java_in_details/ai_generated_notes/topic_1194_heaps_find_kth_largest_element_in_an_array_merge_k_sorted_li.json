@@ -1,0 +1,51 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In systems programming and high-performance data processing, efficiently managing priorities and finding order bounds within unorganized or distributed streams is a daily challenge. This brings us to Heaps, a specialized tree-based data structure satisfying the heap property, which serves as the foundational engine behind priority queues in Java. When tackling algorithmic challenges like finding the Kth largest element in an array and merging K sorted lists, understanding how to leverage binary heaps completely changes your time complexity profile from quadratic down to log-linear or log-k complexity. A heap allows us to maintain a partially ordered dataset where the root element is always either the absolute maximum (max-heap) or the absolute minimum (min-heap), offering O(1) access to the extrema and O(log N) insertion and deletion operations.\n\nThe problem of finding the Kth largest element in an unsorted array of size N can be naively solved by sorting the entire array in O(N log N) time, but a far more optimal approach uses a bounded min-heap of size K. By iterating through the array and maintaining only the K largest elements seen so far in the heap, we reduce the time complexity to O(N log K). Similarly, merging K sorted lists is a classic problem frequently encountered when combining sorted streams from database partitions or sharded log files. Instead of comparing all K heads linearly or merging lists two-by-two, we push the head of each of the K lists into a min-heap. By repeatedly extracting the minimum element and inserting the next element from the same list into the heap, we can efficiently synthesize a single globally sorted output in O(N log K) time, where N is the total number of elements across all lists."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Problem",
+        "Naive Approach",
+        "Optimal Heap Approach",
+        "Optimal Time Complexity"
+      ],
+      "rows": [
+        [
+          "Find Kth Largest Element",
+          "Full Array Sort",
+          "Size-K Min-Heap",
+          "O(N log K)"
+        ],
+        [
+          "Merge K Sorted Lists",
+          "Sequential Pairwise Merge",
+          "Size-K Min-Heap of Pointers",
+          "O(N log K)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Java's java.util.PriorityQueue is implemented as a min-heap by default, backed by a dynamically resizing array whose capacity grows automatically using a bitshift growth factor (typically oldCapacity + oldCapacity >> 1).",
+        "When finding the Kth largest element using a min-heap of size K, the root of the heap always holds the Kth largest element during iteration, because any element smaller than the root is immediately discarded, and any larger element triggers a sift-down operation.",
+        "Merging K sorted lists requires a custom wrapper class or array representation to track which specific list a popped element came from, ensuring the next sequential element from that exact list can be advanced and pushed into the heap."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.PriorityQueue;\nimport java.util.Comparator;\n\npublic class HeapSolutions {\n\n    public int findKthLargest(int[] nums, int k) {\n        PriorityQueue<Integer> minHeap = new PriorityQueue<>(k);\n        for (int num : nums) {\n            minHeap.offer(num);\n            if (minHeap.size() > k) {\n                minHeap.poll();\n            }\n        }\n        return minHeap.peek();\n    }\n\n    public static class ListNode {\n        int val;\n        ListNode next;\n        ListNode(int val) { this.val = val; }\n    }\n\n    public ListNode mergeKLists(ListNode[] lists) {\n        if (lists == null || lists.length == 0) return null;\n        \n        PriorityQueue<ListNode> minHeap = new PriorityQueue<>(Comparator.comparingInt(a -> a.val));\n        \n        for (ListNode list : lists) {\n            if (list != null) {\n                minHeap.offer(list);\n            }\n        }\n        \n        ListNode dummy = new ListNode(0);\n        ListNode current = dummy;\n        \n        while (!minHeap.isEmpty()) {\n            ListNode smallest = minHeap.poll();\n            current.next = smallest;\n            current = current.next;\n            \n            if (smallest.next != null) {\n                minHeap.offer(smallest.next);\n            }\n        }\n        \n        return dummy.next;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Beware of boxing overhead when using PriorityQueue<Integer> in high-throughput Java systems. Each primitive int is boxed into an Integer object on the heap, adding memory pressure and garbage collection overhead. In ultra-low latency contexts, consider implementing a custom primitive binary heap array or using specialized primitive collections libraries like Eclipse Collections or fastutil to avoid object allocation entirely."
+    }
+  ],
+  "num": 1195,
+  "title": "Heaps: Find Kth largest element in an array, Merge K sorted lists.",
+  "category": "Core Java & Fundamentals"
+}

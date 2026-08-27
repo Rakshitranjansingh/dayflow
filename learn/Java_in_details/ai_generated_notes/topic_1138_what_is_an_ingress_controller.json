@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In cloud-native architectures, an Ingress Controller is a specialized load balancer and reverse proxy that manages external HTTP and HTTPS traffic routing to internal services within a Kubernetes cluster. While a standard Kubernetes Service operates at Layer 4 (TCP/UDP) using internal cluster IPs or NodePorts, an Ingress Controller operates primarily at Layer 7 (HTTP/HTTPS), allowing operators to define sophisticated routing rules based on hostnames, URL paths, TLS termination, and request headers. The controller itself is a daemon—typically implemented using NGINX, Envoy, Traefik, or HAProxy—that constantly watches the Kubernetes API server for changes to Ingress resources and dynamically reconfigures its underlying proxy routing table without dropping active connections.\n\nTo fully comprehend the mechanics of an Ingress Controller, one must distinguish it from the Ingress resource object itself. The Ingress resource is merely a declarative configuration manifest—a JSON or YAML specification applied to the Kubernetes control plane—stating how traffic should be routed. By itself, a Kubernetes cluster ignores this manifest. The Ingress Controller acts as the control loop implementation, reading these specifications, translating them into concrete proxy configurations (such as an nginx.conf file), and reloading the proxy daemon. This decoupling allows platform engineers to swap out underlying routing implementations (e.g., migrating from NGINX to Envoy) while keeping the application's routing definitions completely unchanged."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Kubernetes Service (NodePort/LoadBalancer)",
+        "Ingress Controller"
+      ],
+      "rows": [
+        [
+          "OSI Layer",
+          "Layer 4 (Transport: TCP/UDP)",
+          "Layer 7 (Application: HTTP/HTTPS)"
+        ],
+        [
+          "Cost & Resource Footprint",
+          "Requires a cloud provider LoadBalancer per service (expensive)",
+          "Shares a single external IP/load balancer across multiple services"
+        ],
+        [
+          "Advanced Routing",
+          "Not supported (relies on raw ports and IPs)",
+          "Path-based, host-based, TLS termination, header rewriting"
+        ],
+        [
+          "Extensibility",
+          "Static port mapping",
+          "Rate limiting, auth integration, WebSockets, custom plugins"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Control Loop Architecture: The Ingress Controller runs a reconciliation loop, polling or receiving watch events from the Kubernetes API server for Ingress, Service, Endpoint, and Secret objects.",
+        "TLS Termination: The controller handles SSL/TLS handshakes at the edge, decrypting incoming HTTPS traffic and forwarding it as plain HTTP to internal pod endpoints, relying on Kubernetes Secrets for certificate storage.",
+        "Dynamic Reloading: Modern controllers like Envoy use dynamic configuration APIs (xDS) to update routing tables in-memory instantly, avoiding the connection-dropping restarts historically associated with traditional file-based proxies like NGINX.",
+        "Path Rewriting and Header Manipulation: Controllers intercept requests to modify URI paths or inject tracing headers (such as X-B3-TraceId) before traffic reaches the backend microservices."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: microservice-ingress\n  annotations:\n    nginx.ingress.kubernetes.io/rewrite-target: /$2\n    nginx.ingress.kubernetes.io/ssl-redirect: \"true\"\nspec:\n  ingressClassName: nginx\n  rules:\n  - host: api.enterprise.com\n    http:\n      paths:\n      - path: /orders(/|$)(.*)\n        pathType: ImplementationSpecific\n        backend:\n          service:\n            name: order-service\n            port:\n              number: 8080"
+    },
+    {
+      "type": "note",
+      "content": "A classic production failure mode when managing Ingress Controllers involves TLS certificate expiration and Secret synchronization. If an Ingress resource references a Kubernetes Secret for TLS termination and that Secret is updated (e.g., via cert-manager), older implementations of file-watched controllers may not trigger an immediate hot-reload, causing intermittent SSL handshake failures across edge nodes until the proxy daemon is explicitly forced to reload its configuration cache."
+    }
+  ],
+  "num": 1139,
+  "title": "What is an Ingress Controller?",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern distributed systems, the architectural paradigms underpinning communication channels dictate system throughput, resilience, and latency. When contrasting RSocket with traditional HTTP/REST architectures, we are evaluating a fundamental shift from a rigid request-response, text-heavy stateless model to an application-layer binary streaming protocol designed explicitly for reactive systems. HTTP/REST, typically bound to HTTP/1.1 or HTTP/2, relies on a request-driven model where the client initiates an action and the server responds, heavily leaning on URI routing, stateless resource representation, and JSON payloads. This creates friction when applications require bidirectional communication, real-time data streaming, or fine-grained backpressure handling, often forcing developers to resort to inefficient polling or complex WebSocket layering.\n\nRSocket solves these challenges by providing a binary protocol that operates over various transport layers like TCP, WebSocket, and Aeron. It introduces four distinct interaction models: Request-Response, Request-Stream, Fire-and-Forget, and Channel (bi-directional streaming). Crucially, RSocket builds reactive stream semantics directly into the wire protocol. This means flow control, or backpressure, is not just an application-level concept within frameworks like Spring WebFlux; it is negotiated at the protocol level. A consumer can explicitly signal demand using request n primitives, preventing out-of-memory errors in downstream microservices without choking the network stack with custom TCP window hacks."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "HTTP/REST",
+        "RSocket"
+      ],
+      "rows": [
+        [
+          "Transport Framing",
+          "Text-based (JSON/XML over HTTP/1.1 or HTTP/2 streams)",
+          "Binary-framed multiplexed packets over TCP/WebSocket/Aeron"
+        ],
+        [
+          "Interaction Models",
+          "Strict Request-Response (plus server-sent events or websockets bolted on)",
+          "Request-Response, Request-Stream, Fire-and-Forget, Bi-directional Channel"
+        ],
+        [
+          "Flow Control / Backpressure",
+          "Implicit TCP flow control or application-level rate limiting",
+          "Explicit, reactive, protocol-level demand signaling (reactive streams spec)"
+        ],
+        [
+          "Connection Management",
+          "Short-lived or persistent connections with head-of-line blocking concerns",
+          "Long-lived multiplexed connections with built-in keep-alives and resume semantics"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Protocol Multiplexing: RSocket assigns a unique stream ID to every active interaction over a single transport connection, allowing multiple distinct streams (such as concurrent requests, streams, and channels) to interleave without head-of-line blocking at the application layer.",
+        "Reactive Backpressure Propagation: Unlike HTTP/2 which manages flow control strictly at the TCP frame/window level, RSocket transmits reactive-streams demand signals (REQUEST_N frames) across the wire. Producers respect exact consumer capacity, drastically lowering heap footprints.",
+        "Session Resumption: RSocket supports stateful resumption. If a mobile device or microservice drops its TCP connection, buffered frames can be replayed upon reconnection without forcing the client to re-authenticate or re-establish context from scratch."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.springframework.messaging.handler.annotation.MessageMapping;\nimport org.springframework.stereotype.Controller;\nimport reactor.core.publisher.Flux;\nimport reactor.core.publisher.Mono;\n\n@Controller\npublic class RSocketController {\n\n    @MessageMapping(\"stock.stream\")\n    public Flux<StockTick> streamStockPrices(String ticker) {\n        return Flux.interval(Duration.ofSeconds(1))\n                ános -> new StockTick(ticker, Math.random() * 100);\n    }\n\n    @MessageMapping(\"user.profile\")\n    public Mono<UserProfile> getProfile(Long userId) {\n        return Mono.just(new UserProfile(userId, \"Enterprise Architect\"));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when moving from HTTP/REST to RSocket in a Spring WebFlux microservice ecosystem is ignoring connection teardown and keep-alive tuning. Because RSocket relies on long-lived persistent connections, aggressive network load balancers (like AWS ALBs or standard corporate firewalls) may silently drop idle TCP connections after 60 seconds. You must configure explicit RSocket keep-alive intervals (e.g., sending periodic telemetry frames) to prevent silent connection drops and ensure failover resilience."
+    }
+  ],
+  "num": 1291,
+  "title": "How does RSocket differ from HTTP/REST?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

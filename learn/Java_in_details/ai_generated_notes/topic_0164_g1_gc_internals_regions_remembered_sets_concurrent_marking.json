@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Garbage-First (G1) Garbage Collector is designed for multi-processor machines with large memories, combining high throughput with predictable, low-pause garbage collection. Unlike traditional collectors that manage the heap as contiguous generations (Eden, Survivor, Tenured), G1 partitions the entire Java heap into an array of equal-sized, contiguous memory regions, typically ranging from 1MB to 32MB depending on heap size. This regional architecture enables G1 to dynamically assign roles to regions—Eden, Survivor, Old, or Humongous—breaking the strict physical boundaries of generational layout. Because collection pauses scale with the amount of live data rather than total heap size, G1 can target specific pause time goals specified via MaxGCPauseMillis.\n\nG1 GC internals rely heavily on two sophisticated mechanisms to maintain low-latency pauses: Remembered Sets (RSets) and Concurrent Marking. An RSet tracks cross-region references pointing into a specific region. This structural ledger allows G1 to collect individual regions—or a collection set of multiple regions—independently without performing a full-heap scan. During young collections, G1 only needs to inspect the RSets of the target regions to find incoming pointers from the rest of the heap, effectively isolating the collection scope.\n\nConcurrent Marking is the background process G1 uses to identify live objects across the entire heap before old-generation collections take place. Operating concurrently with application threads, it utilizes snapshot-at-the-beginning (SATB) barriers to intercept reference mutations and build a reliable object graph without stopping the world. Once concurrent marking completes, G1 knows the liveness ratio of every old region, enabling it to prioritize collections on regions yielding the maximum garbage recovery for the least amount of effort—hence the name 'Garbage-First'."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "G1 Component",
+        "Primary Responsibility",
+        "Underlying Mechanism"
+      ],
+      "rows": [
+        [
+          "Regions",
+          "Dynamic heap partitioning (Eden, Survivor, Old, Humongous)",
+          "Equally-sized blocks (1MB-32MB) mapped to virtual memory"
+        ],
+        [
+          "Remembered Sets (RSets)",
+          "Tracking cross-region object references for incremental collection",
+          "Card tables per region containing card indexes pointing to incoming references"
+        ],
+        [
+          "Concurrent Marking",
+          "Identifying live objects in old generation without full stop-the-world",
+          "SATB write barrier, marking bitmaps, and mixed garbage collection cycles"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Regions are dynamically assigned generation roles, allowing G1 to adapt the proportion of Eden, Survivor, and Old space at runtime based on application allocation patterns and pause time metrics.",
+        "Remembered Sets use a card-table approach where the heap is divided into 512-byte cards. When an object reference is updated, a write barrier dirties the corresponding card, and concurrent refinement threads process these cards to update the destination region's RSet.",
+        "Concurrent Marking executes across distinct phases: Initial Mark (piggybacks on young GC), Concurrent Mark (traverses graph), Remark (atomically finalizes marking with STW), and Cleanup (reclaims completely empty regions and resets tracking structures)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class G1MemoryTuneDemo {\n    // Recommended production baseline flags for modern JVMs utilizing G1\n    // -XX:+UseG1GC\n    // -XX:MaxGCPauseMillis=200\n    // -XX:InitiatingHeapOccupancyPercent=45\n    // -XX:G1ReservePercent=15\n    \n    public static void main(String[] args) {\n        System.out.println(\"G1 GC dynamically sizes regions based on heap capacity.\");\n        long maxMemory = Runtime.getRuntime().maxMemory();\n        System.out.println(\"Max Heap: \" + (maxMemory / (1024 * 1024)) + \" MB\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production pitfall with G1 GC is 'Humongous Allocation Exhaustion'. Objects that exceed 50% of a standard region size are allocated directly into contiguous Humongous regions. These bypass the Eden space entirely and are only collected during full GCs or late-stage mixed collections. If your application creates many large arrays or strings, tuning -XX:G1HeapRegionSize to a larger value (up to 32MB) is crucial to prevent premature promotion and catastrophic full GC pauses."
+    }
+  ],
+  "num": 165,
+  "title": "G1 GC internals — regions, remembered sets, concurrent marking",
+  "category": "JVM Architecture & Memory Tuning"
+}

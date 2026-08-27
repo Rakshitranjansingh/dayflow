@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In concurrent database-backed Java applications, protecting shared state requires understanding database locking semantics. Row-level locks restrict access to specific rows inside a table, providing maximum concurrency while preventing lost updates or dirty reads for isolated transactions. Table-level locks lock the entire relation, preventing concurrent reads or writes depending on whether it is a shared or exclusive lock. This is typically used for schema alterations or mass batch updates where row overhead would be prohibitive. Advisory locks represent a different paradigm altogether: they are application-controlled locks managed by the database engine (such as PostgreSQL's pg_advisory_lock) that do not map to any physical database rows or tables, allowing distributed Java microservices to coordinate arbitrary critical sections without table contention."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Lock Type",
+        "Granularity",
+        "Primary Use Case",
+        "Concurrency Impact"
+      ],
+      "rows": [
+        [
+          "Row-Level",
+          "Single table tuple",
+          "Transactional CRUD operations (Pessimistic locking)",
+          "Minimal; high concurrency"
+        ],
+        [
+          "Table-Level",
+          "Entire table schema/data",
+          "DDL migrations, bulk data archiving",
+          "Severe; blocks other transactions on the table"
+        ],
+        [
+          "Advisory",
+          "Application-defined ID",
+          "Distributed task scheduling, cron coordination",
+          "Controlled; decouples locking from schema"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Row-level locks are acquired dynamically by the storage engine and tracked in memory, which can lead to lock escalation if a transaction acquires too many row locks, converting them into a single table-level lock.",
+        "Table-level locks include intentions locks (IS, IX) which signal the intention to lock rows further down the hierarchy, preventing conflicting table-level modifications while row-level locks are active.",
+        "Advisory locks can be session-scoped or transaction-scoped; session-scoped locks must be explicitly released or persist until the connection drops, making connection pooling in Java applications a potential source of leaked advisory locks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Repository\npublic class InventoryRepository {\n    @PersistenceContext\n    private EntityManager em;\n\n    @Transactional\n    public Inventory findByIdWithRowLock(Long id) {\n        // Acquires a pessimistic row-level write lock (SELECT ... FOR UPDATE)\n        return em.find(Inventory.class, id, LockModeType.PESSIMISTIC_WRITE);\n    }\n\n    @Transactional\n    public boolean acquireAdvisoryLock(long lockKey) {\n        // Native PostgreSQL advisory lock query\n        Query query = em.createNativeQuery(\"SELECT pg_try_advisory_xact_lock(:key)\");\n        query.setParameter(\"key\", lockKey);\n        return (Boolean) query.getSingleResult();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when using transaction-scoped advisory locks with connection pools like HikariCP is failing to handle connection reuse. If your thread acquires an advisory lock bound to the session (pg_advisory_lock instead of pg_advisory_xact_lock) and the database connection is returned to the pool without releasing the lock, subsequent queries executed by other threads on that same pooled connection will inherit the lock, causing baffling, intermittent deadlocks in your Java service."
+    }
+  ],
+  "num": 358,
+  "title": "Locking — row-level, table-level, advisory locks",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Handling partial updates in Java applications requires moving away from naive database record replacements toward precise delta application strategies. When an API receives an HTTP PATCH request, or when a background worker needs to modify a subset of fields on a domain entity without mutating concurrent state, developers face the challenge of distinguishing between an intentionally nullified field and a field that was omitted from the client payload entirely. If you map incoming JSON directly to a standard domain POJO using a framework like Jackson, a missing JSON key defaults to Java's `null`, making it impossible to know whether the user wanted to clear the database column or simply didn't provide it.\n\nTo solve this robustly in Core Java, engineers employ several patterns ranging from `java.util.Optional` wrappers to custom JsonNullable implementations or explicit delta objects. In a domain-driven design context, handling partial updates safely involves tracking state changes via dirty-checking or command objects. Without these mechanics, partial updates frequently lead to accidental data loss, race conditions where thread A overwrites a column modified concurrently by thread B, and violation of database constraints when required fields are inadvertently set to null."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Null Handling",
+        "Overhead & Complexity"
+      ],
+      "rows": [
+        [
+          "Standard POJO",
+          "Cannot distinguish null from missing",
+          "Lowest complexity, high risk of data loss"
+        ],
+        [
+          "Optional<T> fields",
+          "Explicit, but serialization is tricky",
+          "Medium complexity, non-idiomatic for getters/setters"
+        ],
+        [
+          "JsonNullable<T> (OpenAPI)",
+          "Clearly differentiates absent vs null",
+          "Low runtime overhead, requires library support"
+        ],
+        [
+          "Map<String, Object> / Delta",
+          "Raw key-value lookup",
+          "High complexity, lacks type safety"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The missing-versus-null problem: Standard JSON deserializers treat omitted keys and explicitly provided null values identically. Using a wrapper type like `org.openapitools.jackson.nullable.JsonNullable` maintains a explicit tri-state: PRESENT_WITH_VALUE, PRESENT_AS_NULL, and ABSENT.",
+        "JPA/Hibernate merge pitfalls: Calling `entityManager.merge()` on an entity with detached state will overwrite all columns in the database row with the entity's current values unless dynamic updates are explicitly enabled via `@DynamicUpdate` at the class level.",
+        "Optimistic Locking: Partial updates are particularly susceptible to lost updates in multi-tiered architectures. Pairing partial update DTOs with an `@Version` annotation on the JPA entity ensures that concurrent modifications throw an `OptimisticLockException` rather than silently dropping changes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.openapitools.jackson.nullable.JsonNullable;\nimport com.fasterxml.jackson.databind.annotation.JsonSerialize;\nimport jakarta.persistence.*;\n\n@Entity\n@Table(name = \"users\")\n@DynamicUpdate\npublic class UserEntity {\n    @Id\n    private Long id;\n    private String username;\n    private String email;\n\n    // Getters, setters, and JPA lifecycle hooks\n}\n\npublic class UserPatchDTO {\n    private JsonNullable<String> username = JsonNullable.undefined();\n    private JsonNullable<String> email = JsonNullable.undefined();\n\n    public JsonNullable<String> getUsername() { return username; }\n    public void setUsername(JsonNullable<String> username) { this.username = username; }\n    \n    public JsonNullable<String> getEmail() { return email; }\n    public void setEmail(JsonNullable<String> email) { this.email = email; }\n}\n\npublic void applyPatch(UserEntity entity, UserPatchDTO patch) {\n    if (patch.getUsername() != null && patch.getUsername().isPresent()) {\n        entity.setUsername(patch.getUsername().get());\n    }\n    if (patch.getEmail() != null && patch.getEmail().isNull()) {\n        entity.setEmail(null); // Explicitly clear the field\n    } else if (patch.getEmail() != null && patch.getEmail().isPresent()) {\n        entity.setEmail(patch.getEmail().get());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Production Gotcha: Never use standard `java.util.Optional` fields inside incoming DTOs for partial updates. Jackson's default ObjectMapper does not natively deserialize JSON properties directly into `Optional` without specialized modules, and even then, an omitted property deserializes to `Optional.empty()`, which provides no way to distinguish between a missing key and an explicitly passed JSON null. Always use a dedicated tri-state container or framework-backed nullable wrapper."
+    }
+  ],
+  "num": 1219,
+  "title": "How do you handle partial updates?",
+  "category": "Core Java & Fundamentals"
+}

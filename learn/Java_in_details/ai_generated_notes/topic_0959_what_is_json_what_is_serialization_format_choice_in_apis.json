@@ -1,0 +1,49 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "JSON, or JavaScript Object Notation, is a lightweight, text-based data-interchange format that has become the de facto standard for web APIs due to its human-readability and language-agnostic nature. At its core, JSON represents data as a collection of key-value pairs, arrays, and primitive types, mapping cleanly to the internal memory structures of most modern programming languages. In the context of API design, serialization format choice refers to the architectural decision of how to transform complex in-memory objects into a byte stream for network transmission. Choosing the right format is a trade-off between payload size, CPU overhead for parsing, and schema rigidity. While JSON is ubiquitous, developers must decide if its text-based nature—which incurs overhead during stringification and parsing—is acceptable, or if a binary format like Protocol Buffers or Avro is required to minimize latency and bandwidth in high-throughput microservices."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Format Type",
+        "Primary Strength",
+        "Primary Weakness"
+      ],
+      "rows": [
+        [
+          "JSON",
+          "Human-readable and ubiquitous",
+          "High parsing overhead and large payload size"
+        ],
+        [
+          "Protocol Buffers",
+          "Compact binary size and fast serialization",
+          "Requires schema definition and binary tools"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "JSON serialization in Java typically involves reflection-based libraries like Jackson or Gson, which traverse the object graph at runtime to map fields to JSON tokens.",
+        "The performance bottleneck in JSON APIs often stems from the 'String' allocation during serialization; using Jackson's 'JsonGenerator' with 'OutputStream' can mitigate heap pressure by avoiding intermediate large string buffers.",
+        "Serialization format choice impacts the 'NIO' (Non-blocking I/O) layer; text-based formats like JSON require more frequent buffer flushing and character encoding transformations compared to binary formats that map directly to byte arrays.",
+        "Schema evolution is a critical concern; JSON is inherently schema-less, making it flexible but prone to runtime 'NullPointerExceptions' if consumers do not handle missing fields gracefully."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "ObjectMapper mapper = new ObjectMapper();\n// Use ObjectWriter for performance to avoid repeated configuration lookups\nObjectWriter writer = mapper.writerWithDefaultPrettyPrinter();\n\n// Stream directly to the output stream to minimize memory footprint\ntry (OutputStream out = socket.getOutputStream()) {\n    writer.writeValue(out, myComplexDomainObject);\n} catch (IOException e) {\n    logger.error(\"Serialization failed due to I/O error\", e);\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: When dealing with high-frequency JSON APIs, watch out for the 'Jackson Reflection Trap.' Default serialization uses reflection to access private fields, which is slow. Always annotate your DTOs with @JsonAutoDetect or use Mix-ins to explicitly define serialization behavior, and consider using 'Afterburner' or 'Blackbird' modules to generate bytecode for faster accessors, significantly reducing CPU cycles spent on reflection during serialization."
+    }
+  ],
+  "num": 960,
+  "title": "What is JSON? What is serialization format choice in APIs?",
+  "category": "Exception Handling & I/O / NIO"
+}

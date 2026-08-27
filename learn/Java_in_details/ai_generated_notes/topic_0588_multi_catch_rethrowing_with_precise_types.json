@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Multi-catch and rethrowing with precise types are powerful features introduced in Java 7 to eliminate code duplication and overly broad exception handling. Prior to Java 7, developers often had to write repetitive catch blocks when multiple distinct exceptions shared identical recovery or logging logic, or resort to catching the common supertype (like Exception or Throwable), which obscured the original failure modes. Multi-catch solves this by allowing a single catch block to handle multiple exception types separated by a vertical bar pipe character. The compiler enforces that these exception types cannot be related by subclassing, preventing redundant or unreachable catch paths.\n\nRethrowing with precise types enhances this safety by addressing a frustrating limitation in older Java compilers, where rethrowing a caught exception forced the method signature to declare the broad, erased type caught in the try-catch block rather than the specific exception types actually thrown within the try block. With precise rethrow analysis, the Java compiler tracks the exact types of exceptions that can escape the try block and propagate through a catch block, even if the catch parameter is declared as a common supertype. This ensures that callers of your method are bound by accurate throws clauses, improving API contracts and avoiding unnecessary boilerplate wrapping."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Disjointness Rule in Multi-catch: The compiler explicitly prohibits listing exception classes in a multi-catch clause if one is a subclass or superclass of another (e.g., catching both ExceptionA and SubExceptionA is a compile-time error). This prevents dead code and ambiguity.",
+        "Effectively Final Catch Parameters: In a multi-catch block, the exception parameter is implicitly final. You cannot reassign a new exception instance to the catch variable inside the block.",
+        "Precise Rethrow Compiler Analysis: The compiler analyzes the exact data-flow path through the try block. If a caught exception parameter is rethrown, the compiler infers the throws clause based only on the exception types that were actually assigned to the parameter within the try block, minus any types that were explicitly handled or caught by preceding specific catch blocks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.io.IOException;\nimport java.sql.SQLException;\n\npublic class DataProcessor {\n\n    public void process() throws IOException, SQLException {\n        try {\n            executeRiskyOperations();\n        } catch (IOException | SQLException ex) {\n            // Logging common failure metrics\n            System.err.println(\"Operation failed due to: \" + ex.getMessage());\n            // Precise rethrow: compiler knows 'ex' is either IOException or SQLException\n            throw ex;\n        }\n    }\n\n    private void executeRiskyOperations() throws IOException, SQLException {\n        // implementation details\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common trap when using precise rethrowing occurs when you inadvertently modify the catch parameter or assign a new exception to it inside the catch block. Because precise rethrow relies on the compiler tracking the exact flow of assigned types, mutating or reassigning the variable invalidates this analysis. The compiler will fall back to treating the rethrown exception as the declared type of the catch parameter (often Exception or Throwable), which will immediately break your method's throws declaration and force you to add explicit casts or broad throws clauses."
+    }
+  ],
+  "num": 589,
+  "title": "Multi-catch, rethrowing with precise types",
+  "category": "Core Java & Fundamentals"
+}

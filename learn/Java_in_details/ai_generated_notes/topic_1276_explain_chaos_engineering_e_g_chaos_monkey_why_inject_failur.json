@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Chaos Engineering is the discipline of experimenting on a system in order to build confidence in the system's capability to withstand turbulent conditions in production. Rather than waiting for an unexpected outage to test resilience, engineers proactively inject controlled, targeted faults—such as network partitions, thread starvation, or disk saturation—into live environments. Originating from Netflix with tools like Chaos Monkey, this paradigm shift moves software engineering away from purely theoretical uptime guarantees toward empirical verification of failure-handling mechanisms.\n\nIn modern asynchronous I/O architectures like Java NIO, exception handling and I/O resilience are notoriously difficult to validate under normal test conditions. Because NIO relies heavily on non-blocking selectors, buffer allocations, and asynchronous channel operations, network blips or sudden buffer exhaustion can trigger complex edge cases involving ClosedChannelException, AsynchronousCloseException, or cancelled selection keys. By injecting faults directly into these I/O pipelines, systems are forced to reveal hidden systemic vulnerabilities, cascading failure loops, and thread-pool exhaustion points before they manifest as catastrophic customer-facing outages."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Proactive Fault Injection: Deliberately disrupting NIO socket channels or throwing simulated SocketTimeoutException to verify if connection pools and selector threads recover cleanly without leaking native file descriptors.",
+        "Validating Circuit Breakers: Ensuring that downstream service degradation or timeout spikes immediately trip resilience patterns, isolating the failure rather than overwhelming the event loop with blocked threads.",
+        "Uncovering Implicit Assumptions: Exposing legacy code paths that block indefinitely on InputStream.read() or fail to handle interrupted threads during asynchronous completion handlers.",
+        "Steady-State Verification: Continuously measuring system metrics (such as request latency, error rates, and throughput) during the chaos experiment to automatically abort if the blast radius exceeds safe parameters."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class FaultInjectingNioHandler {\n    private final Selector selector;\n    private final double failureRate;\n    private final Random random = new Random();\n\n    public FaultInjectingNioHandler(Selector selector, double failureRate) {\n        this.selector = selector;\n        this.failureRate = failureRate;\n    }\n\n    public void processIoOperations() throws IOException {\n        int readyChannels = selector.select(1000);\n        if (readyChannels == 0) return;\n\n        Set<SelectionKey> selectedKeys = selector.selectedKeys();\n        Iterator<SelectionKey> keyIterator = selectedKeys.iterator();\n\n        while (keyIterator.hasNext()) {\n            SelectionKey key = keyIterator.next();\n            keyIterator.remove();\n\n            try {\n                if (random.nextDouble() < failureRate) {\n                    throw new IOException(\"Chaos Engineering: Simulated IO Subsystem Failure\");\n                }\n                \n                if (key.isReadable()) {\n                    SocketChannel channel = (SocketChannel) key.channel();\n                    ByteBuffer buffer = ByteBuffer.allocate(1024);\n                    int bytesRead = channel.read(buffer);\n                    if (bytesRead == -1) {\n                        channel.close();\n                    }\n                }\n            } catch (IOException e) {\n                // Handle graceful degradation and resource cleanup\n                handleIoException(key, e);\n            }\n        }\n    }\n\n    private void handleIoException(SelectionKey key, IOException e) {\n        try {\n            key.channel().close();\n        } catch (IOException ignored) {}\n        key.cancel();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when combining Chaos Engineering with Java NIO is failing to deregister and close SelectionKeys when an artificial IOException is thrown. If a chaotic fault bypasses the standard cleanup block, the Selector retains the dead channel in its internal selectedKeys set, leading to 100% CPU spikes as the event loop continuously spins on a permanently unreadable socket."
+    }
+  ],
+  "num": 1277,
+  "title": "Explain Chaos Engineering (e.g., Chaos Monkey). Why inject failures in production?",
+  "category": "Exception Handling & I/O / NIO"
+}

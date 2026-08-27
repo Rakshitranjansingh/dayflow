@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Richardson Maturity Model (RMM) is a structural framework created by Leonard Richardson that breaks down the core elements of a RESTful architecture into four distinct levels. It helps software architects and engineers evaluate how close their web APIs are to true REST, moving from a single-endpoint RPC-style web service to a hypermedia-driven ecosystem. Rather than treating REST as a binary label, RMM quantifies it across three progressive steps: introducing URIs, introducing HTTP methods, and finally, introducing hypermedia controls (HATEOAS).\n\nLevel 0 of the model is the swamp of POX (Plain Old XML) or JSON over HTTP, where HTTP is merely used as a transport tunnel. All requests are typically dispatched via POST to a single endpoint, ignoring verbs and status codes entirely. Level 1 introduces Resources, breaking down that monolithic entry point into discrete URIs for different entities. Level 2 applies HTTP Verbs (GET, POST, PUT, DELETE) and proper status codes (like 200, 201, 404, 422) to manipulate those resources safely and idempotently. Level 3 introduces Hypermedia Controls, often known by the acronym HATEOAS (Hypermedia As The Engine Of Application State). At this highest maturity level, responses include links that guide the client on what actions it can take next, completely decoupling client URI construction from server-side routing changes."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Maturity Level",
+        "Core Mechanism",
+        "Primary Constraint Addressed",
+        "Example Request Pattern"
+      ],
+      "rows": [
+        [
+          "Level 0: The Swamp",
+          "Single URI, HTTP as a tunnel",
+          "None (RPC style)",
+          "POST /api/endpoint (body: { action: 'getUser', id: 1 })"
+        ],
+        [
+          "Level 1: Resources",
+          "Multiple URIs for distinct nouns",
+          "Separation of concerns via unique identifiers",
+          "POST /api/users/1 (ignoring verbs)"
+        ],
+        [
+          "Level 2: HTTP Verbs",
+          "Standardized methods & status codes",
+          "Standardization, idempotency, and caching",
+          "GET /api/users/1 returning 200 OK"
+        ],
+        [
+          "Level 3: Hypermedia Controls",
+          "HATEOAS embedded links in payloads",
+          "Loose coupling between client and server routes",
+          "GET /api/users/1 returns user data + links to orders"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Level 0 completely bypasses the architectural benefits of the web, treating HTTP simply as a remote procedure call wrapper similar to SOAP or CORBA.",
+        "Level 1 shifts the design paradigm toward resource modeling, ensuring that clients interact with distinct nouns (e.g., /orders, /customers) rather than an action-oriented RPC verb.",
+        "Level 2 leverages the semantic intent of HTTP verbs, ensuring GET requests are safe, PUT and DELETE are idempotent, and proper status codes communicate success, validation failures, or server faults.",
+        "Level 3 implements HATEOAS, allowing the server to dynamically drive application state changes by embedding hypermedia links within the resource representation, making hardcoded client-side URL routing obsolete."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/orders\")\npublic class OrderController {\n\n    @GetMapping(\"/{id}\")\n    public ResponseEntity<EntityModel<Order>> getOrder(@PathVariable Long id) {\n        Order order = orderService.findById(id);\n        \n        // Level 3: HATEOAS - Adding hypermedia links to the response representation\n        EntityModel<Order> orderModel = EntityModel.of(order,\n            linkTo(methodOn(OrderController.class).getOrder(id)).withSelfRel(),\n            linkTo(methodOn(OrderController.class).cancelOrder(id)).withRel(\"cancel-order\"),\n            linkTo(methodOn(CustomerController.class).getCustomer(order.getCustomerId())).withRel(\"customer\"));\n            \n        return ResponseEntity.ok(orderModel);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "While reaching Level 3 (HATEOAS) of the Richardson Maturity Model is academically considered the pinnacle of REST, most enterprise microservices architectures deliberately stop at Level 2. Implementing full HATEOAS increases payload complexity, requires robust client-side parsers, and tightly couples the client's rendering logic to hypermedia link relations. In modern cloud-native systems, API gateways and OpenAPI/Swagger specifications often solve the discoverability problem far more pragmatically than runtime hypermedia links."
+    }
+  ],
+  "num": 963,
+  "title": "Explain Richardson Maturity Model for REST APIs.",
+  "category": "REST APIs, WebFlux & Microservices"
+}

@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Introduced in Java 8, lambda expressions fundamentally shifted Java from a purely object-oriented paradigm toward functional-style programming by enabling anonymous functions to be passed around as first-class citizens. At the core of compiling and executing lambdas are two deeply intertwined concepts: the restriction of capturing local variables as effectively final, and the clean syntax abstraction provided by method references. When a lambda captures a local variable from its enclosing scope, the Java compiler does not copy the variable's value by reference in a way that allows mutation; instead, it requires the variable to be effectively final—meaning its value is never changed after its initial assignment. This restriction guarantees thread safety and prevents subtle data races that would occur if multiple threads manipulated shared stack allocations across heap-allocated lambda instances. Closely related to lambdas are method references (using the :: operator), which act as shorthand notations for lambda expressions that simply call an existing method. Whether referencing a static method, an instance method of a particular object, or an arbitrary object of a particular type, method references reduce boilerplate, improve readability, and allow the JVM to optimize call sites more effectively through invokedynamic and constant dynamic (Condy) mechanics."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Lambda translation relies on the invokedynamic bytecode instruction, which defers the exact strategy of instantiating the functional interface implementation to runtime via LambdaMetafactory, avoiding the generation of a physical .class file for every single lambda at compile time.",
+        "Effectively final variables are enforced because lambda instances are often heap-allocated and can outlive the stack frame of the enclosing method, making direct mutable stack captures impossible without copying, which would introduce synchronization and state consistency issues.",
+        "Method references are categorized into four types: reference to a static method (ClassName::staticMethod), reference to an instance method of a particular object (instanceReference::methodName), reference to an instance method of an arbitrary object of a particular type (ClassName::methodName), and constructor references (ClassName::new)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.List;\nimport java.util.function.Function;\nimport java.util.stream.Collectors;\n\npublic class LambdaProcessor {\n    public List<String> processNames(List<String> rawNames, String prefix) {\n        // 'prefix' is effectively final\n        String localizedPrefix = prefix.trim();\n        \n        return rawNames.stream()\n            .filter(name -> name != null && !name.isEmpty())\n            .map(localizedPrefix::concat) // Method reference to an instance method of a particular object\n            .map(String::toUpperCase)     // Method reference to an arbitrary object of a particular type\n            .collect(Collectors.toList());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha involves capturing local variables inside loops. Prior to Java 8, local variables accessed from inner classes had to be explicitly declared final. While Java 8 relaxed this to 'effectively final', novices often try to mutate a counter or accumulator inside a lambda stream operation (e.g., int sum = 0; list.forEach(x -> sum += x;)), which fails compilation. Furthermore, be careful with method references to overloaded methods; the compiler can occasionally struggle to resolve the exact signature if type inference is ambiguous, requiring you to fall back to an explicit lambda expression."
+    }
+  ],
+  "num": 81,
+  "title": "Lambda expressions — effectively final, method references",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

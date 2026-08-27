@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern enterprise Spring-based web applications, moving data across the wire efficiently requires bridging the gap between raw HTTP transport streams and rich object-oriented domain models. The @RequestBody annotation tells Spring MVC to unpack an incoming HTTP request body—typically a JSON or XML payload—and bind it directly to a Java method parameter by leveraging underlying content negotiation and parsing strategies. Conversely, @ResponseBody signals that the return value of a controller method should not be resolved as a logical view name for template rendering (like JSP or Thymeleaf), but rather serialized directly into the HTTP response body stream. The silent workhorses making this transformation possible are HttpMessageConverters, a pluggable infrastructure strategy pattern within Spring that inspects media types and delegates to specialized libraries like Jackson to perform the actual marshalling and unmarshalling between byte streams and Java objects."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component / Annotation",
+        "Primary Responsibility",
+        "Default Framework Strategy"
+      ],
+      "rows": [
+        [
+          "@RequestBody",
+          "Deserializes incoming HTTP payload bytes into a strongly-typed Java domain object.",
+          "Inspects Content-Type header, selects an appropriate HttpMessageConverter to parse the input stream."
+        ],
+        [
+          "@ResponseBody",
+          "Serializes a Java domain object or collection directly into the HTTP response output stream.",
+          "Inspects Accept header, serializes payload using compatible converter (e.g., MappingJackson2HttpMessageConverter)."
+        ],
+        [
+          "HttpMessageConverters",
+          "Maintains an ordered list of converters that match specific media types (MediaType) to Java types.",
+          "Pre-registers standard converters for JSON, XML, String, and byte arrays during application context boot."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "When a request hits a DispatcherServlet, HandlerAdapter inspects method arguments annotated with @RequestBody and iterates through the registered HttpMessageConverters until it finds one whose canRead() method supports both the target Java type and the incoming Content-Type header.",
+        "Jackson's MappingJackson2HttpMessageConverter uses an ObjectMapper under the hood to traverse object graphs via reflection or pre-compiled serializers, mapping JSON properties to Java fields or setter/getter methods.",
+        "During serialization with @ResponseBody, the converter checks the client's Accept header against supported media types (e.g., application/json), writes the output using a configured JsonGenerator, and flushes the underlying HttpServletResponse output stream."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/orders\")\npublic class OrderController {\n\n    @PostMapping\n    public ResponseEntity<OrderResponseDto> createOrder(@RequestBody @Valid OrderCreateDto createDto) {\n        OrderResponseDto response = orderService.process(createDto);\n        return ResponseEntity.status(HttpStatus.CREATED).body(response);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap when working with @RequestBody and Jackson is failing to provide a no-argument constructor on your DTOs, or attempting to deserialize immutable records without the Jackson parameter-names module enabled. This results in cryptic JsonMappingException errors during runtime binding. Always ensure your object mapper is properly configured with modules like JavaTimeModule to handle modern java.time types gracefully."
+    }
+  ],
+  "num": 291,
+  "title": "@RequestBody, @ResponseBody, HttpMessageConverters (Jackson)",
+  "category": "Core Java & Fundamentals"
+}

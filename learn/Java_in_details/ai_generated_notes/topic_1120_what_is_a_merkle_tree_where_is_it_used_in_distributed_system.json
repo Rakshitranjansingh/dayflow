@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A Merkle Tree is a cryptographic binary tree where every leaf node represents a hashed block of data, and every non-leaf node represents the cryptographic hash of its children. In distributed systems, this data structure solves the formidable problem of verifying massive datasets across untrusted or latency-prone network partitions without transmitting the raw payload. By computing a single root hash, nodes can effortlessly validate state synchronization, audit logs, and data integrity. If a single byte is altered anywhere in the leaf data, the avalanche effect of cryptographic hashing (such as SHA-256) causes every parent hash up to the root to change completely.\n\nIn modern distributed systems, Merkle Trees are the backbone of peer-to-peer architectures like BitTorrent, decentralized ledgers like Ethereum and Bitcoin, and distributed databases such as Apache Cassandra and Amazon Dynamo. They allow nodes to perform anti-entropy repairs—comparing massive key-value stores or data blocks by walking down the tree branches instead of streaming entire datasets across the cluster. When two nodes discover a hash mismatch at a parent level, they traverse downward exclusively into the diverging sub-tree, minimizing network I/O overhead to a logarithmic scale O(log N)."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric",
+        "Linear Data Scan",
+        "Merkle Tree Sync"
+      ],
+      "rows": [
+        [
+          "Network Bandwidth",
+          "O(N) - Transmits all records",
+          "O(log N) - Transmits only hashes of differing branches"
+        ],
+        [
+          "CPU Overhead",
+          "Low parsing cost, high I/O wait",
+          "Moderate hashing cost, zero I/O wait"
+        ],
+        [
+          "Trust & Verification",
+          "Requires full payload transfer",
+          "Trustless validation via root hash proof"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Leaf Node Generation: Raw data chunks are hashed using a secure cryptographic algorithm like SHA-256 or BLAKE2 to form the bottom layer of the tree.",
+        "Tree Balancing and Padding: If the number of leaf nodes is odd, the final node is typically duplicated to maintain a balanced binary tree topology.",
+        "Path Proofs (Merkle Proofs): A client can verify that a specific transaction exists in a block by requesting only the sibling hashes along the path to the root, bypassing the need to store the entire dataset."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.security.MessageDigest;\nimport java.security.NoSuchAlgorithmException;\nimport java.nio.charset.StandardCharsets;\nimport java.util.ArrayList;\nimport java.util.List;\n\npublic class MerkleTree {\n    private final List<String> transactions;\n    private String rootHash;\n\n    public MerkleTree(List<String> transactions) {\n        this.transactions = transactions;\n        this.rootHash = buildRoot(transactions);\n    }\n\n    private String sha256(String data) {\n        try {\n            MessageDigest digest = MessageDigest.getInstance(\"SHA-256\");\n            byte[] hash = digest.digest(data.getBytes(StandardCharsets.UTF_8));\n            StringBuilder hexString = new StringBuilder();\n            for (byte b : hash) {\n                String hex = Integer.toHexString(0xff & b);\n                if (hex.length() == 1) hexString.append('0');\n                hexString.append(hex);\n            }\n            return hexString.toString();\n        } catch (NoSuchAlgorithmException e) {\n            throw new RuntimeException(e);\n        }\n    }\n\n    private String buildRoot(List<String> nodes) {\n        if (nodes.isEmpty()) return \"\";\n        if (nodes.size() == 1) return sha256(nodes.get(0));\n\n        List<String> parentLevel = new ArrayList<>();\n        for (int i = 0; i < nodes.size(); i += 2) {\n            String left = nodes.get(i);\n            String right = (i + 1 < nodes.size()) ? nodes.get(i + 1) : left;\n            parentLevel.add(sha256(left + right));\n        }\n        return buildRoot(parentLevel);\n    }\n\n    public String getRootHash() {\n        return rootHash;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: When implementing Merkle Trees for distributed anti-entropy (like in Apache Cassandra's repair mechanisms), beware of tree collisions and uneven key distributions. If keys are not uniformly hashed across partitions, unbalanced trees can degrade path lookup performance from O(log N) to O(N). Always ensure your underlying hashing algorithm provides uniform distribution to prevent hot-spotting on specific branch nodes."
+    }
+  ],
+  "num": 1121,
+  "title": "What is a Merkle Tree? Where is it used in distributed systems?",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Spring, the Proxy mechanism is the cornerstone of Aspect-Oriented Programming (AOP). It allows the framework to inject cross-cutting concerns—like @Transactional, @Async, or @Cacheable—without polluting your business logic. When you annotate a method, Spring does not execute your raw class instance. Instead, it wraps your bean in a proxy object. If you use interfaces, Spring defaults to JDK Dynamic Proxies; if you target classes directly, it uses CGLIB to generate a subclass at runtime. When an external caller invokes a method on the bean, the call hits the proxy first, which executes the advice (e.g., opening a database transaction) before delegating the call to the actual target object."
+    },
+    {
+      "type": "prose",
+      "content": "Self-invocation occurs when a method within the same class calls another method annotated with an AOP advice. Because the call happens via 'this' (the raw object reference), the execution bypasses the proxy entirely. The proxy is only aware of calls coming from outside the bean. Consequently, the advice logic—such as transaction management—is never triggered, leading to silent failures where, for example, a database operation runs outside of a transaction context despite the @Transactional annotation being present."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Mechanism",
+        "Proxy Type",
+        "Requirement"
+      ],
+      "rows": [
+        [
+          "JDK Dynamic Proxy",
+          "Interface-based",
+          "Target must implement an interface"
+        ],
+        [
+          "CGLIB",
+          "Subclass-based",
+          "Target class must not be final"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "JDK Dynamic Proxies use java.lang.reflect.Proxy to intercept calls, which requires the target to implement an interface, making it type-safe but restrictive.",
+        "CGLIB generates bytecode at runtime to create a subclass of your bean, effectively overriding non-final methods to inject interceptor logic.",
+        "Self-invocation bypasses the proxy because 'this' refers to the target instance, not the proxy wrapper, meaning the interceptor chain is never initialized.",
+        "To fix self-invocation, you can use AopContext.currentProxy() to retrieve the proxy, or refactor the logic into a separate service bean to ensure the call goes through the proxy container."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderService {\n    public void processOrder() {\n        // Self-invocation: this.save() bypasses the proxy\n        save(); \n    }\n\n    @Transactional\n    public void save() {\n        // Database logic here\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is assuming @Transactional works on private methods or internal calls. It does not. If you see your transaction logs missing or 'LazyInitializationException' despite having @Transactional, you are almost certainly hitting a self-invocation issue. Always check if the call is coming from an external bean; if not, you need to inject the service into itself or use a self-aware pattern."
+    }
+  ],
+  "num": 808,
+  "title": "Explain the Proxy mechanism in Spring. When does self-invocation bypass the proxy?",
+  "category": "Exception Handling & I/O / NIO"
+}

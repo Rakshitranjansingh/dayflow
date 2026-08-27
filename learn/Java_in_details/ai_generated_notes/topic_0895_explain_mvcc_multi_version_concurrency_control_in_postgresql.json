@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Multi-Version Concurrency Control (MVCC) is a sophisticated database concurrency control method that allows multiple transactions to read and write data simultaneously without blocking each other, effectively solving the classic reader-writer contention problem. In traditional locking systems, a write operation would block all reads, leading to severe performance bottlenecks. MVCC resolves this by maintaining multiple versions of data objects. When a transaction modifies a row, the database does not overwrite the existing data; instead, it creates a new version of that row marked with a transaction ID (XID). PostgreSQL and MySQL (via InnoDB) implement this differently but with the same goal: providing snapshot isolation. In PostgreSQL, this is achieved via tuple headers containing 'xmin' and 'xmax' metadata, while MySQL uses an Undo Log to reconstruct older versions of rows on-the-fly for consistent reads. This architecture ensures that a reader sees a consistent 'snapshot' of the database as it existed at the start of their transaction, regardless of concurrent modifications."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "PostgreSQL MVCC",
+        "MySQL (InnoDB) MVCC"
+      ],
+      "rows": [
+        [
+          "Storage Strategy",
+          "Append-only (Heap tuples)",
+          "Undo Log based"
+        ],
+        [
+          "Cleanup Mechanism",
+          "VACUUM process",
+          "Purge Thread"
+        ],
+        [
+          "Overhead",
+          "Bloat due to dead tuples",
+          "Undo log segment growth"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "PostgreSQL utilizes a Visibility Map to determine if a page contains only tuples visible to all transactions, allowing the engine to skip unnecessary visibility checks during index scans.",
+        "MySQL InnoDB uses a Read View structure containing a list of active transaction IDs. When reading a row, it traverses the undo log chain until it finds a version compatible with the current Read View.",
+        "Both systems rely on Transaction IDs (XIDs) to establish a temporal order, ensuring that a transaction only sees data committed before its own start time, maintaining the ACID property of Isolation.",
+        "MVCC introduces the concept of 'Snapshot Isolation', which prevents Dirty Reads and Non-repeatable Reads, though it requires specific handling (like Serializable snapshots) to prevent Phantom Reads."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "sql",
+      "content": "-- PostgreSQL visibility check logic (Conceptual)\nSELECT * FROM orders \nWHERE xmin <= txid_current_snapshot() \nAND (xmax = 0 OR xmax > txid_current_snapshot());\n\n-- MySQL InnoDB uses the hidden DB_TRX_ID and DB_ROLL_PTR \n-- columns to navigate the undo log chain for consistent reads."
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: The most common production failure with MVCC is 'Table Bloat'. In PostgreSQL, if you have a long-running transaction that stays open, the VACUUM process cannot reclaim dead tuples (old versions) that were modified after that transaction started. This causes the table size to explode, degrading index performance and increasing I/O latency. Always monitor 'age' of transactions in your connection pool and ensure long-running reporting queries are not holding back the global transaction horizon."
+    }
+  ],
+  "num": 896,
+  "title": "Explain MVCC (Multi-Version Concurrency Control) in PostgreSQL/MySQL.",
+  "category": "Multithreading & Java Concurrency"
+}

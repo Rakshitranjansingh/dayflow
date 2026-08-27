@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Externalized configuration is a foundational architecture pattern in modern Java applications, particularly within cloud-native ecosystems, enabling the separation of application code and compiled artifacts from runtime operational settings. By shifting parameters out of property files locked inside a fat JAR, systems can dynamically adapt to various deployment topologies without rebuilding binaries. In modern Java systems, this strategy relies on an orchestrated precedence hierarchy that merges inputs across multiple layers. Command line arguments offer immediate, transient overrides during process invocation. Environment variables serve as the standard mechanism for passing infrastructure-level parameters dictated by container orchestrators like Kubernetes or Docker. Finally, a dedicated config server centralizes and encrypts configurations across a fleet of microservices, ensuring dynamic refresh capabilities and auditability without restarting instances."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Command line arguments take precedence over environment variables, system properties, and packaged property files, typically mapped via Spring Boot's relaxed binding or standard main-method arguments parsed into `ApplicationArguments` beans.",
+        "Environment variables in containerized runtimes are subject to OS-level naming constraints (often requiring uppercase letters and underscores instead of dots), which modern frameworks automatically bridge by normalizing keys during property resolution.",
+        "A config server (such as Spring Cloud Config Server backed by Git or Vault) acts as an authoritative, version-controlled repository that pushes dynamic updates down to client applications via HTTP polling or Spring Cloud Bus webhook events."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@ConfigurationProperties(prefix = \"app.service\")\n@RefreshScope\npublic class ServiceConfigurationController {\n    \n    private String timeout;\n    private boolean featureEnabled;\n\n    // Standard getters and setters required for binding\n    public void setTimeout(String timeout) { this.timeout = timeout; }\n    public void setFeatureEnabled(boolean featureEnabled) { this.featureEnabled = featureEnabled; }\n\n    @GetMapping(\"/config\")\n    public ResponseEntity<String> getConfig() {\n        return ResponseEntity.ok(\"Timeout: \" + timeout + \", Feature: \" + featureEnabled);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production gotcha when utilizing a config server alongside environment variables and command line arguments is mismanaging the @RefreshScope lifecycle. If your beans are mutable and hold state without thread-safe reinitialization, refreshing configuration properties can cause subtle race conditions or leave singleton beans holding stale values. Furthermore, ensure sensitive properties fetched from a config server or environment variables are never logged during startup by enabling masked property logging in modern frameworks."
+    }
+  ],
+  "num": 242,
+  "title": "Externalized configuration — command line, env vars, config server",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

@@ -1,0 +1,70 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java, handling textual data efficiently requires understanding the architectural trade-offs between String, StringBuffer, and StringBuilder. String is an immutable class; once initialized, its value cannot be modified. While immutability provides inherent thread safety and allows the JVM to optimize memory through the String Pool, it introduces significant performance overhead during heavy manipulation. Every concatenation or modification creates a new String object, generating substantial garbage collection pressure.\n\nTo address this, Java introduced mutable companion classes that manage a dynamic, resizable buffer. StringBuffer was introduced in JDK 1.0 to provide a thread-safe, mutable sequence of characters by synchronizing its public methods. However, this synchronization introduces a performance penalty due to thread contention and monitor acquisition. To eliminate this overhead in single-threaded contexts, JDK 1.5 introduced StringBuilder. StringBuilder shares the exact same API and internal buffer-resizing mechanics as StringBuffer but completely omits synchronization, making it the preferred choice for high-performance, single-threaded string construction."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric / Feature",
+        "String",
+        "StringBuffer",
+        "StringBuilder"
+      ],
+      "rows": [
+        [
+          "Mutability",
+          "Immutable (Read-Only)",
+          "Mutable",
+          "Mutable"
+        ],
+        [
+          "Thread Safety",
+          "Safe (Guaranteed by immutability)",
+          "Safe (Guaranteed by synchronized methods)",
+          "Not Safe (No synchronization)"
+        ],
+        [
+          "Performance",
+          "Slow for iterative mutations",
+          "Moderate (Impacted by lock overhead)",
+          "Fastest (No locking overhead)"
+        ],
+        [
+          "Internal Storage",
+          "byte[] (Latin-1/UTF-16 since Java 9)",
+          "byte[] (Latin-1/UTF-16 since Java 9)",
+          "byte[] (Latin-1/UTF-16 since Java 9)"
+        ],
+        [
+          "Introduced In",
+          "JDK 1.0",
+          "JDK 1.0",
+          "JDK 1.5"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Internal Buffer Allocation: Both StringBuilder and StringBuffer inherit from AbstractStringBuilder. They maintain a mutable byte array (or char array in Java 8 and below). The default initial capacity is 16 characters. When the buffer overflows, it triggers an expansion using the formula: newCapacity = (oldCapacity * 2) + 2. This involves allocating a new array and executing a System.arraycopy() operation, which can become a performance bottleneck if triggered repeatedly.",
+        "Lock Elision and Coarsening: The JVM's Just-In-Time (JIT) compiler attempts to optimize StringBuffer's synchronization overhead using Escape Analysis. If the compiler detects that a StringBuffer instance is confined to a single method and does not escape to other threads, it performs 'Lock Elision' to remove the synchronization locks entirely. It may also perform 'Lock Coarsening' to merge adjacent synchronized blocks. Despite these optimizations, StringBuilder remains faster because it avoids the compiler analysis overhead entirely.",
+        "String Concatenation Compilation: In modern Java (9+), simple inline string concatenations (e.g., String s = a + b + c) are compiled using the invokedynamic instruction pointing to StringConcatFactory.makeConcatWithConstants. This allows the JVM to dynamically choose the most efficient concatenation strategy at runtime, often outperforming manual StringBuilder chains for simple, static concatenations.",
+        "Compact Strings (Java 9+): All three classes benefit from the Compact Strings feature. Instead of storing characters as 2-byte UTF-16 values, they store them as 1-byte ISO-8859-1 (Latin-1) values if the content permits, cutting the heap footprint of textual data in half for Western languages."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.performance.demo;\n\nimport java.util.concurrent.ExecutorService;\n\nimport java.util.concurrent.Executors;\nimport java.util.concurrent.TimeUnit;\n\npublic class StringConcurrencyDemo {\n    private static final int ITERATIONS = 1000;\n\n    public static void main(String[] args) throws InterruptedException {\n        // StringBuilder in a concurrent context (unsafe)\n        StringBuilder unsafeBuilder = new StringBuilder();\n        // StringBuffer in a concurrent context (safe)\n        StringBuffer safeBuffer = new StringBuffer();\n\n        ExecutorService executor = Executors.newFixedThreadPool(10);\n\n        for (int i = 0; i < ITERATIONS; i++) {\n            executor.submit(() -> {\n                unsafeBuilder.append(\"A\");\n                safeBuffer.append(\"A\");\n            });\n        }\n\n        executor.shutdown();\n        executor.awaitTermination(5, TimeUnit.SECONDS);\n\n        // StringBuilder length will likely be less than ITERATIONS due to race conditions\n        System.out.println(\"StringBuilder final length: \" + unsafeBuilder.length());\n        // StringBuffer length will always be exactly ITERATIONS\n        System.out.println(\"StringBuffer final length: \" + safeBuffer.length());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha is the 'Initial Capacity Trap'. Both StringBuilder and StringBuffer default to a capacity of 16 characters. If you are building a large JSON payload or XML document (e.g., 50KB) without specifying an initial capacity, the internal array will resize and copy memory approximately 11 times. Always pre-size your builders using the constructor `new StringBuilder(expectedSize)` to eliminate array reallocation overhead. Additionally, remember that while StringBuffer's individual methods are thread-safe, compound operations (like check-then-act sequences) on a StringBuffer still require external synchronization to prevent race conditions."
+    }
+  ],
+  "num": 4,
+  "title": "StringBuilder vs StringBuffer vs String — performance & thread-safety",
+  "category": "Multithreading & Java Concurrency"
+}

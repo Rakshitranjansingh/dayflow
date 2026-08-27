@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing resilient enterprise systems requires mastering high availability, fault tolerance, and disaster recovery—three distinct architectural pillars that govern how software reacts to hardware failures, network partitions, and data center outages. High availability (HA) focuses on eliminating single points of failure to ensure continuous operational uptime, typically measured by 'nines' such as 99.999% availability, which allows for less than six minutes of unplanned downtime per year. Fault tolerance goes a step further by ensuring that a system continues operating uninterrupted even when one or more of its constituent components suffer catastrophic failure, entirely masking the underlying degradation from the client. Disaster recovery (DR), conversely, addresses catastrophic, wide-scale emergencies like regional power grid failures or natural disasters, defining the exact recovery time objectives (RTO) and recovery point objectives (RPO) required to restore operations from an entirely separate geographic site.\n\nIn the realm of core Java and distributed systems, achieving these properties demands careful mitigation of memory exhaustion, thread starvation, and split-brain scenarios. High availability is built via stateless service tiers, redundant load balancers, and persistent cluster coordination through consensus algorithms like Raft or Paxos. Fault tolerance is implemented at the code level using circuit breakers, bulkheads, timeouts, and graceful degradation strategies that prevent cascading failures from overwhelming downstream dependencies. Disaster recovery relies on robust data replication strategies, multi-region cloud deployments, and automated failover pipelines that can spin up fresh JVM instances and synchronize state via distributed databases without data corruption or lost transactions."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architecture Pillar",
+        "Primary Focus",
+        "Failure Scale",
+        "Key Metric"
+      ],
+      "rows": [
+        [
+          "High Availability",
+          "Minimizing downtime and eliminating single points of failure",
+          "Node or component failure",
+          "Uptime percentage (e.g., 99.99%)"
+        ],
+        [
+          "Fault Tolerance",
+          "Zero operational interruption during component degradation",
+          "Internal subsystem or network error",
+          "Mean Time To Recovery / Graceful Degradation"
+        ],
+        [
+          "Disaster Recovery",
+          "Restoring operations following complete site or region loss",
+          "Geographic or datacenter outage",
+          "RTO (Recovery Time Objective) and RPO (Recovery Point Objective)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "High availability relies on active-active or active-passive cluster topologies, leveraging distributed coordination tools like Apache ZooKeeper or etcd to monitor heartbeat signals and rapidly promote standby instances upon leader failure.",
+        "Fault tolerance in Java applications is heavily dependent on defensive programming constructs, thread pool isolation (bulkheads), and the bulkhead pattern to ensure a localized dependency slowdown does not exhaust the container's entire Tomcat or Netty thread pool.",
+        "Disaster recovery implementation requires balancing synchronous replication (guaranteeing zero RPO at the cost of write latency) against asynchronous replication (improving write throughput while risking data loss if the primary fails before log shipping completes)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.time.Duration;\nimport java.util.concurrent.CompletableFuture;\nimport java.util.concurrent.CompletionException;\nimport java.util.function.Supplier;\n\npublic class ResilientExecutionEngine {\n    \n    public <T> CompletableFuture<T> executeWithFaultTolerance(Supplier<T> action, Supplier<T> fallback) {\n        return CompletableFuture.supplyAsync(action)\n            .orTimeout(200, java.util.concurrent.TimeUnit.MILLISECONDS)\n            .exceptionally(ex -> {\n                // Log failure metrics, trip circuit breaker if necessary\n                System.err.println(\"Primary operation failed or timed out: \" + ex.getMessage());\n                return fallback.get();\n            });\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic senior-level pitfall in designing for high availability and fault tolerance is ignoring the 'thundering herd' problem during recovery. When a heavily loaded downstream service fails, hundreds of client JVMs simultaneously attempt retries or fallback queries as soon as it recovers, instantly crashing it again. Always implement exponential backoff coupled with randomized jitter in your retry policies, and enforce strict circuit breaking to shed load gracefully."
+    }
+  ],
+  "num": 1103,
+  "title": "How do you design for high availability? Fault tolerance? Disaster recovery?",
+  "category": "Core Java & Fundamentals"
+}

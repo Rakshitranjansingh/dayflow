@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java persistence frameworks like Hibernate or JPA, mapping relationships is the process of defining how object-oriented domain models translate into relational database schemas. A One-to-One relationship implies that a single record in Table A corresponds to exactly one record in Table B, often implemented via a shared primary key or a unique foreign key constraint. One-to-Many and Many-to-One are the most common patterns; the former represents a parent-child hierarchy (e.g., a Department having many Employees), while the latter is the inverse, where the child holds the foreign key reference back to the parent. Many-to-Many relationships are more complex, requiring an intermediary join table to resolve the cardinality, as relational databases cannot natively store collections of foreign keys in a single column without violating First Normal Form."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Relationship",
+        "Persistence Strategy",
+        "Join Requirement"
+      ],
+      "rows": [
+        [
+          "One-to-One",
+          "Shared PK or Unique FK",
+          "None/Optional"
+        ],
+        [
+          "One-to-Many",
+          "Foreign Key on Child",
+          "None"
+        ],
+        [
+          "Many-to-One",
+          "Foreign Key on Child",
+          "None"
+        ],
+        [
+          "Many-to-Many",
+          "Join Table",
+          "Required"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In One-to-Many mappings, always use 'mappedBy' on the parent side to prevent the creation of redundant join tables and to designate the child as the owner of the relationship.",
+        "Many-to-Many relationships should be handled with caution; use a @JoinTable annotation to define the link table, and consider using a Set instead of a List to avoid Hibernate's 'MultipleBagFetchException' when fetching multiple collections.",
+        "For performance, always utilize 'FetchType.LAZY' on all relationships to avoid N+1 query problems, explicitly using JOIN FETCH in JPQL or EntityGraphs when you know you need the associated data.",
+        "Orphan removal should be enabled in One-to-Many relationships if the lifecycle of the child is strictly bound to the parent, ensuring that removing a child from the collection triggers a DELETE statement rather than just nulling the foreign key."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Entity\npublic class User {\n    @OneToOne(cascade = CascadeType.ALL)\n    @JoinColumn(name = \"profile_id\")\n    private Profile profile;\n\n    @OneToMany(mappedBy = \"user\", cascade = CascadeType.ALL, orphanRemoval = true)\n    private List<Order> orders = new ArrayList<>();\n\n    @ManyToMany\n    @JoinTable(name = \"user_roles\", \n               joinColumns = @JoinColumn(name = \"user_id\"), \n               inverseJoinColumns = @JoinColumn(name = \"role_id\"))\n    private Set<Role> roles = new HashSet<>();\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap is the 'N+1' query issue. If you map a One-to-Many relationship with EAGER fetching, Hibernate will execute one query for the parent and N additional queries for each child collection, which will cripple your database performance under load. Always default to LAZY and use fetch joins only when necessary."
+    }
+  ],
+  "num": 828,
+  "title": "How do you map relationships: One-to-One, One-to-Many, Many-to-One, Many-to-Many?",
+  "category": "Exception Handling & I/O / NIO"
+}

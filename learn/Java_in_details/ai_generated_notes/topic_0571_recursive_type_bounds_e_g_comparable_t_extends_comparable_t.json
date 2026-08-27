@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Recursive type bounds, often referred to as 'F-bounded polymorphism', occur when a type parameter is constrained by an expression that involves the type parameter itself. The classic example, Comparable<T extends Comparable<T>>, is the bedrock of Java's collection sorting and ordering logic. Without this recursive constraint, the compiler would be unable to guarantee that an object of type T can be compared against another object of the exact same type T, rather than some arbitrary supertype. This pattern ensures that when you implement Comparable in a class, you are forced to define the comparison logic specifically for that concrete class, preventing runtime ClassCastExceptions that would otherwise occur if you could compare apples to oranges."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Simple Generic (T)",
+        "Recursive Bound (T extends Comparable<T>)"
+      ],
+      "rows": [
+        [
+          "Type Safety",
+          "Loose; allows cross-type comparison",
+          "Strict; enforces self-referential type"
+        ],
+        [
+          "Use Case",
+          "Generic containers (List<T>)",
+          "Sorting/Ordering algorithms (Collections.sort)"
+        ],
+        [
+          "Compiler Check",
+          "Checks T existence",
+          "Checks T implements Comparable<T>"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The compiler enforces that the type T must be a subtype of Comparable<T>, meaning T must implement a compareTo method that accepts an argument of type T.",
+        "This pattern is essential for methods like 'public static <T extends Comparable<T>> void sort(List<T> list)', which relies on the fact that every element in the list is guaranteed to be comparable to its peers.",
+        "It effectively creates a closed system where the hierarchy of the type is constrained to its own definition, preventing the accidental mixing of incompatible types during sorting operations.",
+        "At the bytecode level, this is handled via type erasure, where the bound is replaced by the erasure of the interface, but the compiler injects bridge methods to maintain type safety."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class User implements Comparable<User> {\n    private final int id;\n\n    public User(int id) { this.id = id; }\n\n    @Override\n    public int compareTo(User other) {\n        return Integer.compare(this.id, other.id);\n    }\n\n    public static <T extends Comparable<T>> T findMax(List<T> list) {\n        T max = list.get(0);\n        for (T item : list) {\n            if (item.compareTo(max) > 0) max = item;\n        }\n        return max;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Watch out for the 'Self-Type' trap in inheritance. If you have a base class 'Entity<T extends Entity<T>>', you must ensure that subclasses pass themselves as the type argument (e.g., 'class User extends Entity<User>'). If you forget this, you will find yourself unable to access subclass-specific fields within the base class methods because the compiler only knows you are dealing with the generic 'Entity', leading to tedious and unsafe casting."
+    }
+  ],
+  "num": 572,
+  "title": "Recursive type bounds (e.g., Comparable<T extends Comparable<T>>)",
+  "category": "Core Java & Fundamentals"
+}

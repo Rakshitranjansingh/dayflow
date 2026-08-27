@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Debugging slow API response times is a systematic exercise in identifying where the request lifecycle stalls—whether in the network layer, the JVM runtime, or the persistence tier. When an API experiences latency, the first step is to establish a baseline using distributed tracing (e.g., OpenTelemetry) to pinpoint if the bottleneck resides in the 'ingress' (load balancer/gateway), the 'application' (JVM processing), or the 'egress' (database/external service calls). In the JVM specifically, we must distinguish between 'Stop-the-World' garbage collection pauses that halt application threads, and thread contention where multiple threads are blocked waiting for a monitor lock, often visualized via thread dumps."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Latency Source",
+        "Primary Symptom",
+        "Diagnostic Tool"
+      ],
+      "rows": [
+        [
+          "JVM GC",
+          "Periodic spikes in response time",
+          "jstat / GC logs"
+        ],
+        [
+          "Thread Contention",
+          "High CPU with low throughput",
+          "jstack / VisualVM"
+        ],
+        [
+          "Database",
+          "Slow query execution / N+1",
+          "EXPLAIN ANALYZE / APM"
+        ],
+        [
+          "Network/IO",
+          "High time-to-first-byte",
+          "tcpdump / Wireshark"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Analyze GC behavior: Use -XX:+PrintGCDetails to check if the Old Generation is filling up, triggering frequent Full GC events that freeze application threads.",
+        "Inspect Thread Dumps: Look for 'BLOCKED' or 'WAITING' states in the stack trace. If many threads are waiting on the same object monitor, you have a synchronization bottleneck.",
+        "Database N+1 detection: Ensure your ORM (Hibernate) isn't executing a separate SELECT statement for every item in a collection; use join fetches or entity graphs.",
+        "External Service Timeouts: Ensure your HTTP client (e.g., Apache HttpClient) has explicit connection and socket timeouts configured; otherwise, a hanging downstream service will exhaust your thread pool."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Use a structured approach to measure latency in a filter or interceptor\nlong startTime = System.nanoTime();\ntry {\n    chain.doFilter(request, response);\n} finally {\n    long duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);\n    if (duration > 500) {\n        logger.warn(\"Slow API detected: {} took {}ms\", request.getRequestURI(), duration);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common 'senior' trap is assuming the bottleneck is always the database. Often, the issue is 'Thread Pool Exhaustion' caused by an improperly configured connection pool or a blocking IO operation on the main request thread. Always check your thread pool saturation metrics before diving into deep code profiling."
+    }
+  ],
+  "num": 1244,
+  "title": "How do you debug slow API response times?",
+  "category": "Core Java & Fundamentals"
+}

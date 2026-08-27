@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the managed runtime of the Java Virtual Machine (JVM), automatic memory management via Garbage Collection (GC) eliminates the need for manual memory deallocation. However, Java applications are not immune to memory leaks. A memory leak in Java occurs when objects are no longer needed by the application logic, but they remain referenced by active GC roots, preventing the Garbage Collector from reclaiming their heap memory. Over time, these unreachable-in-intent objects accumulate, steadily consuming heap space until the JVM throws a java.lang.OutOfMemoryError: Java heap space.\n\nUnderstanding and preventing memory leaks requires deep familiarity with the most common culprits: listeners, caches, ThreadLocal variables, and custom classloaders. Event listeners and callbacks frequently cause leaks when objects register themselves with long-lived publishers (such as application-scoped event buses or static registries) but fail to unregister upon disposal. Caches implemented using standard collections (like HashMap) without bounded sizes or weak references will monotonically grow, holding hard references to every cached item indefinitely. ThreadLocal variables tie object lifecycles to the underlying worker threads; in containerized environments like application servers where threads are pooled (e.g., Tomcat request processing threads), failing to explicitly remove ThreadLocal values after request completion leaks objects into the thread's map across distinct request contexts. Finally, custom classloaders can cause severe metaspace and heap leaks when classes loaded dynamically are left referenced, preventing the garbage collection of the ClassLoader instance itself and all associated Class objects."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Leak Source",
+        "Primary Mechanism",
+        "Remediation Strategy"
+      ],
+      "rows": [
+        [
+          "Listeners",
+          "Hard reference maintained by long-lived publisher/observable",
+          "Use WeakReference or explicitly unregister in cleanup lifecycle"
+        ],
+        [
+          "Caches",
+          "Unbounded growth in static/instance maps",
+          "Use Caffeine/Guava with soft/weak keys or maximum size eviction"
+        ],
+        [
+          "ThreadLocal",
+          "Thread pooling keeps ThreadLocalMap alive between tasks",
+          "Always invoke remove() in a finally block"
+        ],
+        [
+          "ClassLoaders",
+          "References to dynamic classes or instances lingering in static fields",
+          "Isolate plugin lifecycles and ensure proper GC of ClassLoader instances"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "GC Roots: Memory leaks fundamentally exist because the Garbage Collector starts its mark-and-sweep traversal from active GC roots (such as thread stacks, static variables, and JNI globals). If a path of hard references exists from a GC root to an application object, it will never be collected.",
+        "ThreadLocalMap Internal Structure: Each Thread instance holds a package-private ThreadLocal.ThreadLocalMap instance. The map entries extend WeakReference<ThreadLocal<?>>, meaning the keys are weakly reachable, but the values are strongly referenced. If the ThreadLocal variable goes out of scope without a explicit remove(), the value remains trapped, causing a memory leak as long as the pooled thread lives.",
+        "Metaspace vs Heap Leaks: While classloader leaks traditionally manifested as Permanent Generation (PermGen) OOM errors in Java 7 and earlier, modern JVMs (Java 8+) utilize Metaspace. A leaking custom classloader prevents the unloading of its associated Class objects, driving up native Metaspace allocation until the OS kills the process or limits are reached."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ThreadLocalContextManager {\n    private static final ThreadLocal<RequestContext> CONTEXT_HOLDER = new ThreadLocal<>();\n\n    public static void setContext(RequestContext context) {\n        CONTEXT_HOLDER.set(context);\n    }\n\n    public static RequestContext getContext() {\n        return CONTEXT_HOLDER.get();\n    }\n\n    public static void clear() {\n        // CRITICAL: Prevent memory leaks in thread-pooled environments\n        CONTEXT_HOLDER.remove();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: When analyzing heap dumps using tools like Eclipse MAT (Memory Analyzer Tool), look for 'Dominator Trees' and check for paths to GC roots. A very common anti-pattern in modern microservices is injecting request-scoped beans into singleton beans or holding thread-locals across asynchronous boundaries (like CompletableFuture pools) without explicit cleanup hooks, leading to silent, catastrophic memory degradation under load."
+    }
+  ],
+  "num": 169,
+  "title": "Memory leaks in Java — common causes (listeners, caches, ThreadLocal, classloaders)",
+  "category": "JVM Architecture & Memory Tuning"
+}

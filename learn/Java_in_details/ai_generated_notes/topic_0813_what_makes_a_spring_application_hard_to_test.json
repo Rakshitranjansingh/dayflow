@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring applications often become difficult to test when they suffer from 'Architectural Coupling'—where business logic is tightly bound to framework-specific infrastructure. The primary culprits are static dependencies, hidden side effects in I/O operations, and opaque exception handling strategies. When code directly instantiates dependencies or relies on global state (like ThreadLocals or static context holders), unit testing becomes impossible without heavy-handed mocking frameworks like PowerMock, which is a code smell indicating poor design. Furthermore, improper Exception Handling often leads to 'swallowed' errors or generic runtime exceptions that obscure the root cause during test execution, making it difficult to assert against specific failure modes. When dealing with I/O and NIO, the complexity spikes; blocking I/O operations are inherently non-deterministic, and NIO's asynchronous nature introduces race conditions that standard JUnit tests are ill-equipped to handle without complex synchronization primitives or Awaitility-style polling."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Anti-Pattern",
+        "Testing Impact",
+        "Resolution"
+      ],
+      "rows": [
+        [
+          "Static Service Access",
+          "Requires PowerMock/Bytecode manipulation",
+          "Constructor-based Dependency Injection"
+        ],
+        [
+          "Swallowing Exceptions",
+          "Tests pass despite silent failures",
+          "Custom Exception Hierarchy & Global Handlers"
+        ],
+        [
+          "Direct NIO File Access",
+          "FileSystem side effects/Flaky tests",
+          "Abstraction via Resource/Path interfaces"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Hidden I/O dependencies: When a service performs file system or network operations directly, it creates a 'leaky abstraction'. Use the Strategy pattern or Spring's Resource abstraction to inject mockable providers.",
+        "Exception obfuscation: Using a generic 'catch (Exception e)' block often masks checked exceptions that should be handled or rethrown as domain-specific unchecked exceptions, preventing the test suite from validating error-path recovery.",
+        "NIO Selector blocking: Testing NIO requires managing EventLoop lifecycles. If the application doesn't expose the underlying executor or selector, you cannot deterministically verify if a buffer has been fully flushed or read.",
+        "Context Pollution: Using @SpringBootTest for every test case forces the JVM to spin up the entire ApplicationContext, leading to slow feedback loops and hidden state leakage between tests."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class FileProcessor {\n    private final FileSystem fs; // Injectable abstraction\n\n    public void process(String path) throws IOException {\n        try (InputStream is = fs.open(path)) {\n            // Logic here\n        } catch (IOException e) {\n            throw new DataProcessingException(\"Failed to read: \" + path, e);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: The biggest trap in Spring testing is the 'Integration Test as a Unit Test' fallacy. If your test requires a database connection or a running NIO server to verify a simple business rule, you have failed to decouple your logic. Always favor POJO-based unit tests for business logic and reserve @SpringBootTest only for verifying the wiring of your beans and the integrity of your configuration."
+    }
+  ],
+  "num": 814,
+  "title": "What makes a Spring application hard to test?",
+  "category": "Exception Handling & I/O / NIO"
+}

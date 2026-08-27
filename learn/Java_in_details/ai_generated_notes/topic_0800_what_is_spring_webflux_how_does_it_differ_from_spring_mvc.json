@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring WebFlux is a non-blocking, reactive web framework built on top of Project Reactor, designed to run on event-loop execution models rather than the traditional thread-per-request paradigm. It was introduced to address the scalability bottlenecks of servlet-based containers under high concurrency, particularly for I/O-bound microservices where threads spend most of their time waiting on network sockets, database calls, or downstream HTTP endpoints. By leveraging reactive streams specifications, WebFlux allows applications to handle massive concurrency with a small, fixed number of threads, minimizing context switching and reducing memory footprints.\n\nTo understand how it differs from Spring MVC, we must look at their foundational runtime engines and concurrency models. Spring MVC is deeply rooted in the Servlet API (blocking I/O). Every incoming HTTP request is assigned a dedicated thread from a container-managed thread pool (such as Tomcat's thread pool) for its entire lifecycle. If that request calls a database or a remote service, the thread blocks until the response is returned. Conversely, Spring WebFlux is non-blocking by default. It utilizes Netty (or other reactive-compliant runtimes like Undertow or Servlet 3.1+ containers) running an event-loop model. Threads are not tied to requests; instead, asynchronous events trigger execution pipelines built using reactive types like Mono (for 0-1 elements) and Flux (for 0-N elements). While Spring MVC embraces a familiar imperative programming style, Spring WebFlux mandates a declarative, functional, or reactive-fluent style, shifting backpressure management and data flow orchestration to the framework layer."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Spring MVC",
+        "Spring WebFlux"
+      ],
+      "rows": [
+        [
+          "Underlying API",
+          "Servlet API (Servlet 3.1+)",
+          "Reactive Streams / Netty"
+        ],
+        [
+          "Concurrency Model",
+          "Thread-per-request (Blocking)",
+          "Event-loop, fixed threads (Non-blocking)"
+        ],
+        [
+          "Data Types",
+          "Standard Java Objects, CompletableFuture",
+          "Mono<T>, Flux<T> (Project Reactor)"
+        ],
+        [
+          "Database Ecosystem",
+          "JDBC, JPA, Hibernate (Blocking)",
+          "R2DBC, Reactive MongoDB, Cassandra"
+        ],
+        [
+          "Backpressure Support",
+          "None at the framework/transport layer",
+          "Native pull-based backpressure"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Event-Loop Execution: Netty allocates a small number of worker threads (typically equal to the number of CPU cores). These event loops process incoming network events continuously without blocking, shifting slow I/O tasks to specialized bounded elastic schedulers.",
+        "Backpressure Handling: Reactive streams explicitly allow consumers to signal demand to producers. If a downstream client is slow to consume a data stream, WebFlux propagates this signal upstream to throttle database queries or remote calls, preventing OutOfMemoryErrors.",
+        "Dual Programming Models: WebFlux supports both Annotated Controllers (@RestController, @GetMapping) which feel similar to Spring MVC, and Functional Endpoints (RouterFunctions, HandlerFunctions) for a more explicit, lambda-based routing approach."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/products\")\npublic class ReactiveProductController {\n\n    private final ReactiveProductRepository repository;\n\n    public ReactiveProductController(ReactiveProductRepository repository) {\n        this.repository = repository;\n    }\n\n    @GetMapping(produces = MediaType.APPLICATION_NDJSON_VALUE)\n    public Flux<Product> streamAllProducts() {\n        return repository.findAll()\n                .delayElements(Duration.ofMillis(100))\n                .log();\n    }\n\n    @GetMapping(\"/{id}\")\n    public Mono<ResponseEntity<Product>> getProductById(@PathVariable String id) {\n        return repository.findById(id)\n                .map(product -> ResponseEntity.ok(product))\n                .defaultIfEmpty(ResponseEntity.notFound().build());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in Spring WebFlux is injecting blocking libraries—like standard JPA, JDBC, or traditional HTTP clients—into a reactive pipeline. Because the reactive event-loop threads are designed never to block, executing a blocking JDBC call on an event-loop thread will stall that entire thread and crush application throughput. If you must use legacy blocking resources, you must explicitly wrap them using Schedulers.boundedElastic() to offload them to a separate thread pool."
+    }
+  ],
+  "num": 801,
+  "title": "What is Spring WebFlux? How does it differ from Spring MVC?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

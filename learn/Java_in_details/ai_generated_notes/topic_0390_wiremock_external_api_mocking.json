@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern distributed enterprise architectures, services rarely operate in isolation. They communicate across HTTP boundaries via RESTful APIs or SOAP endpoints. When writing comprehensive unit, integration, or contract tests in Java, hitting real external APIs is a recipe for disaster: network latency, third-party rate limits, unpredictable uptime, and non-deterministic test data sabotage your continuous integration pipelines. This is precisely why WireMock exists. WireMock is a flexible, mature HTTP server built specifically for stubbing and mocking external APIs. By spinning up an actual lightweight HTTP/HTTPS server locally within your test lifecycle, WireMock allows Java developers to capture request payloads, match incoming URLs, headers, and query parameters using sophisticated matching strategies, and return predictable, deterministic stubs or faults.\n\nAt its core, WireMock operates either as a standalone process (frequently deployed in dockerized integration environments) or embedded directly inside your JVM test suite via JUnit 4 or JUnit 5 extensions. When embedded, it boots up on an ephemeral port, intercepting outgoing HTTP requests made by your application's client libraries—whether you are using standard `HttpURLConnection`, Apache HttpClient, OkHttp, or Spring's reactive `WebClient`. By externalizing third-party dependencies, WireMock transforms integration tests into reliable, isolated components, allowing teams to verify complex scenarios such as cascading network timeouts, HTTP 500 server errors, malformed JSON payloads, and retries with exponential backoff without ever leaving the local development environment."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Testing Approach",
+        "WireMock (External Mocking)",
+        "Traditional Mocking (Mockito)"
+      ],
+      "rows": [
+        [
+          "Target Boundary",
+          "HTTP Network Boundary (TCP/IP sockets)",
+          "In-Memory Java Class/Interface Boundaries"
+        ],
+        [
+          "Protocol Awareness",
+          "Fully HTTP-aware (headers, verbs, status codes)",
+          "None (operates purely on method signatures)"
+        ],
+        [
+          "Runtime Environment",
+          "Embedded HTTP server on dynamic port",
+          "Direct JVM heap method dispatch interception"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Request Matching Engine: WireMock evaluates incoming requests against a prioritized list of stub mappings. It inspects URL paths, exact or regex-based query parameters, specific HTTP headers, and JSON/XML body patterns using XPath or JSONPath expressions.",
+        "Stateful Behaviors (Scenarios): Real APIs maintain state across calls. WireMock supports 'Scenarios' which allow you to model state transitions (e.g., Step 1: Resource is created returning 201; Step 2: Subsequent GET returns 200 with the created resource), preventing stubs from returning static responses indefinitely.",
+        "Fault Injection and Latency Simulation: To rigorously test circuit breakers like Resilience4j or Netflix Hystrix, WireMock can inject network jitter by adding fixed or random delays, or drop the TCP connection mid-stream to simulate socket timeouts."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import com.github.tomakehurst.wiremock.WireMockServer;\nimport static com.github.tomakehurst.wiremock.client.WireMock.*;\nimport static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;\nimport org.junit.jupiter.api.AfterEach;\nimport org.junit.jupiter.api.BeforeEach;\nimport org.junit.jupiter.api.Test;\n\npublic class PaymentApiClientTest {\n\n    private WireMockServer wireMockServer;\n\n    @BeforeEach\n    void setUp() {\n        wireMockServer = new WireMockServer(options().dynamicPort());\n        wireMockServer.start();\n        configureFor(\"localhost\", wireMockServer.port());\n    }\n\n    @AfterEach\n    void tearDown() {\n        wireMockServer.stop();\n    }\n\n    @Test\n    void shouldHandleSuccessfulPaymentResponse() {\n        stubFor(post(urlEqualTo(\"/api/v1/payments\"))\n            .withHeader(\"Authorization\", equalTo(\"Bearer secret-token\"))\n            .withRequestBody(matchingJsonPath(\"$.amount\", greaterThan(0)))\n            .willReturn(aResponse()\n                .withStatus(200)\n                .withHeader(\"Content-Type\", \"application/json\")\n                .withBody(\"{\\\"status\\\": \\\"SUCCESS\\\", \\\"transactionId\\\": \\\"tx_12345\\\"}\")));\n\n        // Execute application client code pointing to wireMockServer.baseUrl()\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production gotcha when using WireMock in parallel test execution (e.g., JUnit 5 parallel streams) is port exhaustion or stub pollution. Never share a static WireMockServer instance across tests that modify stub states concurrently. Always leverage dynamic ports via `options().dynamicPort()` combined with JUnit 5 lifecycle extensions (`@WireMockTest`) to guarantee thread isolation and prevent flaky CI pipelines."
+    }
+  ],
+  "num": 391,
+  "title": "WireMock — external API mocking",
+  "category": "Core Java & Fundamentals"
+}

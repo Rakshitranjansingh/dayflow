@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Exactly-once delivery in Apache Kafka is a common point of confusion that often stems from a misunderstanding of the distributed systems CAP theorem constraints. Technically, Kafka does not provide a 'magic' exactly-once delivery guarantee for the entire end-to-end pipeline; instead, it provides exactly-once semantics (EOS) for the producer-to-broker and read-process-write cycles. This is achieved through a combination of idempotent producers and atomic transactions. An idempotent producer ensures that retries caused by network blips do not result in duplicate records on the broker by assigning a producer ID and a monotonically increasing sequence number to each batch. When combined with the transaction API, Kafka allows a producer to send a set of messages to multiple partitions such that they are either all committed or none are, effectively solving the 'zombie' producer problem and ensuring atomic state transitions."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "At-least-once",
+        "Exactly-once (EOS)"
+      ],
+      "rows": [
+        [
+          "Producer Retries",
+          "Duplicates possible",
+          "Deduplicated via PID/Sequence"
+        ],
+        [
+          "Consumer Offsets",
+          "Committed before processing",
+          "Committed atomically with output"
+        ],
+        [
+          "Performance Overhead",
+          "Minimal",
+          "Moderate (Transaction coordination)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Idempotent Producers: The broker maintains a sequence number per Producer ID (PID) and partition. If a sequence number is less than or equal to the last committed number, the broker rejects the write as a duplicate.",
+        "Transactional API: Uses a Transaction Coordinator and a __transaction_state internal topic to track the status of a transaction. It leverages a two-phase commit protocol to ensure that offsets and output records are committed atomically.",
+        "Zombie Fencing: Kafka uses an epoch (producer epoch) to fence off older instances of a producer. If a producer attempts to commit a transaction with an expired epoch, the broker throws a ProducerFencedException, preventing split-brain scenarios.",
+        "Consumer Isolation: Consumers must set isolation.level to 'read_committed' to ensure they only see messages from successfully completed transactions, ignoring aborted ones."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "Properties props = new Properties();\nprops.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, \"true\");\nprops.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, \"prod-1\");\n\nKafkaProducer<String, String> producer = new KafkaProducer<>(props);\nproducer.initTransactions();\n\ntry {\n    producer.beginTransaction();\n    producer.send(new ProducerRecord<>(\"topic\", \"key\", \"value\"));\n    producer.sendOffsetsToTransaction(offsets, groupMetadata);\n    producer.commitTransaction();\n} catch (ProducerFencedException | OutOfOrderSequenceException e) {\n    producer.close();\n} catch (KafkaException e) {\n    producer.abortTransaction();\n}"
+    },
+    {
+      "type": "note",
+      "content": "The biggest 'gotcha' is that Kafka's EOS only covers the Kafka-to-Kafka pipeline. If your consumer writes to an external database, you are back to at-least-once territory unless you implement a distributed transaction or use an idempotent database schema (e.g., upserts based on a unique business key). Never assume that enabling EOS in Kafka magically makes your entire microservice architecture atomic."
+    }
+  ],
+  "num": 460,
+  "title": "Exactly-once delivery in Kafka — is it possible?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

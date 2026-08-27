@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The self-invocation problem, frequently referred to in enterprise application development as the proxy bypass issue, occurs within frameworks like Spring that rely heavily on dynamic proxies (either JDK dynamic proxies or CGLIB subclass-based proxies) to intercept method calls for cross-cutting concerns such as declarative transaction management, security enforcement, and caching. When a Spring bean contains a method annotated with @Transactional or @Async and calls that method internally via the 'this' reference, the execution flow bypasses the proxy entirely. Because 'this' points to the raw target instance rather than the proxy wrapper, interceptors such as TransactionInterceptor are never invoked, leading to silent failures where transactions do not commit, roll back, or run asynchronously."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Execution Mechanism",
+        "External Call (Proxied)",
+        "Self-Invocation (Bypassed)"
+      ],
+      "rows": [
+        [
+          "Call Target",
+          "Spring AOP Proxy Wrapper",
+          "Raw Target Bean Instance ('this')"
+        ],
+        [
+          "Interceptor Invocation",
+          "Executed (TransactionInterceptor, etc.)",
+          "Skipped entirely"
+        ],
+        [
+          "Behavior",
+          "Declarative rules applied correctly",
+          "Rules ignored (e.g., no transaction starts)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring creates proxies using either JDK dynamic proxies (which implement interfaces) or CGLIB (which generate subclasses overriding non-final methods).",
+        "The proxy holds a reference to the actual target bean, intercepting external client calls to manage state, security contexts, or transactions before delegating to the target.",
+        "When an internal method calls another method on the same class via 'this', it executes directly against the underlying target object, completely circumventing the proxy's AOP interceptor chain.",
+        "Common remediations include self-injection via application context, exposing the current proxy using AopContext.currentProxy(), or refactoring the transactional logic into a separate collaborator service bean."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderService {\n\n    @Autowired\n    private OrderService self;\n\n    public void processOrder(Order order) {\n        // Bypasses proxy: @Transactional is ignored\n        // this.validateAndSave(order);\n\n        // Correct: invokes through the self-injected proxy\n        self.validateAndSave(order);\n    }\n\n    @Transactional\n    public void validateAndSave(Order order) {\n        // Business logic requiring a transaction\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap is enabling exposeProxy=true on @EnableAspectJAutoProxy to use AopContext.currentProxy(). Doing this requires care because AopContext relies on a ThreadLocal, which can throw an IllegalStateException if accessed outside an AOP invocation context or if circular dependencies cause premature bean initialization. Prefer refactoring self-invoking methods into separate domain services to maintain clean architectural boundaries and avoid ThreadLocal overhead."
+    }
+  ],
+  "num": 231,
+  "title": "Self-invocation problem (proxy bypass)",
+  "category": "Exception Handling & I/O / NIO"
+}

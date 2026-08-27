@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Program Counter (PC) Register is a small, thread-private memory space allocated by the Java Virtual Machine (JVM) at the exact moment a new thread is spawned. Unlike the heap, which is shared across all threads and manages object lifecycles via garbage collection, or the JVM stack, which handles local variables and method call frames, the PC Register is dedicated to a singular, vital responsibility: storing the memory address (or native pointer) of the virtual machine instruction currently being executed by its parent thread. Because the JVM executes bytecode instruction by instruction through an execution engine (such as an interpreter or a Just-In-Time compiler), it requires a deterministic way to track execution flow, handle conditional branching, loop iterations, exception throws, and thread context switching.\n\nWhen a thread is executing a standard Java method containing bytecode, the PC Register holds the offset of the next opcode to be fetched and evaluated. However, a fascinating architectural divergence occurs when a thread invokes a native method (written in C or C++ via the Java Native Interface, or JNI). In such scenarios, the JVM specification mandates that the value of the Program Counter Register must be undefined (or set to a special sentinel value like null), because the execution flow has escaped the JVM bytecode interpreter loop and entered native machine code directly managed by the underlying operating system's CPU registers. Understanding the PC Register's lifecycle, thread-local nature, and interaction with the JVM memory model is critical for diagnosing low-level concurrency bottlenecks, native bridge interactions, and memory layout characteristics."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Memory Area",
+        "Thread-Safety",
+        "Primary Responsibility",
+        "OutOfMemoryError Risk"
+      ],
+      "rows": [
+        [
+          "Program Counter (PC) Register",
+          "Thread-Private",
+          "Tracks current execution address of JVM bytecode",
+          "None (The only JVM memory region that never throws OOM)"
+        ],
+        [
+          "JVM Stack",
+          "Thread-Private",
+          "Stores local variables, operands, and frame metadata",
+          "High (StackOverflowError or OOM if thread creation fails)"
+        ],
+        [
+          "Heap",
+          "Shared (All Threads)",
+          "Allocates dynamic object instances and arrays",
+          "High (java.lang.OutOfMemoryError: Java heap space)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Thread Isolation: Every JVM thread possesses its own independent PC Register, ensuring that concurrent execution paths do not corrupt or overwrite each other's instruction tracking pointers during multithreaded scheduling.",
+        "Bytecode Offset Tracking: For non-native methods, the register points to a specific memory address corresponding to the bytecode array of the loaded class file, advancing as instructions like aload, invokevirtual, or ireturn are executed.",
+        "Native Method Exemption: When execution transitions to native code via JNI, the JVM cannot track bytecode indices, rendering the PC Register undefined for the duration of the native invocation.",
+        "Zero Memory Allocation Risk: The PC Register is the only memory segment defined in the Java Virtual Machine Specification that is explicitly guaranteed never to throw an OutOfMemoryError, as its size is fixed relative to the architecture's address width."
+      ]
+    },
+    {
+      "type": "note",
+      "content": "Interview Insight & Production Gotcha: Developers frequently assume that all JVM memory regions can throw OutOfMemoryError under extreme load. The PC Register is the definitive exception to this rule. Because its memory footprint is strictly bound to the number of active threads and the local word size of the CPU architecture, it never scales dynamically with application data volume. When debugging native memory leaks involving JNI or thread exhaustion, always check the native thread stacks and OS process limits rather than suspecting the PC Register."
+    }
+  ],
+  "num": 711,
+  "title": "What is the Program Counter (PC) Register?",
+  "category": "Core Java & Fundamentals"
+}

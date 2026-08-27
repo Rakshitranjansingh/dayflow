@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java architectures, particularly within the Spring Framework, Inversion of Control (IoC) and Dependency Injection (DI) are foundational pillars that decouple software components to maximize modularity and testability. To understand them deeply, we must distinguish between the broad architectural paradigm and its specific design pattern implementation. Inversion of Control is a generic design principle in which the control flow of a system is inverted; instead of traditional procedural code calling libraries and managing its own execution dependencies, a dedicated framework container handles the orchestration, lifecycle management, and wiring of application components. In traditional programming, a class instantiates its collaborators using the 'new' operator, tightly coupling it to concrete implementations. Under IoC, the responsibility of creating and managing objects is handed over to the Spring IoC container (the BeanFactory or ApplicationContext).\n\nDependency Injection, on the other hand, is the concrete design pattern used to achieve Inversion of Control. It specifically deals with how a component acquires its dependencies. Rather than a class looking up or constructing its dependencies directly, those dependencies are 'injected' into the component from the outside—typically by the IoC container via constructors, setter methods, or fields. In the context of Spring Boot, DI eliminates boilerplate lookup code, allowing developers to program against interfaces rather than concrete implementations. When Spring initializes the ApplicationContext, it reads configuration metadata (via annotations like @Component, @Service, and @Autowired, or Java configuration classes), resolves dependency graphs, instantiates beans, and injects required references, resulting in codebases that are vastly easier to unit test with mock implementations."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Dimension",
+        "Inversion of Control (IoC)",
+        "Dependency Injection (DI)"
+      ],
+      "rows": [
+        [
+          "Concept Type",
+          "Broad architectural principle / design pattern",
+          "Specific implementation pattern for IoC"
+        ],
+        [
+          "Primary Focus",
+          "Who controls the application flow and object lifecycles",
+          "How an object receives its collaborating dependencies"
+        ],
+        [
+          "Implementation Mechanism",
+          "Framework containers, Service Locator pattern, Event loops",
+          "Constructor injection, Setter injection, Field injection"
+        ],
+        [
+          "Spring Framework Mapping",
+          "The Spring Container (ApplicationContext)",
+          "The mechanism of populating bean properties (@Autowired)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Spring IoC container uses reflection and ASM byte-code manipulation to scan classpaths, build bean definition metadata, and resolve topological sorting of dependencies to ensure beans are instantiated in the correct order.",
+        "Constructor-based dependency injection is strongly favored in modern Spring applications because it guarantees immutability (final fields), prevents NullPointerExceptions during partial initialization, and makes circular dependencies immediately obvious via BeanCurrentlyInCreationException at startup.",
+        "Field injection, while convenient due to brevity, bypasses encapsulation, prevents immutability, and makes unit testing difficult without loading the entire Spring context or resorting to reflection-based test utility setters."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.demo;\n\nimport org.springframework.stereotype.Service;\nimport org.springframework.beans.factory.annotation.Autowired;\n\npublic interface PaymentProcessor {\n    void processPayment(double amount);\n}\n\n@Service\npublic class StripePaymentProcessor implements PaymentProcessor {\n    @Override\n    public void processPayment(double amount) {\n        // Charge via Stripe API\n    }\n}\n\n@Service\npublic class OrderService {\n    // Dependency Injection via constructor (IoC managed by Spring)\n    private final PaymentProcessor paymentProcessor;\n\n    @Autowired\n    public OrderService(PaymentProcessor paymentProcessor) {\n        this.paymentProcessor = paymentProcessor;\n    }\n\n    public void checkout(double amount) {\n        paymentProcessor.processPayment(amount);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap in Spring Boot is circular dependency—where Bean A depends on Bean B, and Bean B depends on Bean A via constructor injection. While Spring historically attempted to resolve circular dependencies using setter/field injection proxies, Spring Boot 2.6+ blocks circular references by default via spring.main.allow-circular-references=false. If you encounter this, it is almost always a smell indicating a violation of the Single Responsibility Principle; extract the shared logic into a third service (Bean C) rather than relying on framework workarounds."
+    }
+  ],
+  "num": 214,
+  "title": "Inversion of Control vs Dependency Injection",
+  "category": "Spring Boot & Spring Framework"
+}

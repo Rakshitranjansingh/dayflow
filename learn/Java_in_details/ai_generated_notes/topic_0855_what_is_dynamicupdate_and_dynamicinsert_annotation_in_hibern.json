@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Hibernate, @DynamicUpdate and @DynamicInsert are entity-level annotations that fundamentally alter how the ORM generates SQL statements during persistence operations. By default, Hibernate generates static SQL queries that include every column mapped in the entity, regardless of whether the field value has changed. This is the 'static' approach, which is generally preferred because the database can cache the execution plan for these fixed SQL strings. However, when dealing with wide tables containing dozens of columns—especially those with large text blobs or infrequently updated fields—this static overhead becomes inefficient.\n\n@DynamicInsert instructs Hibernate to exclude null or default-valued columns from the INSERT statement, generating a dynamic string that only includes fields explicitly set by the application. Similarly, @DynamicUpdate forces Hibernate to generate an UPDATE statement at runtime that only includes columns whose values have actually changed in the entity state. This is achieved by Hibernate tracking the 'dirty' state of the entity. While these annotations reduce the payload size and potential I/O overhead on the database, they come at the cost of performance on the JVM side, as Hibernate must generate the SQL string dynamically for every operation, bypassing the pre-compiled execution plan cache in the database."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Default (Static)",
+        "Dynamic (@DynamicUpdate/@DynamicInsert)"
+      ],
+      "rows": [
+        [
+          "SQL Generation",
+          "Pre-compiled/Cached",
+          "Runtime generation per call"
+        ],
+        [
+          "Execution Plan",
+          "Highly cacheable",
+          "Harder to cache"
+        ],
+        [
+          "Payload Size",
+          "Fixed (all columns)",
+          "Variable (only changed/set)"
+        ],
+        [
+          "Performance",
+          "Better for small tables",
+          "Better for wide/sparse tables"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Hibernate performs dirty checking by comparing the current state of the entity against the snapshot taken when the entity was loaded into the Persistence Context (Session).",
+        "When @DynamicUpdate is enabled, Hibernate generates the UPDATE statement by inspecting the dirty fields, resulting in a 'WHERE id = ?' clause followed only by the specific columns that changed.",
+        "These annotations are best suited for tables with high column counts where only a subset of data is updated frequently, preventing unnecessary write-locks on columns that haven't changed.",
+        "Using these annotations can lead to increased CPU usage on the application server due to the overhead of dynamic SQL string construction and reflection-based state comparison."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Entity\n@Table(name = \"large_user_profile\")\n@DynamicUpdate\n@DynamicInsert\npublic class UserProfile {\n    @Id\n    private Long id;\n    \n    private String bio;\n    \n    private String preferences; // Often null\n    \n    // Hibernate will only include 'bio' in the UPDATE if it changes\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Do not use @DynamicUpdate as a 'performance optimization' by default. It is a specialized tool for wide tables (e.g., 50+ columns). In most standard CRUD applications, the performance hit of dynamic SQL generation and the loss of database-side execution plan caching will outweigh the minor network bandwidth savings. Always measure with a profiler before applying this to your entity model."
+    }
+  ],
+  "num": 856,
+  "title": "What is @DynamicUpdate and @DynamicInsert annotation in Hibernate?",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

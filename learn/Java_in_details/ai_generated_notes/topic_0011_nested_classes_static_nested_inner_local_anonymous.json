@@ -1,0 +1,69 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Nested classes in Java are a powerful language feature designed to logically group classes that are only used in one place, thereby increasing encapsulation and maintaining cleaner package namespaces. Java categorizes nested classes into two main groups: static nested classes and non-static nested classes (commonly referred to as inner classes). Inner classes are further subdivided into member inner classes, local classes, and anonymous classes. Understanding the mechanical differences between these four constructs is vital for writing memory-efficient, clean, and thread-safe Java applications.\n\nAt the heart of this distinction is the relationship with the enclosing (outer) class instance. A static nested class behaves conceptually like any top-level class but is packaged inside another for scoping convenience; it has no implicit reference to an instance of the outer class. In contrast, a non-static inner class is bound to a specific instance of its enclosing class, possessing an implicit, compiler-generated pointer to that instance. Local classes take this a step further by being defined inside a block (such as a method), restricting their visibility entirely to that block. Anonymous classes are expressions that define and instantiate a class simultaneously, typically used for one-off implementations of interfaces or abstract classes. Misunderstanding these relationships—especially the implicit outer reference—frequently leads to subtle memory leaks and serialization bugs in production environments."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Aspect",
+        "Static Nested Class",
+        "Inner Class (Non-Static)",
+        "Local Class",
+        "Anonymous Class"
+      ],
+      "rows": [
+        [
+          "Access to Outer Members",
+          "Only static members of outer class directly; needs instance reference for instance members.",
+          "All members (static and instance) of outer class directly.",
+          "All members of outer class + effectively final local variables of the enclosing block.",
+          "All members of outer class + effectively final local variables of the enclosing block."
+        ],
+        [
+          "Implicit Outer Reference (this$0)",
+          "No",
+          "Yes",
+          "Yes (if defined in a non-static context)",
+          "Yes (if defined in a non-static context)"
+        ],
+        [
+          "Instantiation Syntax",
+          "new Outer.StaticNested()",
+          "outerInstance.new Inner()",
+          "Only within the defining block/method",
+          "Instantiated at the point of definition via expression"
+        ],
+        [
+          "Allowed Modifiers",
+          "public, protected, private, package-private",
+          "public, protected, private, package-private",
+          "None (local to block)",
+          "None (expression-based)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Synthetic Fields and this$0: The Java compiler translates non-static inner, local, and anonymous classes by generating a synthetic, package-private instance field named 'this$0' that points to the enclosing outer class instance. This field is initialized via a compiler-generated constructor that accepts the outer instance as a parameter.",
+        "Variable Capturing and 'Effectively Final': Local and anonymous classes can access local variables of the enclosing block. Because the local variable lives on the thread stack and the class instance lives on the heap, the compiler copies the variable's value into a synthetic field of the nested class. To prevent synchronization and consistency issues between the copy and the original, Java enforces that captured variables must be final or effectively final.",
+        "Compilation Artifacts: The compiler generates separate '.class' files for every nested class. A static nested or member inner class compiles to 'Outer$Inner.class'. A local class compiles to 'Outer$1LocalClass.class' (including a numbering scheme to prevent naming collisions). An anonymous class compiles to 'Outer$1.class'.",
+        "Static Members in Inner Classes: Historically (prior to Java 16), non-static inner classes could not declare static members (except compile-time constant fields). From Java 16 onwards, inner classes are allowed to declare static members, including static methods and records, simplifying modern API design."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.engine.nested;\n\nimport java.util.ArrayList;\nimport java.util.List;\n\npublic class TaskExecutionEngine {\n    private final String engineId;\n    private final List<String> tasks = new ArrayList<>();\n\n    public TaskExecutionEngine(String engineId) {\n        this.engineId = engineId;\n    }\n\n    // 1. Static Nested Class: Independent of outer instance\n    public static class EngineConfig {\n        private int maxThreads = 4;\n        \n        public void setMaxThreads(int maxThreads) {\n            this.maxThreads = maxThreads;\n        }\n    }\n\n    // 2. Inner Class (Non-Static): Bound to outer instance\n    public class TaskIterator {\n        private int currentIndex = 0;\n\n        public boolean hasNext() {\n            // Directly accesses outer class private field 'tasks'\n            return currentIndex < tasks.size();\n        }\n\n        public String next() {\n            // Accesses outer instance field and demonstrates explicit outer 'this' syntax\n            System.out.println(\"Iterating in engine: \" + TaskExecutionEngine.this.engineId);\n            return tasks.get(currentIndex++);\n        }\n    }\n\n    public void executeBatch(List<String> rawTasks) {\n        // Effectively final local variable captured by local and anonymous classes\n        final String batchPrefix = \"BATCH-\";\n\n        // 3. Local Class: Defined inside a method block\n        class TaskValidator {\n            boolean isValid(String task) {\n                // Accesses outer instance field and captured local variable\n                return task != null && task.startsWith(batchPrefix) && !engineId.isEmpty();\n            }\n        }\n\n        TaskValidator validator = new TaskValidator();\n\n        for (String rawTask : rawTasks) {\n            if (validator.isValid(rawTask)) {\n                tasks.add(rawTask);\n            }\n        }\n\n        // 4. Anonymous Class: Expression-based instantiation of an interface\n        Runnable processor = new Runnable() {\n            @Override\n            public void run() {\n                // Accesses outer instance and captured local variables\n                System.out.println(\"Processing \" + tasks.size() + \" tasks for prefix: \" + batchPrefix);\n            }\n        };\n        \n        new Thread(processor).start();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Gotcha: The 'Invisible' Memory Leak. Non-static inner classes, local classes, and anonymous classes hold an implicit reference (this$0) to their outer class. If you instantiate an anonymous class (e.g., a Runnable or a database callback) and pass it to a long-lived thread pool, background executor, or static cache, the entire outer class instance cannot be garbage collected, even if it is otherwise out of scope. This is a notorious source of memory leaks in high-throughput backend services (retaining heavy Controller or Service instances) and Android applications. Always default to static nested classes. If the nested class requires access to the outer instance, pass it explicitly, preferably wrapped in a WeakReference if the nested class has a longer lifecycle than the outer class."
+    }
+  ],
+  "num": 12,
+  "title": "Nested classes — static nested, inner, local, anonymous",
+  "category": "Core Java & Fundamentals"
+}

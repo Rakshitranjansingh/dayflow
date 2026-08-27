@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "@RequestMapping is the foundational annotation in the Spring MVC framework used to map HTTP requests to specific handler methods in a controller. At its core, it acts as a routing mechanism that binds a URL pattern, HTTP method, and other metadata (like headers or media types) to a Java method. When a request hits the DispatcherServlet, the HandlerMapping infrastructure scans these annotations to determine which controller method should execute the business logic. While @RequestMapping is highly flexible and can handle any HTTP verb via its 'method' attribute, it is considered verbose and less expressive for modern RESTful API design.\n\nTo improve readability and enforce REST constraints, Spring introduced specialized composed annotations: @GetMapping, @PostMapping, @PutMapping, and @DeleteMapping. These are essentially syntactic sugar—meta-annotations that pre-configure @RequestMapping with a specific RequestMethod. By using these, you move from a generic 'catch-all' configuration to a declarative style that explicitly communicates the intent of the endpoint. This semantic clarity is vital for maintaining large-scale microservices, as it prevents developers from accidentally exposing sensitive operations (like data deletion) via incorrect HTTP verbs."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Annotation",
+        "HTTP Verb",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "@GetMapping",
+          "GET",
+          "Retrieving resources; must be idempotent and safe."
+        ],
+        [
+          "@PostMapping",
+          "POST",
+          "Creating resources; non-idempotent, used for state changes."
+        ],
+        [
+          "@PutMapping",
+          "PUT",
+          "Updating/Replacing resources; idempotent, replaces entire entity."
+        ],
+        [
+          "@DeleteMapping",
+          "DELETE",
+          "Removing resources; idempotent, removes specific URI target."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The DispatcherServlet utilizes the RequestMappingHandlerMapping bean to register these mappings at application startup, storing them in a lookup table for O(1) request routing.",
+        "@RequestMapping can be applied at the class level to define a base URI path, while method-level annotations append to that path, allowing for clean hierarchical resource organization.",
+        "The specialized annotations (@GetMapping, etc.) are implemented as meta-annotations, meaning they are annotated with @RequestMapping(method = RequestMethod.X), allowing them to inherit all standard attributes like 'params', 'headers', and 'consumes'.",
+        "Using specific annotations enables the framework to optimize request matching; for instance, the underlying infrastructure can immediately discard requests that do not match the expected HTTP method before executing complex parameter binding."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/v1/users\")\npublic class UserController {\n\n    @GetMapping(\"/{id}\")\n    public User getUser(@PathVariable Long id) { /* ... */ }\n\n    @PostMapping\n    public User createUser(@RequestBody User user) { /* ... */ }\n\n    @PutMapping(\"/{id}\")\n    public User updateUser(@PathVariable Long id, @RequestBody User user) { /* ... */ }\n\n    @DeleteMapping(\"/{id}\")\n    public void deleteUser(@PathVariable Long id) { /* ... */ }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is using @PostMapping for operations that should be idempotent (like a search filter). While it 'works', it breaks REST principles and prevents browser/proxy caching. Furthermore, be wary of 'path variable collisions' when using @RequestMapping at the class level; if you define a path in the class and a conflicting path in the method, Spring will throw an IllegalStateException during context initialization, failing fast rather than silently misrouting your traffic."
+    }
+  ],
+  "num": 1212,
+  "title": "What is @RequestMapping? Difference between @GetMapping, @PostMapping, @PutMapping, @DeleteMapping?",
+  "category": "Core Java & Fundamentals"
+}

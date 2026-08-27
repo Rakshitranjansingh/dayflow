@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When designing high-performance systems in Java, the triad of scalability, latency, and throughput forms the foundational calculus for architectural trade-offs. Scalability refers to a system's capability to handle a growing amount of work by adding resources to the system—typically split into scale-up (vertical) via multi-core CPUs and larger heaps, and scale-out (horizontal) across distributed JVM nodes. Latency measures the time elapsed from the initiation of a request to the delivery of its response, often analyzed through percentiles (p99, p99.9) rather than averages to capture long-tail garbage collection pauses or thread pool queuing delays. Throughput dictates the total volume of work processed per unit of time, such as transactions per second (TPS) or operations per second.\n\nIn concurrent Java applications running on the HotSpot JVM, optimizing for these three pillars frequently introduces tension. For instance, maximizing single-request latency often requires aggressive thread pooling and zero-copy data paths, but if thread counts exceed physical CPU cores, context switching overhead degrades throughput. Conversely, batching requests to maximize throughput inherently increases the latency of individual transactions. Achieving balance requires understanding hardware constraints, non-blocking I/O patterns, lock-free data structures, and the mechanics of the Garbage Collector. Scalability ensures the architecture does not hit a wall as load spikes, low latency keeps user experience responsive, and high throughput guarantees resource efficiency under heavy multi-tenant demands."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric / Dimension",
+        "Primary Focus",
+        "Common Bottlenecks in Java"
+      ],
+      "rows": [
+        [
+          "Scalability",
+          "Handling increased load via resource addition",
+          "Shared state contention, database connection pools, JVM heap limits"
+        ],
+        [
+          "Latency",
+          "Minimizing single request execution time",
+          "STW (Stop-The-World) GC pauses, lock contention, disk I/O, context switching"
+        ],
+        [
+          "Throughput",
+          "Maximizing total requests processed per second",
+          "Thread starvation, blocking network calls, excessive object allocation rates"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Scalability in modern Java relies heavily on asynchronous, non-blocking programming models like Project Loom virtual threads or reactive streams, decoupling thread-per-request limits from operating system thread constraints.",
+        "Latency spikes are frequently tied to allocation pressure; high object churn accelerates garbage collection cycles, causing unpredictable pauses that ruin tail-latency (p99) metrics.",
+        "Throughput optimization leverages lock-free algorithms, such as AtomicReference and ConcurrentHashMap, alongside CPU cache-line alignment to minimize bus contention across multiple cores."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.Executors;\nimport java.util.concurrent.ExecutorService;\nimport java.time.Duration;\n\npublic class ScalableTaskProcessor {\n    // Utilizing Virtual Threads (Project Loom) for high scalability and throughput\n    public static void main(String[] args) throws InterruptedException {\n        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {\n            for (int i = 0; i < 10_000; i++) {\n                final int taskId = i;\n                executor.submit(() -> {\n                    long start = System.nanoTime();\n                    // Simulate blocking I/O or downstream call\n                    Thread.sleep(Duration.ofMillis(50));\n                    long duration = (System.nanoTime() - start) / 1_000_000;\n                    System.out.println(\"Task \" + taskId + \" completed in \" + duration + \"ms\");\n                    return null;\n                });\n            }\n        } // Executor scope automatically closes, awaiting termination\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in high-throughput Java systems is optimizing exclusively for average latency while ignoring tail latency (p99/p99.9). A service can maintain a pristine 5ms average response time while 1% of its requests experience 800ms delays due to generational garbage collection compaction phases or thread pool exhaustion queues. Always profile using latency percentiles under sustained maximum load."
+    }
+  ],
+  "num": 1075,
+  "title": "How do you think about scalability, latency, and throughput?",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Contract testing is an integration testing methodology that validates interactions between distinct systems—most notably microservices—against a shared understanding, or contract, without requiring both systems to be simultaneously live in a heavy end-to-end testing environment. In modern distributed architectures, relying exclusively on end-to-end integration tests introduces extreme test flakiness, prohibitive execution latency, and brittle deployment pipelines where a single downstream schema update breaks an upstream consumer. Contract tests solve this by shifting integration verification left. By decoupling provider and consumer lifecycles, consumer-driven contracts establish that the provider fulfills exact expectations regarding request paths, headers, payload structures, and response codes. This architectural decoupling guarantees that services can evolve independently as long as their published contracts remain backwards compatible, drastically reducing Mean Time to Resolution (MTTR) and eliminating the false sense of security traditional mock-heavy unit tests often provide."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Dimension",
+        "Contract Tests",
+        "End-to-End (E2E) Tests"
+      ],
+      "rows": [
+        [
+          "Execution Speed",
+          "Fast (runs locally or in isolated CI pipelines within seconds)",
+          "Slow (requires spinning up multiple microservices, databases, and networks)"
+        ],
+        [
+          "Maintenance Cost",
+          "Low (consumers define precise expectations; isolated failures pinpoint exact lines)",
+          "High (brittle UI locators, network timeouts, shared database state pollution)"
+        ],
+        [
+          "Failure Feedback Loop",
+          "Immediate at PR time; explicitly names the broken field or mismatched expectation",
+          "Obscure; surfaces far down the pipeline with complex stack traces across boundaries"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Consumer-Driven Contract Workflow: The consumer writes expectations in a structured format (such as Pact JSON files) detailing the exact requests it sends and the expected responses it requires from the provider.",
+        "Mock Provider Generation: During consumer testing, the framework spins up an in-memory mock provider based on the contract to verify that the consumer client serializes requests and parses responses correctly.",
+        "Provider Verification: The provider pulls the published contract artifacts from a central broker and runs them against its live HTTP handlers or controller layers, proving its current implementation satisfies all downstream consumers.",
+        "Broker-Managed Evolution: A contract broker acts as a source of truth for service schemas, enabling matrix-based verification to check if a specific provider version is safe to deploy against a specific consumer version."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import au.com.dius.pact.consumer.dsl.PactDslJsonBody;\nimport au.com.dius.pact.consumer.dsl.PactDslWithProvider;\nimport au.com.dius.pact.consumer.junit5.PactConsumerTestExt;\nimport au.com.dius.pact.consumer.junit5.PactTestFor;\nimport au.com.dius.pact.core.model.RequestResponsePact;\nimport au.com.dius.pact.core.model.annotations.Pact;\nimport org.junit.jupiter.api.Assertions;\nimport org.junit.jupiter.api.Test;\nimport org.junit.jupiter.api.extension.ExtendWith;\n\n@ExtendWith(PactConsumerTestExt.class)\n@PactTestFor(providerName = \"UserAccountProvider\", port = \"8080\")\npublic class UserAccountConsumerContractTest {\n\n    @Pact(consumer = \"BillingServiceConsumer\")\n    public RequestResponsePact createPact(PactDslWithProvider builder) {\n        PactDslJsonBody responseBody = new PactDslJsonBody()\n            .\"uuid\"(\"id\", \"123e4567-e89b-12d3-a456-426614174000\")\n            .\"string\"(\"username\", \"johndoe\")\n            .\"boolean\"(\"active\", true);\n\n        return builder\n            .given(\"user 123 exists\")\n            .path(\"/api/users/123\")\n            .method(\"GET\")\n            .willRespondWith()\n            .status(200)\n            .body(responseBody)\n            .toPact();\n    }\n\n    @Test\n    public void testGetUserAccount(PactDslWithProvider builder) {\n        // Execute actual HTTP client call against the local Pact mock server\n        UserAccountClient client = new UserAccountClient(\"http://localhost:8080\");\n        UserAccountDto account = client.getUser(\"123\");\n        Assertions.assertNotNull(account);\n        Assertions.assertEquals(\"johndoe\", account.getUsername());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap with contract tests is treating the contract as a static artifact rather than a living agreement. If a provider team silently renames a field from camelCase to snake_case without coordinating through the contract broker, the provider's own unit tests will pass because they mock internal domain objects directly, but consumer interactions will fail in production. Always enforce broker-based webhook validation in your CI/CD pipelines so that a provider build automatically triggers verification when a new consumer contract version is published."
+    }
+  ],
+  "num": 1171,
+  "title": "What is the value of contract tests?",
+  "category": "Core Java & Fundamentals"
+}

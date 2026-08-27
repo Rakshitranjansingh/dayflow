@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The @ControllerAdvice annotation is a specialized @Component that serves as an interceptor for exceptions thrown by methods annotated with @RequestMapping or its variants. In a microservices architecture, you cannot afford to leak raw stack traces or internal implementation details to the client. @ControllerAdvice provides a centralized mechanism to decouple error handling logic from your business controllers, ensuring that every REST endpoint follows a consistent contract for error responses. By leveraging this, you transform disparate, repetitive try-catch blocks into a clean, cross-cutting concern that handles cross-controller concerns like exception mapping, model attribute pre-processing, and data binding initialization.\n\nGlobal Exception Handling is the primary use case for @ControllerAdvice. When a service layer throws a domain-specific exception—such as a 'UserNotFoundException' or 'InsufficientFundsException'—the framework catches it and routes it to a method annotated with @ExceptionHandler within the advice class. This allows you to map specific Java exceptions to standardized HTTP status codes and uniform JSON error bodies, which is critical for frontend stability and API documentation consistency."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "@ExceptionHandler (Local)",
+        "@ControllerAdvice (Global)"
+      ],
+      "rows": [
+        [
+          "Scope",
+          "Single Controller",
+          "Application-wide"
+        ],
+        [
+          "Code Duplication",
+          "High (Repeated in every class)",
+          "Low (Single source of truth)"
+        ],
+        [
+          "Maintenance",
+          "Difficult to update globally",
+          "Easy (Single point of change)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The @ControllerAdvice bean is instantiated by the ApplicationContext during startup; when an exception bubbles up the stack, the DispatcherServlet (or WebHandler in WebFlux) iterates through registered advice beans to find a matching @ExceptionHandler method.",
+        "In Spring WebFlux, the reactive pipeline requires that you handle errors within the stream; however, @ControllerAdvice still functions as a global safety net for exceptions that escape the reactive chain or occur during request mapping.",
+        "You can restrict the scope of an advice class using 'annotations', 'basePackageClasses', or 'basePackages' attributes, allowing you to apply different error handling strategies for different modules of your microservice."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@ControllerAdvice\npublic class GlobalExceptionHandler {\n\n    @ExceptionHandler(ResourceNotFoundException.class)\n    public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex) {\n        ErrorResponse error = new ErrorResponse(\"NOT_FOUND\", ex.getMessage());\n        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);\n    }\n\n    @ExceptionHandler(Exception.class)\n    public ResponseEntity<ErrorResponse> handleGeneral(Exception ex) {\n        // Log the actual exception for internal debugging\n        return new ResponseEntity<>(new ErrorResponse(\"INTERNAL_ERROR\", \"Contact support\"), HttpStatus.INTERNAL_SERVER_ERROR);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Gotcha: Never swallow exceptions without logging them. A common mistake is to return a generic 500 error in the @ControllerAdvice without invoking a logger, which effectively blinds your SRE team to production issues. Always log the full stack trace at the ERROR level inside your advice class before returning the sanitized response to the client."
+    }
+  ],
+  "num": 774,
+  "title": "What is @ControllerAdvice? How do you implement Global Exception Handling?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

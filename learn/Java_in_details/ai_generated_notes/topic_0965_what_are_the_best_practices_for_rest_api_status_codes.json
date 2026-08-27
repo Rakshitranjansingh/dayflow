@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of REST APIs, particularly when building reactive microservices with Spring WebFlux, status codes are not merely suggestions; they form the semantic contract between your service and its consumers. A well-designed API uses the standard HTTP status code range—1xx to 5xx—to communicate the outcome of a request without requiring the client to parse the response body. The 2xx family signals success, with 200 OK being the default, 201 Created for resource instantiation, and 204 No Content for successful deletions or updates where no payload is returned. The 4xx range identifies client-side errors, such as 400 Bad Request for malformed JSON, 401 Unauthorized for missing credentials, and 403 Forbidden for insufficient permissions. Crucially, 404 Not Found should be used strictly for missing resources, not for business logic failures. The 5xx range, specifically 500 Internal Server Error, should be reserved for unexpected runtime exceptions, while 503 Service Unavailable is vital in microservices to signal backpressure or circuit breaker trips."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "HTTP Code",
+        "Semantic Meaning",
+        "WebFlux Usage"
+      ],
+      "rows": [
+        [
+          "201 Created",
+          "Resource successfully persisted",
+          "Mono.just(ResponseEntity.status(HttpStatus.CREATED).body(dto))"
+        ],
+        [
+          "409 Conflict",
+          "State mismatch or duplicate",
+          "Mono.error(new ResponseStatusException(HttpStatus.CONFLICT))"
+        ],
+        [
+          "422 Unprocessable Entity",
+          "Validation failure",
+          "BindingResult errors in @Valid annotated controllers"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Use 422 Unprocessable Entity instead of 400 Bad Request when the syntax is correct but the business logic validation fails (e.g., email already exists).",
+        "In WebFlux, avoid throwing raw exceptions that trigger 500 errors. Use GlobalExceptionHandler with @ControllerAdvice to map domain-specific exceptions to appropriate HTTP status codes.",
+        "Leverage 202 Accepted for long-running asynchronous tasks in microservices, returning a URI to a status-polling endpoint.",
+        "Never return a 200 OK with an error object inside the body; this breaks standard monitoring tools and proxies that rely on HTTP status codes for alerting."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@PostMapping(\"/users\")\npublic Mono<ResponseEntity<UserDTO>> createUser(@Valid @RequestBody UserRequest request) {\n    return userService.save(request)\n        .map(user -> ResponseEntity.status(HttpStatus.CREATED).body(user))\n        .onErrorResume(DuplicateUserException.class, e -> \n            Mono.just(ResponseEntity.status(HttpStatus.CONFLICT).build()));\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Beware of 'Status Code Overloading'. A common trap is using 404 Not Found to signal that a specific business condition wasn't met (e.g., 'User has no orders'). This is incorrect; the user exists, but the collection is empty. Returning 404 here confuses API gateway logging and metrics. Always prefer returning an empty array [] with a 200 OK for empty collections, or a specific 4xx error if the resource identifier itself is invalid."
+    }
+  ],
+  "num": 966,
+  "title": "What are the best practices for REST API status codes?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

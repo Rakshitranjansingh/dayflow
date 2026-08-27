@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing modern enterprise features requires a deliberate balancing act between synchronous execution and asynchronous processing. Deciding between synchronous versus asynchronous patterns is not merely a stylistic choice; it dictates the throughput, latency, consistency boundaries, and operational complexity of your system. Synchronous execution means the caller thread blocks and waits until the operation completes, immediately receiving a success or error response. This model is ideal for operations requiring strict read-after-write consistency, immediate feedback, or transactional integrity within a single request context, such as validating a user's password or fetching real-time account balances. However, synchronous flows quickly degrade under high load or downstream latency spikes, as thread pools exhaust their capacity and cause cascading failures.\n\nOn the other hand, asynchronous processing decouples the producer from the consumer, allowing the caller to hand off a task to a background thread, a message broker (like Apache Kafka or RabbitMQ), or a reactive non-blocking pipeline. This pattern is indispensable for long-running, non-blocking, or side-effect-heavy tasks such as generating PDF invoices, sending transactional emails, or performing heavy analytics. By offloading these operations, you protect the core API request threads from starvation, reduce tail latencies (p99/p99.9), and improve resilience. However, this decoupling introduces eventual consistency challenges, requires robust dead-letter queue (DLQ) strategies, and complicates distributed error handling and transaction rollbacks."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Dimension",
+        "Synchronous Processing",
+        "Asynchronous Processing"
+      ],
+      "rows": [
+        [
+          "Thread Model",
+          "Caller thread blocks until completion",
+          "Caller thread hands off task; worker thread executes independently"
+        ],
+        [
+          "Consistency",
+          "Immediate (Strong consistency within the transaction)",
+          "Eventual consistency (Requires compensation logic or retries)"
+        ],
+        [
+          "Error Handling",
+          "Immediate exceptions propagated up the call stack",
+          "Requires retries, circuit breakers, and DLQs"
+        ],
+        [
+          "Best Use Cases",
+          "Read-after-write reads, authentication, critical validations",
+          "Batch processing, notifications, webhooks, heavy compute"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Thread Pool Exhaustion: In synchronous high-traffic APIs, every concurrent request consumes a thread. If a database query or external HTTP call hangs, the thread pool fills up, leading to total service unavailability.",
+        "Backpressure Management: Asynchronous systems using reactive streams (e.g., Project Reactor) or message brokers must implement backpressure to prevent fast producers from overwhelming slow consumers and triggering OutOfMemory errors.",
+        "Distributed Context Propagation: When shifting execution from a synchronous HTTP request thread to an async worker thread, context propagation libraries (like Spring's TaskDecorator or Micrometer Context Propagation) must be used to preserve MDC logs, security tokens, and tracing spans."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.CompletableFuture;\nimport java.util.concurrent.ExecutorService;\nimport java.util.concurrent.Executors;\n\npublic class FeatureOrchestrator {\n    private final ExecutorService asyncPool = Executors.newFixedThreadPool(10);\n\n    public OrderResponse processOrder(OrderRequest request) {\n        // 1. Synchronous core validation and persistence\n        validateInventory(request);\n        Order savedOrder = saveToDatabase(request);\n\n        // 2. Asynchronous side-effects (Notifications, Analytics)\n        CompletableFuture.runAsync(() -> sendConfirmationEmail(savedOrder), asyncPool)\n            .exceptionally(ex -> {\n                log.error(\"Failed to send async confirmation email\", ex);\n                return null;\n            });\n\n        // 3. Return immediate synchronous response\n        return new OrderResponse(savedOrder.getId(), \"SUCCESS\");\n    }\n\n    private void validateInventory(OrderRequest req) { /* Sync logic */ }\n    private Order saveToDatabase(Order req) { return new Order(); }\n    private void sendConfirmationEmail(Order order) { /* Async logic */ }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap is wrapping every single operation in an asynchronous CompletableFuture without bounding the executor thread pool. This leads to thread explosion, excessive context switching, and CPU cache thrashing. Always use bounded thread pools, explicit rejection policies, and monitor queue depths using metrics to ensure your async boundaries act as cushions rather than vectors for cascading failure."
+    }
+  ],
+  "num": 1235,
+  "title": "How do you decide what should be synchronous versus async in a feature?",
+  "category": "Core Java & Fundamentals"
+}

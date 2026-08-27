@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "CompletableFuture, introduced in Java 8, represents a significant evolution in asynchronous programming by providing a monadic, functional approach to handling concurrent tasks. Unlike the legacy Future interface, which is essentially a passive container for a result that may not yet exist, CompletableFuture acts as a 'promise' that can be explicitly completed. It solves the critical problem of 'callback hell' and blocking operations by offering a rich API for chaining, composing, and combining asynchronous stages without requiring the calling thread to wait for the result.\n\nThe Future interface is fundamentally limited: it provides no mechanism to attach callbacks, chain dependent tasks, or handle exceptions gracefully without blocking via get(). If you need to perform an action once a Future completes, you are forced to poll it or block a thread, which defeats the purpose of non-blocking concurrency. CompletableFuture bridges this gap by allowing you to define a pipeline of execution—using methods like thenApply, thenCompose, and thenAccept—that the JVM executes as soon as the previous stage finishes, often using the ForkJoinPool.commonPool() by default."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Future",
+        "CompletableFuture"
+      ],
+      "rows": [
+        [
+          "Completion Mechanism",
+          "Passive (must poll/block)",
+          "Active (can be manually completed)"
+        ],
+        [
+          "Chaining",
+          "Not supported",
+          "Fluent API (thenApply, thenCompose)"
+        ],
+        [
+          "Exception Handling",
+          "Requires try-catch around get()",
+          "Integrated (exceptionally, handle)"
+        ],
+        [
+          "Composition",
+          "None",
+          "Native (allOf, anyOf, thenCombine)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "CompletableFuture operates on a 'CompletionStage' contract, which defines the DAG (Directed Acyclic Graph) of tasks. When a stage completes, the JVM triggers the dependent stages, minimizing idle thread time.",
+        "By default, CompletableFuture uses the ForkJoinPool.commonPool(). In production environments, you should almost always provide a custom Executor to avoid thread starvation in the common pool caused by blocking I/O tasks.",
+        "The 'Async' variants (e.g., thenApplyAsync) allow you to explicitly offload the execution of a stage to a specific thread pool, providing granular control over resource allocation.",
+        "Exception propagation in CompletableFuture is monadic; if a stage in the chain throws an exception, it skips subsequent non-error-handling stages until it hits an 'exceptionally' or 'handle' block."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public CompletableFuture<String> fetchUserDashboard(String userId) {\n    return CompletableFuture.supplyAsync(() -> userService.findById(userId), executor)\n        .thenCompose(user -> CompletableFuture.supplyAsync(() -> dashboardService.getStats(user), executor))\n        .thenApply(stats -> \"Dashboard: \" + stats.toString())\n        .exceptionally(ex -> \"Error loading dashboard: \" + ex.getMessage());\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Watch out for the 'common pool' trap. If you execute blocking I/O (like a JDBC call or a synchronous HTTP request) inside a CompletableFuture without a custom executor, you risk saturating the ForkJoinPool.commonPool(). Since this pool is shared across the entire JVM, a single slow service can effectively halt all other asynchronous tasks in your application. Always pass a dedicated ThreadPoolExecutor for I/O-bound operations."
+    }
+  ],
+  "num": 672,
+  "title": "What is CompletableFuture (Java 8)? How is it different from Future?",
+  "category": "Multithreading & Java Concurrency"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the realm of Core Java and object-oriented programming fundamentals, the short answer to whether you can override a static method to make it non-static is an unequivocal no. The Java Language Specification explicitly forbids changing the method modifier from static to instance-level during inheritance. Understanding why this restriction exists requires delving into how Java resolves method calls at compile-time versus runtime, memory allocation models, and the core philosophy of object polymorphism.\n\nWhen a method is marked as static, it belongs to the class itself rather than any specific instance of that class. Static methods are bound to the class metadata loaded in the JVM method area (or metaspace in modern Java versions). Conversely, non-static (instance) methods require an object reference (the implicit 'this' pointer) to execute and are dynamically dispatched at runtime using the vtable (virtual method table) of the object instance. Allowing a subclass to override a static method with an instance method would break the fundamental contract of polymorphic dispatch, creating catastrophic ambiguity in how callers reference and execute the method."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Static Methods",
+        "Instance Methods"
+      ],
+      "rows": [
+        [
+          "Binding Time",
+          "Compile-time (Early binding / invokestatic)",
+          "Runtime (Late binding / invokevirtual)"
+        ],
+        [
+          "Memory Association",
+          "Class-level (Metaspace / Class object)",
+          "Instance-level (Heap object structure)"
+        ],
+        [
+          "Polymorphism",
+          "Not polymorphic (Shadowed, not overridden)",
+          "Polymorphic (Dynamic dispatch based on runtime type)"
+        ],
+        [
+          "This Pointer",
+          "Not accessible",
+          "Accessible via implicit 'this' reference"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Method Hiding vs. Method Overriding: When a subclass defines a static method with the exact same signature as a static method in its superclass, it is known as hiding, not overriding. The compiler resolves calls based on the declared reference type, not the object type.",
+        "The Compiler Error: Attempting to write an instance method in a subclass that matches the signature of a superclass's static method results in a compile-time error: 'error: overriding method is static' or 'error: method X cannot override Y; overridden method is static'.",
+        "JVM Bytecode Instructions: Static methods utilize the invokestatic bytecode instruction, which relies solely on the symbolic reference of the class defining the method. Instance methods use invokevirtual or invokeinterface, which pop the object reference off the operand stack to look up the correct implementation in the vtable."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "class SuperClass {\n    public static void printMessage() {\n        System.out.println(\"Static method in SuperClass\");\n    }\n}\n\nclass SubClass extends SuperClass {\n    // COMPILE-TIME ERROR: attempting to assign weaker access privileges\n    // or attempting to override a static method with an instance method.\n    /*\n    @Override\n    public void printMessage() {\n        System.out.println(\"Attempting to make it non-static\");\n    }\n    */\n    \n    // Correct approach if you want method hiding (both static):\n    public static void printMessage() {\n        System.out.println(\"Hidden static method in SubClass\");\n    }\n}\n\npublic class TestDriver {\n    public static void main(String[] args) {\n        SuperClass.printMessage(); // Outputs: Static method in SuperClass\n        SubClass.printMessage();   // Outputs: Hidden static method in SubClass\n        \n        SuperClass ref = new SubClass();\n        ref.printMessage(); // Outputs: Static method in SuperClass (Resolved via reference type, not object type)\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic interview trap is asking what happens if a parent class has a static method and a child class implements an instance method with the same name. Candidates often confuse this with runtime polymorphism. Always remember that static methods are tightly bound to the class type at compile time. If you ever find yourself needing polymorphic behavior, avoid static methods entirely; use interface default methods or abstract class instance methods instead."
+    }
+  ],
+  "num": 1201,
+  "title": "Can you override a static method to make it non-static?",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "An OutOfMemoryError (OOM) in the JVM is a fatal signal from the HotSpot Garbage Collector indicating that the JVM can no longer allocate an object because the heap or native memory is exhausted, and the GC cannot reclaim enough space to satisfy the request. It is not merely a 'lack of memory' but a failure of the GC cycle to clear unreachable objects, often caused by memory leaks, improper heap sizing, or excessive object allocation rates. The error manifests in several flavors: 'Java heap space' occurs when the young or old generation is full; 'GC overhead limit exceeded' occurs when the JVM spends more than 98% of its time doing GC and recovers less than 2% of the heap; 'Metaspace' occurs when class metadata exceeds the allocated native memory; and 'Direct buffer memory' occurs when NIO buffers exceed the limit set by -XX:MaxDirectMemorySize."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "OOM Type",
+        "Primary Trigger",
+        "JVM Area"
+      ],
+      "rows": [
+        [
+          "Java heap space",
+          "Excessive object retention",
+          "Heap (Young/Old Gen)"
+        ],
+        [
+          "GC overhead limit",
+          "Thrashing GC cycles",
+          "Heap"
+        ],
+        [
+          "Metaspace",
+          "Dynamic class loading",
+          "Native Memory"
+        ],
+        [
+          "Requested array size",
+          "Integer overflow/Allocation > Heap",
+          "Heap"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Memory Leaks: Long-lived collections (e.g., static HashMaps) holding onto objects that should have been eligible for collection, preventing the GC from reclaiming the Old Generation.",
+        "Allocation Rate vs. Promotion: If the application creates short-lived objects faster than the Young Generation can collect them, they are prematurely promoted to the Old Generation, triggering frequent Major GCs.",
+        "Metaspace Exhaustion: Common in frameworks using heavy bytecode generation (CGLib/ByteBuddy) or dynamic class loading, where the metaspace limit is reached because classes cannot be unloaded.",
+        "Native Memory Pressure: Direct ByteBuffers and JNI calls allocate memory outside the JVM heap; if these are not explicitly managed, they can crash the process even if the Java heap appears healthy."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// A classic memory leak: adding to a static collection without removal\npublic class CacheManager {\n    private static final Map<String, Object> CACHE = new ConcurrentHashMap<>();\n\n    public void addToCache(String key, Object value) {\n        // If this map grows indefinitely, it will eventually trigger OOM\n        CACHE.put(key, value);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Pro-tip: Never ignore an OOM by simply increasing -Xmx. Always capture a heap dump using -XX:+HeapDumpOnOutOfMemoryError. If you see 'GC overhead limit exceeded', it is almost always a sign of a logic bug or an undersized heap for the current load, not a configuration tuning issue. Use jmap or VisualVM to inspect the Dominator Tree and identify the objects holding the highest percentage of memory."
+    }
+  ],
+  "num": 706,
+  "title": "What causes OutOfMemoryError?",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a URL shortener requires balancing high-throughput read operations with consistent, collision-free write operations. At its core, the system must map a long, arbitrary URL to a compact, unique identifier. Base62 encoding is the standard mechanism for this, as it utilizes the character set [a-z, A-Z, 0-9] to represent large integers in a human-readable, URL-safe string format. By converting a base-10 database primary key into a base-62 string, we can represent billions of unique URLs in a very small footprint (e.g., 6 characters can represent over 56 billion combinations). \n\nTo ensure performance and scalability, we avoid generating random strings and checking for collisions in the database, which would introduce significant latency and race conditions. Instead, we use a Key Generation Service (KGS). The KGS acts as a pre-allocated, thread-safe sequence provider. It maintains ranges of unique IDs in memory and distributes them to application nodes. This decouples the ID generation from the database write path, ensuring that every short URL is guaranteed to be unique without requiring expensive 'SELECT ... WHERE EXISTS' queries during the write flow."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component",
+        "Responsibility",
+        "Scaling Strategy"
+      ],
+      "rows": [
+        [
+          "KGS",
+          "Distributes unique numeric IDs",
+          "Partitioning ranges across multiple instances"
+        ],
+        [
+          "Base62 Encoder",
+          "Maps ID to [a-zA-Z0-9] string",
+          "Stateless utility class"
+        ],
+        [
+          "Database",
+          "Stores mapping (ID, LongURL)",
+          "Sharding by hash of the LongURL"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Base62 logic: To encode, perform repeated modulo 62 operations on the ID and map the remainder to the corresponding index in the character array; to decode, treat the string as a positional number system with base 62.",
+        "KGS Invariants: The service must ensure that no ID is ever reused. By fetching IDs in blocks (e.g., 1000 at a time), we minimize network round-trips to the KGS while maintaining strict uniqueness.",
+        "Memory Layout: Use a persistent store (like Zookeeper or a dedicated DB table) to track the 'high-water mark' of distributed IDs to prevent ID collision after a KGS service restart.",
+        "Cache Strategy: Implement a Write-Through cache (Redis) for the short-to-long URL mapping to handle the heavy read traffic typical of shortened links."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class Base62Encoder {\n    private static final String ALPHABET = \"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\";\n\n    public static String encode(long id) {\n        StringBuilder sb = new StringBuilder();\n        while (id > 0) {\n            sb.append(ALPHABET.charAt((int) (id % 62)));\n            id /= 62;\n        }\n        return sb.reverse().toString();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is using a simple 'random string' generator with a database uniqueness constraint. Under high load, this leads to 'collision storms' where the database rejects writes, causing the application to retry and further saturating the DB. Always prefer a centralized KGS or a distributed sequence generator like Twitter Snowflake to ensure IDs are monotonically increasing, which also improves B-Tree index performance in your database."
+    }
+  ],
+  "num": 1090,
+  "title": "How would you design a URL Shortener (like bit.ly)? (Base62 encoding, KGS)",
+  "category": "Core Java & Fundamentals"
+}

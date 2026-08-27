@@ -1,0 +1,70 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In a distributed microservices architecture, how do microservices communicate? This fundamental question shapes the entire latency, availability, and consistency profile of a system. When decomposing a monolith, in-memory function calls devolve across network boundaries. Systems must choose between synchronous paradigms like REST (Representational State Transfer) and gRPC, versus asynchronous messaging patterns. Synchronous communication implies that the client blocks and waits for a response from the server, heavily coupling the lifecycles of both services. REST leverages standard HTTP verbs and payloads, typically formatted as JSON, prioritizing human-readability, ubiquitous tooling, and stateless resource manipulation. However, HTTP/1.1 overhead, text-based parsing, and head-of-line blocking can cripple throughput at scale. Conversely, gRPC utilizes HTTP/2 as its transport layer, leveraging Protocol Buffers (Protobuf) for compact binary serialization. This yields exceptionally high throughput, strict schema definition, and native bidirectional streaming.\n\nOn the other side of the architectural spectrum, asynchronous messaging decouples the producer from the consumer via a message broker or event log (such as Apache Kafka or RabbitMQ). Instead of waiting for an immediate execution, services publish events or send commands to queues/topics, letting consumers process payloads at their own pace. This pattern drastically enhances fault tolerance and temporal decoupling: if the downstream processing service crashes, the message broker buffers the payload, preventing cascading failures. While asynchronous messaging introduces eventual consistency and requires complex saga patterns or outbox architectures to handle distributed transactions, it prevents the thread-pool exhaustion and latency amplification that plague heavily chained synchronous call graphs."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric / Feature",
+        "Synchronous REST",
+        "Synchronous gRPC",
+        "Asynchronous Messaging"
+      ],
+      "rows": [
+        [
+          "Transport Protocol",
+          "HTTP/1.1 or HTTP/2",
+          "HTTP/2",
+          "TCP-based custom protocols (Kafka, AMQP)"
+        ],
+        [
+          "Data Serialization",
+          "JSON / XML (Text-based)",
+          "Protocol Buffers (Binary)",
+          "JSON, Avro, or Protobuf (Binary/Text)"
+        ],
+        [
+          "Coupling",
+          "Temporal & Spatial",
+          "Temporal & Spatial",
+          "Spatially Decoupled (Broker mediated)"
+        ],
+        [
+          "Latency Profile",
+          "Higher due to text parsing and overhead",
+          "Ultra-low due to binary framing and multiplexing",
+          "Fire-and-forget (Request latency is near zero)"
+        ],
+        [
+          "Error Handling",
+          "HTTP Status Codes (4xx, 5xx)",
+          "gRPC Status Codes (OK, DEADLINE_EXCEEDED, etc.)",
+          "Dead Letter Queues (DLQ) & Retries"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Synchronous REST relies heavily on connection pooling (e.g., Apache HttpClient or Reactor Netty) to mitigate TCP handshake latency, but can quickly saturate worker threads under traffic spikes if downstream services stall.",
+        "gRPC uses HTTP/2 multiplexing, allowing multiple concurrent requests and responses to share a single TCP connection simultaneously, completely bypassing head-of-line blocking.",
+        "Asynchronous messaging enforces partition-level ordering in systems like Apache Kafka, where consumers process messages sequentially from a specific partition to preserve domain event causality.",
+        "Idempotency is a strict requirement in asynchronous pipelines, as network partitions and broker retries can deliver duplicate event payloads to consumers."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/orders\")\npublic class OrderController {\n    \n    private final KafkaTemplate<String, OrderEvent> kafkaTemplate;\n    private final OrderGrpcClient grpcClient;\n\n    public OrderController(KafkaTemplate<String, OrderEvent> kafkaTemplate, OrderGrpcClient grpcClient) {\n        this.kafkaTemplate = kafkaTemplate;\n        this.grpcClient = grpcClient;\n    }\n\n    @PostMapping\n    public ResponseEntity<String> createOrder(@RequestBody OrderRequest request) {\n        // Synchronous call to validate inventory via gRPC for ultra-low latency\n        InventoryResponse inventory = grpcClient.checkInventory(request.getProductId(), request.getQuantity());\n        if (!inventory.getInStock()) {\n            return ResponseEntity.badRequest().body(\"Out of stock\");\n        }\n\n        // Asynchronous emission of order created event for downstream fulfillment\n        OrderEvent event = new OrderEvent(request.getOrderId(), request.getProductId());\n        kafkaTemplate.send(\"order-events\", event.getOrderId(), event);\n\n        return ResponseEntity.accepted().body(\"Order processing initiated\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic architectural anti-pattern in microservices is the 'Distributed Monolith', where teams build a web of synchronous REST or gRPC calls forming a deep dependency tree. If Service A calls B, B calls C, and C calls D synchronously, the overall system availability is the product of each individual service's uptime (e.g., 99% * 99% * 99% * 99% = 96%). Furthermore, a latency spike in service D causes thread starvation propagating all the way back to the API Gateway. Always favor asynchronous messaging for cross-boundary state changes, and reserve synchronous REST/gRPC strictly for read-only queries or low-latency orchestration where immediate consistency is mandatory."
+    }
+  ],
+  "num": 1035,
+  "title": "How do microservices communicate? (Synchronous REST/gRPC vs Asynchronous Messaging)",
+  "category": "REST APIs, WebFlux & Microservices"
+}

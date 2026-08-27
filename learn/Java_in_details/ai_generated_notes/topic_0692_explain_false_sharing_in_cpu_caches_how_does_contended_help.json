@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "False sharing is a silent performance killer in multi-threaded concurrent programming that occurs when two or more distinct threads running on separate CPU cores modify independent variables that happen to reside within the exact same cache line. Modern CPUs do not read or write main memory in single-byte increments; instead, they fetch data in blocks called cache lines, typically 64 bytes wide. When Core 1 writes to Variable A, the hardware cache coherency protocols (such as MESI) invalidate the entire 64-byte cache line across all other CPU cores to maintain memory visibility. If Core 2 is concurrently modifying Variable B, which sits inside that same 64-byte block, Core 2's cache line is repeatedly invalidated, forcing expensive round-trips to L3 cache or main memory. This phenomenon creates severe cache thrashing and bus contention, despite the application code having zero logical data sharing between the threads.\n\nTo combat this hardware-level bottleneck at the JVM level, Java provides the @Contended annotation. Introduced as an internal JDK annotation in Java 8 and later officially supported in the public API (jdk.internal.vm.annotation.Contended or exposed via JVM flags), @Contended instructs the JVM's memory layout engine to pad the annotated field or class with extra bytes of empty space—typically 128 bytes to account for hardware prefetchers. By inserting this memory padding, the JVM guarantees that no other frequently modified fields share the same cache line, effectively isolating the variable to its own exclusive memory chunk and eliminating the invalidation storms caused by false sharing."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Metric",
+        "Without @Contended",
+        "With @Contended"
+      ],
+      "rows": [
+        [
+          "Cache Line Sharing",
+          "Multiple variables share a single 64-byte block",
+          "Variables are isolated via automated padding"
+        ],
+        [
+          "Coherency Traffic",
+          "High MESI/MOESI invalidation traffic (Cache Thrashing)",
+          "Minimal invalidation traffic; localized core access"
+        ],
+        [
+          "Memory Footprint",
+          "Compact object layout, minimal object header/field overhead",
+          "Larger object footprint due to inserted padding bytes"
+        ],
+        [
+          "Throughput Scaling",
+          "Degrades severely as core counts scale up",
+          "Maintains linear throughput scaling under high contention"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Cache Line Invalidation (MESI Protocol): When a core executes a store instruction to a variable, it broadcasts an invalidate message for that cache line. Even if another core only reads or writes an entirely independent variable nearby, its local L1/L2 cache line is marked Invalid, forcing a reload.",
+        "JVM Layout Enforcement: The HotSpot JVM computes field offsets during object layout determination. When it encounters @Contended, it inserts padding fields before and after the target field to align it cleanly to cache line boundaries.",
+        "The -XX:-RestrictContended Flag: By default, the JVM restricts the usage of @Contended to JDK internal classes to prevent developers from arbitrarily bloating object sizes. To use it in application code, you must explicitly pass the JVM flag -XX:-RestrictContended."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.concurrency;\n\nimport jdk.internal.vm.annotation.Contended;\n\npublic class HighThroughputCounter {\n    \n    // Thread 1 heavily increments this value\n    @Contended\n    private volatile long countThreadOne = 0L;\n    \n    // Thread 2 heavily increments this independent value\n    @Contended\n    private volatile long countThreadTwo = 0L;\n\n    public void incrementOne() {\n        countThreadOne++;\n    }\n\n    public void incrementTwo() {\n        countThreadTwo++;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Beware that applying @Contended indiscriminately to every field in an application will bloat heap consumption and degrade CPU cache density, as fewer objects will fit into your L1/L2 caches. Use it strictly for hot-path counter arrays (like in custom lock-free data structures or high-frequency metrics collectors) where multi-core write contention is mathematically proven to be a bottleneck via profiling tools like JMH or Linux perf."
+    }
+  ],
+  "num": 693,
+  "title": "Explain False Sharing in CPU caches. How does @Contended help?",
+  "category": "Core Java & Fundamentals"
+}

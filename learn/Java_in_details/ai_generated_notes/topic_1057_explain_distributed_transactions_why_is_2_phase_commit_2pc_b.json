@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Distributed transactions are mechanisms designed to ensure atomicity across multiple independent data stores or services, guaranteeing that a series of operations either all commit or all roll back. In a monolithic environment, this is handled by the ACID properties of a single RDBMS. However, in distributed systems, we face the 'Fallacy of Distributed Computing,' where network partitions, latency, and partial failures make atomic state changes inherently difficult. The 2-Phase Commit (2PC) protocol attempts to solve this by introducing a central coordinator that orchestrates a 'prepare' phase, where all participants vote on their ability to commit, followed by a 'commit' phase where the coordinator broadcasts the final decision. While theoretically sound for maintaining strict consistency, 2PC is fundamentally incompatible with the microservices architecture because it is a synchronous, blocking protocol. In a microservices ecosystem, holding locks across network boundaries while waiting for a coordinator to finalize a transaction leads to catastrophic latency spikes and creates a single point of failure. Furthermore, 2PC violates the autonomy of microservices; if a participant service crashes during the 'prepared' state, it holds onto database locks indefinitely, effectively paralyzing the system and causing cascading failures that are notoriously difficult to debug."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Aspect",
+        "2-Phase Commit (2PC)",
+        "Saga Pattern (Eventual Consistency)"
+      ],
+      "rows": [
+        [
+          "Consistency Model",
+          "Strong (ACID)",
+          "Eventual (BASE)"
+        ],
+        [
+          "Coupling",
+          "Tight (Synchronous)",
+          "Loose (Asynchronous)"
+        ],
+        [
+          "Availability",
+          "Low (Blocking)",
+          "High (Non-blocking)"
+        ],
+        [
+          "Failure Handling",
+          "Atomic Rollback",
+          "Compensating Transactions"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "2PC relies on a blocking 'Prepare' phase where participants must acquire and hold local database locks until the coordinator sends the 'Commit' or 'Rollback' command, creating a massive contention bottleneck.",
+        "The coordinator acts as a single point of failure; if it crashes after the prepare phase but before the commit, participants are left in an 'in-doubt' state, requiring manual intervention or complex recovery logs to resolve.",
+        "Microservices are designed for independent deployment and scaling; 2PC forces services to share a common transaction context, which breaks the encapsulation of data and prevents services from scaling their database access independently.",
+        "In modern cloud-native environments, network partitions are a reality. 2PC's synchronous nature means that a transient network hiccup can cause a transaction to hang, consuming thread pools and memory across the entire call chain."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Conceptual Saga approach using Spring Events for eventual consistency\n@Service\npublic class OrderService {\n    @Transactional\n    public void createOrder(Order order) {\n        orderRepository.save(order);\n        // Publish event to trigger downstream services asynchronously\n        eventPublisher.publishEvent(new OrderCreatedEvent(order.getId()));\n    }\n}\n\n// Compensating transaction logic in the Inventory service\n@EventListener\npublic void handleOrderCreated(OrderCreatedEvent event) {\n    try {\n        inventoryService.reserve(event.getOrderId());\n    } catch (Exception e) {\n        // If reservation fails, trigger compensation to revert the Order status\n        eventPublisher.publishEvent(new InventoryFailedEvent(event.getOrderId()));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Architect Insight: Never attempt to implement 2PC across microservices using XA transactions. You will inevitably hit the 'Distributed Deadlock' scenario where service A waits for service B, while service B waits for service A, both holding locks on their respective databases. Always prefer the Saga pattern or Transactional Outbox pattern to achieve eventual consistency. If you absolutely require ACID, you are likely looking at a bounded context that should be a single service, not a distributed one."
+    }
+  ],
+  "num": 1058,
+  "title": "Explain Distributed Transactions. Why is 2-Phase Commit (2PC) bad for microservices?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

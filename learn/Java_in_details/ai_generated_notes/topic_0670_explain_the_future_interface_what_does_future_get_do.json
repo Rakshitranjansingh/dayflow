@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In asynchronous Java programming, the Future interface represents the result of an asynchronous computation. When you submit a heavy task to an ExecutorService, it hands you back a Future handle immediately while a worker thread processes the job in the background. This decouples task submission from result retrieval, preventing the main thread from blocking until the data is actually needed. However, managing this deferred result requires careful synchronization, which brings us to the core mechanism of polling or waiting for completion.\n\nAt the center of this interface is the Future.get() method, which is used to retrieve the underlying result of the asynchronous computation. Depending on the current state of the execution thread, Future.get() behaves in one of three ways: if the task has already completed successfully, it immediately returns the computed value; if the task is still running, it blocks the calling thread indefinitely until the computation finishes; and if the task threw an exception during execution, get() wraps that exception in an ExecutionException and rethrows it. To mitigate the risk of infinite blocking, developers should prefer the overloaded Future.get(long timeout, TimeUnit unit) variant, which throws a TimeoutException if the window expires before the task wraps up."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Future Method",
+        "Behavior when Task is Running",
+        "Behavior when Task is Completed",
+        "Behavior when Task Throws Exception"
+      ],
+      "rows": [
+        [
+          "get()",
+          "Blocks caller indefinitely",
+          "Returns result immediately",
+          "Throws ExecutionException"
+        ],
+        [
+          "get(long, TimeUnit)",
+          "Blocks caller up to specified timeout",
+          "Returns result immediately",
+          "Throws ExecutionException"
+        ],
+        [
+          "cancel(boolean)",
+          "Attempts interruption (if true)",
+          "Returns false",
+          "Returns false"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Future interface acts as a placeholder or promise, managing state transitions from NEW to COMPLETING, NORMAL, EXCEPTIONAL, CANCELLED, or INTERRUPTING internally within implementations like FutureTask.",
+        "Calling Future.get() forces the calling thread to acquire a lock or park itself using LockSupport.park() if the underlying worker thread has not yet signaled completion via state updates and wakeup calls.",
+        "Because Future lacks native support for callback registration or functional composition, developers frequently experienced callback hell or thread blocking until Java 8 introduced CompletableFuture to fix these architectural limitations."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.*;\n\npublic class FutureDemo {\n    public static void main(String[] args) {\n        ExecutorService executor = Executors.newSingleThreadExecutor();\n        \n        Future<String> future = executor.submit(() -> {\n            Thread.sleep(1000); // Simulate long-running task\n            return \"Hello from Async World!\";\n        });\n\n        try {\n            // Block with a strict timeout to avoid deadlocking the main thread\n            String result = future.get(2, TimeUnit.SECONDS);\n            System.out.println(result);\n        } catch (TimeoutException e) {\n            System.err.println(\"Task timed out, canceling...\");\n            future.cancel(true);\n        } catch (InterruptedException | ExecutionException e) {\n            System.err.println(\"Task failed: \" + e.getCause());\n        } finally {\n            executor.shutdown();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap with Future.get() is forgetting to handle InterruptedException. If the thread waiting on future.get() is itself interrupted (e.g., during a graceful application shutdown or servlet container timeout), the waiting thread throws an InterruptedException, but the background worker thread might still be running wastefully unless you explicitly call future.cancel(true) in the catch block."
+    }
+  ],
+  "num": 671,
+  "title": "Explain the Future interface. What does Future.get() do?",
+  "category": "OOPs & Design Patterns"
+}

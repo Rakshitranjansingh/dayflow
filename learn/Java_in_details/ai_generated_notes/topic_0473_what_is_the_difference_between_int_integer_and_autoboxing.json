@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java, the distinction between int and Integer is rooted in the language's dual nature as both a primitive-based and object-oriented system. The 'int' keyword denotes a 32-bit signed two's complement integer primitive, which lives directly on the stack or within an object's memory layout. It is highly performant, requiring no heap allocation or object header overhead. Conversely, 'Integer' is a wrapper class from the java.lang package. It is a reference type, meaning an Integer variable holds a memory address pointing to an object instance residing on the heap. This object includes the 12-16 byte header overhead required by the JVM for garbage collection and synchronization metadata. We use Integer primarily when we need to interact with Java's Generics or Collections framework (e.g., List<Integer>), as these structures cannot store primitives due to type erasure and the requirement for object references.\n\nAutoboxing is the compiler-level syntactic sugar that bridges these two worlds. When you assign an 'int' to an 'Integer' reference, the compiler silently invokes Integer.valueOf(int). Conversely, unboxing occurs when an 'Integer' is assigned to an 'int', invoking the Integer.intValue() method. While this makes code cleaner, it introduces hidden performance costs: frequent autoboxing in tight loops creates unnecessary short-lived objects, increasing pressure on the Young Generation heap and triggering more frequent Minor GC cycles."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "int (Primitive)",
+        "Integer (Wrapper)"
+      ],
+      "rows": [
+        [
+          "Memory Location",
+          "Stack / Inline",
+          "Heap"
+        ],
+        [
+          "Default Value",
+          "0",
+          "null"
+        ],
+        [
+          "Performance",
+          "High (No overhead)",
+          "Lower (Object overhead)"
+        ],
+        [
+          "Nullability",
+          "Not nullable",
+          "Nullable"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Integer Caching: The JVM maintains a cache for Integer values between -128 and 127. When using Integer.valueOf(), values within this range return the same cached instance, meaning '==' comparison works for these specific values but fails for anything outside this range.",
+        "Memory Footprint: An 'int' consumes exactly 4 bytes. An 'Integer' object consumes 16 bytes (12-byte header + 4-byte value), plus the 4-8 byte reference variable on the stack, leading to a 4x-6x memory increase.",
+        "NullPointerException Risk: Unboxing an Integer that is null will immediately throw a NullPointerException. This is a common production bug when dealing with database result sets or JSON deserialization."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "List<Integer> numbers = new ArrayList<>();\nint primitive = 42;\n\n// Autoboxing: compiler converts to Integer.valueOf(primitive)\nnumbers.add(primitive);\n\n// Unboxing: compiler converts to numbers.get(0).intValue()\nint result = numbers.get(0);\n\n// The 'Gotcha':\nInteger a = 1000;\nInteger b = 1000;\nSystem.out.println(a == b); // false (different heap objects)\nSystem.out.println(a.equals(b)); // true (value comparison)"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never use '==' to compare Integer objects unless you are strictly comparing against the cached range. Always use .equals(). Furthermore, avoid using Integer in high-throughput mathematical calculations; the overhead of object creation and pointer dereferencing can cause significant latency spikes in low-latency trading or real-time processing systems."
+    }
+  ],
+  "num": 474,
+  "title": "What is the difference between int, Integer, and autoboxing?",
+  "category": "Core Java & Fundamentals"
+}

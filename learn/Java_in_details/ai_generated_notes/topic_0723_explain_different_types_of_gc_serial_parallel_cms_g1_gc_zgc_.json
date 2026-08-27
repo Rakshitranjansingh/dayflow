@@ -1,0 +1,60 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Garbage Collection (GC) in the JVM is the automated process of reclaiming heap memory occupied by unreachable objects. The evolution of GC algorithms is a direct response to the trade-offs between throughput (total work done over time) and latency (pause times). Serial GC is the simplest, single-threaded collector that stops all application threads (Stop-The-World) to perform collection; it is ideal for small, single-core client applications. Parallel GC, or the 'Throughput Collector,' utilizes multiple threads for young generation collection, maximizing CPU utilization to finish tasks quickly, though it still induces significant STW pauses. The Concurrent Mark Sweep (CMS) collector was the first attempt to minimize these pauses by performing most of its work concurrently with application threads, though it suffered from heap fragmentation due to its non-compacting nature. The G1 (Garbage First) GC represents a paradigm shift, partitioning the heap into equal-sized regions and prioritizing the collection of regions with the most garbage, effectively balancing throughput and latency. Finally, ZGC and Shenandoah are the modern 'low-latency' collectors; they achieve sub-millisecond pause times regardless of heap size by performing nearly all phases—including compaction—concurrently with application threads, using techniques like colored pointers and load barriers to maintain consistency."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Collector",
+        "Primary Goal",
+        "Pause Time Profile"
+      ],
+      "rows": [
+        [
+          "Serial",
+          "Footprint",
+          "Long"
+        ],
+        [
+          "Parallel",
+          "Throughput",
+          "Medium"
+        ],
+        [
+          "G1",
+          "Balanced",
+          "Short"
+        ],
+        [
+          "ZGC/Shenandoah",
+          "Latency",
+          "Ultra-Short"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Serial GC uses a single thread for both young and old generation, making it unsuitable for multi-core server environments but excellent for low-memory footprint scenarios.",
+        "Parallel GC uses the -XX:+UseParallelGC flag, focusing on maximizing CPU cycles for GC tasks, which is ideal for batch processing where total completion time is more critical than individual request latency.",
+        "G1 GC manages the heap as a collection of regions, using a 'Remembered Set' to track cross-region references, allowing it to collect parts of the heap without scanning the entire generation.",
+        "ZGC uses colored pointers (metadata bits stored in the pointer itself) to track object state (marked, remapped, etc.), allowing it to perform heap compaction concurrently without moving objects in a way that breaks application references.",
+        "Shenandoah utilizes a 'Brooks Pointer' or 'Load Reference Barrier' to allow the application to continue accessing objects even while the GC is relocating them to a new memory location."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// To enable ZGC for low-latency requirements in Java 17+\n// Add these JVM arguments to your startup script:\njava -XX:+UseZGC -Xms8g -Xmx8g -Xlog:gc* -jar application.jar\n\n// To enable G1 GC with a target pause time goal:\njava -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -jar application.jar"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is over-tuning the MaxGCPauseMillis for G1. If you set it too aggressively (e.g., 20ms), the JVM may trigger collections too frequently, leading to a 'GC overhead limit exceeded' error or severe throughput degradation. Always profile your application's allocation rate before adjusting GC ergonomics. Also, note that CMS was officially deprecated in Java 9 and removed in Java 14; do not use it in modern greenfield projects."
+    }
+  ],
+  "num": 724,
+  "title": "Explain different Types of GC: Serial, Parallel, CMS, G1 GC, ZGC, Shenandoah.",
+  "category": "JVM Architecture & Memory Tuning"
+}

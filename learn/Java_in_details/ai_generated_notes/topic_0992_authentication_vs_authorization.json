@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java and Spring Security architectures, Authentication and Authorization represent two distinct pillars of web security that operate in a strict chronological sequence. Authentication is the foundational process of verifying who a user is—validating credentials such as usernames and passwords, JWTs, OAuth2 bearer tokens, or X.509 certificates to establish a verified identity within the system. Once an actor is authenticated, the framework populates a SecurityContext with an Authentication object representing that principal. Authorization, on the other hand, is the subsequent evaluation of whether that authenticated principal possesses the requisite permissions, roles, or scopes to access a specific resource or execute a protected method.\n\nFailing to separate these concerns leads to architectural vulnerabilities and tight coupling between identity verification and access control logic. Spring Security handles authentication primarily through AuthenticationManager, ProviderManager, and various AuthenticationProvider implementations (like DaoAuthenticationProvider), whereas authorization is enforced at the web layer via SecurityFilterChain filter invocation and at the method layer via expression-based access control annotations like @PreAuthorize. Understanding how these two mechanisms interact—specifically how an authenticated SecurityContext Holder is consumed by downstream AuthorizationFilters and AccessDecisionManagers—is critical for building secure, scalable enterprise applications."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Dimension",
+        "Authentication",
+        "Authorization"
+      ],
+      "rows": [
+        [
+          "Core Question",
+          "Who are you?",
+          "What are you allowed to do?"
+        ],
+        [
+          "Execution Order",
+          "Occurs first in the request lifecycle",
+          "Occurs after successful authentication"
+        ],
+        [
+          "Spring Security Components",
+          "AuthenticationManager, UsernamePasswordAuthenticationToken, UserDetailsService",
+          "AccessDecisionManager, SecurityExpressionRoot, FilterSecurityInterceptor"
+        ],
+        [
+          "HTTP Status on Failure",
+          "401 Unauthorized (Unauthenticated)",
+          "403 Forbidden (Unauthorized/Insufficient Privileges)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Authentication relies heavily on extracting credentials from the incoming HttpServletRequest, packaging them into an unauthenticated token, and delegating to the AuthenticationManager to verify against data stores using a UserDetailsService.",
+        "Authorization relies on the established SecurityContextHolder, inspecting the granted GrantedAuthority collection assigned to the current Authentication principal to evaluate SpEL expressions like hasRole('ADMIN') or hasAuthority('SCOPE_read').",
+        "Stateless architectures (such as REST APIs using JWTs) authenticate on every request by parsing and validating the token signature in a OncePerRequestFilter, immediately populating the SecurityContext without retaining server-side session state."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\n@EnableMethodSecurity\npublic class SecurityConfig {\n\n    @Bean\n    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {\n        http\n            // Authentication configuration\n            .csrf(csrf -> csrf.disable())\n            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))\n            // Authorization configuration\n            .authorizeHttpRequests(authorize -> authorize\n                .requestMatchers(\"/api/v1/public/**\").permitAll()\n                .requestMatchers(\"/api/v1/admin/**\").hasRole(\"ADMIN\")\n                .anyRequest().authenticated()\n            );\n        return http.build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha in Spring Security is confusing HTTP 401 and HTTP 403 status codes. Returning a 401 when a user is authenticated but lacks a specific role is technically incorrect; a 401 means 'I do not know who you are' (Authentication failure), whereas a 403 means 'I know who you are, but you cannot enter' (Authorization failure). Misconfiguring your ExceptionTranslationFilter handling can leak internal security states or break client-side routing logic."
+    }
+  ],
+  "num": 993,
+  "title": "Authentication vs Authorization?",
+  "category": "Spring Security & Web Security"
+}

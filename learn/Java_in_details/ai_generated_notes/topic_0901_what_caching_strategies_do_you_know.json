@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Caching is the architectural art of trading memory for latency. In the JVM ecosystem, we primarily distinguish between 'Read-Through', 'Write-Through', 'Write-Behind', and 'Cache-Aside' strategies. Cache-Aside (or Lazy Loading) is the most prevalent pattern in Java enterprise applications; the application code is responsible for checking the cache, and if a miss occurs, it fetches the data from the primary store (e.g., PostgreSQL or a microservice) and populates the cache. Write-Through ensures data consistency by updating the cache and the backing store synchronously, which minimizes stale data but increases write latency. Write-Behind (or Write-Back) optimizes for high-throughput write scenarios by updating the cache immediately and queuing the persistence to the database asynchronously, though this introduces a risk of data loss if the JVM crashes before the queue flushes. Finally, Read-Through treats the cache as the primary data access point, delegating the loading logic to the cache provider itself, effectively abstracting the database interaction away from the business logic layer."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Latency Profile",
+        "Consistency Guarantee"
+      ],
+      "rows": [
+        [
+          "Cache-Aside",
+          "Low (on hit)",
+          "Eventual"
+        ],
+        [
+          "Write-Through",
+          "High (write)",
+          "Strong"
+        ],
+        [
+          "Write-Behind",
+          "Very Low",
+          "Eventual (Risk of loss)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Cache-Aside mechanics: The application must implement a 'check-then-fetch-then-put' flow, which is prone to race conditions if not protected by double-checked locking or atomic operations.",
+        "Eviction Policies: Beyond the strategy, you must manage memory via LRU (Least Recently Used), LFU (Least Frequently Used), or FIFO. In Java, Caffeine is the industry-standard high-performance library for these local cache mechanics.",
+        "Cache Stampede: When a high-traffic key expires, multiple threads may simultaneously detect a miss and attempt to recompute the value, overwhelming the database. This is mitigated by 'probabilistic early recomputation' or mutex locking on the cache key.",
+        "Memory Pressure: Local caches reside on the JVM heap. If you cache large object graphs, you risk triggering frequent Full GCs or hitting OutOfMemoryErrors due to object retention and reference chains."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public V get(K key) {\n    V value = cache.get(key);\n    if (value == null) {\n        synchronized (this) {\n            value = cache.get(key);\n            if (value == null) {\n                value = database.load(key);\n                cache.put(key, value);\n            }\n        }\n    }\n    return value;\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common production failure with caching is the 'stale data' trap in distributed systems. If you use a local cache (e.g., Caffeine) across multiple service instances, you have no shared state. Use a distributed cache like Redis for shared state, but beware that network latency to Redis can sometimes exceed the cost of a simple database query if your data payload is small."
+    }
+  ],
+  "num": 902,
+  "title": "What caching strategies do you know?",
+  "category": "Core Java & Fundamentals"
+}

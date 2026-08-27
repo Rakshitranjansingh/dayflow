@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java, the short answer is no: List<String> is not a subclass of List<Object>. This is a common point of friction for developers transitioning from languages with different variance models. The reason lies in Java's invariant generic type system. If List<String> were a subtype of List<Object>, you could perform a heap-polluting operation: you could pass a List<String> to a method expecting a List<Object>, and that method could then insert an Integer into the list. When the original code attempts to retrieve a String from its list, the JVM would throw a ClassCastException at runtime. To prevent this, Java enforces invariance at compile-time: the generic type parameter must match exactly.\n\nGenerics covariance is handled via wildcards. When you use List<? extends Object>, you are declaring a covariant relationship. This tells the compiler that the collection holds some unknown type that is a subtype of Object. However, this comes with a trade-off: the 'Producer Extends, Consumer Super' (PECS) principle. Because the compiler cannot verify the exact type being inserted, it prevents you from adding elements to a covariant list, effectively making it read-only for the generic type."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Type Relationship",
+        "Assignment Allowed",
+        "Reasoning"
+      ],
+      "rows": [
+        [
+          "List<String> to List<Object>",
+          "No",
+          "Invariance prevents type safety violations"
+        ],
+        [
+          "List<? extends Object> to List<Object>",
+          "No",
+          "Cannot guarantee type safety for insertion"
+        ],
+        [
+          "List<String> to List<? extends Object>",
+          "Yes",
+          "Covariance allows read-only access"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Type Erasure: At runtime, both List<String> and List<Object> are reduced to raw List types, meaning the JVM has no concept of the generic type parameter. The compiler performs all checks during the compilation phase to ensure type safety.",
+        "Heap Pollution: This occurs when a variable of a parameterized type refers to an object that is not of that type. Invariance is the primary guardrail against this, ensuring that the reference type and the object type remain consistent.",
+        "PECS Principle: If you need to read from a collection, use ? extends T (Producer). If you need to write to a collection, use ? super T (Consumer). This allows for flexible API design without breaking the type system."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void processList(List<? extends Object> list) {\n    // We can read from the list safely\n    Object obj = list.get(0);\n    \n    // list.add(\"test\"); // COMPILE ERROR: Cannot add to a covariant list\n}\n\n// Correct way to handle generic collections\npublic void addToList(List<? super String> list) {\n    list.add(\"Safe to add strings\");\n}"
+    },
+    {
+      "type": "note",
+      "content": "Watch out for the 'Raw Type' trap. If you assign a List<String> to a raw List, you bypass all generic type checking. This is a legacy feature for backward compatibility that effectively disables the compiler's ability to protect you from ClassCastExceptions. Always treat raw types as a code smell in production codebases."
+    }
+  ],
+  "num": 1202,
+  "title": "Is List<String> a subclass of List<Object>? (Generics covariance)",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed systems and microservices architectures, a Correlation ID is a unique identifier—typically a UUID—attached to a request as it traverses multiple service boundaries. When a client initiates a request, the gateway or entry-point service generates this ID and injects it into the request header (e.g., 'X-Correlation-ID'). As the request propagates through downstream services, message queues, and asynchronous I/O (NIO) channels, this ID is passed along, ensuring that every log entry, trace, and exception across the entire call stack shares a common context. Without this, debugging a failed request in a system with dozens of services becomes a 'needle in a haystack' problem, as logs from different JVMs are interleaved and lack a shared thread of execution."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "MDC (Mapped Diagnostic Context) Integration: In Java, Correlation IDs are typically stored in an SLF4J MDC map. Since MDC uses a ThreadLocal under the hood, the ID is automatically appended to every log statement within that thread's lifecycle.",
+        "NIO and Context Propagation: When using non-blocking I/O (NIO) or reactive frameworks like Project Reactor, the execution context often jumps between threads. Standard ThreadLocal-based MDC fails here, requiring explicit context propagation (e.g., using 'Hooks.onEachOperator' or 'ContextView') to ensure the Correlation ID survives the transition across event loops.",
+        "Distributed Tracing: Correlation IDs form the backbone of distributed tracing systems like Zipkin or Jaeger. While a Correlation ID provides a single string for log aggregation, tracing adds span IDs and parent IDs to visualize the latency and dependency graph of the request.",
+        "Exception Handling: When an exception occurs in a deep downstream service, the Correlation ID allows developers to immediately query a centralized log aggregator (like ELK or Splunk) to see the exact sequence of events that led to the failure, including the initial input parameters and intermediate state changes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class CorrelationFilter implements Filter {\n    private static final String CORRELATION_ID_HEADER = \"X-Correlation-ID\";\n\n    public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) {\n        String correlationId = ((HttpServletRequest) req).getHeader(CORRELATION_ID_HEADER);\n        if (correlationId == null) correlationId = UUID.randomUUID().toString();\n        \n        try (MDC.MDCCloseable ignored = MDC.putCloseable(\"correlationId\", correlationId)) {\n            chain.doFilter(req, res);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Beware of 'Log Forging' and memory leaks. If your Correlation ID is derived from user input without validation, it can lead to log injection vulnerabilities. Furthermore, if you are using custom thread pools or asynchronous executors, always ensure you clear the MDC context in a 'finally' block or use a decorator for your 'Runnable/Callable' tasks. Failing to clear the MDC map will cause the Correlation ID from a previous request to 'leak' into a new request processed by the same thread, leading to catastrophic log pollution."
+    }
+  ],
+  "num": 1176,
+  "title": "What is the role of correlation IDs?",
+  "category": "Exception Handling & I/O / NIO"
+}

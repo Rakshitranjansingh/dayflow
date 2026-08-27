@@ -1,0 +1,76 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring AOP (Aspect-Oriented Programming) provides a mechanism to modularize cross-cutting concerns—such as transaction management, security, and logging—that span multiple layers of an application. At the center of this paradigm are specific annotations that instruct the Spring container how and when to weave behavior into targeted execution points, known as join points. The @Aspect annotation designates a class as a component housing pointcuts and advice, acting as the structural container for your cross-cutting logic. Within this aspect, advice annotations determine the precise execution timing relative to the target method. Specifically, @Before executes advice logic prior to the target method invocation, operating independently of whether the method completes successfully or throws an exception. Conversely, @After acts like a finally block, executing unconditionally after the target method finishes, regardless of success or failure. For more granular control, @AfterReturning intercepts execution only when the target method terminates normally, allowing access to the return value, while @AfterThrowing triggers exclusively when an uncaught exception escapes the method boundary. Finally, @Around represents the most powerful and comprehensive advice type, wrapping the target method invocation entirely. It allows developers to control whether the target method runs at all, modify its arguments, inspect or mutate its return value, and handle exceptions locally.\n\nThe real-world problem these annotations solve is the decoupling of infrastructure code from core domain business logic. Without aspect-oriented programming, methods would be heavily polluted with repetitive boilerplate such as try-catch blocks for logging exceptions, programmatic transaction demarcations, or manual security checks. By leveraging Spring AOP and its underlying dynamic proxy infrastructure—either JDK dynamic proxies for interface-based components or CGLIB proxies for class-based components—Spring intercepts method calls at runtime. When a bean is requested from the ApplicationContext, Spring examines if it matches any defined pointcut expressions. If a match occurs, Spring wraps the target bean in a proxy object. When client code invokes a method on the proxy, the proxy coordinates the execution chain, invoking the configured @Before, @Around, @AfterReturning, @AfterThrowing, and @After advice methods in the proper architectural sequence before delegating to the underlying target bean method."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Advice Annotation",
+        "Execution Timing",
+        "Access to Return Value",
+        "Access to Exception",
+        "Can Short-Circuit Execution?"
+      ],
+      "rows": [
+        [
+          "@Before",
+          "Before target method runs",
+          "No",
+          "No",
+          "Yes (by throwing an exception)"
+        ],
+        [
+          "@AfterReturning",
+          "After target method succeeds",
+          "Yes (via returning attribute)",
+          "No",
+          "No"
+        ],
+        [
+          "@AfterThrowing",
+          "After target method throws",
+          "No",
+          "Yes (via throwing attribute)",
+          "No"
+        ],
+        [
+          "@After",
+          "After target method finishes (finally)",
+          "No",
+          "No",
+          "No"
+        ],
+        [
+          "@Around",
+          "Before and after target method",
+          "Yes (via ProceedingJoinPoint.proceed())",
+          "Yes (via try-catch)",
+          "Yes (by omitting proceed())"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Around advice requires the first parameter of the advice method to be of type org.aspectj.lang.ProceedingJoinPoint, and the developer must explicitly invoke proceed() to trigger the target method execution.",
+        "Spring AOP proxies only intercept external method calls coming into the Spring container beans. Intra-bean method calls (self-invocation) bypass the proxy entirely, rendering any AOP advice ineffective for internal calls.",
+        "Pointcut expressions leverage AspectJ pointcut language syntax, utilizing designators like execution(), within(), and @annotation() to pinpoint exact execution join points.",
+        "When multiple aspects apply to the same join point, their execution order can be controlled by implementing the org.springframework.core.Ordered interface or using the @Order annotation on the aspect class."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.aspect;\n\nimport org.aspectj.lang.ProceedingJoinPoint;\nimport org.aspectj.lang.annotation.*;\nimport org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\nimport org.springframework.stereotype.Component;\n\n@Aspect\n@Component\npublic class PerformanceLoggingAspect {\n\n    private static final Logger log = LoggerFactory.getLogger(PerformanceLoggingAspect.class);\n\n    @Pointcut(\"execution(* com.example.service.*.*(..))\")\n    private void servicePackageMethods() {}\n\n    @Before(\"servicePackageMethods()\")\n    public void logBefore() {\n        log.info(\"Entering service method execution\");\n    }\n\n    @AfterReturning(pointcut = \"servicePackageMethods()\", returning = \"result\")\n    public void logAfterReturning(Object result) {\n        log.info(\"Method executed successfully with result: {}\", result);\n    }\n\n    @AfterThrowing(pointcut = \"servicePackageMethods()\", throwing = \"ex\")\n    public void logAfterThrowing(Exception ex) {\n        log.error(\"Method threw exception: {}\", ex.getMessage());\n    }\n\n    @Around(\"servicePackageMethods()\")\n    public Object profileMethod(ProceedingJoinPoint joinPoint) throws Throwable {\n        long start = System.currentTimeMillis();\n        try {\n            Object output = joinPoint.proceed();\n            return output;\n        } finally {\n            long duration = System.currentTimeMillis() - start;\n            log.info(\"Method [{}] executed in {} ms\", joinPoint.getSignature().toShortString(), duration);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common production pitfall with Spring AOP is the 'self-invocation trap'. If ServiceA calls an annotated method inside ServiceA directly via 'this.myMethod()', the call goes straight to the raw target object, bypassing the Spring AOP proxy. Consequently, none of your @Before, @Around, or transaction management advices will execute. To fix this, either refactor the methods into separate spring beans, inject a self-reference of the bean using @Lazy, or retrieve the current proxy programmatically via AopContext.currentProxy()."
+    }
+  ],
+  "num": 228,
+  "title": "@Aspect, @Before, @After, @AfterReturning, @AfterThrowing, @Around",
+  "category": "Spring Boot & Spring Framework"
+}

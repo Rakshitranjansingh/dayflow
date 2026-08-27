@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When a Kafka consumer enters a processing loop, it is usually due to a 'poison pill' message—a record that triggers an unhandled exception every time it is polled. Because Kafka consumers commit offsets based on successful processing, failing to advance the offset causes the consumer to re-read the same corrupt message indefinitely, effectively halting the partition's progress. To design around this, you must decouple the failure path from the main processing stream. This is typically achieved through a combination of Dead Letter Queues (DLQ) and exponential backoff retries. By catching the exception, logging the metadata, and routing the problematic payload to a separate 'retry' or 'error' topic, you preserve the integrity of the main pipeline while ensuring the consumer can move to the next valid offset."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Pros",
+        "Cons"
+      ],
+      "rows": [
+        [
+          "Dead Letter Queue (DLQ)",
+          "Prevents blocking, allows offline analysis",
+          "Requires secondary consumer logic"
+        ],
+        [
+          "Blocking Retry",
+          "Guarantees message ordering",
+          "High risk of head-of-line blocking"
+        ],
+        [
+          "Non-blocking Retry",
+          "Maintains throughput",
+          "Complex state management"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Implement a 'Retry Topic' pattern where messages are published with a delay header; a secondary consumer reads from this topic after the backoff period expires.",
+        "Use a 'Max Retry Count' threshold in your application state; once exceeded, move the message to a permanent DLQ to avoid infinite cycles.",
+        "Ensure your consumer is configured with 'enable.auto.commit=false' to maintain manual control over offset advancement, preventing the broker from moving forward before the message is safely handled or routed.",
+        "Leverage Kafka's 'Seek' API to manually reset the consumer offset if you detect a catastrophic failure that requires skipping a specific corrupt batch."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "try {\n    process(record);\n} catch (Exception e) {\n    if (retryCount.get(record.key()) < MAX_RETRIES) {\n        producer.send(new ProducerRecord<>(\"retry-topic\", record.value()));\n    } else {\n        producer.send(new ProducerRecord<>(\"dlq-topic\", record.value()));\n    }\n    // Commit offset to move past the poison pill\n    consumer.commitSync(Collections.singletonMap(topicPartition, new OffsetAndMetadata(record.offset() + 1)));\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: The most common production trap is ignoring the 'head-of-line blocking' issue. If you use a simple Thread.sleep() for retries, you block the entire consumer poll loop, which triggers a rebalance because the consumer fails to send heartbeats to the group coordinator. Always use a non-blocking retry mechanism or a dedicated retry topic to keep the heartbeat thread alive."
+    }
+  ],
+  "num": 1256,
+  "title": "Scenario: A Kafka consumer is failing on a message and is stuck in a loop. How to design around it?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

@@ -1,0 +1,49 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Debugging deadlocks and high CPU thread usage requires a methodical approach to analyzing the JVM's runtime state. A deadlock occurs when two or more threads are blocked indefinitely, each waiting for a monitor lock held by the other, creating a circular dependency that halts progress. Conversely, high CPU usage is typically caused by 'hot' threads—often those stuck in infinite loops, excessive garbage collection cycles, or inefficient synchronization contention—that consume excessive cycles without yielding. To diagnose these, we rely on thread dumps to capture the stack traces of all active threads at a specific point in time. By analyzing these dumps, we can identify threads in the BLOCKED state waiting for a monitor, or RUNNABLE threads that consistently appear at the top of the CPU profile, indicating they are executing tight loops or heavy computation."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Symptom",
+        "Primary Diagnostic Tool",
+        "Root Cause Indicator"
+      ],
+      "rows": [
+        [
+          "Deadlock",
+          "jstack / Thread Dump",
+          "Threads in BLOCKED state with circular lock dependencies"
+        ],
+        [
+          "High CPU",
+          "jstack / VisualVM / async-profiler",
+          "Threads in RUNNABLE state with deep stack traces in hot methods"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "For deadlocks, use 'jstack -l <pid>' to generate a thread dump. Modern JVMs automatically detect simple deadlocks and print them at the end of the dump, but complex lock chains require manual inspection of the 'waiting to lock' and 'locked ownable synchronizers' sections.",
+        "For high CPU, use 'top -H -p <pid>' to identify the specific LWP (Light Weight Process) ID consuming the most CPU. Convert this ID to hexadecimal and search for it in the thread dump's 'nid' (native thread ID) field to map the OS thread directly to a Java stack trace.",
+        "Always capture at least three thread dumps separated by 10-30 seconds. A single dump provides a snapshot, but three dumps allow you to differentiate between a thread that is legitimately working and one that is stuck in an infinite loop.",
+        "Check for 'Spin-waiting' patterns where threads are constantly polling a volatile variable or a ConcurrentLinkedQueue without backoff, which manifests as high CPU usage despite not being technically 'blocked'."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Example of a pattern that causes high CPU: Busy-waiting\nwhile (!taskQueue.hasWork()) {\n    // This loop spins at 100% CPU if not yielding\n    // Fix: Use a BlockingQueue with take() or add Thread.onSpinWait()\n    Thread.onSpinWait(); \n}\n\n// Example of identifying a thread in a dump:\n// \"pool-1-thread-1\" #15 prio=5 tid=0x00007f8... nid=0x2a3b runnable [0x00007000...]\n// The 'nid=0x2a3b' is the hex representation of the OS thread ID."
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Never rely solely on 'jstack' for high CPU issues in production. If the CPU is pegged, the JVM might struggle to reach a safepoint to generate the thread dump, leading to incomplete data. Use 'async-profiler' instead; it samples the stack traces without requiring the JVM to reach a safepoint, making it significantly more reliable and lower-overhead for production environments."
+    }
+  ],
+  "num": 688,
+  "title": "How do you debug a deadlock or high CPU thread issue?",
+  "category": "Multithreading & Java Concurrency"
+}

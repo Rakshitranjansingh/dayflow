@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Building enterprise-grade applications with Spring Boot accelerates initial development through convention-over-configuration and auto-configuration mechanisms, but this very abstraction often leads to severe production failures when developers do not understand the underlying frameworks. Common mistakes in Spring Boot projects span multiple domains, including improper Bean lifecycle management, misconfigured component scanning, database session mismanagement, and misusing property binding. When architects and engineers treat Spring Boot as a black box rather than an extensible inversion of control (IoC) container, they encounter catastrophic memory leaks, N+1 query explosions, thread pool exhaustion, and brittle deployment pipelines that fail under production traffic.\n\nTo write resilient systems, developers must comprehend how the DispatcherServlet, application context hierarchies, and JDBC transaction managers collaborate under the hood. Missteps such as circular dependencies, improper use of @Transactional on private methods, or failing to externalize configuration safely expose systems to security vulnerabilities and unstable runtime behavior. Addressing these pitfalls requires a rigorous understanding of the Spring container lifecycle, proper database mapping annotations, and deliberate application layout designs that separate web layers, business logic, and data access tiers cleanly."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Mistake Category",
+        "Anti-Pattern Root Cause",
+        "Production Impact"
+      ],
+      "rows": [
+        [
+          "Component Scanning",
+          "Scanning the root package (com.example) across massive multi-module projects",
+          "Bloated ApplicationContext, increased startup time, memory wastage"
+        ],
+        [
+          "Transaction Management",
+          "Placing @Transactional on private methods or self-invoking inner beans",
+          "Silently ignored rollbacks, data corruption, broken atomicity guarantees"
+        ],
+        [
+          "Database Access",
+          "Relying on default FetchType.EAGER or missing batching configurations",
+          "Severe N+1 query performance degradation, database connection pool exhaustion"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Overusing @ComponentScan or placing the main SpringBootApplication class outside the base package root, forcing the framework to scan unnecessary third-party or infrastructure packages unnecessarily.",
+        "Ignoring Spring Data JPA persistence context boundaries, leading to LazyInitializationException or unintended dirty checking updates on detached entities.",
+        "Hardcoding configuration values directly into application.properties without leveraging type-safe @ConfigurationProperties validation, leading to runtime failures long after application startup.",
+        "Misconfiguring embedded Tomcat, Jetty, or Undertow thread pools, causing request thread starvation during high-concurrency traffic bursts."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@ConfigurationProperties(prefix = \"app.security\")\n@Validated\npublic class SecurityProperties {\n    \n    @NotBlank\n    private String jwtSecret;\n    \n    @Min(60000)\n    private long tokenExpirationMs;\n\n    public String getJwtSecret() {\n        return jwtSecret;\n    }\n\n    public void setJwtSecret(String jwtSecret) {\n        this.jwtSecret = jwtSecret;\n    }\n\n    public long getTokenExpirationMs() {\n        return tokenExpirationMs;\n    }\n\n    public void setTokenExpirationMs(long tokenExpirationMs) {\n        this.tokenExpirationMs = tokenExpirationMs;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic 7+ YOE production gotcha in Spring Boot is self-invocation. If service method A calls service method B within the same class, the call bypasses the Spring AOP dynamic proxy entirely. Consequently, any @Transactional, @Async, or security annotations on method B are completely ignored because the call does not pass through the proxy interceptor chain. Always inject the self-reference or refactor the extracted logic into a distinct Spring bean."
+    }
+  ],
+  "num": 805,
+  "title": "What are common mistakes in Spring Boot projects?",
+  "category": "Spring Boot & Spring Framework"
+}

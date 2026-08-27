@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A Single Point of Failure (SPOF) is any discrete component within a distributed system or monolithic application whose failure results in the total collapse of the entire system. In the context of Core Java and JVM-based architectures, an SPOF often manifests as a centralized bottleneck—such as a non-replicated singleton service, a hard-coded configuration dependency, or a single database instance—that lacks redundancy. Identifying an SPOF requires a rigorous 'blast radius' analysis: if you remove this component, does the system still function? Eliminating these points involves transitioning from centralized, stateful architectures to decentralized, stateless, and redundant models. This is achieved through techniques like horizontal scaling, circuit breaking, and implementing failover mechanisms that ensure the JVM can continue processing requests even when a specific dependency or service node becomes unresponsive."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "SPOF Category",
+        "Common Java Symptom",
+        "Elimination Strategy"
+      ],
+      "rows": [
+        [
+          "Infrastructure",
+          "Single JVM instance",
+          "Load balancing & clustering"
+        ],
+        [
+          "Data Layer",
+          "Monolithic DB connection",
+          "Read replicas & sharding"
+        ],
+        [
+          "State Management",
+          "In-memory session storage",
+          "Distributed cache (Redis/Hazelcast)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Thread Pool Exhaustion: A common JVM SPOF occurs when a single thread pool is shared across critical and non-critical tasks. If the non-critical task blocks, it starves the critical path, effectively creating a functional SPOF.",
+        "Static Initialization Blocks: Using static blocks for heavy resource loading (like database connections) creates an SPOF at class-loading time; if the resource is unavailable, the entire application context fails to bootstrap.",
+        "Circuit Breaker Pattern: Implementing libraries like Resilience4j allows the system to 'fail fast' and prevent cascading failures, effectively isolating an SPOF before it brings down the entire JVM heap.",
+        "Statelessness: By ensuring services do not hold local state, you enable the ability to kill and restart any node in a cluster without impacting the overall system availability."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class ResilientService {\n    private final CircuitBreaker circuitBreaker;\n\n    // Prevents an external SPOF from hanging the calling thread\n    public String executeRemoteCall() {\n        return circuitBreaker.executeSupplier(() -> \n            restTemplate.getForObject(\"http://external-api/data\", String.class)\n        );\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common trap for senior engineers is assuming that 'clustering' automatically eliminates SPOFs. If your load balancer is not also highly available (e.g., using Keepalived or a cloud-native ELB), the load balancer itself becomes the ultimate SPOF. Always audit your 'control plane' as rigorously as your 'data plane'."
+    }
+  ],
+  "num": 1088,
+  "title": "Single Point of Failure (SPOF) — How to identify and eliminate?",
+  "category": "Core Java & Fundamentals"
+}

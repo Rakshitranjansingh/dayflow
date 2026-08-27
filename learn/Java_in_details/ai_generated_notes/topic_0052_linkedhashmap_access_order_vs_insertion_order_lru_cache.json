@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java Collections Framework, LinkedHashMap is a vital concrete subclass of HashMap that bridges the gap between O(1) hash table lookups and predictable traversal ordering. While a standard HashMap makes no guarantees about the iteration order of its keys, LinkedHashMap maintains a doubly-linked list running through all of its entries, weaving this list across the hash buckets. This structural addition allows developers to choose between two distinct iteration order strategies: insertion-order and access-order. Insertion-order, which is the default, guarantees that entries are iterated in the exact chronological sequence in which they were originally put into the map. This is ideal for maintaining configuration precedence or building deterministic caches.\n\nConversely, access-order mode transforms the map into a powerful instrument for Least Recently Used (LRU) caching. When initialized with access-order set to true, every single invocation of get(), put(), or putIfAbsent() triggers an internal rearrangement of the doubly-linked list. The accessed or inserted entry is automatically unlinked from its current position and spliced onto the tail of the list. Consequently, the head of the linked list always points to the oldest, least recently accessed entry, while the tail represents the most recently used. By overriding the protected removeEldestEntry(Map.Entry) method, developers can intercept this lifecycle and drop stale entries automatically when capacity thresholds are breached, implementing an entire LRU eviction policy with minimal boilerplates."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Behavior",
+        "Insertion-Order LinkedHashMap",
+        "Access-Order LinkedHashMap"
+      ],
+      "rows": [
+        [
+          "Default Mode",
+          "Yes (access-order parameter is false)",
+          "No (requires boolean accessOrder = true in constructor)"
+        ],
+        [
+          "Iteration Sequence",
+          "Chronological order of initial map insertion",
+          "Recency order: least recently accessed to most recently accessed"
+        ],
+        [
+          "Effect of get(K key)",
+          "No structural modification; traversal order is untouched",
+          "Shifts the accessed entry to the tail of the doubly-linked list"
+        ],
+        [
+          "Primary Use Case",
+          "Deterministic iteration, preserving parsed sequence",
+          "Building LRU (Least Recently Used) eviction caches"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Internal Memory Layout: Every node in a LinkedHashMap extends HashMap.Node by adding before and after pointers, creating a structural overhead of 32 additional bytes per entry on a 64-bit JVM with compressed oops enabled.",
+        "Hook Integration: The callback mechanism relies on afterNodeAccess(), afterNodeInsertion(), and afterNodeRemoval() template methods executed during map mutations, keeping cache logic decoupled from raw hashing mechanics.",
+        "Thread Safety Considerations: Like HashMap, LinkedHashMap is structurally non-thread-safe. Concurrent modifications during access-order reordering will corrupt the internal doubly-linked list pointers, leading to infinite loops during iteration or structural data loss."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.LinkedHashMap;\nimport java.util.Map;\n\npublic class LruCache<K, V> extends LinkedHashMap<K, V> {\n    private final int capacity;\n\n    public LruCache(int capacity) {\n        // Initial capacity, load factor, and true for access-order\n        super(capacity, 0.75f, true);\n        this.capacity = capacity;\n    }\n\n    @Override\n    protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {\n        // Automatically evicts the head of the list when size exceeds capacity\n        return size() > capacity;\n    }\n}\n"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap when subclassing LinkedHashMap for an LRU cache is forgetting that structural modifications performed inside multithreaded contexts require external synchronization. If multiple threads execute get() concurrently on an access-ordered LinkedHashMap, they mutate the internal before/after pointers simultaneously, causing race conditions that result in CPU-spinning infinite loops inside iterator traversal or node relinking. Always wrap your cache with Collections.synchronizedMap() or use explicit ReentrantLocks if concurrency is required."
+    }
+  ],
+  "num": 53,
+  "title": "LinkedHashMap — access-order vs insertion-order (LRU cache)",
+  "category": "Collections Framework & Internals"
+}

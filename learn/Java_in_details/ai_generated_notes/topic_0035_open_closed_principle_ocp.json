@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Open/Closed Principle (OCP) is the second pillar of the SOLID object-oriented design principles, famously formulated by Bertrand Meyer and later adapted by Robert C. Martin. It states that software entities (classes, modules, functions, etc.) should be open for extension but closed for modification. In enterprise Java systems, adhering to OCP prevents the fragile codebase syndrome where altering a single core business rule or introducing a new payment gateway, validation rule, or serialization format requires hacking into existing, thoroughly tested, production-grade classes. By relying heavily on runtime polymorphism, abstract classes, and interfaces rather than concrete implementations, developers can introduce sweeping new system behaviors simply by writing new code instead of rewriting legacy code, thereby safeguarding against regression bugs."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Dimension",
+        "Open for Extension",
+        "Closed for Modification"
+      ],
+      "rows": [
+        [
+          "Definition",
+          "Ability to add new behaviors, features, or requirements to a component.",
+          "Prohibition against altering the existing, tested source code of that component."
+        ],
+        [
+          "Mechanism",
+          "Inheritance, interface implementation, composition, strategy plugins.",
+          "Encapsulation, access modifiers, immutability, compiling against abstractions."
+        ],
+        [
+          "Risk Profile",
+          "Low risk if dependencies are isolated; introduces new classes safely.",
+          "High risk of breaking dependent consumers, cascading failures, and test suites."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Polymorphic Dispatch: At the JVM level, OCP relies on invokevirtual and invokeinterface bytecode instructions to resolve method calls dynamically, allowing the runtime environment to execute newly injected types without modifying the caller's bytecode.",
+        "Plugin Architecture: Spring Framework leverages OCP extensively by treating components as beans that can be extended or replaced via configuration or stereo-type annotations, injecting strategy beans into target services without altering the service's source code.",
+        "Interface Segregation Coupling: To maintain OCP, contracts must be granular; bloated interfaces force implementers to write dummy methods, breaking the very extensibility the principle strives to protect."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public interface DiscountStrategy {\n    BigDecimal calculateDiscount(BigDecimal amount);\n}\n\npublic class VpDiscountStrategy implements DiscountStrategy {\n    @Override\n    public BigDecimal calculateDiscount(BigDecimal amount) {\n        return amount.multiply(new BigDecimal(\"0.20\"));\n    }\n}\n\npublic class OrderProcessor {\n    private final List<DiscountStrategy> strategies;\n\n    public OrderProcessor(List<DiscountStrategy> strategies) {\n        this.strategies = strategies;\n    }\n\n    public BigDecimal process(BigDecimal amount) {\n        return strategies.stream()\n            .map(s -> s.calculateDiscount(amount))\n            .reduce(BigDecimal.ZERO, BigDecimal::add);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common anti-pattern in enterprise systems is premature OCP application. Do not wrap every single conditional statement in a polymorphic strategy factory on day one; apply OCP only to axes of change that business domain experts explicitly identify as volatile. Over-engineering with abstractions makes stack traces needlessly deep and makes the codebase harder to navigate for junior engineers."
+    }
+  ],
+  "num": 36,
+  "title": "Open/Closed Principle (OCP)",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Breaking production is a rite of passage for any senior engineer, but when the failure intersects Exception Handling and I/O / NIO (Non-blocking I/O), the blast radius is rarely a simple null pointer exception. One afternoon, a high-throughput financial aggregation pipeline ground to a catastrophic halt, consuming all available off-heap direct memory and exhausting thread pools. The root cause was a subtle interplay between Java NIO's Selector registration loop, asynchronous Channel reads, and unhandled AsynchronousCloseExceptions. When a downstream TCP connection dropped abruptly due to a firewall timeout, our custom Selector loop caught an IOException. Because our exception handling block caught generic IOExceptions instead of inspecting selector key states, the channel was deregistered improperly, leaving underlying file descriptors leaking at the operating system level while simultaneously trapping the Selector.select() call in a busy-wait CPU spike.\n\nFixing this required a multi-tiered approach. First, we had to implement robust defensive exception handling around all NIO SelectionKey operations, ensuring that cancelled keys are immediately purged from the Selector's internal interest set. Second, we refactored our buffer management strategy. We replaced ephemeral ByteBuffer allocations with a pooled direct buffer architecture backed by a custom allocator that tracked memory pressure, preventing native OutOfMemoryErrors. Finally, we introduced strict circuit breakers around external network boundaries using resilient I/O timeouts, ensuring that blocked non-blocking channels could never again hold hostage the reactor threads driving our asynchronous event loops."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Failure Vector",
+        "Classic Blocking I/O (BIO)",
+        "Non-Blocking NIO & Selector"
+      ],
+      "rows": [
+        [
+          "Thread Allocation",
+          "One thread per socket connection; rapid thread pool exhaustion.",
+          "Single-reactor or small pool handling thousands of channels."
+        ],
+        [
+          "Exception Impact",
+          "Thread dies or blocks; localized impact per socket connection.",
+          "Corrupted Selector state or busy-wait CPU loops affecting all channels."
+        ],
+        [
+          "Memory Management",
+          "Heap-based byte arrays; subject to JVM GC pauses.",
+          "Direct ByteBuffers residing in off-heap native memory; manual lifecycle tracking."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Selector Spin Lock: When an invalid key is left registered during an IOException, Selector.select() returns immediately without blocking, driving CPU utilization to 100% across all reactor cores.",
+        "Direct Buffer Leakage: ByteBuffer.allocateDirect() bypasses the Java heap, allocating memory via unsafe native malloc calls. Failing to clean up these buffers or handle closed channels causes native memory leaks that require an OS-level restart.",
+        "AsynchronousCloseException Propagation: When a channel is closed concurrently by another thread, any thread blocked in an I/O operation receives an AsynchronousCloseException, which must be explicitly caught to prevent silent task abandonment."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ResilientNioHandler {\n    private final Selector selector;\n\n    public ResilientNioHandler(Selector selector) {\n        this.selector = selector;\n    }\n\n    public void processKeys() {\n        Set<SelectionKey> selectedKeys = selector.selectedKeys();\n        Iterator<SelectionKey> iterator = selectedKeys.iterator();\n        \n        while (iterator.hasNext()) {\n            SelectionKey key = iterator.next();\n            iterator.remove();\n            \n            if (!key.isValid()) {\n                continue;\n            }\n\n            try {\n                if (key.isReadable()) {\n                    readData(key);\n                }\n            } catch (IOException e) {\n                // Production fix: Handle connection drop gracefully without crashing the selector\n                handleIoException(key, e);\n            }\n        }\n    }\n\n    private void readData(SelectionKey key) throws IOException {\n        SocketChannel channel = (SocketChannel) key.channel();\n        ByteBuffer buffer = ByteBuffer.allocateDirect(1024);\n        int bytesRead = channel.read(buffer);\n        if (bytesRead == -1) {\n            channel.close();\n            key.cancel();\n        } else if (bytesRead > 0) {\n            buffer.flip();\n            // Process buffer data safely\n            buffer.clear();\n        }\n    }\n\n    private void handleIoException(SelectionKey key, IOException e) {\n        try {\n            key.channel().close();\n        } catch (IOException ignored) {\n            // Suppress close exception during teardown\n        }\n        key.cancel();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Never rely solely on the garbage collector to clean up Direct ByteBuffers. Even though PhantomReferences eventually trigger native cleanup via Cleaner, under heavy NIO loads, native memory allocation outpaces JVM heap allocation, resulting in a silent hs_err_pid crash or native OOM before the GC even considers running a collection cycle. Always manage buffer lifecycles explicitly."
+    }
+  ],
+  "num": 1265,
+  "title": "Tell me about a time you broke production. What happened and how did you fix it?",
+  "category": "Exception Handling & I/O / NIO"
+}

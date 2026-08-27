@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When designing modern reactive microservices or robust REST APIs using Java, developers frequently interact with generic types such as Mono<List<T>> or Flux<ResponseEntity<User>>. However, the legacy design of Java's generics introduces strict limitations due to Type Erasure, leading to three fundamental restrictions: no primitives as type arguments, no instanceof checks with parameterized types, and no arrays of generics. These restrictions are not arbitrary compiler hurdles; they stem from the historic choice made during Java 5 to maintain binary compatibility with pre-existing bytecode while introducing parameterization.\n\nIn reactive and distributed API pipelines—especially when serializing JSON bodies via WebFlux or handling asynchronous payload streams—understanding these restrictions prevents runtime ClassCastExceptions and subtle type-safety bugs. Because the JVM discards generic type information at runtime, checking whether an object is an instanceof List<String> becomes logically impossible. Similarly, the runtime cannot allocate an array of a generic type like List<String>[] because arrays enforce runtime reification (they know and check their component type at runtime), whereas generics are completely erased. Furthermore, autobox overhead makes primitive types fundamentally incompatible with Java's pointer-based reference architecture required by generic collections and reactive wrapper types."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Restriction Type",
+        "Root Cause in JVM",
+        "Impact on WebFlux / REST APIs"
+      ],
+      "rows": [
+        [
+          "No primitives",
+          "Generics require object references; primitives live on stack or unboxed in arrays/heaps.",
+          "Forced to use wrapper types (Integer, Long), adding GC pressure in high-throughput reactive pipelines."
+        ],
+        [
+          "No instanceof with parameterized types",
+          "Type Erasure removes generic arguments at compile time (List<String> becomes raw List).",
+          "Cannot dynamically validate generic response bodies or payload wrappers using standard instanceof."
+        ],
+        [
+          "No arrays of generics",
+          "Arrays are reified and throw ArrayStoreException on invalid assignments; generics are non-reified.",
+          "Cannot instantiate generic arrays like Mono<String>[]; must use collections like List<Mono<String>> instead."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Type Erasure ensures that List<String> and List<Integer> both compile down to the raw type java.util.List in bytecode, meaning the runtime has zero knowledge of the type parameter T.",
+        "Array reification requires the runtime to enforce type safety during array store operations, which directly conflicts with the non-reified nature of erased generic types, resulting in a compile-time Generic Array Creation error.",
+        "Pattern matching and instanceof checks with generic types require unbounded wildcards (e.g., obj instanceof List<?>) because checking specific type parameters is mathematically impossible post-compilation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ReactivePayloadValidator {\n    public void validatePayload(Object payload) {\n        // COMPILE ERROR: Cannot perform instanceof check against parameterized type\n        // if (payload instanceof Flux<String>) { }\n\n        // CORRECT: Use unbounded wildcard or Class literals with TypeToken patterns\n        if (payload instanceof Flux<?>) {\n            System.out.println(\"Received a reactive Flux stream\");\n        }\n\n        // COMPILE ERROR: Generic array creation\n        // Mono<String>[] monitors = new Mono<String>[10];\n\n        // CORRECT: Use Lists for reactive aggregation\n        java.util.List<Mono<String>> monitors = new java.util.ArrayList<>();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Architect Gotcha: In Spring WebFlux applications, trying to pass generic type references (like List<User>) into reactive operators or deserialization utils often fails because Spring cannot inspect the erased type at runtime. Always use ParameterizedTypeReference<List<User>> instead of Class<List<User>> to allow Spring's infrastructure to safely reconstruct the generic signatures via anonymous subclassing."
+    }
+  ],
+  "num": 70,
+  "title": "Restrictions — no primitives, no instanceof with parameterized types, no arrays of generics",
+  "category": "REST APIs, WebFlux & Microservices"
+}

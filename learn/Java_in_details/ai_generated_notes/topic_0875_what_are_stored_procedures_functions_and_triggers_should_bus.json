@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Stored Procedures, Functions, and Triggers represent the procedural programming capabilities embedded directly within a Relational Database Management System (RDBMS). A Stored Procedure is a precompiled collection of SQL statements designed to execute complex transactions or batch operations, often returning multiple result sets or output parameters. Functions, by contrast, are designed to return a single value or a table, behaving like expressions within a query; they are strictly constrained by the requirement that they must not perform side effects like modifying table data in many SQL dialects. Triggers are event-driven blocks of code that execute automatically in response to specific DML operations—INSERT, UPDATE, or DELETE—acting as a safety net for data integrity or audit logging. While these tools provide high-performance execution by minimizing network round-trips, placing business logic inside the database is a contentious architectural decision. Modern microservices architecture generally favors keeping business logic in the application layer to ensure scalability, version control, and testability, as database-level code is notoriously difficult to unit test, debug, and migrate across different vendor platforms."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Stored Procedure",
+        "Function",
+        "Trigger"
+      ],
+      "rows": [
+        [
+          "Return Value",
+          "Optional (via OUT params)",
+          "Mandatory (scalar/table)",
+          "None"
+        ],
+        [
+          "Invocation",
+          "Explicit (CALL)",
+          "Implicit (in SELECT)",
+          "Implicit (on DML event)"
+        ],
+        [
+          "Primary Use",
+          "Complex Transactions",
+          "Data Transformation",
+          "Auditing/Integrity"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Stored Procedures execute within the database engine's memory space, avoiding the overhead of serializing and deserializing large result sets over the network, which is critical for high-volume batch processing.",
+        "Functions are often evaluated for every row in a result set; if a function contains complex logic, it can cause a 'hidden' performance degradation known as a row-by-row processing bottleneck.",
+        "Triggers operate within the same transaction context as the triggering statement; if a trigger fails or incurs a long lock wait, it will block the entire transaction, potentially leading to deadlocks or connection pool exhaustion in the application server.",
+        "Business logic in the DB creates 'vendor lock-in', making it nearly impossible to switch from PostgreSQL to Oracle or SQL Server without a complete rewrite of the procedural code."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "sql",
+      "content": "-- Example of a Trigger for Audit Logging\nCREATE TRIGGER trg_audit_user_update\nAFTER UPDATE ON users\nFOR EACH ROW\nBEGIN\n  INSERT INTO audit_log (user_id, old_email, new_email, changed_at)\n  VALUES (OLD.id, OLD.email, NEW.email, NOW());\nEND;"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Never use Triggers for business logic that requires external service calls (like sending an email or calling an API). If the database transaction rolls back, the side effect in the external system might have already occurred, leading to inconsistent state. Always prefer an outbox pattern or event-driven architecture in your Java application layer to handle cross-system side effects."
+    }
+  ],
+  "num": 876,
+  "title": "What are Stored Procedures, Functions, and Triggers? Should business logic be in the DB?",
+  "category": "Exception Handling & I/O / NIO"
+}

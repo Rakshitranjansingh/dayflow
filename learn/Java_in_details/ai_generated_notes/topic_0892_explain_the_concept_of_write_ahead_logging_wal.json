@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Write-Ahead Logging (WAL) is a foundational pattern in systems design, distributed data stores, and transactional engines used to guarantee atomicity and durability (the 'A' and 'D' in ACID). When a mutative operation occurs, the core invariant of WAL dictates that changes must be sequentially recorded to an immutable, append-only log on persistent storage before any corresponding in-memory data structures or primary data files are modified. This architecture decouples high-speed sequential disk I/O from randomized structural updates, radically mitigating the performance bottlenecks of disk head seeking. In enterprise Java ecosystems and storage engines, WAL serves as the ultimate safety net against sudden JVM crashes, power failures, or hardware faults, ensuring that upon recovery, the state can be deterministically reconstructed via log replay."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Operational Phase",
+        "In-Memory State",
+        "Disk / WAL State"
+      ],
+      "rows": [
+        [
+          "Transaction Init",
+          "Dirty pages allocated in buffer pool",
+          "Append TX_START record sequentially"
+        ],
+        [
+          "Data Mutation",
+          "Tuple updated in volatile memory pages",
+          "Append undo/redo deltas to WAL tail"
+        ],
+        [
+          "Commit Phase",
+          "Ready for background page flusher",
+          "Fsync WAL buffer to force physical persistence"
+        ],
+        [
+          "Crash Recovery",
+          "Volatile cache completely wiped",
+          "Replay WAL records to restore committed state (Redo)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Sequential I/O vs Random I/O: Append-only disk structures maximize disk throughput by transforming random page writes into sequential, contiguous byte-stream appends.",
+        "Buffer Pool Integration: Dirty pages modified in the database buffer pool are safely delayed from immediate disk writes because the authoritative redo/undo trail lives safely in the WAL.",
+        "Group Commit Optimization: High-concurrency engines aggregate multiple transaction commits into a single disk fsync operation, amortizing the heavy kernel-level flushing penalty across multiple threads.",
+        "Checkpointing Mechanisms: To prevent infinite log growth, periodic checkpoints flush dirty memory pages to disk, allowing older segments of the WAL to be safely truncated or archived."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class SimpleWriteAheadLog {\n    private final FileChannel logChannel;\n    private final ByteBuffer writeBuffer;\n    private long currentLSN = 0;\n\n    public synchronized long appendEntry(byte[] recordData) throws IOException {\n        long lsn = ++currentLSN;\n        int recordSize = 8 + 4 + recordData.length; // LSN + Length + Payload\n        \n        writeBuffer.clear();\n        writeBuffer.putLong(lsn);\n        writeBuffer.putInt(recordData.length);\n        writeBuffer.put(recordData);\n        writeBuffer.flip();\n        \n        while (writeBuffer.hasRemaining()) {\n            logChannel.write(writeBuffer);\n        }\n        logChannel.force(false); // Force fsync to guarantee durability\n        return lsn;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Warning: Simply invoking FileChannel.write() does not guarantee durability; it only moves data into the OS page cache. You must explicitly call FileChannel.force(false) (or use FileDescriptor.sync()) to execute an fsync. However, indiscriminate fsyncing kills throughput. Balance durability requirements with performance by utilizing group commits and tuning OS kernel parameters like vm.dirty_background_ratio."
+    }
+  ],
+  "num": 893,
+  "title": "Explain the concept of Write-Ahead Logging (WAL).",
+  "category": "Core Java & Fundamentals"
+}

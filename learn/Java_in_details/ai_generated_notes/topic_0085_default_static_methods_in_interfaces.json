@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The introduction of default and static methods in interfaces, starting with Java 8, fundamentally evolved how we design object-oriented architectures and contract evolution. Historically, Java interfaces were rigid: adding a new method to an interface meant breaking every single implementing class across the entire codebase and external libraries. Default methods solve this by allowing developers to inject concrete method implementations directly into interfaces using the `default` keyword, enabling backward-compatible API evolution. This was famously leveraged to introduce functional paradigms, such as adding `.stream()` or `.forEach()` to `Collection` without breaking millions of legacy implementations.\n\nSimultaneously, static methods in interfaces allowed us to group utility methods directly with the domain interface rather than forcing developers to create companion helper classes like `Collections` or `Paths`. Unlike default methods, interface static methods belong strictly to the interface class itself and cannot be overridden by implementing classes. They act as pure functions bound to the namespace of the interface. Together, these features bridge the gap between traditional abstract classes and interfaces, while introducing unique resolution mechanics like the Diamond Problem when multiple default methods conflict."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Default Methods",
+        "Static Methods"
+      ],
+      "rows": [
+        [
+          "Overriding",
+          "Can be overridden by implementing classes",
+          "Cannot be overridden; strictly bound to interface"
+        ],
+        [
+          "State Access",
+          "Cannot access instance fields (interfaces have none)",
+          "Cannot access instance fields"
+        ],
+        [
+          "Inheritance",
+          "Inherited by implementing classes and sub-interfaces",
+          "Not inherited by implementing classes or sub-interfaces"
+        ],
+        [
+          "Primary Use Case",
+          "Backward-compatible API evolution, mixins",
+          "Factory methods, domain-specific utility functions"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Interface static methods are never inherited by implementing classes, meaning you must invoke them explicitly via the interface name (e.g., `MyInterface.staticMethod()`).",
+        "When a class implements two interfaces containing a default method with the exact same signature, the compiler forces the class to explicitly resolve the ambiguity by overriding the method and selecting one using `InterfaceName.super.methodName()`.",
+        "Class hierarchy always wins over interface inheritance: if a superclass defines a method with the same signature as an interface default method, the class's method is automatically chosen without compiler errors."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public interface Vehicle {\n    String getBrand();\n\n    // Default method providing fallback implementation\n    default void startEngine() {\n        System.out.println(\"Starting default engine for \" + getBrand());\n    }\n\n    // Static utility method associated with the interface\n    static boolean isHeavyVehicle(Vehicle v) {\n        return v.getBrand().equalsIgnoreCase(\"Truck\");\n    }\n}\n\npublic class Car implements Vehicle {\n    private final String brand;\n\n    public Car(String brand) {\n        this.brand = brand;\n    }\n\n    @Override\n    public String getBrand() {\n        return brand;\n    }\n\n    // Inherits startEngine() automatically, but can override it:\n    @Override\n    public void startEngine() {\n        Vehicle.super.startEngine();\n        System.out.println(\"Car-specific electronic ignition engaged.\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Beware of unintentional multiple inheritance of state-like behavior. While Java interfaces still cannot contain instance variables, default methods allow you to inject state-modifying logic into legacy classes. If you rely too heavily on default methods for complex business logic, your interfaces morph into poor-man's abstract classes, violating the Interface Segregation Principle and making unit testing harder due to hidden state side effects."
+    }
+  ],
+  "num": 86,
+  "title": "Default & static methods in interfaces",
+  "category": "OOPs & Design Patterns"
+}

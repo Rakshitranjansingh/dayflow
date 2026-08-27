@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java Concurrency API, both execute() and submit() serve as the primary entry points for dispatching tasks to an ExecutorService, yet they differ fundamentally in their return types and error handling capabilities. The execute() method is defined in the Executor interface and is strictly fire-and-forget; it returns void and accepts a Runnable, meaning the caller has no mechanism to track the task's completion status or retrieve a result. Conversely, submit() is defined in the ExecutorService interface and provides a more robust abstraction by returning a Future object. This Future acts as a handle, allowing the invoking thread to block via get(), check completion status via isDone(), or attempt cancellation via cancel()."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "execute()",
+        "submit()"
+      ],
+      "rows": [
+        [
+          "Return Type",
+          "void",
+          "Future<?>"
+        ],
+        [
+          "Task Types",
+          "Runnable only",
+          "Runnable or Callable"
+        ],
+        [
+          "Exception Handling",
+          "Throws to UncaughtExceptionHandler",
+          "Encapsulated in Future.get()"
+        ],
+        [
+          "Interface",
+          "Executor",
+          "ExecutorService"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "When using execute(), any unchecked exception thrown by the task will propagate to the thread's UncaughtExceptionHandler, effectively killing the worker thread unless a custom handler is configured.",
+        "When using submit(), exceptions are caught by the framework and stored within the Future object; the exception is only re-thrown when the caller invokes Future.get(), wrapping the original cause in an ExecutionException.",
+        "The submit() method internally wraps Runnable tasks into a FutureTask, which provides the state machine necessary to track whether the task is pending, running, or completed.",
+        "Because submit() supports Callable, it allows for tasks that return values or throw checked exceptions, which are then propagated back to the calling thread upon retrieval."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "ExecutorService executor = Executors.newFixedThreadPool(2);\n\n// Fire and forget\nexecutor.execute(() -> System.out.println(\"Running task...\"));\n\n// Tracking result\nFuture<String> future = executor.submit(() -> {\n    Thread.sleep(1000);\n    return \"Task Completed\";\n});\n\ntry {\n    String result = future.get(); // Blocks until completion\n} catch (ExecutionException | InterruptedException e) {\n    e.printStackTrace();\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is assuming that submit() will throw an exception immediately if the task fails. It will not. If you fail to call get() on the returned Future, you effectively swallow any exceptions occurring inside your task, making debugging silent failures nearly impossible. Always use a try-catch block around get() or implement a custom FutureTask subclass if you need to handle task failures asynchronously."
+    }
+  ],
+  "num": 666,
+  "title": "Difference between execute() and submit() in ExecutorService?",
+  "category": "Multithreading & Java Concurrency"
+}

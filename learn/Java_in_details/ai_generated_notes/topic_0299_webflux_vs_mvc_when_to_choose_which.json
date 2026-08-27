@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When architecting modern Java microservices, choosing between Spring MVC and Spring WebFlux dictates your entire runtime model, threading paradigm, and failure modes. Spring MVC is built upon the traditional Servlet API, utilizing a thread-per-request architecture where blocking I/O operations—such as JDBC calls, remote HTTP requests, or file reads—park the executing platform thread until the operation completes. While straightforward to write and debug, this model requires a large thread pool to handle concurrent loads, exhausting memory under heavy concurrency due to thread stack allocations.\n\nConversely, Spring WebFlux is Reactor-based and built on Netty (or other reactive runtimes), championing an asynchronous, non-blocking execution model. It achieves high throughput with a fixed number of event-loop threads (typically pegged to CPU cores) by processing streams of data using reactive backpressure via Project Reactor's Flux and Mono types. Understanding when to choose WebFlux over MVC requires analyzing your bottleneck profile: MVC excels in CPU-bound applications with standard relational databases and imperative codebases, whereas WebFlux shines in I/O-bound, highly concurrent systems streaming data or orchestrating multiple asynchronous downstream services."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Spring MVC",
+        "Spring WebFlux"
+      ],
+      "rows": [
+        [
+          "Underlying API",
+          "Servlet API (Jakarta EE)",
+          "Reactive Streams (Project Reactor / Netty)"
+        ],
+        [
+          "Threading Model",
+          "Thread-per-request (Blocking)",
+          "Event Loop / Fixed worker pool (Non-blocking)"
+        ],
+        [
+          "Database Ecosystem",
+          "JDBC, JPA / Hibernate, R2DBC (via bridging)",
+          "R2DBC, MongoDB Reactive, Cassandra Reactive"
+        ],
+        [
+          "Debugging Experience",
+          "Straightforward stack traces, local thread context",
+          "Complex stack traces, detached operators, Reactor Debug Agent required"
+        ],
+        [
+          "Ideal Use Case",
+          "CRUD apps, standard business logic, legacy integrations",
+          "High-throughput real-time streaming, chat, high-concurrency microservices"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Thread Allocation: MVC creates or borrows a thread from a pool (e.g., Tomcat's 200 threads) for every incoming request. WebFlux relies on a small pool of event-loop threads that never block, delegating I/O to asynchronous native selectors (epoll/kqueue).",
+        "Backpressure Control: WebFlux implements the Reactive Streams specification, allowing subscribers to signal demand (request(n)) to publishers, preventing out-of-memory errors caused by fast producers overwhelming slow consumers.",
+        "Ecosystem Maturity: MVC benefits from decades of optimization, comprehensive library support (Spring Data JPA, Spring Security integrations), and straightforward transaction management via @Transactional."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/orders\")\npublic class OrderController {\n\n    private final ReactiveOrderRepository orderRepository;\n\n    public OrderController(ReactiveOrderRepository orderRepository) {\n        this.orderRepository = orderRepository;\n    }\n\n    @GetMapping(produces = MediaType.APPLICATION_NDJSON_VALUE)\n    public Flux<Order> streamOrders() {\n        return orderRepository.findAll()\"\n            .delayElements(Duration.ofMillis(100))\n            .onErrorResume(e -> Flux.empty());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The single most common pitfall in WebFlux applications is introducing blocking code—such as calling a legacy JDBC repository, using blocking HTTP clients like standard RestTemplate, or performing heavy synchronous cryptography—inside a reactive pipeline. Doing so blocks the Netty event-loop thread, instantly crippling the application's concurrency model. If you must use blocking libraries, you must explicitly isolate them using subscribeOn(Schedulers.boundedElastic())."
+    }
+  ],
+  "num": 300,
+  "title": "WebFlux vs MVC — when to choose which",
+  "category": "REST APIs, WebFlux & Microservices"
+}

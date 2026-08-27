@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Framework, @Value and @ConfigurationProperties serve as the primary mechanisms for externalizing configuration, yet they operate at fundamentally different levels of abstraction. @Value is a lightweight, field-level injection mechanism designed for simple, scalar values. It relies on the Spring Expression Language (SpEL) to resolve placeholders like ${app.name}, making it ideal for one-off injections where type safety and structure are secondary concerns. However, it lacks validation capabilities and can lead to 'configuration sprawl' when a class requires dozens of individual properties, as each must be annotated and maintained separately.\n\n@ConfigurationProperties, by contrast, is a robust, type-safe approach to binding hierarchical configuration data to POJOs. It treats configuration as a first-class citizen, allowing you to map complex, nested structures (lists, maps, objects) directly into Java beans. Because it uses the same data-binding infrastructure as Spring MVC, it supports JSR-303/JSR-380 Bean Validation (e.g., @NotNull, @Min), ensuring that your application fails fast during startup if the environment configuration is malformed. While @Value is a tactical tool for quick property retrieval, @ConfigurationProperties is the strategic choice for managing complex application settings in a maintainable, testable, and validated manner."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "@Value",
+        "@ConfigurationProperties"
+      ],
+      "rows": [
+        [
+          "Binding Type",
+          "Individual fields",
+          "Entire object hierarchies"
+        ],
+        [
+          "Validation",
+          "Limited (SpEL defaults)",
+          "Full JSR-303/380 support"
+        ],
+        [
+          "Maintenance",
+          "High (manual annotation)",
+          "Low (POJO mapping)"
+        ],
+        [
+          "Use Case",
+          "Simple constants/flags",
+          "Complex domain-specific config"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "@Value relies on the PropertySourcesPlaceholderConfigurer to resolve placeholders; it essentially performs a string-to-type conversion via PropertyEditor or ConversionService at the moment of bean initialization.",
+        "@ConfigurationProperties triggers the ConfigurationPropertiesBindingPostProcessor, which performs deep reflection-based binding, allowing for sophisticated nested object instantiation and collection population.",
+        "Using @ConfigurationProperties enables IDE support (via spring-boot-configuration-processor), providing autocompletion and documentation for your custom properties in application.yaml files.",
+        "When using @ConfigurationProperties, you can utilize @ConstructorBinding (in newer Spring Boot versions) to enforce immutability by binding properties directly to final fields via constructor arguments."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@ConfigurationProperties(prefix = \"app.database\")\npublic record DatabaseConfig(String url, int timeout, List<String> hosts) {}\n\n// vs\n\n@Component\npublic class LegacyComponent {\n    @Value(\"${app.database.url}\")\n    private String url;\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is mixing @Value with @ConfigurationProperties in the same bean. If you use @Value to inject a property that is also part of a @ConfigurationProperties object, you risk race conditions or stale values if the underlying PropertySource is refreshed (e.g., via @RefreshScope). Always favor @ConfigurationProperties for groups of related settings to maintain a single source of truth and avoid 'Configuration Drift'."
+    }
+  ],
+  "num": 778,
+  "title": "Difference between @Value and @ConfigurationProperties?",
+  "category": "Exception Handling & I/O / NIO"
+}

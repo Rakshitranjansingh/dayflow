@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java's concurrency model, wait(), notify(), and notifyAll() are fundamental methods defined in the java.lang.Object class, serving as the primary mechanism for inter-thread communication. The wait() method instructs the current thread to release the monitor lock it holds and enter a 'waiting' state until another thread invokes notify() or notifyAll() on the same object. notify() wakes up a single thread arbitrarily chosen from the object's wait set, while notifyAll() wakes up every thread currently waiting on that object. These methods exist to solve the 'guarded suspension' pattern, where a thread must pause execution until a specific condition—often checked via a shared state variable—becomes true, thereby preventing busy-waiting loops that would otherwise incinerate CPU cycles."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Method",
+        "Primary Action",
+        "Scope"
+      ],
+      "rows": [
+        [
+          "wait()",
+          "Releases lock and pauses execution",
+          "Object monitor"
+        ],
+        [
+          "notify()",
+          "Wakes one arbitrary thread",
+          "Object monitor"
+        ],
+        [
+          "notifyAll()",
+          "Wakes all waiting threads",
+          "Object monitor"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The requirement to call these methods within a synchronized block (or method) exists to prevent the 'lost wake-up' race condition. If a thread checks a condition and decides to wait, but another thread calls notify() between the check and the actual wait() call, the signal is lost forever, causing the first thread to wait indefinitely.",
+        "When wait() is invoked, the JVM atomically releases the monitor lock, allowing other threads to enter the synchronized block. Upon being notified, the thread does not immediately resume; it must first re-acquire the monitor lock, which ensures that it can safely inspect the shared state again.",
+        "notify() is inherently dangerous in complex systems because it does not guarantee which thread wakes up. If multiple threads are waiting for different conditions on the same object, notify() might wake a thread that cannot proceed, leading to a deadlock-like state where the system hangs."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public synchronized void produce(Object item) throws InterruptedException {\n    while (queue.isFull()) {\n        wait(); // Always use a while-loop to handle spurious wakeups\n    }\n    queue.add(item);\n    notifyAll(); // Safely wake all consumers to re-check the queue state\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior-level trap: Always wrap wait() in a 'while' loop, never an 'if' statement. The JVM can trigger 'spurious wakeups' where a thread wakes up without any notify() call, or a thread might be notified but lose the race to re-acquire the lock to another thread that consumes the resource first. If you use 'if', your thread will proceed with invalid state assumptions, leading to subtle, non-deterministic bugs."
+    }
+  ],
+  "num": 662,
+  "title": "Explain wait(), notify(), and notifyAll(). Why must they be called from a synchronized block?",
+  "category": "Multithreading & Java Concurrency"
+}

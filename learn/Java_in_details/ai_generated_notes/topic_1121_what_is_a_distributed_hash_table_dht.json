@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A Distributed Hash Table (DHT) is a decentralized, distributed system that provides a lookup service similar to a standard hash table, where key-value pairs are stored across a network of nodes rather than a single machine. In a traditional hash table, the hash function maps a key directly to an index in a contiguous memory array. In a DHT, the hash function maps a key to a specific node in a peer-to-peer (P2P) network. This architecture solves the scalability bottleneck of centralized servers, allowing the system to grow horizontally by adding nodes without requiring a centralized index or a single point of failure. The fundamental challenge in a DHT is routing: how to locate the node responsible for a specific key in O(log N) time, where N is the number of nodes, while ensuring the system remains resilient to nodes joining or leaving the network (churn)."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Centralized Hash Table",
+        "Distributed Hash Table"
+      ],
+      "rows": [
+        [
+          "Storage Location",
+          "Single Memory Space",
+          "Distributed across N Nodes"
+        ],
+        [
+          "Scalability",
+          "Vertical (Scale-up)",
+          "Horizontal (Scale-out)"
+        ],
+        [
+          "Failure Impact",
+          "Single Point of Failure",
+          "Fault-tolerant via Replication"
+        ],
+        [
+          "Addressing",
+          "Memory Offsets",
+          "Consistent Hashing (Keyspace Partitioning)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Consistent Hashing: DHTs typically use consistent hashing to map both keys and nodes to a circular identifier space (a ring). This minimizes data movement when nodes join or leave, as only a fraction of keys need to be remapped.",
+        "Routing Tables: Nodes maintain a finger table or routing table containing pointers to other nodes at exponentially increasing distances. This allows for logarithmic routing complexity, effectively turning a global search into a series of local hops.",
+        "Churn Management: To handle node volatility, DHTs employ stabilization protocols. Nodes periodically verify their successor and predecessor pointers to maintain the integrity of the ring, ensuring that the keyspace remains fully covered even as nodes fail.",
+        "Data Replication: To prevent data loss when a node goes offline, DHTs replicate key-value pairs across the k-successors of the primary node in the identifier space."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ConsistentHashRing<T> {\n    private final TreeMap<Integer, T> ring = new TreeMap<>();\n    private final HashFunction hashFunction = new MurmurHash();\n\n    public void addNode(T node) {\n        int hash = hashFunction.hash(node.toString());\n        ring.put(hash, node);\n    }\n\n    public T get(String key) {\n        if (ring.isEmpty()) return null;\n        int hash = hashFunction.hash(key);\n        // Find the first node with a hash >= key hash\n        Map.Entry<Integer, T> entry = ring.ceilingEntry(hash);\n        // If we reach the end of the ring, wrap around to the first node\n        return (entry == null) ? ring.firstEntry().getValue() : entry.getValue();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The biggest trap in implementing a production DHT is the 'thundering herd' problem during node failure. If a node holding a massive amount of data crashes, the successor node might become overwhelmed by the sudden influx of requests and data migration. Always implement rate-limiting and virtual nodes (vnodes) to distribute the load more granularly across physical hardware."
+    }
+  ],
+  "num": 1122,
+  "title": "What is a Distributed Hash Table (DHT)?",
+  "category": "Core Java & Fundamentals"
+}

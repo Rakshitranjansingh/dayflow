@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the realm of Java concurrency, executing tasks asynchronously requires bridging application code with the underlying operating system's native scheduling mechanisms. To achieve this, Java developers historically rely on two primary foundational constructs: subclassing the Thread class and implementing the Runnable interface. Understanding the distinction between these two approaches is not merely an academic exercise for interviews, but a vital architectural decision that impacts memory overhead, object-oriented design patterns, and scalability.\n\nThe Thread class represents a thread of execution in a program. When you extend the Thread class, your custom class inherently becomes a thread, which forces a tight coupling between the task you want to execute (the job) and the mechanism that executes it (the worker). Conversely, the Runnable interface defines a single method, run(), representing an abstract task independent of any threading infrastructure. By implementing Runnable, your class remains decoupled from the execution mechanism, allowing the task to be passed to a Thread instance, a thread pool via an ExecutorService, or even executed synchronously on the current thread. This adherence to composition over inheritance makes Runnable the preferred idiom for most enterprise applications."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Design Aspect",
+        "Extending Thread Class",
+        "Implementing Runnable Interface"
+      ],
+      "rows": [
+        [
+          "Object-Oriented Design",
+          "Tight coupling; the task cannot extend any other class due to single inheritance.",
+          "Loose coupling; your class can still extend another base class and implement other interfaces."
+        ],
+        [
+          "Resource Sharing",
+          "Each thread instance represents a unique object; sharing instance variables requires careful coordination.",
+          "Multiple threads can share a single Runnable instance, naturally sharing its state and resource pools."
+        ],
+        [
+          "Flexibility & Execution",
+          "Locked into direct thread instantiation; cannot be natively reused across pooled executor frameworks.",
+          "Fully compatible with modern Executor frameworks, ForkJoinPool, and virtual threads."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "When you instantiate a Thread object, the JVM allocates native OS resources underneath via a JNI call to start0(), tying your Java thread directly to a native operating system thread in a 1:1 mapping model (prior to Project Loom virtual threads).",
+        "Extending Thread overrides the run() method directly in the worker object. When start() is invoked, the JVM spawns the OS thread, which then invokes your run() method on the newly created call stack.",
+        "Implementing Runnable separates the target. The Thread constructor accepts a Runnable target. When start() is called, the Thread delegates execution to the target.run() method, cleanly separating the job description from the execution vehicle."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ThreadingDemo {\n    public static void main(String[] args) {\n        // Approach 1: Extending the Thread class (Tight coupling)\n        Thread threadStyle = new WorkerThread();\n        threadStyle.start();\n\n        // Approach 2: Implementing the Runnable interface (Loose coupling, preferred)\n        Runnable task = () -> System.out.println(\"Running via Runnable: \" + Thread.currentThread().getName());\n        Thread runnableStyle = new Thread(task);\n        runnableStyle.start();\n    }\n\n    private static class WorkerThread extends Thread {\n        @Override\n        public void run() {\n            System.out.println(\"Running via Thread subclass: \" + Thread.currentThread().getName());\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Never call the run() method directly if your intention is to run asynchronous code. Calling run() explicitly executes the logic synchronously on the current calling thread, completely bypassing the JVM thread scheduling machinery and the creation of a new call stack. Always invoke start() to trigger native thread allocation. Furthermore, avoid direct Thread instantiation in high-throughput enterprise systems; always leverage ExecutorService abstractions or modern virtual threads to manage thread lifecycles effectively and prevent OutOfMemoryError exceptions caused by thread exhaustion."
+    }
+  ],
+  "num": 643,
+  "title": "How do you create a thread in Java? (Thread class vs Runnable interface)",
+  "category": "Multithreading & Java Concurrency"
+}

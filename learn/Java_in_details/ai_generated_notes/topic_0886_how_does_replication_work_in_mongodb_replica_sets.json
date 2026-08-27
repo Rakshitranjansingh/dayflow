@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "MongoDB achieves high availability and fault tolerance through Replica Sets, which are self-contained clusters of mongod instances maintaining the exact same dataset. At the core of MongoDB replication is the Oplog (operations log), a capped collection that records all database mutations in idempotent format. The replica set topology operates via automated failover and leader election algorithms. When a primary node goes down, secondary nodes use the Raft-derived consensus protocol to elect a new primary, ensuring minimal downtime and zero data loss if configured with proper write concerns."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Replica Set Member Type",
+        "Data Storage",
+        "Eligible for Election",
+        "Serves Read Traffic"
+      ],
+      "rows": [
+        [
+          "Primary",
+          "Yes",
+          "Yes",
+          "Yes (Default)"
+        ],
+        [
+          "Secondary",
+          "Yes",
+          "Yes",
+          "Yes (If Read Preference allows)"
+        ],
+        [
+          "Arbiter",
+          "No",
+          "Yes",
+          "No"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Oplog Tailing: Secondary nodes continuously connect to the current primary and tail the local.oplog.rs collection, applying asynchronous updates to their local storage engines (WiredTiger).",
+        "Heartbeats and Health Monitoring: Every member sends heartbeat (replSetGetStatus) requests to all other members every 2 seconds to track cluster topology health.",
+        "Election Triggers: If a secondary fails to receive a heartbeat from the primary within the election timeout (typically 10 seconds), it initiates an election vote, requiring a majority of set members to succeed."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "MongoClientSettings settings = MongoClientSettings.builder()\n    .applyConnectionString(new ConnectionString(\"mongodb://host1:27017,host2:27017,host3:27017/?replicaSet=rs0\"))\n    .readPreference(ReadPreference.secondaryPreferred())\n    .writeConcern(WriteConcern.MAJORITY)\n    .build();\nMongoClient mongoClient = MongoClients.create(settings);\nMongoDatabase database = mongoClient.getDatabase(\"production\");\nMongoCollection<Document> collection = database.getCollection(\"orders\");\ncollection.insertOne(new Document(\"item\", \"A100\").append(\"qty\", 5));"
+    },
+    {
+      "type": "note",
+      "content": "Beware of replication lag during heavy write bursts. If your secondaries cannot keep up with the primary's oplog generation rate, queries utilizing secondary reads with secondaryPreferred can return stale data. Always monitor oplog window sizes and ensure write concern is set to MAJORITY for financial or critical transactions to prevent rollback data loss during unexpected primary failovers."
+    }
+  ],
+  "num": 887,
+  "title": "How does Replication work in MongoDB (Replica sets)?",
+  "category": "Exception Handling & I/O / NIO"
+}

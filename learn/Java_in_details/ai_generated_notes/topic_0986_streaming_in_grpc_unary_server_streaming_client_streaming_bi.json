@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern distributed microservices architectures, communication patterns extend far beyond the classic request-response paradigm typical of traditional REST APIs. gRPC, built on top of HTTP/2 and Protocol Buffers, introduces a rich variety of communication channels designed for high throughput, low latency, and real-time event streaming. To master gRPC streaming, one must understand its four foundational interaction modes: Unary, Server-streaming, Client-streaming, and Bi-directional. Unary gRPC mimics a traditional synchronous API call where a client sends a single request message and receives a single response message over a multiplexed HTTP/2 stream, though the underlying transport handles connection reuse and binary framing efficiently.\n\nServer-streaming flips this dynamic by allowing the client to send a single request, after which the server responds with a continuous stream of messages over the same HTTP/2 stream until the server explicitly terminates the stream. This is ideal for real-time data feeds, financial tickers, or large database query results dispatched incrementally to avoid memory exhaustion on the consumer side. Conversely, Client-streaming enables the client to write a sequence of messages and send them to the server, using the stream, without waiting for an immediate response. Once the client finishes transmitting its data payload, it signals completion, and the server processes the accumulated stream before returning a single, aggregated response. This pattern shines in IoT telemetry ingestion, bulk file uploads, or sequential data processing.\n\nFinally, Bi-directional streaming combines both capabilities, allowing the client and server to read and write message sequences independently and simultaneously using asynchronous control loops. Because HTTP/2 provides full-duplex communication over a single TCP connection, both parties can send messages in any order without waiting for the other to finish. This is the cornerstone of high-performance interactive applications, such as real-time chat systems, collaborative editing tools, or complex gaming state synchronization engines."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Streaming Pattern",
+        "Client Behavior",
+        "Server Behavior",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "Unary",
+          "Sends 1 request",
+          "Returns 1 response",
+          "Standard CRUD operations, simple queries"
+        ],
+        [
+          "Server-streaming",
+          "Sends 1 request",
+          "Returns a stream of responses",
+          "Real-time feeds, stock prices, log streaming"
+        ],
+        [
+          "Client-streaming",
+          "Sends a stream of requests",
+          "Returns 1 aggregated response",
+          "IoT telemetry, bulk uploads, data ingestion"
+        ],
+        [
+          "Bi-directional",
+          "Sends a stream of requests",
+          "Returns a stream of responses",
+          "Chat applications, live collaboration, multiplayer gaming"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Under the hood, all gRPC streaming paradigms rely entirely on HTTP/2 framing, leveraging data frames, stream multiplexing, and flow control windows managed directly by the transport layer.",
+        "In Server-streaming and Bi-directional streaming, backpressure is handled natively by HTTP/2 flow control; if the client consumes messages too slowly, window updates stall, preventing the JVM heap from overflowing with buffered outgoing frames on the server.",
+        "Context propagation (such as deadlines, cancellations, and metadata headers) is maintained across the entire lifetime of the stream, allowing clients to cancel active streams mid-flight, which immediately triggers cleanup routines on the server side via the `StreamObserver` or reactive subscription."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ChatServiceGrpcImpl extends ChatServiceGrpc.ChatServiceImplBase {\n    @Override\n    public StreamObserver<ChatRequest> biDiChat(StreamObserver<ChatResponse> responseObserver) {\n        return new StreamObserver<ChatRequest>() {\n            @Override\n            public void onNext(ChatRequest request) {\n                // Process incoming message from client stream\n                ChatResponse response = ChatResponse.newBuilder()\n                    .setMessage(\"Echo: \" + request.getMessage())\n                    .build();\n                responseObserver.onNext(response);\n            }\n\n            @Override\n            public void onError(Throwable t) {\n                // Handle dropped connection or network failure\n                logger.error(\"Stream failed with error\", t);\n            }\n\n            @Override\n            public void onCompleted() {\n                // Client has finished sending; close the response stream\n                responseObserver.onCompleted();\n            }\n        };\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap with gRPC client-streaming and bi-directional streaming in Java is unhandled exceptions inside the `StreamObserver.onNext()` callback. If an uncaught exception escapes `onNext()`, the gRPC stub thread silently terminates the stream without propagating a clean `onError` status to the remote peer, leaving the other side hanging indefinitely waiting for completion frames. Always wrap your stream processing logic in robust try-catch blocks and explicitly invoke `responseObserver.onError(Status.INTERNAL.withCause(e).asRuntimeException())` to maintain clean failure semantics."
+    }
+  ],
+  "num": 987,
+  "title": "Streaming in gRPC (Unary, Server-streaming, Client-streaming, Bi-directional).",
+  "category": "REST APIs, WebFlux & Microservices"
+}

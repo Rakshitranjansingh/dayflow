@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Securing REST APIs diverges fundamentally from traditional server-rendered web applications because of how authentication state, client environments, and attack surfaces are architected. Traditional web applications typically rely on server-side sessions anchored by a browser cookie, utilizing HTTP-only and Secure flags to mitigate cross-site scripting (XSS) and cross-site request forgery (CSRF). In stark contrast, REST APIs are structurally designed to be stateless and often consume requests from non-browser clients such as mobile applications, CLI tools, or external microservices. This statelessness shifts the validation burden from sticky session identifiers stored in memory or distributed caches to cryptographic tokens, most commonly JSON Web Tokens (JWT) or OAuth2 opaque access tokens, transmitted via the HTTP Authorization header.\n\nFurthermore, the execution models of traditional monolithic web applications versus reactive, asynchronous microservices like Spring WebFlux alter how security filters are engineered. In a blocking servlet stack, security contexts are often bound to thread-local variables (`ThreadLocal`), assuming a one-thread-per-request paradigm. REST APIs in reactive microservice architectures handle high-throughput, non-blocking I/O where a single thread multiplexes many requests across an event loop. Consequently, propagating security context requires reactor context propagation (`Mono.deferContextual` or `ReactiveSecurityContextHolder`) rather than relying on thread-local storage, which would leak or lose state across thread boundaries. Additionally, REST APIs face distinct attack vectors: because they lack HTML presentation layers, they are immune to traditional DOM-based XSS, but they are intensely vulnerable to broken object-level authorization (BOLA), mass assignment vulnerabilities, and credential stuffing on stateless endpoints."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Security Dimension",
+        "Traditional Web Applications",
+        "REST APIs"
+      ],
+      "rows": [
+        [
+          "State Management",
+          "Server-side sessions with HttpSession or sticky cookies",
+          "Stateless via JWT, OAuth2 Bearer tokens, or opaque tokens"
+        ],
+        [
+          "Primary Vulnerabilities",
+          "Cross-Site Request Forgery (CSRF), Stored/Reflected XSS",
+          "Broken Object Level Authorization (BOLA), Mass Assignment, CORS misconfigurations"
+        ],
+        [
+          "Context Propagation",
+          "Thread-Local storage (`SecurityContextHolder`)",
+          "Reactive Context propagation (`ReactiveSecurityContextHolder`)"
+        ],
+        [
+          "Client Trust Boundaries",
+          "Controlled browser environment with cookie policies",
+          "Untrusted multi-platform clients (Mobile, SPA, IoT, Service-to-Service)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "CSRF Protection is intentionally disabled in stateless REST APIs because requests do not automatically include browser-managed cookies, relying instead on explicit Authorization headers which inherently prevent unauthorized cross-origin command execution.",
+        "Stateless JWT validation eliminates database lookups for session validation on every request, but introduces revocation challenges that require short token lifespans combined with secure refresh-token rotation strategies or distributed blacklists like Redis.",
+        "In reactive WebFlux REST architectures, Spring Security leverages `ServerHttpSecurity` to build a functional filter chain that operates on `WebFilter` instances, passing authentication data asynchronously through Reactor Context rather than mutating ThreadLocals."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebFluxSecurity\npublic class RestApiSecurityConfig {\n\n    @Bean\n    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {\n        return http\n            .csrf(ServerHttpSecurity.CsrfSpec::disable)\n            .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)\n            .formLogin(ServerHttpSecurity.FormLoginSpec::disable)\n            .authorizeExchange(exchanges -> exchanges\n                .pathMatchers(\"/api/public/**\").permitAll()\n                .pathMatchers(\"/api/admin/**\").hasRole(\"ADMIN\")\n                .anyExchange().authenticated()\n            )\n            .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))\n            .build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic senior-level failure mode when securing reactive REST APIs is attempting to access `SecurityContextHolder.getContext()` inside a flatMap or map operation within Project Reactor. Because reactive pipelines execute asynchronously across worker threads managed by event loops, ThreadLocals are completely decoupled from the reactive stream. Always use `ReactiveSecurityContextHolder.getContext()` to safely extract your authentication principal without triggering null-pointer exceptions or leaking security contexts across unrelated concurrent requests."
+    }
+  ],
+  "num": 1015,
+  "title": "How do you secure REST APIs differently from web apps?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

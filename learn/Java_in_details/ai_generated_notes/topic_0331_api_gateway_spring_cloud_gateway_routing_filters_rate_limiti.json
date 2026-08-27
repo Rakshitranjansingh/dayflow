@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern distributed microservices architectures, an API Gateway acts as the single reverse-proxy entry point for all client requests, abstracting away internal topology and providing cross-cutting concerns like security, observability, and traffic control. Within the Spring ecosystem, Spring Cloud Gateway has largely superseded Zuul 1, built natively on top of Project Reactor, Spring WebFlux, and Netty. This reactive, non-blocking foundation allows the gateway to handle massive concurrent request volumes efficiently with minimal thread usage, avoiding the thread-per-request blocking penalties of traditional servlet containers.\n\nAt its core, routing forms the foundational directive of the gateway, matching incoming HTTP requests against configured predicates—such as path matchers, HTTP methods, host headers, or time windows—before forwarding them to downstream microservices. Once a route is matched, filters take over. Spring Cloud Gateway filters allow developers to modify both incoming downstream requests and outgoing upstream responses programmatically or declaratively. These filters operate in pre- and post-phases, injecting authorization headers, stripping prefixes, or executing circuit breaker logic. Rate limiting builds directly on top of this filter architecture, serving as a vital defensive mechanism to protect downstream services from volumetric denial-of-service attacks or noisy neighbors by enforcing strict throughput quotas per client IP, user ID, or API key using distributed token bucket algorithms."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Spring Cloud Gateway",
+        "Spring Cloud Netflix Zuul (Legacy)"
+      ],
+      "rows": [
+        [
+          "Underlying Paradigm",
+          "Reactive, Non-Blocking (Spring WebFlux / Netty)",
+          "Imperative, Blocking (Spring MVC / Tomcat)"
+        ],
+        [
+          "Concurrency Model",
+          "Event Loop (Epoll/Kqueue via Netty)",
+          "Thread-per-request (ThreadPoolExecutor)"
+        ],
+        [
+          "WebSocket Support",
+          "Native, first-class support out of the box",
+          "Requires complex workarounds and separate configurations"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Routing relies on RouteLocator beans that evaluate ServerWebExchange instances through ordered RoutePredicates; if all predicates return true, the exchange is routed to the designated URI.",
+        "Filters are categorized into GatewayFilter (applied to specific routes) and GlobalFilter (applied conditionally or unconditionally to all routes), executing in a sorted chain based on an integer Ordered interface implementation.",
+        "Rate limiting is typically implemented using the RequestRateLimiter gateway filter factory backed by Redis, executing Lua atomic scripts to evaluate token bucket replenishment and consumption rates."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "spring:\n  cloud:\n    gateway:\n      routes:\n        - id: order-service-route\n          uri: lb://order-service\n          predicates:\n            - Path=/api/orders/**\n            - Method=GET,POST\n          filters:\n            - StripPrefix=2\n            - name: RequestRateLimiter\n              args:\n                redis-rate-limiter.replenishRate: 10\n                redis-rate-limiter.burstCapacity: 20\n                redis-rate-limiter.requestedTokens: 1\n                key-resolver: \"#{T(org.springframework.security.core.context.SecurityContextHolder).getContext().getAuthentication().getName()}\""
+    },
+    {
+      "type": "note",
+      "content": "When configuring rate limiting with Redis in production, always ensure your KeyResolver bean gracefully handles unauthenticated users or missing headers. If a key resolver returns null or throws an exception, the reactive stream will propagate an error down the filter chain, potentially resulting in unexpected 500 Internal Server Errors for legitimate clients. Furthermore, be mindful that blocking operations inside custom GatewayFilter implementations will stall the entire Netty event-loop thread pool, instantly degrading global gateway throughput."
+    }
+  ],
+  "num": 332,
+  "title": "API Gateway — Spring Cloud Gateway, routing, filters, rate limiting",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Spring's transaction abstraction, @Transactional acts as a declarative proxy layer that manages the lifecycle of a database transaction. Propagation defines the business logic boundary: how a transaction behaves when a method is called from within another transactional context. For instance, REQUIRED (the default) joins an existing transaction, whereas REQUIRES_NEW suspends the current transaction to start a fresh one, which is critical for logging or auditing where you cannot afford to roll back the audit trail if the main business logic fails. Isolation, conversely, maps directly to the underlying database's ACID properties, specifically addressing the concurrency anomalies that occur when multiple threads access the same rows simultaneously. Choosing the right isolation level—such as READ_COMMITTED or SERIALIZABLE—is a trade-off between data consistency and system throughput, as higher isolation levels increase lock contention and the likelihood of deadlocks."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Isolation Level",
+        "Dirty Reads",
+        "Non-repeatable Reads",
+        "Phantom Reads"
+      ],
+      "rows": [
+        [
+          "READ_UNCOMMITTED",
+          "Yes",
+          "Yes",
+          "Yes"
+        ],
+        [
+          "READ_COMMITTED",
+          "No",
+          "Yes",
+          "Yes"
+        ],
+        [
+          "REPEATABLE_READ",
+          "No",
+          "No",
+          "Yes"
+        ],
+        [
+          "SERIALIZABLE",
+          "No",
+          "No",
+          "No"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Propagation.REQUIRES_NEW works by suspending the existing transaction via the TransactionSynchronizationManager, effectively pausing the current connection and opening a new one, which can lead to connection pool exhaustion if not monitored.",
+        "Spring AOP proxies only intercept calls from outside the bean. If you call a @Transactional method from another method within the same class, the proxy is bypassed, and the annotation is ignored entirely.",
+        "Isolation levels are database-dependent; if your underlying RDBMS (e.g., MySQL vs. PostgreSQL) does not support a specific level, Spring will throw an exception or default to the database's native behavior.",
+        "Transaction propagation is thread-bound. If you spawn a new thread (e.g., @Async), the transaction context is not propagated, as the TransactionSynchronizationManager stores state in a ThreadLocal variable."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderService {\n\n    @Transactional(propagation = Propagation.REQUIRED)\n    public void placeOrder(Order order) {\n        orderRepository.save(order);\n        auditService.logAction(\"ORDER_PLACED\");\n    }\n}\n\n@Service\npublic class AuditService {\n\n    @Transactional(propagation = Propagation.REQUIRES_NEW, isolation = Isolation.READ_COMMITTED)\n    public void logAction(String action) {\n        auditRepository.save(new AuditLog(action));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common production pitfall is the 'Self-Invocation' trap. Because Spring uses CGLIB or JDK dynamic proxies, calling a @Transactional method from within the same class instance bypasses the proxy logic entirely. Always move transactional methods to a separate service class if you need to ensure the propagation or isolation rules are actually enforced by the Spring container."
+    }
+  ],
+  "num": 454,
+  "title": "@Transactional propagation and isolation — real scenarios",
+  "category": "Spring Boot & Spring Framework"
+}

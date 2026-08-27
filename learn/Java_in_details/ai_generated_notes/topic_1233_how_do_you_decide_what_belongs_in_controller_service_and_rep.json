@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In a robust Java enterprise architecture, the separation of concerns between Controllers, Services, and Repositories is the primary defense against the 'Big Ball of Mud' anti-pattern. The Controller layer acts as the entry point, strictly responsible for HTTP semantics: mapping requests, validating DTOs, and translating exceptions into appropriate HTTP status codes. It should never contain business logic, as its lifecycle is tied to the web framework (e.g., Spring MVC), making it difficult to unit test in isolation. The Service layer is the 'brain' of your application; it orchestrates business processes, enforces domain invariants, and manages transactional boundaries. By keeping services agnostic of the transport layer, you ensure that your core logic can be invoked via REST, gRPC, or scheduled tasks without modification. Finally, the Repository layer serves as the abstraction over your data access strategy. It hides the underlying persistence mechanism—whether it is JPA/Hibernate, raw JDBC, or a NoSQL driver—allowing the service layer to interact with domain entities through a collection-like interface rather than worrying about SQL dialects or connection pooling."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Layer",
+        "Primary Responsibility",
+        "Forbidden Content"
+      ],
+      "rows": [
+        [
+          "Controller",
+          "Request/Response Mapping",
+          "Business Logic, SQL, Transactions"
+        ],
+        [
+          "Service",
+          "Business Orchestration",
+          "HTTP Headers, Request Parameters, SQL"
+        ],
+        [
+          "Repository",
+          "Data Persistence",
+          "Business Rules, Validation, HTTP Logic"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Controllers should treat the request body as a DTO (Data Transfer Object) and map it to a domain object or service call immediately, ensuring the API contract remains decoupled from the internal database schema.",
+        "Services must be the boundary for @Transactional annotations. Placing transactions at the repository level often leads to fragmented state when a single business operation requires multiple repository calls.",
+        "Repositories should return domain entities or projections, never raw ResultSets or HttpServletRequests. This maintains the 'Persistence Ignorance' principle, allowing you to swap out database vendors with minimal impact on the business layer.",
+        "Dependency Injection should flow strictly downwards: Controller -> Service -> Repository. Circular dependencies between these layers are a clear indicator of poor domain modeling."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/orders\")\npublic class OrderController {\n    private final OrderService orderService;\n\n    @PostMapping\n    public ResponseEntity<OrderResponse> create(@RequestBody OrderRequest request) {\n        return ResponseEntity.ok(orderService.processOrder(request.toDomain()));\n    }\n}\n\n@Service\npublic class OrderService {\n    private final OrderRepository repository;\n\n    @Transactional\n    public Order processOrder(Order order) {\n        // Business invariant enforcement\n        if (order.getTotal() < 0) throw new InvalidOrderException();\n        return repository.save(order);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common 'junior' trap is leaking database-specific exceptions (like DataAccessException or SQLException) into the Controller. Always catch these in the Repository or Service layer and map them to custom, domain-specific exceptions. If your Controller is catching SQLException, you have failed to abstract your persistence layer, and your API contract is now dangerously coupled to your database implementation."
+    }
+  ],
+  "num": 1234,
+  "title": "How do you decide what belongs in controller, service, and repository?",
+  "category": "Core Java & Fundamentals"
+}

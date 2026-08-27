@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "OpenID Connect (OIDC) is an identity layer built directly on top of the OAuth 2.0 protocol. While OAuth 2.0 is strictly an authorization framework—designed to grant access to resources without sharing credentials—it lacks a standardized way to convey 'who' the user is. OIDC solves this by introducing the ID Token, a JSON Web Token (JWT) that provides cryptographically signed assertions about the user's identity. In a production Spring Security environment, OIDC transforms the OAuth 2.0 flow by mandating an 'openid' scope, which triggers the Identity Provider (IdP) to return both an Access Token (for resource access) and an ID Token (for authentication context). This distinction is critical: OAuth 2.0 answers 'Is this client allowed to access this API?', whereas OIDC answers 'Who is the user currently logged in?'."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "OAuth 2.0",
+        "OpenID Connect (OIDC)"
+      ],
+      "rows": [
+        [
+          "Primary Goal",
+          "Delegated Authorization",
+          "Authentication & Identity"
+        ],
+        [
+          "Token Type",
+          "Access Token (Opaque or JWT)",
+          "ID Token (JWT) + Access Token"
+        ],
+        [
+          "User Info",
+          "Not standardized",
+          "Standardized /userinfo endpoint"
+        ],
+        [
+          "Spring Security",
+          "oauth2Login / oauth2ResourceServer",
+          "oidcLogin / oidcUserService"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The ID Token is a JWT containing standard claims like 'sub' (subject), 'iss' (issuer), and 'aud' (audience), which Spring Security automatically validates against the IdP's public keys (JWK Set).",
+        "OIDC introduces the 'UserInfo' endpoint, a protected resource that the client can query using the Access Token to retrieve additional claims (e.g., email, profile, picture) that may not fit inside the ID Token.",
+        "Spring Security's OidcUserService acts as an abstraction layer, automatically mapping the ID Token claims into an OidcUser object, which integrates seamlessly into the SecurityContextHolder.",
+        "OIDC enforces strict discovery via the .well-known/openid-configuration endpoint, allowing clients to dynamically fetch authorization, token, and userinfo URIs without hardcoding provider metadata."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\npublic class SecurityConfig {\n    @Bean\n    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {\n        http.oauth2Login(oauth2 -> oauth2\n            .userInfoEndpoint(userInfo -> userInfo\n                .oidcUserService(this.oidcUserService())\n            )\n        );\n        return http.build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is confusing the 'sub' claim in an ID Token with a database primary key. Never use the 'sub' claim as a raw foreign key in your database without considering that the 'sub' is scoped to the 'iss' (Issuer). If you switch IdPs or support multiple IdPs, the same user might have different 'sub' values. Always store a composite key of (issuer_url, sub) to maintain identity integrity across providers."
+    }
+  ],
+  "num": 1020,
+  "title": "What is OpenID Connect (OIDC)? Difference from OAuth2?",
+  "category": "Spring Security & Web Security"
+}

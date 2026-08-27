@@ -1,0 +1,52 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Modern enterprise Java applications notoriously allocate massive amounts of text data, often resulting in heap memory being dominated by redundant character sequences. To mitigate this memory overhead, Java introduced two complementary features: Compact Strings in Java 9 and G1 String Deduplication. Compact Strings change the internal representation of a String from a UTF-16 char array (wasting 2 bytes per character for Latin-1 text) to a byte array accompanied by a coder flag that dictates whether the content is Latin-1 or UTF-16. This halves the baseline memory footprint of ASCII-heavy text. Concurrently, String Deduplication operates at the Garbage Collector level within the Garbage-First (G1) collector. Because duplicate strings often survive into older generation regions, G1 inspects strings during minor and major collection cycles, computing hash codes and tracking unique character arrays in a hashtable. When a duplicate reference is identified, G1 mutates the older string's underlying array pointer to reference the canonical array instead, allowing the duplicate array to be reclaimed and reducing the application's overall retained heap."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Primary Mechanism",
+        "Memory Impact",
+        "Configuration Flag"
+      ],
+      "rows": [
+        [
+          "Compact Strings",
+          "Switches internal backing store from char[] to byte[] + coder byte",
+          "50% reduction for Latin-1/ASCII strings at allocation time",
+          "-XX:-CompactStrings (to disable)"
+        ],
+        [
+          "G1 String Deduplication",
+          "Identifies and merges duplicate char[]/byte[] arrays during G1 GC cycles",
+          "Reduces retained heap for long-lived duplicate strings",
+          "-XX:+UseStringDeduplication"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Compact Strings inspects character data at construction time; if all characters in the sequence fit within the Latin-1 range (0-255), the JVM instantiates the backing store as a byte[] with a LATIN1 coder value (0), using precisely 1 byte per character.",
+        "If a single non-Latin-1 character is encountered during construction, the JVM falls back to a UTF16 coder value (1), allocating 2 bytes per character in a byte[] structure that preserves full UTF-16 semantics.",
+        "G1 String Deduplication hooks into the G1 garbage collection phases, utilizing a dedicated hashtable to track candidate string objects found during object evacuation.",
+        "To avoid excessive CPU overhead during GC, G1 deduplication does not process every single string; instead, it targets strings that survive a configurable number of collections (governed by StringDeduplicationAgeThreshold)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class StringDeduplicationDemo {\n    public static void main(String[] args) {\n        // These two strings have distinct object identities and distinct backing arrays\n        // initially, but G1 String Deduplication can merge their backing arrays post-GC.\n        String s1 = new String(\"Enterprise Java Application Engine\");\n        String s2 = new String(\"Enterprise Java Application Engine\");\n\n        System.out.println(\"s1 == s2: \" + (s1 == s2)); // false\n        System.out.println(\"Backing arrays identical: \" + (s1.getBytes() == s2.getBytes())); // false initially\n        \n        // Force GC with deduplication enabled to observe backing array merging\n        System.gc();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "While G1 String Deduplication drastically reduces heap usage, it is not free. It introduces additional CPU overhead during garbage collection pauses due to hash computation and hashtable maintenance. Furthermore, deduplication modifies the backing arrays of live objects in-place, which can occasionally impact performance if application threads concurrently access strings undergoing deduplication. Always measure GC pause time latency SLAs before enabling -XX:+UseStringDeduplication in high-throughput production environments."
+    }
+  ],
+  "num": 172,
+  "title": "String deduplication in G1, Compact Strings (Java 9+)",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

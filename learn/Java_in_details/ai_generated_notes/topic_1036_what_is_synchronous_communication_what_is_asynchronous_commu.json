@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed systems, enterprise Java applications, and operating system I/O subsystems, understanding the dichotomy between synchronous communication and asynchronous communication is critical for designing scalable architectures. Synchronous communication is a blocking model where the caller initiates a request and halts its execution thread, waiting directly for the response before it can proceed to any subsequent instructions. This paradigm guarantees ordering and simplifies control flow, but it severely limits throughput when threads are blocked waiting on external network calls, database responses, or disk I/O operations. Conversely, asynchronous communication is a non-blocking model where the caller dispatches a request and immediately regains control of its execution thread, moving on to other tasks. The eventual result is handled later via callbacks, futures, reactive streams, or event loops. In modern Java architectures—such as those leveraging Project Loom virtual threads, Netty, or Spring WebFlux—asynchronous boundaries are heavily utilized to decouple request-processing threads from actual I/O completion, drastically reducing the thread pool footprint and context-switching overhead under heavy concurrency."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Synchronous Communication",
+        "Asynchronous Communication"
+      ],
+      "rows": [
+        [
+          "Thread Behavior",
+          "Blocking; the calling thread is suspended until completion.",
+          "Non-blocking; the calling thread is freed immediately."
+        ],
+        [
+          "Control Flow",
+          "Sequential and straightforward to trace and debug.",
+          "Event-driven or callback-based, often requiring reactive pipelines."
+        ],
+        [
+          "Resource Utilization",
+          "High thread consumption; demands 1:1 OS thread mapping in classic setups.",
+          "Low thread consumption; multiplexes multiple operations over few threads."
+        ],
+        [
+          "Latency & Throughput",
+          "Lower latency for single requests, poor throughput under high concurrency.",
+          "Higher overall throughput, though single-request latency may include scheduling overhead."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Synchronous I/O operations rely on OS system calls like read() and write() that block the calling kernel thread until the buffer is filled or flushed, causing heavy context switching when the CPU scheduler has to swap out waiting threads.",
+        "Asynchronous I/O (such as Java's AsynchronousSocketChannel or Linux epoll-backed selector loops) uses readiness selection or completion handlers, notifying the application layer only when data is physically present in memory.",
+        "In enterprise microservices, synchronous communication typically manifests as traditional blocking REST calls (RestTemplate or standard OpenFeign), whereas asynchronous communication uses message brokers (Kafka, RabbitMQ) or reactive event streams."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.nio.ByteBuffer;\nimport java.nio.channels.AsynchronousFileChannel;\nimport java.nio.file.Path;\nimport java.nio.file.StandardOpenOption;\nimport java.util.concurrent.Future;\n\npublic class AsyncIoDemonstration {\n    public static void readFileAsync(Path path) throws Exception {\n        AsynchronousFileChannel fileChannel = AsynchronousFileChannel.open(path, StandardOpenOption.READ);\n        ByteBuffer buffer = ByteBuffer.allocate(1024);\n        \n        // Non-blocking call: returns a Future immediately while OS reads file in background\n        Future<Integer> operation = fileChannel.read(buffer, 0);\n        \n        System.out.println(\"Request dispatched. Doing other work on thread: \" + Thread.currentThread().getName());\n        \n        // Wait for the result only when needed\n        while (!operation.isDone()) {\n            Thread.sleep(10);\n        }\n        \n        System.out.println(\"Bytes read asynchronously: \" + operation.get());\n        fileChannel.close();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern is mixing synchronous frameworks with asynchronous boundaries—such as calling `.block()` on a reactive Mono or Flux inside a standard Tomcat servlet thread pool. This starves the thread pool and completely negates the scalability benefits of asynchronous I/O, often leading to cascading thread exhaustion failures under peak traffic loads."
+    }
+  ],
+  "num": 1037,
+  "title": "What is synchronous communication? What is asynchronous communication?",
+  "category": "Exception Handling & I/O / NIO"
+}

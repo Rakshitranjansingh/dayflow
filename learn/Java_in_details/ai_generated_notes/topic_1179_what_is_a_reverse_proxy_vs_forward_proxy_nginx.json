@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed systems architecture, proxies act as intermediaries between clients and servers, but they serve fundamentally different masters. A Forward Proxy sits in front of the client, acting as a gateway for internal users to access the public internet. It is primarily used for egress filtering, bypassing geo-restrictions, or caching static assets to reduce bandwidth consumption. From the client's perspective, the proxy is the destination; the client explicitly configures its browser or network stack to route traffic through this intermediary.\n\nConversely, a Reverse Proxy sits in front of the server, typically within the internal network. It intercepts incoming requests from the public internet and distributes them to one or more backend application servers. This pattern is essential for load balancing, SSL termination, and protecting the identity of internal infrastructure. Nginx is the industry standard for this role because of its asynchronous, event-driven architecture. Unlike traditional multi-threaded servers that spawn a thread per connection, Nginx uses an event loop to handle thousands of concurrent connections with minimal memory overhead, making it the ideal 'traffic cop' for high-throughput microservices."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Forward Proxy",
+        "Reverse Proxy"
+      ],
+      "rows": [
+        [
+          "Primary Goal",
+          "Client Anonymity/Egress Control",
+          "Server Scalability/Security"
+        ],
+        [
+          "Client Awareness",
+          "Explicitly configured",
+          "Transparent to client"
+        ],
+        [
+          "Typical Use Case",
+          "Corporate Firewall/Filtering",
+          "Load Balancing/SSL Termination"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Nginx Reverse Proxy Mechanics: Nginx operates as an upstream gateway. When a request arrives, the 'upstream' module selects a backend server based on algorithms like Round Robin, Least Connections, or IP Hash, effectively abstracting the internal cluster topology.",
+        "SSL Termination: By offloading the expensive TLS handshake to the Nginx reverse proxy, the backend application servers are freed from CPU-intensive cryptographic operations, allowing them to focus exclusively on business logic execution.",
+        "Forward Proxy Mechanics: A forward proxy acts as a man-in-the-middle that inspects outbound traffic. It maintains a cache of requested resources to serve subsequent requests locally, significantly reducing latency and external network saturation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "nginx",
+      "content": "upstream backend_cluster {\n    server 10.0.0.1:8080;\n    server 10.0.0.2:8080;\n}\n\nserver {\n    listen 443 ssl;\n    location / {\n        proxy_pass http://backend_cluster;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: A common production trap with Nginx reverse proxies is the 'Host Header' mismatch. If you don't explicitly set the 'Host' header in your proxy_pass directive, your backend application might receive the internal IP of the Nginx server instead of the actual domain name. This often breaks Spring Boot's HATEOAS link generation or redirects, leading to '400 Bad Request' errors that are notoriously difficult to debug in production logs."
+    }
+  ],
+  "num": 1180,
+  "title": "What is a Reverse Proxy vs Forward Proxy? (Nginx)",
+  "category": "OOPs & Design Patterns"
+}

@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The most challenging backend problem I encountered involved a non-deterministic 'Stop-the-World' latency spike in a high-throughput trading engine. We were dealing with a massive object graph in the JVM heap that triggered frequent Full Garbage Collection cycles. The root cause was a combination of 'Memory Fragmentation' and 'Object Allocation Rate' exceeding the capacity of the Young Generation, causing premature promotion of short-lived objects to the Old Generation. This resulted in 'Tenured Space' saturation and cascading GC pauses that stalled our order matching logic, leading to significant slippage in trade execution."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric",
+        "Before Optimization",
+        "After Optimization"
+      ],
+      "rows": [
+        [
+          "GC Pause Duration",
+          "800ms - 2s",
+          "10ms - 50ms"
+        ],
+        [
+          "Object Allocation",
+          "1.2GB/s",
+          "200MB/s"
+        ],
+        [
+          "Throughput",
+          "15k TPS",
+          "45k TPS"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Implemented Object Pooling for frequently allocated message buffers to reduce the pressure on the Young Generation and minimize GC churn.",
+        "Transitioned from standard POJOs to Off-Heap memory structures using Unsafe and ByteBuffer to bypass the GC altogether for critical path data.",
+        "Tuned the G1GC collector parameters, specifically adjusting -XX:MaxGCPauseMillis and -XX:InitiatingHeapOccupancyPercent to trigger concurrent marking cycles earlier.",
+        "Analyzed heap dumps using Eclipse MAT to identify 'Memory Leaks' caused by static collection references that were never cleared, preventing object reclamation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class BufferPool {\n    private final Queue<ByteBuffer> pool = new ConcurrentLinkedQueue<>();\n    \n    public ByteBuffer acquire() {\n        ByteBuffer buffer = pool.poll();\n        return (buffer != null) ? buffer : ByteBuffer.allocateDirect(1024);\n    }\n\n    public void release(ByteBuffer buffer) {\n        buffer.clear();\n        pool.offer(buffer);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Never trust the default JVM ergonomics for latency-sensitive applications. If you see 'Promotion Failed' in your GC logs, you are not just facing a memory issue; you are facing a design flaw where your object lifecycle is mismatched with your heap configuration. Always prioritize object reuse over object creation in the hot path."
+    }
+  ],
+  "num": 1262,
+  "title": "Tell me about the toughest backend problem you solved.",
+  "category": "Core Java & Fundamentals"
+}

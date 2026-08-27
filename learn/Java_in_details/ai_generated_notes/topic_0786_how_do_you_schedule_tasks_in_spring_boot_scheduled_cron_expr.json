@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java applications, background processing is an inevitable requirement—whether you are dispatching nightly billing invoices, running periodic data cache evictions, or polling external message systems. Spring Boot handles this elegantly through its integration with the core Spring Task Execution and Scheduling abstraction. By leveraging the @Scheduled annotation, developers can transform any ordinary Spring-managed bean into a persistent, declarative background worker. Under the hood, this relies on the TaskScheduler interface and its default implementation, ThreadPoolTaskScheduler, which manages thread allocation for background jobs.\n\nTo control execution timing, Spring Boot relies on two primary mechanics: fixed intervals (such as fixedRate and fixedDelay) and advanced Cron expressions. Cron expressions provide precise temporal control through a six-field string format representing second, minute, hour, day of month, month, and day of week. When a Spring application starts up with the @EnableScheduling annotation, the ScheduledAnnotationBeanPostProcessor scans all instantiated beans for methods annotated with @Scheduled. It then registers these methods with the underlying scheduler, parsing the configured delay or cron string into concrete trigger instances. This removes the boilerplate of configuring low-level java.util.concurrent.ScheduledExecutorService instances manually, integrating task scheduling directly into the broader Spring IoC container lifecycle."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The @EnableScheduling annotation triggers the instantiation of a ScheduledAnnotationBeanPostProcessor, which acts as a BeanPostProcessor hook, scanning post-initialized beans for methods carrying the @Scheduled metadata.",
+        "By default, Spring Boot initializes a single-threaded TaskScheduler (ThreadPoolTaskScheduler with a pool size of 1). If multiple tasks are scheduled to run concurrently, they will block each other unless you explicitly override the task scheduler bean configuration.",
+        "Cron expressions are parsed using CronSequenceGenerator (or CronExpression in newer Spring Framework versions), calculating the next execution timestamp based on the java.time API and system timezone settings.",
+        "Fixed-rate execution (fixedRate) triggers the task at specified intervals regardless of whether the previous execution finished, whereas fixed-delay execution (fixedDelay) waits for the completion of the prior invocation before starting the timer for the next."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.enterprise.scheduler;\n\nimport org.springframework.scheduling.annotation.Scheduled;\nimport org.springframework.stereotype.Component;\nimport java.util.concurrent.TimeUnit;\n\n@Component\npublic class EnterpriseTaskScheduler {\n\n    // Runs every 5 seconds, ignoring execution duration of the method body\n    @Scheduled(fixedRate = 5000, timeUnit = TimeUnit.MILLISECONDS)\n    public void processHeartbeat() {\n        System.out.println(\"Heartbeat executed at fixed rate.\");\n    }\n\n    // Runs every 5 seconds AFTER the previous execution has fully completed\n    @Scheduled(fixedDelay = 5000)\n    public void pollDatabaseQueue() {\n        System.out.println(\"Polling database queue post-completion.\");\n    }\n\n    // Runs at 02:00 AM every single day using a standard Cron expression\n    @Scheduled(cron = \"0 0 2 * * ?\")\n    public void executeNightlyBatchJob() {\n        System.out.println(\"Executing heavy nightly batch job...\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Because Spring's default scheduled task executor is single-threaded, if a single @Scheduled method blocks indefinitely (e.g., due to a hung database connection or network timeout), ALL other scheduled tasks in your application will be silently delayed or missed entirely. Always configure a custom ThreadPoolTaskScheduler bean in your configuration classes to assign a dedicated thread pool for your background tasks, and ensure that asynchronous execution boundaries are handled correctly if tasks run concurrently."
+    }
+  ],
+  "num": 787,
+  "title": "How do you schedule tasks in Spring Boot? (@Scheduled, Cron expressions)",
+  "category": "Spring Boot & Spring Framework"
+}

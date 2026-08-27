@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of enterprise Java applications, the Query Cache is a performance optimization layer designed to store the results of database queries in memory. When an application executes a query, the persistence layer (like Hibernate or MyBatis) checks the cache before hitting the database. If the result set exists in memory, the application returns it immediately, bypassing the overhead of network latency, SQL parsing, execution planning, and result set mapping. This is particularly effective for read-heavy workloads where data changes infrequently, as it significantly reduces the load on the database engine and minimizes the CPU cycles spent on object-relational mapping (ORM) hydration."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "First-Level Cache",
+        "Query Cache"
+      ],
+      "rows": [
+        [
+          "Scope",
+          "Session/Transaction",
+          "SessionFactory/Global"
+        ],
+        [
+          "Content",
+          "Entity instances",
+          "Result set IDs/Values"
+        ],
+        [
+          "Invalidation",
+          "Transaction commit",
+          "Table update/Dependency"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Query Cache does not cache full entity objects; it stores the primary keys of the entities returned by the query. If the entity is not already in the Second-Level Cache, the system must perform additional lookups, potentially leading to N+1 query issues if not managed correctly.",
+        "Invalidation is the most complex aspect of query caching. Whenever a table involved in a cached query is updated, the entire query cache region for that table is invalidated to ensure data consistency, which can lead to high churn in write-heavy systems.",
+        "Memory management is critical. Since the cache resides in the JVM heap, improper sizing or excessive caching of large result sets can trigger frequent Young Gen or Old Gen garbage collection cycles, leading to application pauses."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Enabling Query Cache in Hibernate\nConfiguration cfg = new Configuration();\ncfg.setProperty(\"hibernate.cache.use_query_cache\", \"true\");\n\n// Usage in a DAO layer\nQuery query = session.createQuery(\"FROM Product p WHERE p.category = :cat\");\nquery.setCacheable(true);\nquery.setCacheRegion(\"product_queries\");\nList<Product> results = query.list();"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never enable the Query Cache globally without profiling. The most common production trap is the 'Cache Thrashing' effect, where the cost of invalidating and re-populating the cache exceeds the cost of the original database query. Always use the Query Cache only for static look-up data (e.g., country codes, configuration settings) and avoid it for transactional data that changes every few seconds."
+    }
+  ],
+  "num": 842,
+  "title": "What is Query Cache?",
+  "category": "Core Java & Fundamentals"
+}

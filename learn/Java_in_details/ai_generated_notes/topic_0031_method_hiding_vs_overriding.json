@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the realm of object-oriented programming in Java, polymorphism is achieved through method overriding, whereas static dispatch and compile-time binding govern method hiding. Understanding the precise boundary between method hiding and overriding is vital for avoiding subtle bugs related to inheritance and state management. Method overriding occurs when a subclass provides a specific implementation of an instance method that is already defined in its parent class. The runtime system uses dynamic method dispatch to invoke the overridden method based on the actual object type, regardless of the reference type pointing to it. This enables true polymorphic behavior where behavior is determined by the dynamic type at runtime rather than the static type.\n\nConversely, method hiding occurs when a subclass defines a static method with the exact same signature (name, parameter types, and return type compatibility) as a static method in its superclass. Because static methods belong to the class rather than any individual instance, they are resolved at compile time using static binding based on the declared reference type. When a subclass declares a static method identical to an inherited static method, it does not override it; instead, it hides it. If you invoke the method using a reference of the super class type, the superclass version executes; if you use a reference of the subclass type, the subclass version executes. Mixing these concepts up can lead to confusing architectural bugs where refactoring an instance method into a static method alters polymorphic invocation semantics."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Method Overriding",
+        "Method Hiding"
+      ],
+      "rows": [
+        [
+          "Method Type",
+          "Instance methods",
+          "Static methods"
+        ],
+        [
+          "Binding Mechanism",
+          "Dynamic dispatch (Runtime)",
+          "Static binding (Compile-time)"
+        ],
+        [
+          "Polymorphism",
+          "Fully polymorphic",
+          "Non-polymorphic (resolved by reference type)"
+        ],
+        [
+          "Annotation Support",
+          "Checked by @Override",
+          "Compiles with @Override (though logically hiding)"
+        ],
+        [
+          "Super Access",
+          "Accessed via super.method()",
+          "Accessed via SuperClass.method()"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "During compilation, the Java compiler examines the declared reference type to determine which static method to call in method hiding scenarios, generating an invokestatic or invokevirtual bytecode instruction accordingly.",
+        "Method overriding requires the overriding method to have access visibility that is at least as permissive as the overridden method, whereas hidden static methods follow independent access rules per class scope.",
+        "If a subclass attempts to reduce the visibility of an overridden method or change an instance method to a static method, the Java compiler throws a compilation error."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "class Parent {\n    // Instance method for Overriding\n    public void showMessage() {\n        System.out.println(\"Parent instance method\");\n    }\n\n    // Static method for Hiding\n    public static void display() {\n        System.out.println(\"Parent static method\");\n    }\n}\n\nclass Child extends Parent {\n    @Override\n    public void showMessage() {\n        System.out.println(\"Child instance method (Overridden)\");\n    }\n\n    // This hides Parent.display(), it does not override it\n    public static void display() {\n        System.out.println(\"Child static method (Hidden)\");\n    }\n}\n\npublic class DispatchDemo {\n    public static void main(String[] args) {\n        Parent obj = new Child();\n        obj.showMessage(); // Outputs: Child instance method (Dynamic Dispatch)\n        obj.display();     // Outputs: Parent static method (Static Binding)\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic trap in enterprise codebases is writing unit tests where mock frameworks or service stubs attempt to override what they assume are instance methods, only to find out the underlying library method was refactored to static. Because static methods cannot be dynamically dispatched, trying to stub a static method via standard Mockito requires the Mockito-inline mockMaker to handle static mocking, otherwise the test calls the real static method on the parent class regardless of stubbing definitions."
+    }
+  ],
+  "num": 32,
+  "title": "Method hiding vs overriding",
+  "category": "Core Java & Fundamentals"
+}

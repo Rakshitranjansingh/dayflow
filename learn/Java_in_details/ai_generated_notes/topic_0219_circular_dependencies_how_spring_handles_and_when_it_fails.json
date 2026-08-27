@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java applications built on the Spring Framework, a circular dependency occurs when two or more beans depend on each other for initialization. For instance, Bean A requires an instance of Bean B injected into its constructor or property fields, while Bean B simultaneously requires an instance of Bean A. Resolving this topological sorting problem is non-trivial for an Inversion of Control (IoC) container. To handle this without crashing the application startup sequence during the ApplicationContext refresh phase, Spring employs a sophisticated three-phase instantiation strategy utilizing early bean references, singleton factories, and a specialized caching mechanism known as the singleton objects cache and singleton factories cache. \n\nHowever, Spring's ability to automatically resolve these circular loops is not absolute. While field injection, setter injection, and configuration methods allow Spring to expose an uninitialized early reference of a bean before its dependency injection phase completes, constructor-based circular dependencies cause an immediate failure. Because Java language semantics dictate that a constructor must fully execute before an object reference can exist on the heap or be passed around, Spring cannot construct a partially initialized proxy or raw instance to break the deadlock of mutually dependent constructors. Consequently, the container throws a fatal BeanCurrentlyInCreationException, signaling a design flaw that violates clean architecture principles and forcing developers to refactor their component boundaries."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Injection Type",
+        "Circular Resolution Support",
+        "Underlying Mechanism"
+      ],
+      "rows": [
+        [
+          "Constructor Injection",
+          "Not Supported",
+          "Strict sequential initialization order; no early reference can be passed before constructor execution finishes."
+        ],
+        [
+          "Setter / Field Injection",
+          "Supported (for Singletons)",
+          "Exposes an ObjectFactory early via the singletonFactories map before properties are populated."
+        ],
+        [
+          "Prototype Scope",
+          "Not Supported",
+          "Prototype beans are never cached by the container, preventing early reference sharing during creation."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Default Singleton Bean Registry maintains three distinct maps: singletonObjects (Level 1 cache), earlySingletonObjects (Level 2 cache), and singletonFactories (Level 3 cache containing ObjectFactory lambdas).",
+        "When Bean A begins creation, it places a factory for itself in Level 3. If Bean B depends on Bean A, it queries Level 3, retrieves the factory, obtains the early reference, and promotes it to Level 2.",
+        "AOP Proxies complicate this resolution because circular references interacting with BeanPostProcessors require returning the proxy instance instead of the raw raw object instance, handled via SmartInitializingSingleton or early reference interception."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Component\npublic class OrderService {\n    private final BillingService billingService;\n\n    // Constructor injection for mandatory dependency (Will FAIL if BillingService injects OrderService via constructor)\n    public OrderService(BillingService billingService) {\n        this.billingService = billingService;\n    }\n}\n\n@Component\npublic class BillingService {\n    @Autowired\n    private OrderService orderService; // Field injection allows Spring to resolve via early reference caching\n}"
+    },
+    {
+      "type": "note",
+      "content": "Never rely on field injection simply to bypass circular dependency errors. A circular dependency is almost always a smell indicating tight coupling and a violation of the Single Responsibility Principle. If you encounter circular dependencies involving AOP proxies or security interceptors, Spring Boot 2.6+ actually disables circular references by default (spring.main.allow-circular-references=false) to force architectural cleanup rather than masking design smells."
+    }
+  ],
+  "num": 220,
+  "title": "Circular dependencies — how Spring handles (and when it fails)",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java architectures, object instantiation can quickly become a brittle bottleneck if managed via direct constructor calls using the `new` keyword. Hardcoding concrete classes tightly couples client code to specific implementations, violating the Dependency Inversion Principle and making unit testing or dynamic runtime extension difficult. To solve this, the Factory Method and Abstract Factory design patterns abstract away object creation mechanics, but they operate at distinct scales and solve different architectural challenges.\n\nThe Factory Method pattern is a creational design pattern that defines an interface or abstract class for creating a single object, but lets subclasses or implementing methods decide which concrete class to instantiate. It delegates the instantiation logic to derived classes, allowing a system to remain decoupled from the concrete types it manages. In frameworks like Spring or enterprise Java libraries, Factory Methods are ubiquitous—such as `java.util.Calendar.getInstance()` or static factory methods on domain entities—ensuring that object initialization encapsulates complex configuration, pooling, or conditional selection.\n\nConversely, the Abstract Factory pattern provides an interface for creating families of related or dependent objects without specifying their concrete classes. While a Factory Method focuses on the production of a single product type through inheritance or delegation, an Abstract Factory deals with a suite of distinct product objects that must work together seamlessly, such as a GUI toolkit supplying matching buttons, text fields, and scrollbars for multiple operating system themes. By enforcing consistency across product families, Abstract Factory prevents runtime mismatches and centralizes the policy of object provisioning."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Dimension",
+        "Factory Method",
+        "Abstract Factory"
+      ],
+      "rows": [
+        [
+          "Primary Focus",
+          "Creating a single, distinct product object.",
+          "Creating a family of related or dependent product objects."
+        ],
+        [
+          "Mechanism",
+          "Relies on inheritance (subclassing) or a delegated method.",
+          "Relies on object composition (delegating to an interface implementation)."
+        ],
+        [
+          "Granularity",
+          "Method-level abstraction of instantiation.",
+          "Class/Interface-level abstraction of multiple factory methods."
+        ],
+        [
+          "Scalability",
+          "Easy to introduce a new single product by adding a new creator subclass.",
+          "Harder to add new product types to the family because all concrete factories must be updated."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Factory Method utilizes a polymorphic creation approach where the creator class contains some implementation that relies on abstract factory methods, deferring concrete instantiation to runtime subclasses.",
+        "Abstract Factory organizes multiple factory methods into a cohesive interface, ensuring that clients consuming the factory output cannot inadvertently mix-and-match incompatible components from different vendors or system tiers.",
+        "Both patterns support the Open/Closed Principle with respect to adding new concrete implementations, though Abstract Factory requires careful upfront design to accommodate future expansion of the product family matrix."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public interface DatabaseDriverFactory {\n    Connection createConnection();\n    Statement createStatement();\n}\n\npublic class PostgresFactory implements DatabaseDriverFactory {\n    @Override\n    public Connection createConnection() {\n        return new PostgresConnection();\n    }\n    @Override\n    public Statement createStatement() {\n        return new PostgresStatement();\n    }\n}\n\npublic class Application {\n    private final DatabaseDriverFactory factory;\n\n    public Application(DatabaseDriverFactory factory) {\n        this.factory = factory;\n    }\n\n    public void runQuery() {\n        Connection conn = factory.createConnection();\n        Statement stmt = factory.createStatement();\n        stmt.execute(\"SELECT 1\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap with Abstract Factory is the 'God Factory' anti-pattern, where developers keep adding unrelated methods to the abstract factory interface as the system grows. If you find yourself modifying the base Abstract Factory interface to support a brand-new, unrelated subsystem, you are violating the Interface Segregation Principle. Split your factories or lean toward dependency injection containers like Spring to manage bean wiring instead of manual abstract factories."
+    }
+  ],
+  "num": 179,
+  "title": "Factory Method & Abstract Factory",
+  "category": "OOPs & Design Patterns"
+}

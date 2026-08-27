@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Reactor Core is the foundational library for reactive programming on the JVM, implementing the Reactive Streams specification to handle asynchronous, non-blocking data streams. At its heart, the library provides two primary publishers: Mono and Flux. A Mono represents a reactive stream that emits at most one item—either a single value or an empty completion signal—making it the ideal abstraction for operations like database lookups by ID, HTTP GET requests, or single-value calculations. Conversely, a Flux is a reactive stream capable of emitting zero to N items, followed by a completion or error signal. It is the workhorse for processing collections, event streams, or paginated data sets. Both types are lazy by nature; they do not execute until a subscriber invokes the subscribe() method, triggering the assembly-time pipeline to materialize into a runtime execution graph."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Mono<T>",
+        "Flux<T>"
+      ],
+      "rows": [
+        [
+          "Max Cardinality",
+          "0 or 1",
+          "0 to N"
+        ],
+        [
+          "Primary Use Case",
+          "Single result/Command",
+          "Streams/Collections/Events"
+        ],
+        [
+          "Operator Set",
+          "Optimized for single value",
+          "Rich set for windowing/grouping"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Backpressure handling: Both types implement the Subscriber/Subscription protocol, allowing the consumer to signal how much data it can process, preventing memory overflow in producers.",
+        "Assembly vs. Execution: The pipeline definition (e.g., .map(), .flatMap()) is purely declarative. The actual execution occurs on the thread pool defined by the Scheduler, which is decoupled from the definition phase.",
+        "Error Propagation: Errors are terminal signals in both Mono and Flux. Once an error occurs, the stream is terminated, and the error signal propagates downstream to the subscriber's onError handler."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public Mono<User> findUserById(String id) {\n    return userRepository.findById(id)\n        .switchIfEmpty(Mono.error(new UserNotFoundException(id)));\n}\n\npublic Flux<User> findAllActiveUsers() {\n    return userRepository.findAll()\n        .filter(User::isActive)\n        .map(this::enrichUserData);\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is 'blocking the event loop.' Because Reactor operators are non-blocking, calling a synchronous, blocking I/O operation (like legacy JDBC or Thread.sleep()) inside a map() or flatMap() will starve the underlying Scheduler threads. Always offload blocking calls to a dedicated Schedulers.boundedElastic() thread pool to prevent the entire reactive pipeline from grinding to a halt."
+    }
+  ],
+  "num": 802,
+  "title": "Reactor Core: Mono vs Flux?",
+  "category": "Core Java & Fundamentals"
+}

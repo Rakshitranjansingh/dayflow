@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Consensus algorithms like Paxos and Raft are the bedrock of distributed systems, solving the problem of maintaining a consistent state across a cluster of nodes despite network partitions, packet loss, or node failures. Paxos, introduced by Leslie Lamport, is historically significant but notoriously difficult to implement correctly due to its abstract nature and lack of a prescriptive structure for log replication. It functions via a multi-phase proposal process where 'proposers' attempt to reach agreement on a single value. In contrast, Raft was designed specifically for understandability, decomposing consensus into three distinct, manageable sub-problems: Leader Election, Log Replication, and Safety. While Paxos is often viewed as a mathematical protocol, Raft is an engineering-first implementation blueprint that forces a strong leader model, simplifying the state machine replication process significantly."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Paxos",
+        "Raft"
+      ],
+      "rows": [
+        [
+          "Design Philosophy",
+          "Mathematical abstraction",
+          "Understandability and implementation"
+        ],
+        [
+          "Leader Role",
+          "Optional (Multi-Paxos)",
+          "Mandatory (Strong Leader)"
+        ],
+        [
+          "Log Structure",
+          "Not strictly defined",
+          "Strictly sequential log"
+        ],
+        [
+          "Complexity",
+          "High (Implementation prone to bugs)",
+          "Moderate (Explicit state machine)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Leader Election in Raft relies on randomized timeouts to prevent split votes, where nodes transition from Follower to Candidate state if they do not receive a heartbeat from a leader within a specific election timeout window.",
+        "Raft enforces a strict log matching property: if two logs contain an entry with the same index and term, then the logs are identical in all entries up through that index.",
+        "In Paxos, the 'Prepare' and 'Accept' phases require a majority quorum, but the protocol allows for out-of-order execution, which complicates the implementation of a linearizable state machine compared to Raft's sequential log flow.",
+        "The Raft leader acts as the sole source of truth for log entries; followers cannot append entries independently, which eliminates the complex conflict resolution logic found in decentralized Paxos variants."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public enum NodeState { FOLLOWER, CANDIDATE, LEADER }\n\npublic class RaftNode {\n    private NodeState currentState;\n    private long currentTerm;\n    private Integer votedFor;\n\n    public synchronized void handleRequestVote(long term, int candidateId) {\n        if (term > currentTerm) {\n            currentTerm = term;\n            currentState = NodeState.FOLLOWER;\n            votedFor = null;\n        }\n        if (votedFor == null || votedFor == candidateId) {\n            votedFor = candidateId;\n            // Grant vote logic here\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall in Raft implementations is the 'Election Storm' caused by poorly tuned timeout intervals. If your election timeout is too close to the heartbeat interval, you will trigger unnecessary re-elections, effectively stalling the cluster. Always use a randomized range (e.g., 150ms-300ms) for timeouts to ensure that nodes don't synchronize their candidacy, which is a classic distributed systems anti-pattern."
+    }
+  ],
+  "num": 1124,
+  "title": "Raft vs Paxos Consensus Algorithms? (Leader election basics)",
+  "category": "Exception Handling & I/O / NIO"
+}

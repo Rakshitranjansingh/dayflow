@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Boot revolutionized enterprise Java by turning traditional deployment models on their head. Instead of packing your application into a WAR file and deploying it to a pre-installed, standalone application server, Spring Boot encourages a fat-JAR architecture where the server is packaged directly inside your application. This is made possible through Embedded Servers. When your Spring Boot application boots up, its auto-configuration mechanism scans the classpath for servlet container implementations and spins up an instance programmatically during the ApplicationContext initialization lifecycle.\n\nOut of the box, Spring Boot defaults to Apache Tomcat, a robust and battle-tested servlet container that implements the Servlet, JSP, and WebSocket specifications. However, enterprise requirements often demand alternative performance characteristics. Jetty is frequently favored for its asynchronous request-processing performance, lightweight footprint, and exceptional embedding API, making it a darling for high-concurrency microservices. Undertow, developed by Red Hat, is an ultra-performant, non-blocking web server written from the ground up to utilize a flexible NIO-based architecture, offering phenomenal throughput and low memory overhead under extreme load. Switching between Tomcat, Jetty, and Undertow requires nothing more than manipulating your Maven or Gradle build dependencies by excluding the default starter and including the desired container starter, allowing developers to tailor their runtime engine to specific non-functional requirements without altering a single line of business logic."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Metric",
+        "Apache Tomcat",
+        "Eclipse Jetty",
+        "Red Hat Undertow"
+      ],
+      "rows": [
+        [
+          "Architecture",
+          "Thread-per-request (Blocking IO primarily, NIO supported)",
+          "Asynchronous, event-driven non-blocking IO",
+          "Non-blocking NIO, xNIO worker-based architecture"
+        ],
+        [
+          "Default in Spring Boot",
+          "Yes",
+          "No",
+          "No"
+        ],
+        [
+          "Memory Footprint",
+          "Moderate",
+          "Lightweight",
+          "Very Lightweight"
+        ],
+        [
+          "WebSocket Support",
+          "Standard Servlet 3.1+ WebSocket API",
+          "Advanced Jetty WebSocket API & Standard",
+          "High-performance XNIO-based WebSocket"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring Boot auto-configures embedded servers by instantiating specific classes like ServletWebServerFactory (e.g., TomcatServletWebServerFactory, JettyServletWebServerFactory, or UndertowServletWebServerFactory) based on conditional annotations like @ConditionalOnClass and @ConditionalOnMissingBean.",
+        "The web server lifecycle is tied directly to the Spring ApplicationContext. When the Spring container refreshes, the web server is initialized and started in a lifecycle phase, and it gracefully stops when the JVM receives a shutdown signal or the context is closed.",
+        "To switch servers, you must explicitly excludespring-boot-starter-tomcat from your spring-boot-starter-web dependency and add the corresponding alternative starter (spring-boot-starter-jetty or spring-boot-starter-undertow) to ensure only one servlet container implementation exists on the runtime classpath."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "xml",
+      "content": "<dependencies>\n    <!-- Exclude Tomcat and include Undertow in Maven -->\n    <dependency>\n        <groupId>org.springframework.boot</groupId>\n        <artifactId>spring-boot-starter-web</artifactId>\n        <exclusions>\n            <exclusion>\n                <groupId>org.springframework.boot</groupId>\n                <artifactId>spring-boot-starter-tomcat</artifactId>\n            </exclusion>\n        </exclusions>\n    </dependency>\n    <dependency>\n        <groupId>org.springframework.boot</groupId>\n        <artifactId>spring-boot-starter-undertow</artifactId>\n    </dependency>\n</dependencies>"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when switching embedded servers (like moving from Tomcat to Undertow) is relying on container-specific APIs or configuration properties in application.properties. Properties prefixed with server.tomcat.* will be completely ignored by Jetty or Undertow, leading to silent configuration failures or improperly sized connection pools. Always map custom tuning properties to generic server.* namespaces where possible, or use a WebServerFactoryCustomizer bean to configure server-specific factories programmatically."
+    }
+  ],
+  "num": 785,
+  "title": "How does Spring Boot handle Embedded Servers (Tomcat, Jetty, Undertow)? How to switch?",
+  "category": "Spring Boot & Spring Framework"
+}

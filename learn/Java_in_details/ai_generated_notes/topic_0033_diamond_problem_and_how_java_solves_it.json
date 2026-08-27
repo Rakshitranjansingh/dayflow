@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The diamond problem is a classic ambiguity anomaly in object-oriented programming that occurs when a language permits multiple inheritance. Specifically, it arises when a class D inherits from two separate classes, B and C, which both inherit from a common base class A. If class A defines a method, and both B and C override it differently (or don't override it at all), when code invoked on an instance of D calls that method, the compiler faces an ambiguity crisis: which parent's implementation should it execute? C++ historically addressed this using virtual inheritance, adding significant object layout complexity. Java, during its initial design phase, completely eschewed multiple class inheritance to sidestep this issue, permitting a class to extend only a single superclass.\n\nHowever, the introduction of default methods (defender methods) in Java 8 via JEP 126 fundamentally shifted this paradigm by allowing interfaces to contain method bodies. While this enabled powerful functional mix-ins and backwards-compatible library evolution, it inadvertently reintroduced the diamond problem in the context of interface inheritance. If a class implements two interfaces that both declare a default method with the identical signature, the Java compiler refuses to compile the code silently, mandating explicit conflict resolution by the developer. Java solves this problem cleanly and deterministically through strict inheritance precedence rules and the explicit super keyword syntax, ensuring that multiple inheritance of behavior remains safe, predictable, and devoid of runtime ambiguity."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Interface Method Resolution Priority: Class implementations always override default interface methods. If a class explicitly implements an interface and inherits a default method with the same signature from another, the class's own method wins without requiring conflict resolution.",
+        "Sub-interface Specialization: If interface B extends interface A, and both define a default method, B's more specific implementation automatically takes precedence over A's implementation during resolution.",
+        "Explicit Resolution via Super: When two unrelated interfaces define conflicting default methods and a class implements both, the compiler forces the implementing class to override the method and explicitly delegate using the syntax InterfaceName.super.methodName()."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public interface Vehicle {\n    default void start() {\n        System.out.println(\"Starting generic vehicle...\");\n    }\n}\n\npublic interface Alarm {\n    default void start() {\n        System.out.println(\"Sounding security alarm!\");\n    }\n}\n\npublic class SmartCar implements Vehicle, Alarm {\n    @Override\n    public void start() {\n        // Explicitly resolving the diamond/conflict problem\n        Vehicle.super.start();\n        Alarm.super.start();\n        System.out.println(\"SmartCar systems fully online.\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent interview trap and production pitfall involves state inheritance. Unlike C++, Java interfaces still cannot hold mutable instance state (fields). Therefore, Java's interface-based diamond problem is strictly about behavior (method implementation collision) rather than state (the dreaded duplicate subobject layout in memory). However, watch out for complex abstract class hierarchies mixed with default interface methods: class inheritance always wins over interface default methods, which can lead to subtle bugs if you assume a newer interface default will override an older legacy abstract class method."
+    }
+  ],
+  "num": 34,
+  "title": "Diamond problem and how Java solves it",
+  "category": "Core Java & Fundamentals"
+}

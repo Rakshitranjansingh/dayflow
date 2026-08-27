@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise software engineering, managing complex business logic while maintaining clean architecture requires a firm grasp of behavioral design patterns. Among these, the Strategy, Observer, Command, and Template Method patterns form the bedrock of decoupled, extensible systems. The Strategy pattern lets you define a family of interchangeable algorithms encapsulated in separate classes, allowing the client to swap behaviors at runtime without modifying the context. The Observer pattern establishes a one-to-many dependency between objects—often implemented as a pub-sub mechanism—so that when a state change occurs in a subject, all registered observers are notified asynchronously or synchronously. The Command pattern encapsulates a request as an object, thereby parameterizing clients with queues, requests, and operations that support undoable actions and transactional boundaries. Finally, the Template Method pattern defines the skeleton of an algorithm in a superclass, deferring specific steps to subclasses without altering the algorithm's overarching structure, effectively realizing the Hollywood Principle ('Don't call us, we'll call you'). Together, these patterns eliminate conditional bloat (like massive switch-case statements) and enforce the Open-Closed Principle across large codebases."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Design Pattern",
+        "Core Intent",
+        "Primary Coupling Mechanism",
+        "Typical Spring / Java Equivalent"
+      ],
+      "rows": [
+        [
+          "Strategy",
+          "Interchangeable runtime algorithms",
+          "Composition (Has-A)",
+          "List<Strategy> autowiring"
+        ],
+        [
+          "Observer",
+          "Event-driven state synchronization",
+          "Subject-Observer registry",
+          "ApplicationEventPublisher"
+        ],
+        [
+          "Command",
+          "Encapsulate operation requests as objects",
+          "Action execution interface",
+          "Runnable, Callable, JDBC PreparedStatement"
+        ],
+        [
+          "Template Method",
+          "Invert control of algorithm execution steps",
+          "Inheritance (Is-A / Hook methods)",
+          "JdbcTemplate, AbstractTransactionalJUnit4SpringContextTests"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Strategy Pattern separates the algorithm from the client, avoiding monolithic conditionals by delegating execution to polymorphic implementations managed via Spring dependency injection or a registry map.",
+        "Observer Pattern enforces loose coupling through event propagation. In distributed or concurrent Java systems, care must be taken to manage thread pools for event listeners to avoid blocking the main publisher thread.",
+        "Command Pattern decouples the object that invokes the operation from the one that knows how to perform it. By wrapping execution steps into a command object, you unlock capabilities like macro recording, transaction logs, and undo functionality.",
+        "Template Method relies on abstract classes and final skeleton methods. The framework controls the execution flow while letting sub-classes override protected hook methods to inject custom business logic."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.enterprise.patterns;\n\nimport org.springframework.stereotype.Component;\nimport java.util.Map;\nimport java.util.Set;\n\n// 1. Strategy Pattern Interface\npublic interface PricingStrategy {\n    BigDecimal calculatePrice(Order order);\n}\n\n@Component(\"VIP\")\nclass VipPricingStrategy implements PricingStrategy {\n    public BigDecimal calculatePrice(Order order) {\n        return order.getBaseAmount().multiply(new BigDecimal(\"0.85\"));\n    }\n}\n\n// 2. Template Method Abstract Class\npublic abstract class OrderProcessingTemplate {\n    // The Template Method (final to prevent overriding the skeleton)\n    public final void processOrder(Order order) {\n        validate(order);\n        BigDecimal finalPrice = calculatePrice(order);\n        saveOrder(order, finalPrice);\n        notifyObservers(order);\n    }\n\n    protected abstract void validate(Order order);\n    protected abstract BigDecimal calculatePrice(Order order);\n\n    private void saveOrder(Order order, BigDecimal price) {\n        // Common persistence logic\n    }\n\n    protected abstract void notifyObservers(Order order);\n}\n\n// 3. Command Pattern Interface\npublic interface Command {\n    void execute();\n}\n\n// 4. Observer Pattern Event Publisher simulation\n@Component\npublic class OrderProcessorContext extends OrderProcessingTemplate {\n    private final Map<String, PricingStrategy> strategies;\n    private final Set<OrderObserver> observers;\n\n    public OrderProcessorContext(Map<String, PricingStrategy> strategies, Set<OrderObserver> observers) {\n        this.strategies = strategies;\n        this.observers = observers;\n    }\n\n    @Override\n    protected void validate(Order order) { /* Validation logic */ }\n\n    @Override\n    protected BigDecimal calculatePrice(Order order) {\n        PricingStrategy strategy = strategies.getOrDefault(order.getCustomerType(), strategies.get(\"DEFAULT\"));\n        return strategy.calculatePrice(order);\n    }\n\n    @Override\n    protected void notifyObservers(Order order) {\n        observers.forEach(obs -> obs.onOrderProcessed(order));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production antipattern when combining the Strategy and Observer patterns within enterprise frameworks is causing circular dependency loops or memory leaks. When registering Observers dynamically, ensure that transient event listeners are properly deregistered when beans are destroyed, or use weak references if managing long-lived subject registries. Additionally, overuse of the Template Method pattern can lead to fragile base class problems; prefer composition (Strategy pattern) over deep inheritance hierarchies whenever behavior needs to evolve rapidly."
+    }
+  ],
+  "num": 186,
+  "title": "Strategy, Observer, Command, Template Method",
+  "category": "OOPs & Design Patterns"
+}

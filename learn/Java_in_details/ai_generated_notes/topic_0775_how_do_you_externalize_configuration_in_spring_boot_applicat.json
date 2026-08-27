@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Externalizing configuration in Spring Boot is the practice of decoupling application settings from the compiled artifact, allowing the same binary to behave differently across environments (Dev, QA, Prod). Spring Boot achieves this through a hierarchical 'PropertySource' abstraction. The framework evaluates these sources in a specific order, where later sources override earlier ones. application.properties and application.yml are the standard file-based approaches. Properties files use a simple key-value syntax, while YAML provides a hierarchical, human-readable structure that is excellent for complex nested configurations. Environment variables serve as the bridge to cloud-native deployment, allowing you to inject settings via the host OS or container orchestrator (like Kubernetes) without modifying the filesystem. By leveraging this hierarchy, you can define sensible defaults in your classpath-based files and override them dynamically using environment variables or command-line arguments, ensuring your application remains portable and secure."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Configuration Source",
+        "Format",
+        "Best Use Case"
+      ],
+      "rows": [
+        [
+          "application.properties",
+          "Flat key=value",
+          "Simple, legacy-friendly, standard properties"
+        ],
+        [
+          "application.yml",
+          "Hierarchical tree",
+          "Complex configurations, nested objects, lists"
+        ],
+        [
+          "Environment Variables",
+          "OS-level key=value",
+          "Secrets, CI/CD pipelines, containerized deployments"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring Boot uses a strict order of precedence: Command-line arguments > OS environment variables > Profile-specific application-{profile}.yml files > application.yml files.",
+        "The Relaxed Binding feature allows you to map environment variables like 'DATABASE_URL' to Java properties like 'database.url' or 'databaseUrl', making it easier to conform to shell naming conventions.",
+        "YAML files are parsed by SnakeYAML, which supports multi-document files (separated by ---), allowing you to define multiple profiles within a single physical file.",
+        "The @ConfigurationProperties annotation is the preferred way to bind externalized configuration to type-safe POJOs, enabling IDE autocompletion and validation via JSR-303 annotations."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@ConfigurationProperties(prefix = \"app.service\")\npublic record ServiceConfig(String host, int timeout) {}\n\n// Usage in application.yml:\n// app:\n//   service:\n//     host: api.example.com\n//     timeout: 5000"
+    },
+    {
+      "type": "note",
+      "content": "Watch out for 'Environment Variable Collision'. If you use underscores in environment variables (e.g., APP_SERVICE_HOST), Spring Boot's relaxed binding treats them as equivalent to 'app.service.host'. However, if you have conflicting keys in multiple sources, the order of precedence is absolute. A common production trap is failing to realize that environment variables override everything in your application.properties file, which can lead to 'ghost' configurations that are hard to debug if you aren't inspecting the '/actuator/env' endpoint."
+    }
+  ],
+  "num": 776,
+  "title": "How do you externalize configuration in Spring Boot? (application.properties, .yml, environment variables)",
+  "category": "Spring Boot & Spring Framework"
+}

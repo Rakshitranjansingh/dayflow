@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Understanding the difference between wildcards with ? extends T and ? super T—famously encapsulated by Joshua Bloch's mnemonic PECS (Producer Extends, Consumer Super)—is one of the most critical milestones for mastering Java's Generics and Type System. When designing reusable and type-safe APIs, invariant generic types like List<T> can severely restrict flexibility. If you have a method that expects a List<Number>, passing a List<Integer> will cause a compile-time error because generics are invariant, not covariant. Wildcards introduce subtyping flexibility to generic parameters, allowing us to safely relax these constraints while maintaining compile-time type safety.\n\nThe ? extends T syntax establishes an upper bounded wildcard. It denotes an unknown type that is either type T or a subclass of T. Because the exact compiler-known type is unknown (it could be T, Integer, Double, etc., depending on what is passed at runtime), this makes the data structure read-only from an API perspective. You cannot safely add items other than null to a ? extends T collection because the compiler cannot guarantee that the object you are inserting matches the specific subtype present in the list at runtime. Conversely, ? super T establishes a lower bounded wildcard, denoting an unknown type that is either type T or a superclass of T (such as Object when T is Integer). This makes the collection a write-safe consumer. You can safely write instances of T (or its subclasses) into a ? super T collection because any supertype of T is guaranteed to be able to hold instances of T safely without violating type integrity."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Wildcard Characteristic",
+        "? extends T (Covariant / Upper Bound)",
+        "? super T (Contravariant / Lower Bound)"
+      ],
+      "rows": [
+        [
+          "Mnemonic Rule",
+          "Producer Extends",
+          "Consumer Super"
+        ],
+        [
+          "Reading from Collection",
+          "Safe: Returns items castable to T",
+          "Unsafe: Returns only Object, losing type context"
+        ],
+        [
+          "Writing to Collection",
+          "Unsafe: Only null is allowed (immutability enforced)",
+          "Safe: Can accept T and all subtypes of T"
+        ],
+        [
+          "Common Use Case",
+          "Reading data out of a source structure (e.g., source collections)",
+          "Writing data into a sink structure (e.g., target collections)"
+        ]
+      ]
+    },
+    {
+      "bullet_list": [
+        "Type Erasure Impact: At bytecode level, both ? extends T and ? super T are erased. ? extends T erases to its upper bound T (or Object if no explicit bound exists), while ? super T erases to Object. The compiler inserts synthetic checkcast instructions during reads to maintain type safety.",
+        "Capture Conversion: When the compiler encounters a wildcards-based signature, it often performs capture conversion, assigning an anonymous fresh type variable (e.g., CAP#1) to safely reason about operations within method scopes.",
+        "The Null Exception: Regardless of whether you use extends or super, the literal null can always be added to any wildcard-typed collection because null is legally assignable to any reference type in Java."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.List;\n\npublic class PecsDemo {\n\n    // Producer Extends: We only READ from the list 'source'\n    public static double sumOfList(List<? extends Number> source) {\n        double sum = 0.0;\n        for (Number n : source) {\n            sum += n.doubleValue();\n        }\n        return sum;\n    }\n\n    // Consumer Super: We only WRITE into the list 'destination'\n    public static void addIntegers(List<? super Integer> destination) {\n        for (int i = 1; i <= 3; i++) {\n            destination.add(i); // Safe to write Integer and its subtypes\n        }\n    }\n\n    // Combined PECS signature: copying from producer to consumer\n    public static <T> void copy(List<? extends T> source, List<? super T> destination) {\n        for (T item : source) {\n            destination.add(item);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic trap for senior engineers is trying to use a wildcard-parameterized collection for both reading and writing simultaneously. If your method signature uses List<? extends T>, you cannot mutate the list. If you use List<? super T>, reading from it forces you to downcast from Object. If a data structure must both consume and produce elements of type T, avoid wildcards entirely and use an invariant declaration like List<T>."
+    }
+  ],
+  "num": 567,
+  "title": "What is the difference between ? extends T and ? super T? (PECS)",
+  "category": "Generics & Type System"
+}

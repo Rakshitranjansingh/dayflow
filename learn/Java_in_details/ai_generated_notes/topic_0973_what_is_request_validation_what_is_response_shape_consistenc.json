@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Request validation is the critical defensive layer at the entry point of your application, responsible for sanitizing and verifying incoming data against a predefined schema or set of business invariants before it ever touches your service layer. By leveraging JSR-380 (Bean Validation 2.0) or custom interceptors, you prevent malformed data—such as null pointers, out-of-range integers, or SQL injection vectors—from polluting your domain models. Without robust validation, you risk corrupting your persistent state or triggering unhandled exceptions deep within the call stack, which are notoriously difficult to debug in asynchronous NIO environments.\n\nResponse shape consistency is the architectural discipline of ensuring that every API endpoint, regardless of success or failure, returns a predictable and uniform JSON structure. In a distributed system, clients rely on a contract; if an error response deviates from the standard success envelope, it forces the consumer to implement fragile, branching logic to parse the payload. Consistency is achieved by wrapping all responses in a standard envelope containing metadata, status codes, and a standardized error object, which simplifies client-side error handling and ensures that your API remains predictable as it scales."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Aspect",
+        "Request Validation",
+        "Response Consistency"
+      ],
+      "rows": [
+        [
+          "Primary Goal",
+          "Data Integrity & Security",
+          "Client-side Interoperability"
+        ],
+        [
+          "Execution Point",
+          "Controller/Filter Layer",
+          "Global Exception Handler"
+        ],
+        [
+          "Failure Impact",
+          "400 Bad Request",
+          "Uniform Error Envelope"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Request validation should leverage declarative annotations (e.g., @NotNull, @Size) to keep business logic clean, but complex cross-field validation must be offloaded to custom validators to avoid polluting DTOs.",
+        "Response consistency is best enforced via a @ControllerAdvice or a WebExceptionHandler in Spring WebFlux, which intercepts exceptions and maps them to a consistent ErrorResponse POJO before the bytes are written to the NIO buffer.",
+        "In NIO frameworks like Netty, response consistency prevents buffer underflow issues by ensuring the client always expects a specific header/body structure, allowing for efficient memory pooling and zero-copy response serialization."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestControllerAdvice\npublic class GlobalExceptionHandler {\n    @ExceptionHandler(MethodArgumentNotValidException.class)\n    public ResponseEntity<ErrorEnvelope> handleValidation(MethodArgumentNotValidException ex) {\n        List<String> errors = ex.getBindingResult().getFieldErrors().stream()\n            .map(e -> e.getField() + \": \" + e.getDefaultMessage())\n            .collect(Collectors.toList());\n        return ResponseEntity.badRequest().body(new ErrorEnvelope(\"VALIDATION_FAILED\", errors));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is leaking internal stack traces through your response envelope. Always map internal exceptions (like DataAccessException or NullPointerException) to generic, sanitized error codes in your global handler. Exposing raw stack traces is a massive security vulnerability that reveals your underlying framework, database schema, and internal class structure to attackers."
+    }
+  ],
+  "num": 974,
+  "title": "What is request validation? What is response shape consistency?",
+  "category": "Exception Handling & I/O / NIO"
+}

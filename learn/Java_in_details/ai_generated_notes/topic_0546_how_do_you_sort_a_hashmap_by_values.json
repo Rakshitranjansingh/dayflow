@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Sorting a HashMap by values is a frequent requirement in data processing, analytics, and metrics aggregation in Java. Because a standard java.util.HashMap is an unordered data structure whose traversal order is governed strictly by the hash values of its keys rather than insertion or value order, you cannot sort it in place. Instead, sorting a map by its values requires extracting the map entries into a collection (such as a List of Map.Entry), applying a sorting algorithm via a custom Comparator, and then preserving that sorted sequence using a predictable iteration-order container like a LinkedHashMap.\n\nTo accomplish this in modern Java (Java 8 and above), developers typically leverage the Stream API to sort entries by their values and collect them into a LinkedHashMap, guaranteeing that the iteration order matches the sorted values. Alternatively, legacy approaches rely on Collections.sort() with an anonymous Comparator. Understanding the underlying mechanics of HashMap buckets, tree nodes, and entry sets is crucial for executing these operations efficiently without causing excessive memory overhead or unnecessary object allocations."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Approach",
+        "Time Complexity",
+        "Order Preservation"
+      ],
+      "rows": [
+        [
+          "Stream API + LinkedHashMap",
+          "O(N log N)",
+          "Yes (Insertion order of sorted stream)"
+        ],
+        [
+          "Collections.sort() + ArrayList",
+          "O(N log N)",
+          "Yes (If collected into LinkedHashMap)"
+        ],
+        [
+          "TreeMap (Custom Comparator on Values)",
+          "O(N log N) during inserts",
+          "No (TreeMap sorts by keys, sorting by values breaks key uniqueness invariants)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Extracting the entry set via entrySet() avoids redundant lookups, yielding a view of Map.Entry objects that can be directly sorted without hashing overhead.",
+        "Collectors.toMap() accepts a merge function and a supplier, allowing developers to explicitly mandate a LinkedHashMap as the target map implementation to retain sorted order.",
+        "Be cautious when attempting to use a TreeMap for value sorting; TreeMap sorts strictly by keys, and mapping values as keys will cause data loss if multiple keys share identical values."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.*;\nimport java.util.stream.Collectors;\n\npublic class HashMapSorter {\n    public static <K, V extends Comparable<? super V>> Map<K, V> sortByValue(Map<K, V> map) {\n        return map.entrySet()\n            .stream()\n            .sorted(Map.Entry.comparingByValue())\n            .collect(Collectors.toMap(\n                Map.Entry::getKey,\n                Map.Entry::getValue,\n                (e1, e2) -> e1,\n                LinkedHashMap::new\n            ));\n    }\n}\n"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha is forgetting to supply a custom map supplier like LinkedHashMap::new to the downstream collector. By default, Collectors.toMap() returns a standard HashMap (or an unspecified implementation depending on the overload), which will instantly discard your sorted stream order. Always explicitly instantiate a LinkedHashMap to preserve the sorted sequence."
+    }
+  ],
+  "num": 547,
+  "title": "How do you sort a HashMap by values?",
+  "category": "Collections Framework & Internals"
+}

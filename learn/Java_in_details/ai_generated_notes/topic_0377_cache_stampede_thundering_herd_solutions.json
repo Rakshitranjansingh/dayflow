@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In high-throughput distributed systems and asynchronous I/O architectures, a cache stampede—frequently referred to as the thundering herd problem—manifests when a heavily requested cache entry expires, gets invalidated, or is prematurely evicted under crushing concurrent load. Instead of a single thread recomputing the missing value, thousands of concurrent client requests observe a cache miss simultaneously. Every single one of these threads then attempts to fetch the expensive state from the underlying data store or I/O bottleneck—such as a relational database or remote disk—cascading catastrophic latency spikes, resource exhaustion, and potential failure across the entire service topology.\n\nAddressing this failure mode requires robust synchronization, probabilistic early expiration algorithms, and non-blocking asynchronous coordination. Traditional caching layers alone cannot prevent thundering herds without explicit concurrency control. Solutions range from pessimistic locking mechanisms and distributed mutexes at the key level to proactive asynchronous refresh patterns like XFetch, which randomize recomputations before keys actually expire, thereby smoothing out CPU and network spikes in high-concurrency environments."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Mutex Locking / Request Coalescing: Only a single thread acquires a distributed or local lock to execute the heavy I/O operation while all concurrent threads block or wait for the cache to be populated.",
+        "Probabilistic Early Expiration (XFetch Algorithm): Threads calculate the probability of triggering an asynchronous background refresh prior to expiration based on the time taken to compute the value and a random delta factor.",
+        "Local Stale-While-Revalidate: Serving stale data immediately to incoming requests while an asynchronous background worker re-fetches the fresh payload from the underlying data store."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.ConcurrentHashMap;\nimport java.util.concurrent.locks.ReentrantLock;\nimport java.util.function.Supplier;\n\npublic class StampedeProtectedCache<K, V> {\n    private final ConcurrentHashMap<K, V> cache = new ConcurrentHashMap<>();\n    private final ConcurrentHashMap<K, ReentrantLock> locks = new ConcurrentHashMap<>();\n\n    public V getOrCompute(K key, Supplier<V> dbFetcher) {\n        V value = cache.get(key);\n        if (value != null) {\n            return value;\n        }\n\n        ReentrantLock lock = locks.computeIfAbsent(key, k -> new ReentrantLock());\n        lock.lock();\n        try {\n            // Double-check locking idiom inside synchronized critical section\n            value = cache.get(key);\n            if (value != null) {\n                return value;\n            }\n            value = dbFetcher.get();\n            cache.put(key, value);\n        } finally {\n            lock.unlock();\n            locks.remove(key, lock);\n        }\n        return value;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "When implementing distributed locks (such as Redis-based Redlock or ZooKeeper ephemeral nodes) to mitigate cache stampedes across a cluster, beware of lock expiration pitfalls. If the underlying data store takes longer to fetch than the lock's TTL, multiple application nodes will simultaneously acquire the lock and hammer the database anyway. Always align your lock lease times with your maximum expected I/O latency bounds."
+    }
+  ],
+  "num": 378,
+  "title": "Cache stampede / thundering herd — solutions",
+  "category": "Exception Handling & I/O / NIO"
+}

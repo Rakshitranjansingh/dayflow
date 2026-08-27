@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a distributed job scheduler in Java requires orchestrating time-based tasks across a cluster of independent nodes without suffering from duplicate execution, split-brain race conditions, or unhandled cascading node failures. In a localized environment, a simple ScheduledExecutorService running on a single JVM suffices. However, scale demands horizontal distribution. To achieve this, a distributed job scheduler must leverage a consistent coordination backend—such as Apache ZooKeeper, an RDBMS with explicit pessimistic locking (SELECT FOR UPDATE), or an embedded consensus engine like Raft—to elect leaders and distribute task partitions. Each job instance is modeled as an immutable payload containing a unique identifier, cron or fixed-rate trigger metadata, and execution payloads. Worker nodes continuously poll or lease task slots, ensuring that even if a worker crashes mid-execution, a secondary node detects the missed heartbeat and claims the orphaned lease via failover mechanisms."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Coordination Strategy",
+        "Consistency Model",
+        "Failure Recovery Latency",
+        "Throughput Limit"
+      ],
+      "rows": [
+        [
+          "Distributed Lock (RDBMS)",
+          "ACID / Serializability",
+          "High (Depends on connection timeout)",
+          "Low-Medium (Database I/O bottleneck)"
+        ],
+        [
+          "ZooKeeper / Curator",
+          "Linearizable Writes / Sequential",
+          "Medium (Session timeout driven)",
+          "Medium (ZooKeeper ensemble write scale)"
+        ],
+        [
+          "Raft / Embedded Consensus",
+          "Strong Consistency (CP System)",
+          "Low (Sub-second heartbeats)",
+          "High (Independent of shared external DB)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Distributed lock acquisition utilizes atomic compare-and-swap (CAS) operations or lease tables with strict database-level unique constraints to guarantee that a cron-triggered job fires exactly once across the cluster.",
+        "Clock drift across cluster nodes is neutralized by delegating scheduling calculations entirely to a centralized monotonic time source or by utilizing UTC timestamps coupled with distributed epoch validations.",
+        "Task backpressure and execution isolation are enforced via dedicated ThreadPoolExecutors configured with bounded synchronous queues (SynchronousQueue) and custom RejectedExecutionHandlers to prevent OutOfMemoryErrors under load spikes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class DistributedJobExecutor {\n    private final DataSource dataSource;\n    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);\n\n    public void startPolling(String workerId, long intervalMillis) {\n        scheduler.scheduleAtFixedRate(() -> {\n            try (Connection conn = dataSource.getConnection()) {\n                conn.setAutoCommit(false);\n                try (PreparedStatement pstmt = conn.prepareStatement(\n                        \"SELECT job_id, payload FROM scheduled_jobs WHERE status = 'PENDING' \" +\n                        \"AND next_execution <= ? LIMIT 1 FOR UPDATE SKIP LOCKED\")) {\n                    \n                    pstmt.setTimestamp(1, new Timestamp(System.currentTimeMillis()));\n                    try (ResultSet rs = pstmt.executeQuery()) {\n                        if (rs.next()) {\n                            long jobId = rs.getLong(\"job_id\");\n                            String payload = rs.getString(\"payload\");\n                            \n                            claimAndExecuteJob(conn, jobId, workerId, payload);\n                        }\n                    }\n                }\n            } catch (Exception e) {\n                // Log and monitor scheduler acquisition exceptions\n            }\n        }, 0, intervalMillis, TimeUnit.MILLISECONDS);\n    }\n\n    private void claimAndExecuteJob(Connection conn, long jobId, String workerId, String payload) throws SQLException {\n        try (PreparedStatement update = conn.prepareStatement(\n                \"UPDATE scheduled_jobs SET status = 'RUNNING', locked_by = ? WHERE job_id = ?\")) {\n            update.setString(1, workerId);\n            update.setLong(2, jobId);\n            update.executeUpdate();\n            conn.commit();\n            \n            // Execute asynchronous task payload\n            CompletableFuture.runAsync(() -> processPayload(payload));\n        }\n    }\n\n    private void processPayload(String payload) {\n        // Business logic execution boundary\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic trap when building database-backed distributed schedulers in Java is omitting transaction isolation settings. If your connection runs under REPEATABLE_READ or READ_COMMITTED without explicit locking safeguards like SKIP LOCKED, multiple worker nodes will read the same pending job record concurrently, resulting in duplicate job execution or lock contention bottlenecks. Always ensure your SQL dialect supports and implements row-level locking flags correctly for high-concurrency clusters."
+    }
+  ],
+  "num": 412,
+  "title": "Design a Distributed Job Scheduler",
+  "category": "Core Java & Fundamentals"
+}

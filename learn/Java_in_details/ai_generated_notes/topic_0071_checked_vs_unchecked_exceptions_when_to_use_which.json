@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Exception handling in Java is fundamentally partitioned into two categories: checked exceptions and unchecked exceptions. Understanding when to use which is one of the definitive markers of a senior Java engineer. Checked exceptions subclass Exception directly (excluding RuntimeException), forcing the caller via compile-time analysis to either catch the exception using a try-catch block or explicitly declare it in the method signature using the throws keyword. They are designed to represent recoverable, expected environmental failures—such as a missing configuration file, a dropped socket connection, or an invalid user credential supplied during authentication. The compiler acts as a strict guardrail, ensuring that developers explicitly handle these predictable anomalies.\n\nOn the other side of the hierarchy sit unchecked exceptions, which subclass RuntimeException (and by extension, Error). These represent programming bugs, contract violations, or unrecoverable environmental collapses where forced recovery is either impossible or illogical. Examples include NullPointerException, IllegalArgumentException, and IndexOutOfBoundsException. The compiler does not enforce catching or declaring unchecked exceptions, allowing them to propagate up the call stack naturally. The design tension between checked and unchecked exceptions centers on API evolution, maintainability, and caller burden. Overusing checked exceptions often leads to boilerplate code, such as empty catch blocks or meaningless throws declarations leaking lower-level abstractions into higher-level business logic layers."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Metric",
+        "Checked Exceptions",
+        "Unchecked Exceptions"
+      ],
+      "rows": [
+        [
+          "Base Class",
+          "java.lang.Exception (excluding RuntimeException)",
+          "java.lang.RuntimeException"
+        ],
+        [
+          "Compiler Enforcement",
+          "Mandatory (Catch or Specify Requirement)",
+          "Optional (Implicit propagation)"
+        ],
+        [
+          "Design Intent",
+          "Recoverable environmental or user errors",
+          "Programming bugs and unrecoverable failures"
+        ],
+        [
+          "API Maintenance Impact",
+          "High coupling; adding a checked exception breaks client signatures",
+          "Low coupling; new runtime exceptions bubble up transparently"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Use checked exceptions when the caller can realistically take corrective action, retry the operation, or fallback to an alternative strategy. If a database timeout occurs, a retry mechanism is a valid recovery path.",
+        "Use unchecked exceptions for invariant violations, null references passed into non-null parameters, and illegal state transitions. Forcing a developer to catch an IllegalArgumentException hides architectural bugs rather than solving them.",
+        "Be cautious with exception translation. In modern multi-layered architectures, low-level infrastructure checked exceptions (like SQLException or IOException) should frequently be caught and wrapped into domain-specific unchecked exceptions to prevent persistence leaks into the presentation or service layers."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class OrderService {\n    private final PaymentGateway paymentGateway;\n\n    public OrderService(PaymentGateway paymentGateway) {\n        // Unchecked exception for contract violation (fail fast)\n        this.paymentGateway = Objects.requireNonNull(paymentGateway, \"PaymentGateway must not be null\");\n    }\n\n    public void processOrder(Order order) {\n        try {\n            // Checked exception representing a recoverable environmental failure\n            paymentGateway.charge(order.getTotalAmount());\n        } catch (PaymentGatewayTimeoutException e) {\n            // Meaningful recovery: log, queue for async retry, or trigger fallback\n            throw new OrderProcessingException(\"Temporary payment failure, order queued for retry\", e);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic trap in enterprise Java is the 'throws Exception' anti-pattern, where developers lazily throw the root Exception class up the stack, completely defeating the purpose of compile-time checking. Furthermore, remember that checked exceptions break functional interfaces in Java streams. If your lambda expression throws a checked exception, the compiler will reject it, forcing you to write boilerplate wrapper methods or catch and rethrow the exception wrapped inside an unchecked RuntimeException."
+    }
+  ],
+  "num": 72,
+  "title": "Checked vs Unchecked exceptions — when to use which",
+  "category": "Exception Handling & I/O / NIO"
+}

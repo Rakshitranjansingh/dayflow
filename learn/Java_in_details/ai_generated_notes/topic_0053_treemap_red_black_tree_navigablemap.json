@@ -1,0 +1,62 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Within the Java Collections Framework, TreeMap and NavigableMap represent the bedrock of sorted, range-queryable associative memory. A TreeMap is a concrete implementation of the Map interface that guarantees elements are maintained in ascending key order, either according to their natural ordering or by a custom Comparator provided at instantiation time. Under the hood, this collection is driven by a Red-Black Tree—a self-balancing binary search tree that guarantees logarithmic time complexity O(log n) for fundamental operations like insertion, deletion, and retrieval. Unlike a HashMap which scatters entries across buckets based on hash codes, a TreeMap structures its nodes in a strict hierarchical binary layout, tracking parent, left child, right child pointers, and a single bit of metadata for color (red or black).\n\nNavigableMap, on the other hand, is an interface extending SortedMap that introduces sophisticated navigation methods for finding closest matches, descending views, and precise range sub-maps. While SortedMap provides basic headMap, tailMap, and subMap boundaries, NavigableMap supercharges this contract with operations such as lowerKey, floorKey, ceilingKey, higherKey, and pollFirstEntry/pollLastEntry. These methods allow developers to query the map dynamically for keys that are strictly less than, less than or equal to, greater than or equal to, or strictly greater than a given reference key, turning the map into an efficient in-memory index capable of handling temporal ranges, sliding windows, and price-point lookups without full dataset scans."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Metric",
+        "TreeMap",
+        "HashMap"
+      ],
+      "rows": [
+        [
+          "Underlying Data Structure",
+          "Red-Black Self-Balancing Binary Search Tree",
+          "Array of Hash Buckets with LinkedList/TreeNode Chains"
+        ],
+        [
+          "Time Complexity (get/put/remove)",
+          "O(log n)",
+          "O(1) average, O(n) worst-case (rehashing/collisions)"
+        ],
+        [
+          "Ordering",
+          "Maintained strictly by natural order or custom Comparator",
+          "Unordered; iteration order is volatile and subject to resizing"
+        ],
+        [
+          "Range Queries (e.g., subMap)",
+          "Native, highly efficient O(log n + k)",
+          "Requires full iteration and manual filtering O(n)"
+        ],
+        [
+          "Null Handling",
+          "Throws NullPointerException if key is null (unless using custom comparator)",
+          "Permits one null key and multiple null values"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Red-Black Tree Balancing Invariants: Every node is colored either red or black. The root is always black. All leaves (NIL null leaves) are black. If a node is red, both its children must be black (no two consecutive red nodes on any path). Every simple path from a given node to any of its descendant leaves must contain the exact same number of black nodes, ensuring the tree remains approximately balanced with a height of at most 2 * log(n + 1).",
+        "NavigableMap Execution Flow: Methods like ceilingKey(K key) traverse the Red-Black tree iteratively or recursively by comparing the search target against the current node's key. If the target matches, it returns the key. If the target is smaller, it remembers the current node as a potential candidate and explores the left child. If the target is larger, it moves to the right child. This avoids recursion overhead and yields extremely fast logarithmic lower/upper bound lookups."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.NavigableMap;\nimport java.util.TreeMap;\n\npublic class TreeMapRangeDemo {\n    public static void main(String[] args) {\n        NavigableMap<Double, String> priceBook = new TreeMap<>();\n        \n        // O(log n) insertions\n        priceBook.put(99.99, \"Basic Tier\");\n        priceBook.put(149.99, \"Pro Tier\");\n        priceBook.put(199.99, \"Enterprise Tier\");\n        \n        // NavigableMap range and proximity queries\n        Double targetPrice = 130.00;\n        Double floorPrice = priceBook.floorKey(targetPrice);\n        Double ceilingPrice = priceBook.ceilingKey(targetPrice);\n        \n        System.out.println(\"Closest floor price to $130: \" + floorPrice); // 99.99\n        System.out.println(\"Closest ceiling price to $130: \" + ceilingPrice); // 149.99\n        \n        // Efficient sub-map view (backed by the original map)\n        NavigableMap<Double, String> activeSubRange = priceBook.subMap(100.00, true, 200.00, true);\n        System.out.println(\"SubMap size: \" + activeSubRange.size());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap with TreeMap and NavigableMap is violating the contract of the sorting mechanism. If you use a custom Comparator that is not consistent with equals (i.e., compareTo returns 0 for two distinct keys that return false for equals()), the TreeMap will silently drop updates or fail to locate entries during searches because the binary search path breaks down. Furthermore, remember that TreeMap operations allocate a new Map.Entry node object for every insertion, creating heavy garbage collection pressure in high-throughput streaming systems compared to primitive-indexed arrays."
+    }
+  ],
+  "num": 54,
+  "title": "TreeMap — red-black tree, NavigableMap",
+  "category": "Collections Framework & Internals"
+}

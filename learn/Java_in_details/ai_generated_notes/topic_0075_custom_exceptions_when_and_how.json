@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java development, relying solely on standard library exceptions like RuntimeException, IllegalArgumentException, or plain Exception often leads to brittle, unmaintainable codebases. Custom exceptions allow engineers to encapsulate domain-specific error conditions, providing immediate semantic clarity to callers. When designing custom exceptions, the primary architectural decision revolves around whether to extend RuntimeException (unchecked) or Exception (checked). Checked exceptions enforce handling at compile-time, which sounds appealing for reliability, but frequently results in boilerplate try-catch blocks or signature pollution across layered architectures. Unchecked exceptions, conversely, align with modern API design, especially in microservices and RESTful backends where global exception handlers (such as Spring's @ControllerAdvice) translate failure modes into appropriate HTTP status codes without leaking implementation details.\n\nCrafting a robust custom exception requires more than just extending a base class. It involves thoughtful constructor overloading—allowing callers to supply detail messages, underlying root causes via chaining (throwable causes), and configuration flags for stack trace suppression or writable suppressed exceptions. Furthermore, domain-specific state should be embedded directly into the exception payload. For instance, an InsufficientFundsException should carry fields for the account identifier, requested amount, and available balance, enabling upstream callers or logging frameworks to capture rich diagnostic context without parsing unstructured error messages."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Design Dimension",
+        "Checked Custom Exceptions",
+        "Unchecked Custom Exceptions"
+      ],
+      "rows": [
+        [
+          "Inheritance",
+          "Extends java.lang.Exception",
+          "Extends java.lang.RuntimeException"
+        ],
+        [
+          "Compiler Enforcement",
+          "Mandatory try-catch or throws declaration",
+          "Optional, fail-fast at runtime"
+        ],
+        [
+          "API Modernity",
+          "Legacy feel, often causes signature pollution",
+          "Standard in modern REST APIs and reactive streams"
+        ],
+        [
+          "Global Exception Handling",
+          "Harder to intercept cleanly across layers",
+          "Seamlessly handled by centralized interceptors"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Always implement the standard four constructors: default, message-only, cause-only, and message-plus-cause, to preserve exception chaining and debugging fidelity.",
+        "Mark immutable domain fields within the exception as final and expose them via getters, enabling safe downstream inspection of failure context.",
+        "Override fillInStackTrace() only when performance is critical and stack trace generation overhead (which involves VM thread snapshotting) must be avoided for high-frequency control-flow exceptions."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class OrderProcessingException extends RuntimeException {\n    private final String orderId;\n    private final ErrorCode errorCode;\n\n    public OrderProcessingException(String orderId, ErrorCode errorCode, String message) {\n        super(message);\n        this.orderId = orderId;\n        this.errorCode = errorCode;\n    }\n\n    public OrderProcessingException(String orderId, ErrorCode errorCode, String message, Throwable cause) {\n        super(message, cause);\n        this.orderId = orderId;\n        this.errorCode = errorCode;\n    }\n\n    public String getOrderId() {\n        return orderId;\n    }\n\n    public ErrorCode getErrorCode() {\n        return errorCode;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Production Trap: Avoid creating an overly granular hierarchy of custom exceptions for every single error state in your application (e.g., UserNotFoundException, UserIsBlockedException, UserEmailInvalidException all extending a BaseUserException). This anti-pattern leads to massive catch blocks and tight coupling. Instead, prefer a flexible exception carrying an enumeration of error codes or domain states, which simplifies client-side handling and reduces class-loading overhead in large modular systems."
+    }
+  ],
+  "num": 76,
+  "title": "Custom exceptions — when and how",
+  "category": "Exception Handling & I/O / NIO"
+}

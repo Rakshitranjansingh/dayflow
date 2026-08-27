@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A transaction boundary in a service layer defines the exact geographical and logical borders where a database transaction begins and ends within an application's business logic execution. In enterprise Java applications, particularly those utilizing the Spring Framework or Jakarta EE, the service layer acts as the orchestrator of business operations. A transaction boundary ensures that a sequence of data mutation operations—such as updating a ledger, debiting an account, and creating an audit log—executes under the ACID (Atomicity, Consistency, Isolation, Durability) guarantees provided by the persistence layer. Without a well-defined transaction boundary, operations run in 'auto-commit' mode, risking partial updates and database inconsistencies if an exception occurs mid-flow.\n\nEstablishing this boundary typically relies on declarative transaction management using annotations like `@Transactional`. When a client invokes a public method on a transactional service bean, the framework intercepts the call via dynamic proxies or bytecode enhancement. It acquires a database connection, binds it to the current thread via a thread-local storage mechanism (such as Spring's `TransactionSynchronizationManager`), and manages the lifecycle states including commit, rollback, and isolation level enforcement. Crucially, the service layer is chosen as the boundary because business transactions frequently span multiple repository calls or disparate data sources, requiring coordinated state management that individual data access objects (DAOs) cannot safely coordinate on their own."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Proxy-Based Interception: Spring creates an AOP proxy around the service bean. Self-invocation (calling a transactional method from within the same class) bypasses the proxy entirely, causing the transaction boundary to be ignored.",
+        "Thread-Local Synchronization: The active database connection and transaction status are bound to the executing thread, ensuring that underlying persistence contexts (like the Hibernate EntityManager) share the exact same underlying JDBC connection.",
+        "Propagation Behaviors: Transaction boundaries dictate how nested or subsequent service calls behave, using propagation strategies like REQUIRED (join existing or create new), REQUIRES_NEW (suspend current and spawn independent), and NESTED (savepoint-based sub-transactions)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderProcessingService {\n\n    private final OrderRepository orderRepository;\n    private final BillingService billingService;\n\n    public OrderProcessingService(OrderRepository orderRepository, BillingService billingService) {\n        this.orderRepository = orderRepository;\n        this.billingService = billingService;\n    }\n\n    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)\n    public void completeOrder(OrderDto orderDto) {\n        Order order = orderRepository.save(new Order(orderDto));\n        // Invoking another service method within the same boundary\n        billingService.processPayment(order.getId(), orderDto.getPaymentInfo());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production gotcha regarding service layer transaction boundaries is the 'LazyInitializationException' combined with unchecked exception rollbacks. By default, Spring only rolls back transactions on runtime (unchecked) exceptions (`RuntimeException` and `Error`). If a checked exception is thrown, the transaction commits unless explicitly configured via `rollbackFor = Exception.class`. Furthermore, if your transaction boundary closes at the end of the service method, any attempt to access uninitialized lazy associations in the presentation or controller layer will throw a lazy initialization failure because the underlying Hibernate session has already been closed."
+    }
+  ],
+  "num": 835,
+  "title": "What is a transaction boundary in a service layer?",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When a production API latency degrades catastrophically from an optimal 50 milliseconds to a staggering 5 seconds, it signals a severe resource starvation event, deadlocking condition, or catastrophic network I/O block. In modern high-throughput Java applications leveraging Exception Handling and I/O / NIO (Non-blocking I/O) paradigms, this scenario requires a rigorous, methodical, and telemetry-driven troubleshooting strategy rather than wild guessing. We must isolate whether the bottleneck resides in CPU exhaustion, thread pool saturation, database lock contention, or asynchronous selector thread starvation.\n\nTroubleshooting this degradation requires systematically peeling back layers of the system architecture. We start at the edge by inspecting load balancer metrics, move into the JVM runtime via thread dumps and garbage collection logs, and drill down into the database execution plans and non-blocking selector loops. Because NIO relies heavily on Reactor patterns, EventLoops, and Selectors (such as EpollSelectorImpl on Linux), a single blocked channel or mismanaged exception handling block can cascade and stall the entire event loop pipeline, causing massive request queuing."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Troubleshooting Phase",
+        "Target Metric / Artifact",
+        "Root Cause Indication"
+      ],
+      "rows": [
+        [
+          "1. Perimeter & Routing",
+          "API Gateway Latency vs Upstream Service Latency",
+          "Gateway timeout configuration mismatch or cascading network partition."
+        ],
+        [
+          "2. JVM Resource Health",
+          "CPU Utilization, GC Pause Times (Stop-the-World)",
+          "Memory pressure causing frequent Full GCs or infinite loops."
+        ],
+        [
+          "3. Thread State Analysis",
+          "Thread Dumps (jstack / async-profiler)",
+          "Thread pool exhaustion, database connection leaks, or NIO Selector thread blocks."
+        ],
+        [
+          "4. I/O & Database Layer",
+          "Slow Query Logs, Connection Pool Saturation",
+          "Missing database indexes, deadlocks, or exhausted connection pools blocking calling threads."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Capture immediate JVM diagnostics by generating a thread dump (using jcmd or kill -3) while the latency spike is active, looking specifically for threads stuck in java.net.SocketInputStream.read or custom NIO Selector select() loops.",
+        "Inspect the reactive or asynchronous boundary layers. If the application uses Netty, Spring WebFlux, or Java NIO channels, verify that blocking operations (like traditional JDBC calls or synchronous file I/O) are not accidentally executed on the event loop threads, which completely freezes the NIO reactor.",
+        "Examine the exception handling logic. Uncaught or poorly handled exceptions can sometimes trigger aggressive retry storms, exponential backoffs within synchronous code paths, or infinite loops inside custom error-handling filters.",
+        "Evaluate database connection pool metrics (HikariCP). If active connections equal maximum pool size and pending threads are waiting indefinitely, requests will queue up until they hit the 5-second timeout boundary."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class DiagnosticFilter implements Filter {\n    private static final Logger log = LoggerFactory.getLogger(DiagnosticFilter.class);\n\n    @Override\n    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)\n            throws IOException, ServletException {\n        long start = System.currentTimeMillis();\n        try {\n            // Pass request down the NIO/Servlet chain\n            chain.doFilter(request, response);\n        } catch (Exception ex) {\n            log.error(\"Unhandled exception caught during request processing: URI={}\", \n                ((HttpServletRequest) request).getRequestURI(), ex);\n            throw ex;\n        } finally {\n            long duration = System.currentTimeMillis() - start;\n            if (duration > 1000) {\n                log.warn(\"SLOW API DETECTED: URI={} took {} ms\", \n                    ((HttpServletRequest) request).getRequestURI(), duration);\n            }\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic senior-level gotcha in NIO frameworks like Netty or WebFlux is mixing blocking I/O with the event loop. If a developer throws a blocking database call directly into a Netty ChannelHandler without offloading it to a dedicated worker thread pool (e.g., using subscribeOn(Schedulers.boundedElastic())), the single-threaded or low-threaded selector loop gets blocked waiting for I/O, causing thousands of concurrent requests to queue up and exhibit that exact 5-second timeout pattern."
+    }
+  ],
+  "num": 1241,
+  "title": "Scenario: An API that normally takes 50ms is suddenly taking 5 seconds. Step-by-step troubleshooting?",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java web applications, controlling and modifying the request-response lifecycle is a daily necessity. Two primary design patterns stand at the forefront of this responsibility: Filters and Interceptors. While both mechanisms intercept execution to execute cross-cutting concerns such as logging, authentication, and transaction management, they operate at fundamentally different layers of the application architecture.\n\nServlets Filters are rooted in the Java Servlet Specification (Jakarta EE). They sit outside the Spring container's direct lifecycle and operate strictly at the HTTP request/response level. A Filter intercepts any request mapped to its URL pattern before it reaches the Servlet container's core dispatchers (such as the DispatcherServlet). Because of this boundary, filters have no intrinsic awareness of Spring-managed beans unless explicitly configured via DelegatingFilterProxy, and they deal purely in raw ServletRequest and ServletResponse objects.\n\nConversely, Spring Interceptors (HandlerInterceptors) belong to Spring MVC. They operate strictly inside the DispatcherServlet domain, nestled right between the dispatcher and the actual `@Controller` handlers. Because Interceptors are managed directly by the Spring IoC container, they enjoy first-class dependency injection support. They intercept execution hooks at three distinct lifecycle points: preHandle (before the controller method executes), postHandle (after the controller executes but before the view is rendered), and afterCompletion (after the entire request has completed, making it ideal for resource cleanup and metric finalization)."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Aspect",
+        "Servlet Filters",
+        "Spring Interceptors"
+      ],
+      "rows": [
+        [
+          "Specification",
+          "Jakarta EE Servlet API (javax.servlet / jakarta.servlet)",
+          "Spring Framework (org.springframework.web)"
+        ],
+        [
+          "Execution Layer",
+          "Container-level (Before DispatcherServlet)",
+          "Spring MVC-level (Inside DispatcherServlet)"
+        ],
+        [
+          "IoC / DI Support",
+          "Requires Spring's DelegatingFilterProxy to use Spring beans",
+          "Native Spring beans with full dependency injection support"
+        ],
+        [
+          "Target Awareness",
+          "Blind to controllers; operates on URL patterns",
+          "Deep awareness of handlers, methods, and model objects"
+        ],
+        [
+          "Lifecycle Hooks",
+          "doFilter() wrapping the execution chain",
+          "preHandle(), postHandle(), afterCompletion()"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Filters utilize a chain-of-responsibility pattern via the FilterChain interface, where each filter decides whether to pass the raw ServletRequest and ServletResponse down the line by invoking chain.doFilter().",
+        "Interceptors leverage HandlerExecutionChain, giving fine-grained control over handler methods, allowing inspection of HandlerMethod metadata, annotations, and thrown exceptions during the afterCompletion phase.",
+        "Filters can process static resources, HTML files, and binary streams uniformly, whereas Interceptors are tightly coupled to dynamic MVC controller mappings and will completely miss unmapped static resources unless explicitly configured."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Component\npublic class ExecutionTimeInterceptor implements HandlerInterceptor {\n    private static final Logger log = LoggerFactory.getLogger(ExecutionTimeInterceptor.class);\n    private static final String START_TIME_ATTR = \"startTime\";\n\n    @Override\n    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {\n        request.setAttribute(START_TIME_ATTR, System.currentTimeMillis());\n        return true; // Continue execution chain\n    }\n\n    @Override\n    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {\n        long startTime = (Long) request.getAttribute(START_TIME_ATTR);\n        long duration = System.currentTimeMillis() - startTime;\n        log.info(\"Request URI: {} executed in {} ms\", request.getRequestURI(), duration);\n        if (ex != null) {\n            log.error(\"Exception occurred during execution: \", ex);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap occurs when developers attempt to handle security exceptions or global error translation inside a Spring Interceptor. Because Interceptors execute inside the DispatcherServlet, any uncaught exception thrown during preHandle or controller execution bypasses postHandle entirely and goes straight to afterCompletion or Spring's HandlerExceptionResolver. If you need to mutate raw HTTP headers or catch early security faults (like missing auth tokens before container parsing even starts), always use a Servlet Filter. Use Interceptors strictly when you need deep access to controller method signatures, handler parameters, or Spring-managed beans."
+    }
+  ],
+  "num": 294,
+  "title": "Interceptors vs Filters",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Debugging a memory leak in a production JVM environment is a high-stakes forensic exercise that requires distinguishing between legitimate heap growth and genuine object retention issues. A memory leak typically manifests as a 'slow death' where the Garbage Collector (GC) works increasingly harder to reclaim space, leading to prolonged Stop-The-World (STW) pauses and eventually an OutOfMemoryError (OOME). In the context of NIO (Non-blocking I/O), leaks are often more insidious because they frequently involve Direct ByteBuffers allocated outside the standard heap. While heap-based leaks are usually caused by static collections or unclosed listeners holding references to long-lived objects, NIO leaks often stem from failing to properly release native memory or leaking Selector/Channel objects that keep underlying file descriptors and native buffers pinned in memory."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Symptom",
+        "Heap Leak Indicator",
+        "NIO/Direct Memory Leak"
+      ],
+      "rows": [
+        [
+          "GC Behavior",
+          "Frequent Full GC cycles",
+          "Minimal heap impact, high RSS"
+        ],
+        [
+          "Primary Metric",
+          "Old Gen occupancy growth",
+          "Native memory/Direct Buffer count"
+        ],
+        [
+          "Root Cause",
+          "Object reference chains",
+          "Unclosed Channels/Selectors"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Capture a heap dump during a period of high memory pressure using 'jmap -dump:live,format=b,file=heap.bin <pid>'. The 'live' flag is crucial as it triggers a Full GC, ensuring you only analyze objects that are actually reachable.",
+        "Analyze the dump with Eclipse MAT or VisualVM, focusing on the 'Dominator Tree' to identify which objects are retaining the largest portions of the heap. Look for 'Path to GC Roots' to see why these objects aren't being collected.",
+        "For NIO-specific leaks, monitor the 'java.nio.BufferPool' MBean via JMX. If 'Direct' memory usage grows monotonically despite low heap usage, you are likely leaking DirectByteBuffers, which are only cleaned up when the phantom reference is processed by the GC.",
+        "Inspect File Descriptor (FD) usage using 'lsof -p <pid>'. A leak of FileChannels or Sockets will often keep the associated NIO objects alive, preventing the GC from reclaiming the memory they reference."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Example of a common NIO leak: forgetting to close a FileChannel\n// or failing to release a DirectByteBuffer in a custom pool.\ntry (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {\n    ByteBuffer buffer = ByteBuffer.allocateDirect(1024 * 1024);\n    channel.read(buffer);\n    // If the buffer is not explicitly managed or the channel is not closed,\n    // the native memory remains allocated until the GC cleans up the wrapper.\n} catch (IOException e) {\n    logger.error(\"Failed to process NIO stream\", e);\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is assuming that calling System.gc() will fix a Direct Memory leak. It won't. Direct memory is managed by the Cleaner/PhantomReference mechanism. If you are using Netty or similar NIO frameworks, ensure you are using 'ReferenceCounted' objects correctly; failing to call release() on a ByteBuf will cause a leak that is invisible to standard heap analysis tools but will crash the process via OOM in native memory."
+    }
+  ],
+  "num": 462,
+  "title": "How would you debug a memory leak in production?",
+  "category": "Exception Handling & I/O / NIO"
+}

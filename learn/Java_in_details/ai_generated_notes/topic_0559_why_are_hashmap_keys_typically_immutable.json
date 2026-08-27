@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java Collections Framework, a HashMap functions as a hash table that maps keys to values. The core mechanism relies on the hash code of the key to determine its bucket index within the internal array. When you insert a key-value pair, the map calculates the hash, finds the bucket, and stores the entry. If the key were mutable and its state changed after insertion, its hashCode() would likely change as well. This creates a catastrophic failure: the map would look for the key in a bucket corresponding to the new hash, while the object actually resides in the bucket corresponding to the old hash. Consequently, the map would effectively 'lose' the entry, rendering it unretrievable via standard get() calls, and creating a memory leak as the unreachable entry remains in the bucket's linked list or tree node."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Scenario",
+        "Behavior with Immutable Key",
+        "Behavior with Mutable Key"
+      ],
+      "rows": [
+        [
+          "Lookup Consistency",
+          "Stable; hash remains constant",
+          "Unpredictable; lookup fails if hash changes"
+        ],
+        [
+          "Memory Management",
+          "Predictable; entry is reachable",
+          "Risk of 'zombie' entries causing leaks"
+        ],
+        [
+          "Thread Safety",
+          "Safe for concurrent read access",
+          "Race conditions on state mutation"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The HashMap uses the key's hashCode() to compute the index via the formula (n - 1) & hash. If the internal state of the key changes, the result of this bitwise operation changes, breaking the contract of the map.",
+        "When a collision occurs, HashMap uses equals() to differentiate keys. If the state changes, equals() might return false for a key that was previously equal to itself, leading to duplicate entries or failed removals.",
+        "Immutability simplifies the design of cache-friendly structures, as the hash value can be cached (like in String) without worrying about invalidation logic.",
+        "Using immutable objects as keys is a best practice that aligns with functional programming principles, ensuring that the identity of the key remains consistent throughout the object's lifecycle in the collection."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public final class ImmutableKey { \n    private final int id;\n    private final String name;\n\n    public ImmutableKey(int id, String name) {\n        this.id = id;\n        this.name = name;\n    }\n\n    @Override\n    public int hashCode() {\n        return Objects.hash(id, name);\n    }\n\n    @Override\n    public boolean equals(Object o) {\n        if (this == o) return true;\n        if (!(o instanceof ImmutableKey)) return false;\n        ImmutableKey that = (ImmutableKey) o;\n        return id == that.id && Objects.equals(name, that.name);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Even if you use an immutable class as a key, ensure it is truly immutable. A common trap is using a class that contains a mutable field (like a Date or a List) that is exposed via a getter. If the internal state of that mutable field changes, the hashCode() of your key will change, and you will face the exact same bugs as if the key class itself were mutable. Always use defensive copying for collections or mutable objects within your key classes."
+    }
+  ],
+  "num": 560,
+  "title": "Why are HashMap keys typically immutable?",
+  "category": "Collections Framework & Internals"
+}

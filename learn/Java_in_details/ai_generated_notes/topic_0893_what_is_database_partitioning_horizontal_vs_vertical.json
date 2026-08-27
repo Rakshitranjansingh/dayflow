@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Database partitioning is a critical architectural strategy used to manage massive datasets by breaking a single logical table into smaller, more manageable physical segments. When we talk about Horizontal Partitioning, often referred to as Sharding, we are splitting a table by rows. Each partition contains the same schema but a distinct subset of the data, determined by a partition key (e.g., user_id or region). This is the go-to solution for scaling write throughput and storage capacity in distributed systems. Conversely, Vertical Partitioning involves splitting a table by columns. This is primarily used to normalize data access patterns, moving infrequently accessed or 'heavy' columns (like BLOBs or long text fields) into a separate table to reduce I/O overhead during standard queries. By isolating columns, you effectively reduce the row size, allowing more rows to fit into a single database page, which significantly improves cache hit ratios in the buffer pool."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Horizontal Partitioning (Sharding)",
+        "Vertical Partitioning"
+      ],
+      "rows": [
+        [
+          "Primary Goal",
+          "Scaling write throughput/storage",
+          "Improving read performance/I/O"
+        ],
+        [
+          "Data Split",
+          "Rows (same schema)",
+          "Columns (different schema)"
+        ],
+        [
+          "Complexity",
+          "High (requires distributed joins)",
+          "Moderate (requires application-level joins)"
+        ],
+        [
+          "Use Case",
+          "Multi-tenant SaaS, Global Apps",
+          "Tables with wide rows/blobs"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Horizontal partitioning relies on a partition function to map rows to specific shards, which can lead to 'hot shards' if the distribution key is not high-cardinality or is skewed.",
+        "Vertical partitioning is essentially a manual implementation of normalization, but it forces the application layer to perform joins across tables, which can increase latency if not handled via efficient connection pooling or caching.",
+        "From an NIO and I/O perspective, vertical partitioning reduces the total bytes read per row, allowing the OS to utilize page cache more effectively, as the working set of frequently accessed columns becomes smaller and more compact.",
+        "Horizontal partitioning introduces the 'distributed transaction' problem, where maintaining ACID properties across shards requires expensive two-phase commit (2PC) protocols or eventual consistency models."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "sql",
+      "content": "-- Horizontal Partitioning Example (Range)\nCREATE TABLE orders (id INT, order_date DATE, data TEXT)\nPARTITION BY RANGE (YEAR(order_date)) (\n    PARTITION p2022 VALUES LESS THAN (2023),\n    PARTITION p2023 VALUES LESS THAN (2024)\n);\n\n-- Vertical Partitioning Example\n-- Move heavy 'biography' and 'profile_picture' to a separate table\nCREATE TABLE user_profiles (user_id INT PRIMARY KEY, bio TEXT, photo_blob BLOB);\nCREATE TABLE users (user_id INT PRIMARY KEY, username VARCHAR(50), email VARCHAR(100));"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Beware of 'Partition Pruning' failures. If your query filters do not include the partition key, the database engine is forced to perform a full table scan across all partitions, which is significantly slower than scanning a single non-partitioned table due to the overhead of managing multiple file descriptors and index structures. Always validate your EXPLAIN plans to ensure the query optimizer is successfully pruning partitions."
+    }
+  ],
+  "num": 894,
+  "title": "What is Database Partitioning (Horizontal vs Vertical)?",
+  "category": "Exception Handling & I/O / NIO"
+}

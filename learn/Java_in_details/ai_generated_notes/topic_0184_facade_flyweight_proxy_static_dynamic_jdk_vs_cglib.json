@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise software architecture, mastering structural patterns is non-negotiable for writing maintainable, high-performance systems. The Facade pattern provides a simplified, unified interface to a complex subsystem, decoupling clients from internal component coupling and architectural volatility. Conversely, the Flyweight pattern minimizes memory footprints by sharing state across large numbers of fine-grained objects, segregating intrinsic state (immutable, shared) from extrinsic state (context-dependent, passed via method calls). When we need to control access, lazy-load resources, or enforce security transparently, the Proxy pattern steps in, acting as an intermediary substitute for a target object.\n\nProxies manifest in several flavors. A Static Proxy requires compile-time code generation where both the proxy and the real subject implement the exact same interface, leading to boilerplate duplication when cross-cutting concerns multiply. To solve this, Dynamic Proxies generate proxy instances at runtime. In the Java ecosystem, JDK Dynamic Proxies rely on reflection and require target classes to implement interfaces, constructing proxies via java.lang.reflect.Proxy and InvocationHandler. When dealing with legacy architectures or concrete classes lacking interfaces, CGLIB (Code Generation Library) comes to the rescue. CGLIB bypasses interface restrictions by dynamically subclassing the target at bytecode level using ASM, intercepting method invocations via MethodInterceptor."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Proxy Mechanism",
+        "Generation Time",
+        "Interface Requirement",
+        "Underlying Technology"
+      ],
+      "rows": [
+        [
+          "Static Proxy",
+          "Compile-Time",
+          "Mandatory",
+          "Explicit Java Classes"
+        ],
+        [
+          "JDK Dynamic Proxy",
+          "Run-Time",
+          "Mandatory",
+          "java.lang.reflect.Proxy + Reflection"
+        ],
+        [
+          "CGLIB Proxy",
+          "Run-Time",
+          "Optional",
+          "Bytecode Subclassing (ASM)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Flyweight object sharing relies on an internal factory caching pool (like Integer.valueOf cache or String interning), guaranteeing that equivalent intrinsic states resolve to identical memory references to protect heap space.",
+        "JDK Dynamic Proxies instantiate proxy classes dynamically in memory, caching generated classes per classloader to prevent repeated reflection overhead, but they are strictly constrained by interface boundaries.",
+        "CGLIB proxies instantiate subclasses by generating bytecode directly, meaning they cannot intercept final methods or final classes because subclassing is structurally prohibited by the JVM bytecode verifier."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class DynamicProxyDemo {\n    public interface Service {\n        void execute();\n    }\n\n    public static class RealService implements Service {\n        @Override\n        public void execute() {\n            System.out.println(\"Executing business logic...\");\n        }\n    }\n\n    public static void main(String[] args) {\n        Service realService = new RealService();\n        Service proxyInstance = (Service) java.lang.reflect.Proxy.newProxyInstance(\n            Service.class.getClassLoader(),\n            new Class<?>[]{Service.class},\n            (proxy, method, methodArgs) -> {\n                System.out.println(\"[LOG] Before method: \" + method.getName());\n                Object result = method.invoke(realService, methodArgs);\n                System.out.println(\"[LOG] After method\");\n                return result;\n            }\n        );\n        proxyInstance.execute();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Production Gotcha: When using CGLIB proxies (heavily utilized in Spring AOP when proxyTargetClass=true), remember that a no-arg constructor is mandatory for the target class because CGLIB instantiates the subclass by invoking super() under the hood. Furthermore, calling a method internally within the same class (self-invocation) bypasses both JDK and CGLIB proxies completely, as the call goes directly to 'this' rather than through the proxy instance wrapper."
+    }
+  ],
+  "num": 185,
+  "title": "Facade, Flyweight, Proxy (static, dynamic, JDK vs CGLIB)",
+  "category": "OOPs & Design Patterns"
+}

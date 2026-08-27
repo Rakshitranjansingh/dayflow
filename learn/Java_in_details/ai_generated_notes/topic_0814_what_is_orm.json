@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Object-Relational Mapping (ORM) is a design pattern and programming technique that bridges the fundamental paradigm mismatch between object-oriented programming languages—such as Java—and relational database management systems (RDBMS). In an object-oriented domain model, data is represented as a network of interconnected objects possessing state (fields) and behavior (methods), linked via object references and inheritance hierarchies. Conversely, a relational database models data as two-dimensional tables consisting of rows and columns, related exclusively through foreign keys and set-based operations. ORM frameworks like Hibernate or EclipseLink abstract away this impedance mismatch by automatically converting in-memory objects into SQL DML statements (INSERT, UPDATE, DELETE, SELECT) and mapping relational result sets back into strongly typed domain entities, completely eliminating the need for tedious manual JDBC boilerplate code."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Dimension",
+        "Traditional JDBC",
+        "ORM (e.g., Hibernate)"
+      ],
+      "rows": [
+        [
+          "Data Representation",
+          "ResultSets, Maps, and manual domain mapping",
+          "Managed Object Graphs with identity tracking"
+        ],
+        [
+          "Query Language",
+          "Raw SQL coupled with string concatenation",
+          "Object-Oriented Query Languages (JPQL, Criteria API)"
+        ],
+        [
+          "Performance Tuning",
+          "Manual connection/statement management",
+          "First/Second-level caching, lazy loading, dirty checking"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Identity Map Pattern: ORM persistence contexts maintain a first-level cache (EntityManager/Session) that ensures all loaded records for a specific database identity are represented by the exact same object reference in memory, preventing state divergence.",
+        "Dirty Checking Mechanism: Instead of forcing developers to explicitly fire UPDATE statements, the ORM tracks state changes of managed entities by taking snapshots during loading, flushing modifications automatically upon transaction commit.",
+        "Lazy Loading & Proxies: Associated relationships (such as @OneToMany or @ManyToOne) are dynamically proxied using bytecode enhancement, deferring SQL execution until the property is explicitly accessed in code."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Entity\n@Table(name = \"orders\")\npublic class Order {\n    @Id\n    @GeneratedValue(strategy = GenerationType.IDENTITY)\n    private Long id;\n\n    @Column(name = \"total_amount\", nullable = false)\n    private BigDecimal totalAmount;\n\n    @OneToMany(mappedBy = \"order\", cascade = CascadeType.ALL, orphanRemoval = true)\n    private List<OrderItem> items = new ArrayList<>();\n\n    public void addItem(OrderItem item) {\n        items.add(item);\n        item.setOrder(this);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: The most common failure mode when adopting ORM is the dreaded N+1 select problem. When a parent entity with N children is fetched, accessing the collection without an explicit JOIN FETCH or EntityGraph triggers a primary query followed by N subsequent queries to fetch the children. Always monitor your SQL generation logs in development and use batch sizing or explicit projections to mitigate database round-trip overhead."
+    }
+  ],
+  "num": 815,
+  "title": "What is ORM?",
+  "category": "Core Java & Fundamentals"
+}

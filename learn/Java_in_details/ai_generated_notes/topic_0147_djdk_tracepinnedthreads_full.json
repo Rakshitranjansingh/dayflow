@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Project Loom introduced virtual threads to Java, shifting the concurrency paradigm from OS-bound thread pooling to massive throughput via millions of lightweight, unmanaged user-mode threads. However, virtual threads are mapped dynamically onto carrier threads (OS threads) via a ForkJoinPool scheduler. When a virtual thread executes a synchronized block, method, or invokes a native method/foreign function, it becomes 'pinned' to its current carrier thread. Pinning prevents the JVM from unmounting the virtual thread when it blocks on I/O, tying up a precious OS thread and potentially starving the scheduler.\n\nThe JVM flag -Djdk.tracePinnedThreads=full is a critical diagnostic tool designed to combat this exact bottleneck. When configured with the 'full' argument, it instructs the HotSpot runtime to intercept thread-pinning events and dump a complete, detailed stack trace showing exactly where the pinning occurred—typically highlighting the offending synchronized monitor or native frame. Without this flag, identifying silent concurrency bottlenecks caused by legacy synchronized blocks within high-throughput virtual thread pipelines is akin to finding a needle in a haystack, leading to mysterious thread starvation and degraded application performance."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "When a virtual thread enters a synchronized block or native method, the underlying carrier thread's monitor enter/exit operations lock the carrier, rendering it incapable of unmounting the virtual thread.",
+        "Setting -Djdk.tracePinnedThreads=full intercepts this transition inside the JVM safepoint and printing infrastructure, writing an immediate stack trace to standard error without crashing the process.",
+        "The diagnostic output differentiates between full traces and short summaries, pinpointing the exact line numbers of the synchronized blocks causing carrier thread exhaustion.",
+        "Modern development best practices dictate replacing legacy synchronized blocks with java.util.concurrent.locks.ReentrantLock to allow virtual threads to unmount safely during contention."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "bash",
+      "content": "java -Djdk.tracePinnedThreads=full -jar target/my-high-throughput-app.jar"
+    },
+    {
+      "type": "note",
+      "content": "Never run -Djdk.tracePinnedThreads=full in high-load production environments without caution. Dumping exhaustive stack traces to standard error upon every pinning event under heavy load will introduce severe I/O bottlenecks and log file bloat. Use it as a targeted diagnostic flag during staging load tests, or switch to the lighter '-Djdk.tracePinnedThreads=short' variant if you only need to know the frequency and source method names."
+    }
+  ],
+  "num": 148,
+  "title": "-Djdk.tracePinnedThreads=full",
+  "category": "Multithreading & Java Concurrency"
+}

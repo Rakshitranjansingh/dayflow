@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the GraphQL ecosystem, the schema acts as a strongly typed contract that defines how clients interact with your data graph. Unlike REST, where HTTP verbs (GET, POST, PUT, DELETE) dictate intent, GraphQL categorizes operations into three distinct root types: Queries, Mutations, and Subscriptions. Queries are the read-only operations designed for fetching data. They are conceptually idempotent and should never trigger side effects on the server state. Mutations, conversely, are the mechanism for data modification. They allow clients to create, update, or delete records, and they are designed to return the updated state of the object, which eliminates the need for a secondary fetch. Subscriptions represent long-lived connections, typically implemented via WebSockets, that allow the server to push real-time updates to the client whenever a specific event occurs in the backend, such as a database change or a message broadcast."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Operation",
+        "Primary Intent",
+        "Transport Mechanism",
+        "Idempotency"
+      ],
+      "rows": [
+        [
+          "Query",
+          "Data Retrieval",
+          "HTTP POST (or GET)",
+          "Yes"
+        ],
+        [
+          "Mutation",
+          "Data Modification",
+          "HTTP POST",
+          "No"
+        ],
+        [
+          "Subscription",
+          "Real-time Events",
+          "WebSockets",
+          "N/A"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Queries are executed in parallel by the GraphQL engine's execution strategy, allowing for efficient resolution of nested fields across microservices.",
+        "Mutations are executed serially to ensure data consistency and predictable state transitions, preventing race conditions during complex write operations.",
+        "Subscriptions maintain an active stateful connection in the JVM heap; in a WebFlux environment, these are handled via Project Reactor's Flux, mapping event streams to WebSocket frames.",
+        "The GraphQL engine uses a 'DataFetcher' or 'Resolver' pattern to resolve fields, where the execution context is passed down the tree to optimize database access via tools like DataLoader to prevent N+1 query problems."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "graphql",
+      "content": "type Query { user(id: ID!): User }\ntype Mutation { updateEmail(id: ID!, email: String!): User }\ntype Subscription { userUpdated(id: ID!): User }\n\n# Client usage\nquery { user(id: \"1\") { name } }\nmutation { updateEmail(id: \"1\", email: \"new@test.com\") { email } }\nsubscription { userUpdated(id: \"1\") { email } }"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is treating Subscriptions as a replacement for polling without considering the memory footprint. Each active subscription holds a reference to a subscriber in the JVM. If you are scaling horizontally, you must ensure your Subscription Manager uses a distributed Pub/Sub (like Redis) to synchronize events across multiple service instances, otherwise, clients connected to Instance A will never receive events triggered on Instance B."
+    }
+  ],
+  "num": 982,
+  "title": "GraphQL queries vs mutations vs subscriptions?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

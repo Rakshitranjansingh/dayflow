@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Database pagination is the mechanism used to break large result sets into smaller, manageable chunks, preventing memory exhaustion in the application layer and reducing network latency. OFFSET/LIMIT pagination is the traditional approach, where the database engine skips a specific number of rows before returning the requested subset. While intuitive, it suffers from significant performance degradation as the offset increases because the database must scan and discard all preceding rows to reach the target set. In contrast, Keyset pagination (also known as Cursor pagination) uses a unique, indexed column—typically a primary key or a timestamp—to define a starting point for the next query. By using a WHERE clause to filter for values greater than the last seen cursor, the database can perform an index seek, which is an O(log N) operation, making it significantly more performant for deep pagination."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "OFFSET/LIMIT",
+        "Keyset Pagination"
+      ],
+      "rows": [
+        [
+          "Performance",
+          "Degrades linearly with depth",
+          "Constant time (O(log N))"
+        ],
+        [
+          "Statefulness",
+          "Stateless (easy to jump to page N)",
+          "Stateful (requires previous cursor)"
+        ],
+        [
+          "Data Consistency",
+          "Risk of duplicates/skips on inserts",
+          "Stable even with concurrent modifications"
+        ],
+        [
+          "Index Usage",
+          "Full scan or index scan required",
+          "Direct index seek"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "OFFSET/LIMIT mechanics: The database engine executes the full query plan, retrieves all rows up to OFFSET + LIMIT, discards the OFFSET rows, and returns the remainder. This forces the engine to perform heavy I/O and CPU work for rows the application never sees.",
+        "Keyset mechanics: By utilizing a 'WHERE id > :last_seen_id ORDER BY id ASC LIMIT :size' pattern, the query engine traverses the B-Tree index directly to the starting point, effectively ignoring all previous data without scanning it.",
+        "Data stability: In OFFSET pagination, if a row is deleted from page 1 while the user is navigating to page 2, the row previously at the top of page 2 shifts to page 1, causing the user to see the same row twice. Keyset pagination avoids this by anchoring the query to the specific data value rather than an arbitrary index position."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "sql",
+      "content": "-- OFFSET/LIMIT (Slow at high offsets)\nSELECT * FROM orders ORDER BY created_at DESC LIMIT 50 OFFSET 100000;\n\n-- Keyset/Cursor Pagination (Fast, index-friendly)\nSELECT * FROM orders WHERE created_at < '2023-10-01 12:00:00' AND id < 98765 \nORDER BY created_at DESC, id DESC LIMIT 50;"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never use OFFSET for infinite scrolling or large datasets. If your business requirements demand 'jump to page' functionality, you are effectively forced into OFFSET/LIMIT; however, you should mitigate this by implementing a 'max offset' limit or using a covering index. If you are building a high-throughput API, always prefer Keyset pagination to ensure your database I/O remains predictable regardless of how deep the user navigates into the result set."
+    }
+  ],
+  "num": 878,
+  "title": "How does database Pagination work? (OFFSET/LIMIT vs Keyset/Cursor Pagination). Why is OFFSET slow?",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A production-ready Spring Boot application transcends simple 'Hello World' functionality by integrating robust operational concerns that ensure observability, reliability, and security. To achieve this, you must first leverage Spring Boot Actuator, which exposes critical internal state through HTTP endpoints or JMX, allowing infrastructure like Prometheus or Kubernetes to monitor health, metrics, and environment properties. Beyond monitoring, production-readiness mandates externalized configuration management, typically handled via Spring Cloud Config or environment-specific profiles, ensuring that sensitive credentials and service endpoints are decoupled from the artifact. Furthermore, robust error handling via @ControllerAdvice and standardized logging patterns are essential for debugging distributed systems, while graceful shutdown mechanisms ensure that in-flight requests are completed before the JVM terminates, preventing data corruption or inconsistent states."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Development Mode",
+        "Production Mode"
+      ],
+      "rows": [
+        [
+          "Actuator Endpoints",
+          "Exposed (all)",
+          "Secured/Restricted"
+        ],
+        [
+          "Logging Level",
+          "DEBUG/TRACE",
+          "INFO/WARN"
+        ],
+        [
+          "Error Details",
+          "Stack traces in response",
+          "Generic error codes"
+        ],
+        [
+          "Configuration",
+          "Hardcoded/Local",
+          "Environment Variables/Vault"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Health Indicators: Customizing HealthIndicator beans allows the application to report the status of downstream dependencies like Redis, Kafka, or SQL databases, which is vital for automated load balancer traffic routing.",
+        "Graceful Shutdown: Enabling 'server.shutdown=graceful' instructs the embedded container (Tomcat/Netty) to stop accepting new requests and wait for a configurable timeout period (server.shutdown.grace-period) for existing threads to finish.",
+        "Metrics Collection: Integrating Micrometer with a backend like Prometheus provides high-cardinality data on JVM garbage collection pauses, thread pool saturation, and HTTP request latency, which are the primary indicators of system health.",
+        "Security Hardening: Production-ready apps must disable default error pages that leak stack traces, enforce HTTPS via SSL/TLS, and utilize Spring Security to protect Actuator endpoints from unauthorized access."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class ActuatorSecurityConfig {\n    @Bean\n    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {\n        return http.requestMatcher(EndpointRequest.toAnyEndpoint())\n            .authorizeRequests((requests) -> requests.anyRequest().hasRole(\"ACTUATOR_ADMIN\"))\n            .httpBasic().and().build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production-grade pitfall is failing to configure the 'server.tomcat.max-threads' and 'server.tomcat.max-connections' properties. Default values are often too high for memory-constrained containers, leading to OOM (Out of Memory) errors during traffic spikes as the JVM allocates stacks for thousands of idle threads. Always perform load testing to tune your thread pool based on your specific I/O-bound or CPU-bound workload."
+    }
+  ],
+  "num": 806,
+  "title": "What makes a Spring Boot app production-ready?",
+  "category": "Spring Boot & Spring Framework"
+}

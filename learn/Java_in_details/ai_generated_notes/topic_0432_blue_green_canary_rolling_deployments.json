@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java ecosystems running on modern cloud-native architectures, safely shipping code changes to production requires sophisticated traffic routing and infrastructure management strategies. Blue-Green, Canary, and Rolling deployments solve the fundamental problem of how to transition a production environment from version N to version N+1 without incurring downtime, dropping active user sessions, or introducing cascading failures across distributed microservices. Blue-Green deployments rely on maintaining two identical, isolated production environments—traditionally called Blue (active) and Green (idle)—where a load balancer instantly flips incoming traffic from one to the other, enabling instantaneous rollbacks if an anomaly is detected. Canary deployments introduce a much more granular risk-mitigation approach, routing a tiny percentage of live production traffic (e.g., 2 percent) to a new version of the application while 98 percent remains on the stable baseline, allowing engineering teams to monitor real-world metrics, memory footprints, and JVM garbage collection anomalies before scaling up. Rolling deployments, conversely, update an existing fleet of instances incrementally—often configured via maxSurge and maxUnavailable parameters—replacing pods or Virtual Machines batch-by-batch until the entire cluster is upgraded without ever requiring duplicate hardware footprints."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Deployment Strategy",
+        "Infrastructure Overhead",
+        "Rollback Speed",
+        "Risk Mitigation"
+      ],
+      "rows": [
+        [
+          "Blue-Green",
+          "High (Requires 2x production capacity)",
+          "Instantaneous (Load balancer switch)",
+          "Binary (All-or-nothing per environment)"
+        ],
+        [
+          "Canary",
+          "Low-Medium (Requires minimal slice capacity)",
+          "Fast (Traffic re-routing)",
+          "High (Isolates blast radius to a subset of users)"
+        ],
+        [
+          "Rolling",
+          "Low (Updates in-place within existing capacity)",
+          "Slow (Must roll back batch-by-batch)",
+          "Medium (Progressive replacement of instances)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In a Blue-Green architecture, database schema migrations must be backward-compatible (expand-and-contract pattern), because both the Blue and Green JVM runtimes will interact with the same database simultaneously during the transition window.",
+        "Canary deployments leverage service mesh tools like Istio or Envoy, using weighted routing rules to split HTTP headers or user identifiers deterministically between baseline and canary JVM processes.",
+        "Rolling updates executed via Kubernetes Deployment controllers utilize liveness and readiness probes to ensure that a newly provisioned pod does not receive traffic until its Spring Boot ApplicationContext is fully initialized and warmed up."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payment-service\nspec:\n  replicas: 10\n  strategy:\n    type: RollingUpdate\n    rollingUpdate:\n      maxSurge: 2\n      maxUnavailable: 0\n  template:\n    spec:\n      containers:\n      - name: app\n        image: payment-service:v2.1.0\n        readinessProbe:\n          httpGet:\n            path: /actuator/health/readiness\n            port: 8080\n          initialDelaySeconds: 15\n          periodSeconds: 5"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap during rolling or canary deployments of Spring Boot applications is ignoring connection pool warm-ups and JVM JIT compilation phases. When a fresh container spins up, its JIT compiler interprets bytecode rather than executing optimized native machine code, leading to higher latency and CPU spikes. Always combine rolling updates with proper readiness probes and traffic throttling to prevent overwhelming cold JVMs."
+    }
+  ],
+  "num": 433,
+  "title": "Blue-Green, Canary, Rolling deployments",
+  "category": "Core Java & Fundamentals"
+}

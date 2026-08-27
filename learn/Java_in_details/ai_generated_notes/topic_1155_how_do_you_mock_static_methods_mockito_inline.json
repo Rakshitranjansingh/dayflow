@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Mocking static methods is a controversial but necessary evil in legacy Java systems where static utility classes or singleton-based architectures are pervasive. Historically, tools like PowerMock were required to manipulate bytecode at class-loading time, which often led to fragile test suites and conflicts with modern JVM features. Mockito-inline, introduced as a standalone artifact, leverages the Java Instrumentation API to redefine classes at runtime. By enabling the mock-maker-inline extension, Mockito can intercept calls to static methods by re-transforming the bytecode of the target class, effectively injecting a proxy-like behavior into static method invocations. This solves the problem of testing code that depends on static infrastructure, such as static loggers, legacy configuration managers, or static factory methods, without requiring a complete architectural refactor."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "PowerMock",
+        "Mockito-inline"
+      ],
+      "rows": [
+        [
+          "Implementation",
+          "Custom ClassLoader",
+          "Instrumentation API"
+        ],
+        [
+          "Compatibility",
+          "Poor (Java 11+ issues)",
+          "High (Native JVM support)"
+        ],
+        [
+          "Performance",
+          "Slow (Class loading overhead)",
+          "Fast (Runtime redefinition)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Mockito-inline utilizes the 'mock-maker-inline' extension, which triggers the ByteBuddy library to instrument the target class's bytecode during the test execution phase.",
+        "Static mocks are thread-local and scoped; they must be wrapped in a try-with-resources block to ensure the static state is reverted immediately after the test, preventing cross-test pollution.",
+        "The instrumentation process involves re-transforming the class definition in the JVM's Metaspace, allowing the static method to delegate to a Mockito-managed interceptor rather than executing the original logic.",
+        "Static mocking is not a silver bullet; it is an indicator of tight coupling. If you find yourself mocking static methods frequently, it is a strong signal that your design should move toward dependency injection."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "try (MockedStatic<UtilityClass> mocked = mockStatic(UtilityClass.class)) {\n    mocked.when(UtilityClass::staticMethod).thenReturn(\"mocked-value\");\n    assertEquals(\"mocked-value\", UtilityClass.staticMethod());\n    mocked.verify(UtilityClass::staticMethod, times(1));\n}"
+    },
+    {
+      "type": "note",
+      "content": "Beware of 'Static Mock Leaks'. If you fail to close the MockedStatic object, the static mock persists for the duration of the JVM process. This will cause subsequent tests in the same suite to fail unpredictably or exhibit 'flaky' behavior because the static method remains stubbed. Always use try-with-resources to ensure the static state is cleaned up, even if the test throws an exception."
+    }
+  ],
+  "num": 1156,
+  "title": "How do you mock static methods? (Mockito inline)",
+  "category": "Testing, Observability & Cloud Native"
+}

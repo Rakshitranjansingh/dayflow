@@ -1,0 +1,48 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java Virtual Machine (JVM) architecture, memory management is cleanly partitioned into distinct regions to optimize performance, thread safety, and garbage collection efficiency. Understanding what objects are stored on the stack versus the heap is fundamental to writing performant, memory-leak-free code. The stack is dedicated to thread-specific execution contexts, tracking method calls, local variables, and partial results. Every time a thread enters a method, a new stack frame is pushed onto its private thread stack, containing primitives and object references. Conversely, the heap is a globally shared memory space allocated at JVM startup where all class instances (objects) and arrays reside, regardless of which thread instantiated them.\n\nWhen we ask what objects go where, a critical technical nuance arises: Java objects themselves are *always* allocated on the heap. Even if a local variable inside a method references an object, the variable itself (which is just a memory address or reference handle) lives on the stack, while the actual object payload containing its instance fields lives on the heap. Primitives declared locally (like int, boolean, long) live entirely on the stack within the current frame. However, if those same primitives are declared as fields inside a class, they reside on the heap as part of that object's memory layout. Through advanced JIT compiler optimizations like escape analysis, the JVM can sometimes bypass heap allocation entirely for short-lived objects, scalar-replacing them or promoting them to stack allocation, but the baseline architectural model strictly divides thread-local invocation state from shared object graphs."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Memory Region",
+        "Primary Contents",
+        "Lifetime & Scope"
+      ],
+      "rows": [
+        [
+          "Call Stack",
+          "Primitive local variables, method parameters, and object references (pointers).",
+          "Thread-bound. Created when a thread starts, destroyed when it exits. Frames pop on method return."
+        ],
+        [
+          "Heap",
+          "All class instances (objects), arrays, and static variables (in modern JVMs).",
+          "Shared globally across all threads. Managed and reclaimed by the Garbage Collector."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Stack frames store local reference variables whose values point to heap-allocated object instances, bridging the gap between thread-local execution and shared state.",
+        "Escape analysis allows the JIT compiler to determine if an object's scope remains confined to a single method; if it never 'escapes' the thread, the JVM may allocate the object directly on the stack.",
+        "The heap is structurally divided into generations (Young Generation including Eden and Survivor spaces, and Old/Tenured Generation) to optimize garbage collection pauses based on the generational hypothesis."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class MemoryAllocationDemo {\n    private int heapField = 42; // Stored on the heap as part of the object instance\n\n    public void compute() {\n        int stackPrimitive = 10; // Stored directly on the thread stack\n        String heapObject = new String(\"Hello Heap\"); // Reference on stack, char array/object on heap\n        \n        process(stackPrimitive, heapObject);\n    }\n\n    private void process(int val, String str) {\n        // 'val' and 'str' reference are new variables on a new stack frame\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common interview misconception is that 'objects are on the stack if they are created inside a method.' Always clarify that the *reference pointer* lives on the stack frame, but the object instance payload is invariably instantiated on the heap (unless JIT escape analysis optimizes it away). Failure to understand this distinction leads to severe misconceptions about memory footprints and Garbage Collection pressure."
+    }
+  ],
+  "num": 703,
+  "title": "What objects are stored on the stack versus the heap?",
+  "category": "Core Java & Fundamentals"
+}

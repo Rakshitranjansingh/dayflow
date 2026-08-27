@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed systems, the trade-off between Strong Consistency and Eventual Consistency is governed by the CAP theorem, which dictates that a system can only provide two of three guarantees: Consistency, Availability, and Partition Tolerance. Strong Consistency ensures that once a write is acknowledged, any subsequent read—regardless of which node it hits—will return that exact value. This is achieved through synchronous replication or consensus algorithms like Paxos or Raft, which require a majority of nodes to agree before a transaction commits. While this provides a linearizable view of the system, it introduces significant latency and reduces availability during network partitions.\n\nEventual Consistency, conversely, prioritizes high availability and low latency by allowing nodes to diverge temporarily. A write is accepted by a single node and asynchronously propagated to others. While the system guarantees that all replicas will converge to the same state given enough time without new updates, there is a window of inconsistency where different clients might see different versions of the data. This is the bedrock of highly scalable systems like Cassandra or DynamoDB, where the business requirement favors 'always-on' availability over immediate data accuracy."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Strong Consistency",
+        "Eventual Consistency"
+      ],
+      "rows": [
+        [
+          "Latency",
+          "High (Synchronous coordination)",
+          "Low (Asynchronous propagation)"
+        ],
+        [
+          "Availability",
+          "Lower (Fails on partition)",
+          "High (Always accepts writes)"
+        ],
+        [
+          "Complexity",
+          "Lower (Developer sees single state)",
+          "Higher (Requires conflict resolution)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Strong Consistency relies on atomic broadcast or distributed locking mechanisms, forcing a global order of operations which creates a bottleneck at the leader node or consensus quorum.",
+        "Eventual Consistency often utilizes vector clocks or Last-Write-Wins (LWW) strategies to resolve conflicts that arise when multiple nodes accept concurrent writes for the same key.",
+        "In Java-based distributed systems, Strong Consistency is often implemented via JGroups or Curator (ZooKeeper) recipes, while Eventual Consistency is managed via message queues like Kafka or background gossip protocols."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Conceptualizing the difference in a distributed cache access\npublic interface DataStore {\n    // Strong: Blocks until all replicas acknowledge\n    void putStrong(String key, String value) throws InterruptedException;\n    \n    // Eventual: Returns immediately, propagates in background\n    void putEventual(String key, String value);\n}\n\n// Usage in a high-throughput microservice\npublic void updateProfile(String userId, String data) {\n    // If using eventual consistency, we must handle stale reads\n    store.putEventual(userId, data);\n    log.info(\"Update accepted; replication will occur asynchronously.\");\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common production pitfall is 'Read-Your-Writes' inconsistency. In an eventually consistent system, a user updates their profile and immediately refreshes the page, only to see the old data because the read request hit a replica that hasn't received the update yet. Always design your UI or API layer to handle these 'stale read' scenarios, perhaps by using session stickiness or version tokens, rather than assuming the backend is a single source of truth."
+    }
+  ],
+  "num": 890,
+  "title": "What is Eventual Consistency vs Strong Consistency?",
+  "category": "Core Java & Fundamentals"
+}

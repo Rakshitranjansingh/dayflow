@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Data Redis is a comprehensive Spring ecosystem module that simplifies the integration of Java applications with Redis, an in-memory data structure store used as a database, cache, message broker, and streaming engine. In modern distributed systems, data must be accessed with minimal latency and shared seamlessly across decoupled microservices. Spring Data Redis bridges the gap between Java's object-oriented paradigms and Redis's key-value data structures by providing robust abstractions such as RedisTemplate, ReactiveRedisTemplate, and Spring Data Repositories.\n\nAt its core, Spring Data Redis abstracts away the underlying low-level Java Redis clients—namely Lettuce and Jedis—allowing developers to focus on application business logic rather than connection pooling, thread safety, and serialization boilerplate. Lettuce, the default client since Spring Boot 2.x, is built on top of Netty and is inherently thread-safe and non-blocking, making it ideal for reactive and high-throughput multi-threaded environments. Conversely, Jedis uses a traditional thread-per-connection or pool-per-thread model where individual instances are not thread-safe, necessitating the use of JedisPool. Spring Data Redis orchestrates these drivers, managing serialization boundaries via RedisSerializer implementations (such as JdkSerializationRedisSerializer, StringRedisSerializer, and GenericJackson2JsonRedisSerializer) to seamlessly map Java POJOs into raw byte arrays destined for Redis's memory space."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Metric",
+        "Lettuce Client",
+        "Jedis Client"
+      ],
+      "rows": [
+        [
+          "Underlying NIO Framework",
+          "Netty (Asynchronous, Event-driven)",
+          "Blocking I/O (Socket-based)"
+        ],
+        [
+          "Thread Safety",
+          "Thread-safe, shares single connection safely",
+          "Not thread-safe, requires a connection pool"
+        ],
+        [
+          "Reactive Support",
+          "Native Project Reactor integration (Mono/Flux)",
+          "No native reactive support"
+        ],
+        [
+          "Default in Spring Boot",
+          "Yes (since Spring Boot 2.0)",
+          "No (requires manual configuration)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "RedisTemplate uses a template design pattern to execute high-level operations (ValueOperations, ListOperations, SetOperations, ZSetOperations, HashOperations) while abstracting away connection acquisition, pipeline management, and transaction execution (MULTI/EXEC).",
+        "Serialization boundaries are critical: by default, Spring Data Redis uses JdkSerializationRedisSerializer, which injects Java class metadata headers into the Redis payload, causing bloated memory footprints and interoperability failures with non-Java clients; production systems typically mandate StringRedisSerializer for keys and GenericJackson2JsonRedisSerializer for values.",
+        "Pub/Sub messaging is supported via ChannelTopic and MessageListenerAdapter, allowing Redis to act as a lightweight event broker for real-time distributed notifications across disparate service instances.",
+        "Redis Repositories leverage Spring Data's metadata-driven interface generation, utilizing Redis Hash structures, secondary indexes, and RediSearch modules to enable repository-style querying without writing raw imperative commands."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class RedisConfig {\n\n    @Bean\n    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {\n        RedisTemplate<String, Object> template = new RedisTemplate<>();\n        template.setConnectionFactory(connectionFactory);\n        \n        // Use String Redis Serializer for keys to ensure readable keys in redis-cli\n        template.setKeySerializer(new StringRedisSerializer());\n        template.setHashKeySerializer(new StringRedisSerializer());\n        \n        // Use Jackson for values to handle JSON serialization properly\n        GenericJackson2JsonRedisSerializer jsonSerializer = new GenericJackson2JsonRedisSerializer();\n        template.setValueSerializer(jsonSerializer);\n        template.setHashValueSerializer(jsonSerializer);\n        \n        template.afterPropertiesSet();\n        return template;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in Spring Data Redis is the silent memory explosion caused by the default JDK serializer. If you use RedisTemplate without explicitly setting serializers, Java writes full class descriptors and metadata into Redis, consuming up to 4x more RAM than necessary and breaking compatibility with Node.js or Python microservices. Always explicitly define your key and value serializers."
+    }
+  ],
+  "num": 266,
+  "title": "Spring Data Redis",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

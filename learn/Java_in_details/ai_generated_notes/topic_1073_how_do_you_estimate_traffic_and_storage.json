@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Estimating traffic and storage is the bedrock of capacity planning in distributed systems, moving beyond guesswork into empirical modeling. Traffic estimation focuses on calculating the Request Per Second (RPS) throughput, which dictates the concurrency model of your JVM—specifically how your thread pools, connection pools, and event loops must be sized to prevent saturation. You derive this by analyzing Daily Active Users (DAU), the average requests per user per session, and the peak-to-average ratio, which accounts for the 'thundering herd' effect during high-load periods. Storage estimation, conversely, is a function of data retention policies and the per-record footprint. You must account for the raw payload size, the overhead of serialization formats like JSON or Protobuf, and the amplification factor introduced by database indexing, replication, and WAL (Write-Ahead Logging) overheads. Failing to account for these multipliers often leads to premature disk exhaustion or unexpected I/O wait times that stall the application heap."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric",
+        "Traffic Impact",
+        "Storage Impact"
+      ],
+      "rows": [
+        [
+          "Throughput",
+          "Determines thread pool size and CPU cores",
+          "Affects write-buffer frequency"
+        ],
+        [
+          "Retention",
+          "Minimal impact on real-time flow",
+          "Primary driver of long-term disk growth"
+        ],
+        [
+          "Payload",
+          "Increases network serialization latency",
+          "Directly scales total storage footprint"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Traffic Modeling: Calculate peak RPS using (DAU * Avg_Requests_Per_User) / (Seconds_in_Active_Window * Peak_Multiplier). Always apply a 20-30% headroom buffer for unexpected spikes.",
+        "Storage Modeling: Calculate total storage as (Records_Per_Day * Days_Retention * Avg_Record_Size) * (1 + Index_Overhead_Factor + Replication_Factor).",
+        "JVM Memory Implications: High traffic requires tuning the Young Gen space to handle short-lived request objects, while high storage throughput often necessitates tuning the I/O buffer sizes to prevent GC pressure from object allocation during serialization.",
+        "Database Amplification: Remember that indexes are not free; a table with 5 indexes can easily consume 2-3x the storage of the raw data due to B-Tree node overhead and fragmentation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class CapacityEstimator {\n    // Estimating daily storage in bytes\n    public long estimateDailyStorage(long rps, int avgRecordSizeBytes, double indexOverhead) {\n        long secondsInDay = 86400;\n        long totalRecords = rps * secondsInDay;\n        return (long) (totalRecords * avgRecordSizeBytes * (1 + indexOverhead));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Never estimate based on 'average' traffic. Systems rarely fail because of the average; they fail because of the 99th percentile peak. Always design your storage for the worst-case growth scenario and your traffic for the peak-load burst. If you are using a database like PostgreSQL, remember that 'storage' isn't just the data; it's the data plus the MVCC row versions (bloat) that occur during high-frequency updates."
+    }
+  ],
+  "num": 1074,
+  "title": "How do you estimate traffic and storage?",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise distributed architectures, APIs must evolve gracefully without breaking legacy clients, while simultaneously adapting to diverse consumer data-format requirements. This is where the dual disciplines of content negotiation and versioning strategies become critical architectural pillars. Content negotiation is the mechanism by which an HTTP server and client agree upon the optimal representation format—such as JSON, XML, or Protocol Buffers—for a given resource, driven primarily by request headers like Accept, Accept-Language, and Content-Type. By inspecting these headers, a production-grade I/O subsystem can dynamically route serialization engines without rewriting business logic, effectively decoupling domain models from wire representations.\n\nSimultaneously, API versioning strategies dictate how a contract changes over time. As business requirements mutate, schemas inevitably drift. Choosing the right versioning strategy—whether via URI path, request parameters, custom headers, or media type parameters (Accept header versioning)—directly impacts caching layers, API gateway routing complexity, and client maintenance overhead. Combining content negotiation with robust versioning ensures that endpoints remain discoverable, backward-compatible, and performant under heavy production traffic loads."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Versioning Strategy",
+        "Caching Friendliness",
+        "Client Implementation Effort",
+        "URL Pollution"
+      ],
+      "rows": [
+        [
+          "URI Path (/api/v1/users)",
+          "High (Static URLs cache well)",
+          "Low (Easy to construct and test)",
+          "High (Embeds metadata in routing path)"
+        ],
+        [
+          "Request Parameter (?version=1)",
+          "Medium (Query string variations complicate proxy caches)",
+          "Low (Simple query appending)",
+          "Medium (Pollutes query space)"
+        ],
+        [
+          "Custom Header (X-API-Version: 1)",
+          "Low (Requires Vary: X-API-Version header)",
+          "Medium (Requires custom header injection)",
+          "None (Clean URLs)"
+        ],
+        [
+          "Media Type / Accept Header",
+          "Low (Requires Vary: Accept)",
+          "High (Complex Accept header construction)",
+          "None (RESTful ideal)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Content negotiation relies heavily on quality values (q-factors) parsed from the Accept header, requiring the server's I/O layer to execute weighted sorting algorithms to match producer media types against consumer preferences.",
+        "URI path versioning is favored in high-throughput enterprise gateways because reverse proxies (like Varnish or NGINX) can easily pattern-match paths for cache invalidation without inspecting deep payload or header byte-arrays.",
+        "Media type versioning (e.g., application/vnd.company.app-v1+json) tightly couples content negotiation and versioning, allowing a single resource URI to serve completely different schema versions based on the exact mime-type requested."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/documents\")\npublic class DocumentController {\n\n    @GetMapping(value = \"/{id}\", produces = \"application/vnd.enterprise.document-v1+json\")\n    public ResponseEntity<DocumentV1Response> getDocumentV1(@PathVariable Long id) {\n        DocumentV1Response doc = documentService.findV1(id);\n        return ResponseEntity.ok().body(doc);\n    }\n\n    @GetMapping(value = \"/{id}\", produces = \"application/vnd.enterprise.document-v2+json\")\n    public ResponseEntity<DocumentV2Response> getDocumentV2(@PathVariable Long id) {\n        DocumentV2Response doc = documentService.findV2(id);\n        return ResponseEntity.ok().header(\"Vary\", \"Accept\").body(doc);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "When implementing media type versioning or advanced content negotiation, always ensure your edge proxies and CDNs are configured to include the 'Vary' HTTP header (e.g., 'Vary: Accept'). Neglecting this will cause edge caches to blindly serve a v1 JSON response to a client that explicitly requested a v2 XML or JSON payload, leading to insidious, intermittent client-side deserialization crashes."
+    }
+  ],
+  "num": 295,
+  "title": "Content negotiation, versioning strategies",
+  "category": "Exception Handling & I/O / NIO"
+}

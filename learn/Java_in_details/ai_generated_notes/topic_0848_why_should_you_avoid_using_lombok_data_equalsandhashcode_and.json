@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When designing domain models in a Java application leveraging Spring Data JPA and Hibernate ORM, introducing project boilerplate-reduction tools like Project Lombok can feel enticing. However, blindly slapping @Data, @EqualsAndHashCode, and @ToString onto a JPA entity is a notorious anti-pattern that leads to catastrophic performance degradation, LazyInitializationException bugs, and silent infinite recursion loops. To understand why, we must inspect the exact behaviors of these three Lombok annotations and how they directly conflict with the core invariants of Hibernate's persistence context, proxy mechanics, and relational entity graphs.\n\nFirst, @Data is a meta-annotation that bundles @Getter, @Setter, @ToString, @EqualsAndHashCode, and @RequiredArgsConstructor. By including @EqualsAndHashCode and @ToString, @Data forces Lombok to generate these methods by inspecting *all* non-static fields declared in the class. In a JPA entity, fields often include unidirectional and bidirectional relationships mapped via @ManyToOne, @OneToMany, @ManyToMany, or @OneToOne. When Hibernate manages an entity, it frequently wraps associations in dynamic runtime proxy subclasses (e.g., ByteBuddy interceptors) to implement lazy loading. If the generated equals or hashCode methods read these fields, accessing them triggers SQL queries or lazy initialization fetches outside a transactional context, resulting in LazyInitializationException. Furthermore, if two entities reference each other through a bidirectional relationship (e.g., Parent has a List of Children, and Child has a reference to Parent), calling toString() or equals() on one will recursively trigger the same method on the other, culminating in a devastating StackOverflowError."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Uncontrolled Relationship Traversal: Lombok's default @ToString iterates over all fields. If an entity graph has circular references, calling toString() traverses down the entire tree, fetching lazy collections and blowing up the call stack with a StackOverflowError.",
+        "Mutable State in Hash Collections: @EqualsAndHashCode uses all non-transient fields by default. If an entity's fields change while it resides inside a HashSet or a HashMap, its hash code changes, rendering the entity unrecoverable in the collection and corrupting state consistency.",
+        "Proxy Pollution: Hibernate proxies subclass the entity. If equals() checks getClass() instead of Hibernate.getClass(this), comparing a raw entity to a lazy proxy instance will always return false, breaking persistence identity guarantees inside collections."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Entity\n@Table(name = \"users\")\n@Getter\n@Setter\n@NoArgsConstructor\n@ToString(exclude = \"orders\")\n@EqualsAndHashCode(onlyExplicitlyIncluded = true)\npublic class User {\n\n    @Id\n    @GeneratedValue(strategy = GenerationType.IDENTITY)\n    @EqualsAndHashCode.Include\n    private Long id;\n\n    @Column(nullable = false, unique = true)\n    @EqualsAndHashCode.Include\n    private String email;\n\n    private String username;\n\n    @OneToMany(mappedBy = \"user\", cascade = CascadeType.ALL, orphanRemoval = true)\n    private List<Order> orders = new ArrayList();\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior production gotcha: Never rely on database-generated IDs for equals() and hashCode() before an entity is persisted. Newly instantiated entities have a null ID, meaning multiple transient instances will share the same hashCode (if relying purely on ID) or evaluate as equal, causing them to silently overwrite each other when added to a Set prior to an EntityManager.persist() call. Always use business keys or a stable UUID strategy for entity equality, or carefully restrict equals/hashCode to immutably designated natural keys."
+    }
+  ],
+  "num": 849,
+  "title": "Why should you avoid using Lombok @Data, @EqualsAndHashCode, and @ToString with JPA Entities?",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "OAuth2 grant types dictate the exact mechanism by which a client application exchanges user consent or its own credentials for an access token. In modern application architectures, selecting the right grant type is a critical security decision that impacts your threat model, token exposure risks, and attack surface. The Authorization Code grant type remains the gold standard for server-rendered web applications and single-page apps utilizing a Backend-For-Frontend (BFF) pattern, as it relies on a front-channel redirect followed by a secure back-channel token exchange that hides the client secret from the public browser environment. The Client Credentials grant is explicitly designed for machine-to-machine communication—answering the user's question directly, this is the dedicated grant for server-to-server interactions where no end-user context exists. The Implicit grant, which historically returned access tokens directly in the URL fragment via the front-channel, has been officially deprecated in OAuth 2.1 due to severe token interception and leakage risks. Finally, the Resource Owner Password Credentials (ROPC) grant requires the client to directly collect the user's raw username and password, passing them to the authorization server, which completely violates the separation of concerns in modern identity federation and is heavily discouraged unless migrating legacy monolithic architectures."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Grant Type",
+        "Primary Use Case",
+        "End-User Involved?",
+        "Security Risk Level"
+      ],
+      "rows": [
+        [
+          "Authorization Code",
+          "Web apps, Mobile apps, SPAs with BFF",
+          "Yes",
+          "Low (when combined with PKCE)"
+        ],
+        [
+          "Client Credentials",
+          "Server-to-server, Daemons, CLI tools",
+          "No",
+          "Medium (depends on secret custody)"
+        ],
+        [
+          "Implicit",
+          "Legacy SPAs (Deprecated)",
+          "Yes",
+          "Critical (Token leakage via URL)"
+        ],
+        [
+          "Password (ROPC)",
+          "Legacy migrations, trusted first-party apps",
+          "Yes",
+          "High (Exposes credentials to client)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Server-to-Server Authentication: The Client Credentials grant bypasses user authentication entirely. The calling service presents its own clientId and clientSecret directly to the OAuth2 /oauth/token endpoint to receive a scoped access token.",
+        "Authorization Code with PKCE: For public clients like mobile apps or SPAs that cannot securely store a client secret, Proof Key for Code Exchange (PKCE) replaces the secret with a cryptographically generated code_verifier and code_challenge.",
+        "Token Lifetime Management: Access tokens obtained via Client Credentials typically carry elevated system-level scopes and must be short-lived, while refresh tokens are rarely issued for machine-to-machine flows to minimize blast radius upon compromise."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\npublic class SecurityConfig {\n\n    @Bean\n    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {\n        http\n            .authorizeHttpRequests(authorize -> authorize\n                .requestMatchers(\"/public/**\").permitAll()\n                .anyRequest().authenticated()\n            )\n            .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));\n        return http.build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap in microservices architecture is misusing the Password grant type for internal service-to-service calls just because it seems easy to configure. Doing so forces your internal services to handle and log raw user credentials, violating basic compliance frameworks like PCI-DSS and OAuth2 security best practices. Always use Client Credentials for machine-to-machine communication, and propagate user context downstream using propagated JWTs or OAuth2 token relay patterns."
+    }
+  ],
+  "num": 1017,
+  "title": "Explain OAuth2 Grant Types: Authorization Code, Client Credentials, Implicit, Password. Which one is for server-to-server?",
+  "category": "Spring Security & Web Security"
+}

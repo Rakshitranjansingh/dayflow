@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "RabbitMQ acts as the central nervous system in microservices architectures, facilitating asynchronous communication through a message broker pattern. In a distributed system, services often need to interact without being tightly coupled; RabbitMQ solves this by decoupling the producer (the service sending a request) from the consumer (the service processing it). It implements the Advanced Message Queuing Protocol (AMQP), allowing services written in different languages to communicate via a shared intermediary. By using exchanges and queues, RabbitMQ enables patterns like pub/sub, task distribution, and load balancing, ensuring that if a downstream service is temporarily overwhelmed or offline, the message persists in a queue rather than causing a cascading failure across the system."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Synchronous (REST/gRPC)",
+        "Asynchronous (RabbitMQ)"
+      ],
+      "rows": [
+        [
+          "Coupling",
+          "Tight (Temporal/Location)",
+          "Loose"
+        ],
+        [
+          "Failure Handling",
+          "Immediate propagation",
+          "Retry/Dead-letter queues"
+        ],
+        [
+          "Throughput",
+          "Limited by slowest service",
+          "High (Buffered processing)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Exchanges route messages based on binding keys; the 'Direct' exchange uses exact matching, while 'Topic' exchanges use pattern matching to route messages to multiple queues simultaneously.",
+        "Persistence is managed by marking messages as 'persistent' and queues as 'durable', ensuring that RabbitMQ writes data to disk to survive broker restarts.",
+        "Consumer acknowledgments (ACKs) provide a safety mechanism where the broker waits for the consumer to signal successful processing before removing the message from the queue, preventing data loss during crashes.",
+        "Dead Letter Exchanges (DLX) act as a safety net for messages that cannot be processed, allowing developers to inspect failed payloads without blocking the main processing pipeline."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RabbitListener(queues = \"order-processing-queue\")\npublic void handleOrder(OrderEvent event) {\n    try {\n        orderService.process(event);\n    } catch (Exception e) {\n        // Log error, RabbitMQ will requeue or move to DLX based on config\n        throw new AmqpRejectAndDontRequeueException(\"Fatal processing error\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is the 'unbounded queue' problem. If your consumers fall behind, queues can grow until they consume all available RAM, triggering RabbitMQ's memory alarm and blocking all producers. Always implement 'prefetch counts' in your consumers to limit the number of unacknowledged messages a consumer can hold, and monitor queue depth metrics strictly."
+    }
+  ],
+  "num": 930,
+  "title": "What is RabbitMQ used for in microservices?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

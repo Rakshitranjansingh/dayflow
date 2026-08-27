@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the evolution of Java's date and time APIs—culminating in JSR-310 introduced in Java 8—handling dates and times across global boundaries became a first-class citizen with the introduction of ZonedDateTime. Before Java 8, developers relied heavily on java.util.Date and java.util.Calendar, which were notoriously mutable, thread-unsafe, and lacked clear semantics regarding time zones. ZonedDateTime addresses these foundational flaws by modeling a complete date-time representation (Year, Month, Day, Hour, Minute, Second, Nano) coupled with a specific ZoneId (such as America/New_York or Europe/Paris) and its historical and future rules for offsets (ZoneOffset). It solves the complex real-world problem of unambiguously pinpointing a universal moment on the timeline while maintaining context about the local human wall-clock time and the legal time zone rules in effect at that moment."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "LocalDateTime",
+        "OffsetDateTime",
+        "ZonedDateTime"
+      ],
+      "rows": [
+        [
+          "Time Zone Rules",
+          "None",
+          "Fixed Offset Only (e.g., +02:00)",
+          "Full ZoneId (handles DST rules)"
+        ],
+        [
+          "Daylight Saving Transition",
+          "Unaware",
+          "Unaware",
+          "Aware (handles gaps and overlaps)"
+        ],
+        [
+          "Primary Use Case",
+          "Local processing, DB storage (naive)",
+          "API wire protocols, logs",
+          "Business logic tied to geographical locations"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "ZonedDateTime is structurally a composite object: it internally encapsulates a LocalDateTime, a ZoneOffset, and a ZoneId. When operations are performed, the ZoneId is used to evaluate historical and future Daylight Saving Time (DST) rules.",
+        "During a spring-forward DST transition, a gap occurs (e.g., clocks skip from 02:00 to 03:00). ZonedDateTime resolves this by adjusting the local time forward by the gap duration, preserving the underlying epoch instant where possible.",
+        "During an autumn-back DST transition, an overlap occurs (e.g., clocks repeat 01:00 to 02:00). ZonedDateTime maintains the ZoneOffset associated with the earlier or later phase depending on how the instance was constructed or manipulated.",
+        "Because of its reliance on complex rules databases (TZDB), calculations involving ZonedDateTime are computationally heavier than pure offset or local date-time types."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.time.ZoneId;\nimport java.time.ZonedDateTime;\nimport java.time.format.DateTimeFormatter;\n\npublic class ZonedDateTimeExample {\n    public static void main(String[] args) {\n        // Capture the current moment in a specific time zone\n        ZonedDateTime zdtNewYork = ZonedDateTime.now(ZoneId.of(\"America/New_York\"));\n        \n        // Convert the exact same physical moment to Tokyo time\n        ZonedDateTime zdtTokyo = zdtNewYork.withZoneSameInstant(ZoneId.of(\"Asia/Tokyo\"));\n        \n        System.out.println(\"New York: \" + zdtNewYork.format(DateTimeFormatter.ISO_ZONED_DATE_TIME));\n        System.out.println(\"Tokyo:    \" + zdtTokyo.format(DateTimeFormatter.ISO_ZONED_DATE_TIME));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Never use ZonedDateTime for database persistence in standard relational databases unless your database column specifically maps to a timestamp with time zone type. Storing ZonedDateTime in a naive 'DATETIME' column strips the zone context, leading to subtle bugs during retrieval. For business persistence, store epoch seconds or Instant for global events, and LocalDateTime combined with a separate ZoneId string only if local wall-clock preservation is an explicit business requirement."
+    }
+  ],
+  "num": 595,
+  "title": "What is ZonedDateTime?",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java multithreading, ConcurrentHashMap stands as the quintessential thread-safe alternative to synchronized maps like Hashtable or Collections.synchronizedMap. However, its internal architecture underwent a massive paradigm shift. Pre-Java 8 implementations relied heavily on Segment Locking—a structural partitioning technique where the map was divided into a fixed number of segments, each extending ReentrantLock. This allowed multiple threads to write concurrently to the map as long as their target keys hashed into different segments. While a significant improvement over global synchronization, this design suffered from fixed sizing, high memory overhead, and lock contention if the concurrency level was misconfigured at initialization.\n\nJava 8 completely redesigned ConcurrentHashMap, discarding segment locking in favor of a hybrid approach utilizing Compare-And-Swap (CAS) operations combined with synchronized blocks. Instead of locking entire segments, Java 8 approaches synchronization at the granularity of individual hash bins (bucket nodes). CAS is leveraged for lock-free insertion of the first node in an empty bin, while synchronized blocks are applied strictly to the head node of a populated bucket during collision handling, treeification, or resizing. This dramatically reduces lock contention, lowers memory consumption by removing Segment objects, and dramatically improves throughput under heavy concurrent read/write workloads."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Aspect",
+        "Pre-Java 8 (Segment Locking)",
+        "Java 8+ (CAS + synchronized)"
+      ],
+      "rows": [
+        [
+          "Lock Granularity",
+          "Segment-level (ReentrantLock per segment, default 16)",
+          "Bin-level (synchronized on individual bucket head node)"
+        ],
+        [
+          "Empty Bucket Initialization",
+          "Requires acquiring the Segment lock",
+          "Lock-free using Unsafe/VarHandle CAS operations"
+        ],
+        [
+          "Memory Overhead",
+          "High (extra Segment objects and lock wrappers)",
+          "Low (nodes directly inside the main array)"
+        ],
+        [
+          "Collision Data Structure",
+          "Singly-linked lists exclusively",
+          "Singly-linked lists that dynamically treeify into TreeBins"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In Java 8+, when multiple threads attempt to insert into an uninitialized bucket, the first thread uses a CAS operation (via VarHandle or Unsafe) to atomically place the node. If the CAS fails due to a race, the thread yields or assists via table initialization checks.",
+        "When a hash collision occurs on a populated bucket, Java 8 acquires a monitor lock strictly on the bin's head node using a synchronized block. This ensures that threads accessing other buckets remain entirely unblocked.",
+        "If a single bin grows beyond TREEIFY_THRESHOLD (default 8) and the overall array capacity exceeds MIN_TREEIFY_CAPACITY (default 64), the linear linked list transforms into a balanced Red-Black Tree (TreeBin), bounding worst-case lookup time from O(N) down to O(log N)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.ConcurrentHashMap;\nimport java.util.concurrent.ConcurrentMap;\n\npublic class ConcurrentHashMapDemo {\n    public static void main(String[] args) {\n        ConcurrentMap<String, String> map = new ConcurrentHashMap<>();\n        \n        // Atomically computes a value if the key is absent (uses Java 8+ CAS/synchronized bin locking)\n        map.computeIfAbsent(\"databaseUrl\", k -> {\n            System.out.println(\"Computing value for: \" + k);\n            return \"jdbc:postgresql://localhost:5432/production\";\n        });\n        \n        // Thread-safe concurrent update\n        map.merge(\"databaseUrl\", \"?ssl=true\", (oldVal, newVal) -> oldVal + newVal);\n        \n        System.out.println(map.get(\"databaseUrl\"));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap with ConcurrentHashMap is assuming that compound operations like check-then-act (e.g., if(map.containsKey(k)) map.put(k, v)) are atomic. Even though individual methods like get() and put() are thread-safe, composite sequences require atomic methods like putIfAbsent(), compute(), or merge() to prevent race conditions. Additionally, be aware that size() and mappingCount() in Java 8+ return estimations rather than exact counts during concurrent structural modifications."
+    }
+  ],
+  "num": 56,
+  "title": "ConcurrentHashMap — segment locking (pre-Java 8) vs CAS + synchronized (Java 8+)",
+  "category": "Multithreading & Java Concurrency"
+}

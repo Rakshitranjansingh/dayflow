@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Testing transactional methods in enterprise Java requires navigating the complex interplay between declarative transaction management (primarily provided by Spring's @Transactional annotation) and low-level persistence lifecycle mechanics managed by the Java Persistence API (JPA) and the underlying database. When a method is annotated with @Transactional, the framework intercepts calls via a dynamic proxy or bytecode enhancement to begin, commit, or roll back a database transaction. However, testing these methods effectively demands that we address two critical domains: Exception Handling and I/O / NIO operations. Exception handling within transactions is notoriously nuanced; Spring transactions default to rolling back only on unchecked exceptions (RuntimeException and Error), while checked exceptions (Exception) leave the transaction marked for commit unless explicitly intercepted via the rollbackFor attribute. Furthermore, performing I/O or NIO operations—such as writing to the file system, streaming network sockets, or reading asynchronous buffers—inside an active database transaction introduces severe architectural antipatterns. If an I/O operation fails mid-transaction, or if a slow NIO channel blocks a thread while holding database row locks, the system suffers from connection pool exhaustion, transaction timeout cascades, and data inconsistency. Testing must therefore validate both proper transaction rollbacks under specific application exceptions and the safe isolation of non-blocking I/O operations outside the transactional boundary."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Proxy boundaries: Spring's @Transactional relies on AOP proxies. Self-invocation (calling a transactional method from within the same class) bypasses the proxy entirely, causing transactions and their exception rollback rules to silently fail.",
+        "Checked vs Unchecked Exceptions: By design, runtime exceptions trigger rollback automatically, whereas checked exceptions require explicit configuration (rollbackFor = Exception.class) to prevent unintended commits.",
+        "I/O and NIO Isolation: Network or disk I/O should never occur inside an active database transaction. Holding locks while awaiting slow NIO channels degrades database throughput and can saturate connection pools.",
+        "Flush and Clear Mechanics: Integration tests often cache persistence context state. Explicitly flushing and clearing the EntityManager during tests prevents false positives caused by first-level cache hits."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@SpringBootTest\n@Transactional\npublic class OrderServiceIntegrationTest {\n\n    @Autowired\n    private OrderRepository orderRepository;\n    \n    @Autowired\n    private OrderService orderService;\n\n    @Autowired\n    private EntityManager entityManager;\n\n    @Test\n    public void testRollbackOnBusinessException() {\n        OrderRequestDto request = new OrderRequestDto(\"SKU-123\", 5);\n        \n        // Assert that a custom checked or unchecked business exception rolls back the transaction\n        assertThrows(InsufficientInventoryException.class, () -> {\n            orderService.processOrderWithExternalIo(request);\n        });\n\n        entityManager.flush();\n        entityManager.clear();\n\n        // Verify state is clean due to rollback\n        List<Order> orders = orderRepository.findAll();\n        assertTrue(orders.isEmpty(), \"Transaction should have rolled back, leaving zero orders.\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic senior-level gotcha in transactional testing is coupling asynchronous NIO or file I/O operations inside a test method that uses class-level @Transactional. Because @Transactional rolls back the database at the end of the test method, any side effects on the database are wiped out, but side effects on the file system or external message queues persist! Always mock or isolate non-transactional I/O components using Testcontainers or WireMock so your test assertions do not chase phantom file locks or residual network state."
+    }
+  ],
+  "num": 1163,
+  "title": "How do you test transactional methods?",
+  "category": "Exception Handling & I/O / NIO"
+}

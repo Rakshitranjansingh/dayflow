@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Building event-driven microservices on the JVM often requires robust integration with Apache Kafka, and Spring Kafka bridges this gap by abstracting the low-level Java client API into idiomatically clean, annotation-driven components. At the core of message consumption lies @KafkaListener, a meta-annotation that transforms any Spring-managed bean method into a persistent event loop listener, handling deserialization, offset management, and thread dispatching under the hood. To dispatch messages to brokers, developers rely on KafkaTemplate, a high-level thread-safe template class that wraps the underlying producer and provides asynchronous futures, transaction management, and fluent callback handling. Finally, orchestrating concurrency and consumer group scaling falls to ConcurrentKafkaListenerContainerFactory, the foundational factory bean responsible for instantiating MessageListenerContainers that manage multiple consumer threads, partition rebalancing strategies, and container properties in a multi-threaded JVM environment."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component",
+        "Primary Responsibility",
+        "Thread Safety Model"
+      ],
+      "rows": [
+        [
+          "@KafkaListener",
+          "Method-level annotation to consume messages from configured Kafka topics.",
+          "Thread-safe; executes container listener threads per partition."
+        ],
+        [
+          "KafkaTemplate",
+          "High-level producer wrapper for publishing messages to topics asynchronously or synchronously.",
+          "Fully thread-safe; shared safely across application singleton beans."
+        ],
+        [
+          "ConcurrentKafkaListenerContainerFactory",
+          "Factory producing multi-threaded KafkaMessageListenerContainers for concurrent consumers.",
+          "Configures concurrency levels; manages underlying consumer lifecycle threads."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "@KafkaListener inspects method signatures at runtime, injecting payloads, headers, Acknowledgment objects, and Consumer records using specialized argument resolvers.",
+        "KafkaTemplate relies internally on a pooled or singleton Kafka Producer instance, utilizing CompletableFuture extensions to handle asynchronous send guarantees and partition assignments without blocking servlet threads.",
+        "ConcurrentKafkaListenerContainerFactory spawns a specified number of KafkaMessageListenerContainers, each running an independent Kafka Consumer polling loop pinned to specific partitions via the partition assignment strategy."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class KafkaConfig {\n\n    @Bean\n    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(\n            ConsumerFactory<String, String> consumerFactory) {\n        ConcurrentKafkaListenerContainerFactory<String, String> factory =\n                new ConcurrentKafkaListenerContainerFactory<>();\n        factory.setConsumerFactory(consumerFactory);\n        factory.setConcurrency(3);\n        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);\n        return factory;\n    }\n\n    @Bean\n    public KafkaTemplate<String, String> kafkaTemplate(ProducerFactory<String, String> producerFactory) {\n        return new KafkaTemplate<>(producerFactory);\n    }\n}\n\n@Component\npublic class OrderConsumer {\n\n    @KafkaListener(topics = \"orders-topic\", groupId = \"order-service-group\")\n    public void listen(String orderPayload, Acknowledgment acknowledgment) {\n        // Process payload\n        acknowledgment.acknowledge();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall when scaling ConcurrentKafkaListenerContainerFactory with high concurrency settings is hitting partition starvation or rebalance storms. Ensure your concurrency count matches or divides cleanly into your topic partition count. Furthermore, always explicitly configure your container's AckMode when manual acknowledgment is enabled; failing to call acknowledgment.acknowledge() will result in uncommitted offsets, leading to infinite message redelivery loops upon consumer restarts."
+    }
+  ],
+  "num": 349,
+  "title": "Spring Kafka — @KafkaListener, KafkaTemplate, ConcurrentKafkaListenerContainerFactory",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

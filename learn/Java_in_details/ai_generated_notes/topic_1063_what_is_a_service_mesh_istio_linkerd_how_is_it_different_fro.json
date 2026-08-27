@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A Service Mesh is a dedicated infrastructure layer for handling service-to-service communication in a microservices architecture. It abstracts the complexity of network operations—such as service discovery, load balancing, encryption (mTLS), and observability—out of the application code and into a sidecar proxy. Istio, the most feature-rich implementation, uses the Envoy proxy to provide fine-grained traffic control, circuit breaking, and policy enforcement. Linkerd, by contrast, prioritizes performance and simplicity, utilizing a lightweight, Rust-based proxy (linkerd-proxy) designed specifically for minimal latency and operational overhead. Both solve the 'network reliability' problem by ensuring that developers don't have to implement retry logic or circuit breakers in every single language-specific service.\n\nAn API Gateway functions at the edge of your cluster, acting as the single entry point for external traffic. While a Service Mesh manages 'East-West' traffic (internal communication between services), an API Gateway manages 'North-South' traffic (external clients to internal services). The Gateway handles tasks like authentication, rate limiting, and request transformation for external consumers, whereas the Service Mesh focuses on the internal reliability and security of the service graph. In a mature architecture, they are complementary: the Gateway authenticates the user, and the Mesh ensures the internal request reaches the correct service instance securely."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Service Mesh (Istio/Linkerd)",
+        "API Gateway"
+      ],
+      "rows": [
+        [
+          "Traffic Direction",
+          "East-West (Internal)",
+          "North-South (External)"
+        ],
+        [
+          "Primary Focus",
+          "Reliability, mTLS, Observability",
+          "Routing, Auth, Rate Limiting"
+        ],
+        [
+          "Deployment",
+          "Sidecar per service",
+          "Centralized cluster ingress"
+        ],
+        [
+          "Complexity",
+          "High (Infrastructure overhead)",
+          "Moderate (Centralized management)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Sidecar Injection: In Istio, the control plane (istiod) mutates the Pod spec to inject the Envoy container, which intercepts all traffic via iptables rules, effectively transparently proxying packets.",
+        "Mutual TLS (mTLS): Service meshes automate certificate rotation and identity issuance (SPIFFE), ensuring that every internal hop is encrypted without application-level logic.",
+        "Traffic Shifting: Meshes allow for canary deployments and blue-green releases by manipulating weights at the proxy level, rather than relying on DNS changes or load balancer updates.",
+        "Linkerd's 'Micro-proxy' approach: Unlike Envoy, Linkerd's proxy is purpose-built for the mesh, resulting in a significantly smaller memory footprint and lower CPU overhead, which is critical for high-throughput, low-latency environments."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "# Istio VirtualService for traffic splitting (Canary deployment)\napiVersion: networking.istio.io/v1alpha3\nkind: VirtualService\nmetadata:\n  name: order-service\nspec:\n  hosts:\n  - order-service\n  http:\n  - route:\n    - destination:\n        host: order-service\n        subset: v1\n      weight: 90\n    - destination:\n        host: order-service\n        subset: v2\n      weight: 10"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: The most common 'gotcha' with Service Mesh is the 'Sidecar Tax.' Every request now incurs two extra network hops (App -> Sidecar -> Network -> Sidecar -> App). In latency-sensitive applications, this can lead to tail latency spikes. Always profile your P99s after enabling mTLS, as the cryptographic handshake overhead can be non-trivial at scale."
+    }
+  ],
+  "num": 1064,
+  "title": "What is a Service Mesh? (Istio, Linkerd). How is it different from an API Gateway?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

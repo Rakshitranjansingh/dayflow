@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Thread priority in Java is a hint provided to the JVM's thread scheduler, indicating the relative importance of a thread compared to others. It is defined as an integer value ranging from 1 (MIN_PRIORITY) to 10 (MAX_PRIORITY), with 5 (NORM_PRIORITY) being the default. When the scheduler decides which thread to transition from the 'Runnable' state to the 'Running' state, it may favor threads with higher priorities. However, it is critical to understand that Java thread priority is platform-dependent. The underlying OS scheduler often ignores these hints, maps them to a smaller subset of native priorities, or implements its own scheduling policies like time-slicing or preemption. Consequently, relying on thread priority for business logic or synchronization is a classic anti-pattern that leads to non-deterministic behavior and 'livelock' scenarios."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Constant",
+        "Value",
+        "Description"
+      ],
+      "rows": [
+        [
+          "MIN_PRIORITY",
+          "1",
+          "The lowest priority a thread can have."
+        ],
+        [
+          "NORM_PRIORITY",
+          "5",
+          "The default priority assigned to the main thread."
+        ],
+        [
+          "MAX_PRIORITY",
+          "10",
+          "The highest priority a thread can have."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Priority Inheritance: Java does not inherently support priority inheritance; if a low-priority thread holds a lock required by a high-priority thread, the high-priority thread will block, leading to priority inversion.",
+        "OS Mapping: On Linux, Java priorities are often mapped to 'nice' values, but because the JVM does not have root-level control over the kernel scheduler, the mapping is rarely linear or guaranteed.",
+        "Scheduler Fairness: Most modern OS schedulers implement Completely Fair Schedulers (CFS), which prioritize throughput and latency over explicit thread priority hints, rendering setPriority() calls largely ineffective in high-load production environments."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "Thread worker = new Thread(() -> {\n    System.out.println(\"Worker running with priority: \" + Thread.currentThread().getPriority());\n});\n\n// Setting priority is a hint, not a command\nworker.setPriority(Thread.MAX_PRIORITY);\nworker.start();"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never use thread priority to solve race conditions or starvation issues. If you find yourself adjusting priorities to 'fix' performance, you are likely masking a deeper architectural flaw, such as thread pool exhaustion or inefficient lock contention. Always prefer high-level concurrency utilities like ExecutorService, Semaphore, or Phaser, which provide deterministic control over task execution."
+    }
+  ],
+  "num": 650,
+  "title": "What is thread priority?",
+  "category": "Multithreading & Java Concurrency"
+}

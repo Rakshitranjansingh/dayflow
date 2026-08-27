@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Transaction isolation levels define the degree to which the operations in one transaction are hidden from other concurrent transactions. In a high-concurrency RDBMS environment, we balance data consistency against system throughput. Without isolation, we encounter three primary anomalies: Dirty Reads, where a transaction reads uncommitted data from another that might eventually roll back; Non-repeatable Reads, where a row's value changes between two reads in the same transaction because another transaction committed an update; and Phantom Reads, where a query returns a different set of rows because another transaction inserted or deleted records matching the search criteria. These anomalies arise from the fundamental trade-off between locking granularity and performance, where stricter isolation requires heavier locking or complex Multi-Version Concurrency Control (MVCC) mechanisms."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Isolation Level",
+        "Dirty Read",
+        "Non-repeatable Read",
+        "Phantom Read"
+      ],
+      "rows": [
+        [
+          "Read Uncommitted",
+          "Possible",
+          "Possible",
+          "Possible"
+        ],
+        [
+          "Read Committed",
+          "Prevented",
+          "Possible",
+          "Possible"
+        ],
+        [
+          "Repeatable Read",
+          "Prevented",
+          "Prevented",
+          "Possible"
+        ],
+        [
+          "Serializable",
+          "Prevented",
+          "Prevented",
+          "Prevented"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Read Committed uses MVCC to ensure that a transaction only sees data committed before the statement execution began, effectively eliminating dirty reads by reading the last committed snapshot.",
+        "Repeatable Read typically employs shared locks on read rows or snapshot isolation to ensure that subsequent reads within the same transaction return the exact same data, though it may still suffer from phantom reads if the engine doesn't implement range locks.",
+        "Serializable isolation is the strictest, often implemented via predicate locking or index-range locking, which forces transactions to execute as if they were strictly sequential, significantly increasing the risk of deadlocks.",
+        "In modern engines like PostgreSQL or InnoDB, MVCC is the primary mechanism; it maintains multiple versions of rows in the undo log or version store, allowing readers to access consistent snapshots without blocking writers."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Transactional(isolation = Isolation.REPEATABLE_READ)\npublic void processAccountTransfer(Long fromId, Long toId, BigDecimal amount) {\n    // In REPEATABLE_READ, the balance read here remains constant for the duration of the method\n    Account from = accountRepository.findById(fromId);\n    if (from.getBalance().compareTo(amount) >= 0) {\n        accountRepository.decrementBalance(fromId, amount);\n        accountRepository.incrementBalance(toId, amount);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is assuming 'Repeatable Read' prevents all anomalies. In MySQL/InnoDB, Repeatable Read actually prevents Phantom Reads using Next-Key Locking, which is a departure from the ANSI SQL standard definition. Always verify your specific database engine's implementation, as the 'standard' is often just a baseline for behavior, not a strict specification for every vendor."
+    }
+  ],
+  "num": 868,
+  "title": "Explain Transaction Isolation Levels and anomalies (Dirty Read, Non-repeatable read, Phantom read).",
+  "category": "Exception Handling & I/O / NIO"
+}

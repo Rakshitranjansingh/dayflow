@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Class Loader subsystem is a cornerstone of the Java Virtual Machine architecture, responsible for dynamically loading, linking, and initializing Java classes into memory during runtime. Rather than loading all application classes at startup, the JVM loads classes lazily on demand. This subsystem operates on a strict delegation hierarchy consisting of three primary built-in loaders: the Bootstrap Class Loader, the Extension or Platform Class Loader, and the Application or System Class Loader. Alongside these, developers can implement custom class loaders to load classes from unconventional sources like databases, network sockets, or encrypted streams, enabling modular architectures and hot-swapping frameworks.\n\nThe Bootstrap Class Loader sits at the root of the delegation hierarchy and is implemented natively in C/C++ rather than Java, meaning it has no corresponding java.lang.ClassLoader object (calling getClassLoader() on a core class like java.lang.String returns null). It is responsible for loading the core runtime classes essential for JVM execution, primarily located in the modularized runtime image via the 'java.base' module, such as java.lang.*, java.util.*, and core primitive wrappers. Below the Bootstrap loader lies the Extension or Platform Class Loader (historically the Extension Class Loader, refactored in Java 9 with the introduction of the Java Platform Module System). The Platform Class Loader loads platform-specific extensions and standard Java SE modules that are not part of the core java.base, such as SQL or XML parsing modules. Further down the chain is the Application or System Class Loader, which is responsible for loading classes from the application's classpath, specified via the java.class.path property, environment variables, or the modern -classpath/-cp runtime flags. When an application requests a class, the loading request propagates upward through this parent-delegation chain to prevent duplicate loading and maintain sandbox security invariants."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Loader Type",
+        "Implementation Language",
+        "Default Search Path / Source",
+        "Parent Loader"
+      ],
+      "rows": [
+        [
+          "Bootstrap Loader",
+          "Native (C/C++)",
+          "jre/lib or modules (java.base)",
+          "None (Root)"
+        ],
+        [
+          "Platform / Extension",
+          "Java",
+          "java.platform.modules / ext directories",
+          "Bootstrap"
+        ],
+        [
+          "Application / System",
+          "Java",
+          "CLASSPATH / Module Path",
+          "Platform"
+        ],
+        [
+          "Custom Loader",
+          "Java (User-defined)",
+          "Network, Database, Encrypted Files",
+          "Application (Typically)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Parent-Delegation Model: When a class loader is tasked with loading a class, it does not immediately search its own local repositories. Instead, it delegates the search request to its parent class loader up the chain. Only if the parent loader fails to find and load the class does the child loader attempt to locate it in its own defined path.",
+        "Visibility Principle: A child class loader has complete visibility to all classes loaded by its parent class loaders. However, parent class loaders cannot see or access classes loaded by their child class loaders. This structural isolation prevents unauthorized code from injecting malicious overrides into foundational core packages.",
+        "Class Uniqueness and Namespace: Within the JVM, a fully qualified class name alone does not uniquely identify a class type. Instead, identity is determined by a tuple consisting of the fully qualified name and the defining class loader instance. Two classes with the exact same binary name loaded by different class loaders are treated by the JVM as entirely distinct types, resulting in ClassCastException if assigned interchangeably.",
+        "Custom Class Loader Mechanics: By extending java.lang.ClassLoader and overriding the protected findClass(String name) method, developers can intercept bytecode loading. This is heavily utilized in application servers (like Tomcat or JBoss) to implement web-app isolation, or in OSGi frameworks to manage complex module dependencies and dynamic lifecycle reloading."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class NetworkClassLoader extends ClassLoader {\n    private final String host;\n    private final int port;\n\n    public NetworkClassLoader(ClassLoader parent, String host, int port) {\n        super(parent);\n        this.host = host;\n        this.port = port;\n    }\n\n    @Override\n    protected Class<?> findClass(String name) throws ClassNotFoundException {\n        byte[] classData = fetchClassDataFromNetwork(name);\n        if (classData == null) {\n            throw new ClassNotFoundException(name);\n        }\n        return defineClass(name, classData, 0, classData.length);\n    }\n\n    private byte[] fetchClassDataFromNetwork(String className) {\n        // Network logic to fetch raw bytecode bytes for className\n        return null;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production memory leak trap related to custom class loaders involves dynamic re-loading frameworks or application hot-deployment. Because every loaded Class object holds a strong reference to its defining ClassLoader, and the ClassLoader holds strong references to all loaded Class instances (and subsequently their static fields and static member classes), failing to drop references to a custom ClassLoader prevents the Garbage Collector from reclaiming the ClassLoader instance, its loaded classes, and the underlying Metaspace memory allocations. This quickly leads to java.lang.OutOfMemoryError: Metaspace if not handled cleanly."
+    }
+  ],
+  "num": 156,
+  "title": "Class Loader subsystem — Bootstrap, Extension/Platform, Application, custom loaders",
+  "category": "Exception Handling & I/O / NIO"
+}

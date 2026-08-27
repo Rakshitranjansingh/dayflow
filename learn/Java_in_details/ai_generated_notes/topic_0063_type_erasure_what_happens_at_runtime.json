@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Type erasure is a foundational compilation mechanism introduced in Java 5 to implement generics while maintaining complete backward compatibility with legacy byte code compiled against pre-generic Java versions. When you write generic classes, interfaces, or methods utilizing parameterized types (such as List<String>), the Java compiler strictly enforces type safety during compile-time through static analysis, checking for type mismatches before a single byte of bytecode is emitted. However, once verification concludes, the compiler strips away all generic type parameters—a process known as erasure—replacing them with their bounds or, by default, with java.lang.Object. This ensures that the Java Virtual Machine (JVM) at runtime has no native awareness of generic types like List<String> or List<Integer>; they both resolve down to a raw java.util.List at the bytecode level.\n\nUnderstanding what happens at runtime under type erasure requires looking closely at bytecode generation and how the compiler handles parameterized signatures. Because generic type information is erased, the runtime bytecode only sees raw types and casts. When a developer invokes a method returning a generic type, the compiler automatically and invisibly injects a checkcast instruction to cast the returned Object to the expected target type. Furthermore, to preserve polymorphism when overriding methods in generic classes where type parameters are bounded or substituted, the compiler occasionally generates synthetic bridge methods. These synthetic bridge methods bridge the gap between the erased raw method signature and the parameterized subclass signature, ensuring that method overriding and dynamic dispatch behave correctly despite the underlying type parameters being entirely absent from the JVM's type system."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Concept",
+        "Compile-Time Reality",
+        "Runtime Reality (Post-Erasure)"
+      ],
+      "rows": [
+        [
+          "Type Safety",
+          "Strictly enforced via compiler checks and generic signatures.",
+          "Enforced implicitly via inserted checkcast instructions."
+        ],
+        [
+          "Bytecode Representation",
+          "Contains signatures with type variables and bounds.",
+          "Erased to raw types (Object or the explicit upper bound)."
+        ],
+        [
+          "Reflection API",
+          "Can query generic interfaces via AnnotatedType and TypeVariable.",
+          "Cannot query direct generic type arguments of instances (e.g., List<String> is just List.class)."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Unbounded type parameters (like <T>) are entirely replaced with java.lang.Object throughout the bytecode, making operations on T restricted to methods available on Object unless bounded.",
+        "Bounded type parameters (like <T extends Number>) are replaced with the leftmost bounding type (in this case, java.lang.Number), allowing the compiler to emit direct method calls against that bound without requiring casts for every invocation.",
+        "The compiler generates bridge methods (marked as ACC_BRIDGE and ACC_SYNTHETIC in the bytecode) to preserve polymorphism when a parameterized class is extended or implemented with concrete types.",
+        "Signature attributes are retained in the class file metadata specifically for reflection frameworks (like Spring or Jackson) to inspect generic types via parameterized types, even though the JVM execution engine ignores them."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class TypeErasureDemo<T extends Comparable<T>> {\n    private T data;\n\n    public TypeErasureDemo(T data) {\n        this.data = data;\n    }\n\n    public T getData() {\n        return data;\n    }\n\n    public static void main(String[] args) {\n        TypeErasureDemo<String> demo = new TypeErasureDemo<>(\"Hello\");\n        String val = demo.getData(); // Compiler injects checkcast String here\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production gotcha stemming from type erasure is the inability to perform runtime type checks against parameterized types, such as `if (list instanceof List<String>)`, which fails to compile because generic type arguments do not exist at runtime. Additionally, heap pollution can occur when mixing raw types with parameterized types, leading to unexpected ClassCastExceptions far away from the actual source of the bug during runtime execution."
+    }
+  ],
+  "num": 64,
+  "title": "Type erasure — what happens at runtime",
+  "category": "Generics & Type System"
+}

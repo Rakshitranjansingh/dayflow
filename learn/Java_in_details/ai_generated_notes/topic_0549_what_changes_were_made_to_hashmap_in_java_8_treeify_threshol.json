@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Prior to Java 8, the HashMap implementation relied exclusively on a linked-list structure for handling hash collisions. When multiple keys mapped to the same bucket (a scenario known as a collision), the map would append the new entry to a linked list. In the worst-case scenario—where a malicious actor or poor hash function distribution causes all keys to land in the same bucket—the lookup complexity degrades to O(n). This vulnerability was a significant vector for Denial of Service (DoS) attacks, as an attacker could flood a server with keys that force the JVM to perform linear scans on massive linked lists.\n\nJava 8 introduced a structural transformation to address this: the transition from linked lists to balanced Red-Black trees. This mechanism is triggered by the 'treeify threshold' (a constant value of 8). When a bin contains more than 8 elements, the HashMap converts the linked list into a tree structure. This shift ensures that even in the event of high collision density, the worst-case lookup time complexity is improved to O(log n), providing a robust defense against performance degradation and algorithmic complexity attacks."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Java 7 and earlier",
+        "Java 8 and later"
+      ],
+      "rows": [
+        [
+          "Collision Handling",
+          "Linked List",
+          "Linked List + Red-Black Tree"
+        ],
+        [
+          "Worst-case Lookup",
+          "O(n)",
+          "O(log n)"
+        ],
+        [
+          "Memory Overhead",
+          "Lower (Node object)",
+          "Higher (TreeNode object)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The TREEIFY_THRESHOLD is set to 8; if a bin exceeds this count, the bin is converted to a tree, provided the total table capacity is at least 64 (MIN_TREEIFY_CAPACITY).",
+        "The UNTREEIFY_THRESHOLD is set to 6; if a resize operation shrinks the bin count below this value, the tree is converted back into a linked list to save memory.",
+        "TreeNode objects are significantly larger than standard Node objects due to the additional pointers required for the tree structure (parent, left, right, prev, and red/black color flag).",
+        "The hash calculation for keys remains identical, but the internal bin traversal logic now uses 'instanceof' checks to determine whether to perform a linear list search or a tree-based search."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "final void treeifyBin(Node<K,V>[] tab, int hash) {\n    int n, index; Node<K,V> e;\n    if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY)\n        resize();\n    else if ((e = tab[index = (n - 1) & hash]) != null) {\n        TreeNode<K,V> hd = null, tl = null;\n        do {\n            TreeNode<K,V> p = replacementTreeNode(e, null);\n            if (tl == null) hd = p;\n            else {\n                p.prev = tl;\n                tl.next = p;\n            }\n            tl = p;\n        } while ((e = e.next) != null);\n        if ((tab[index] = hd) != null)\n            hd.treeify(tab);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior engineers often overlook that the treeification process is not just about the threshold of 8; the MIN_TREEIFY_CAPACITY (64) is a critical guardrail. If your HashMap is small, it will resize rather than treeify, even if you have many collisions. Furthermore, if you implement a custom class as a HashMap key, ensure your hashCode() method is high-quality. While O(log n) is better than O(n), it is still significantly slower than the O(1) performance of a well-distributed hash table. Relying on the tree structure to 'fix' a poor hash function is a performance anti-pattern."
+    }
+  ],
+  "num": 550,
+  "title": "What changes were made to HashMap in Java 8? (Treeify threshold, O(log n) lookup)",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

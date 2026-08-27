@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Handling multiple DataSources in a single Spring Boot application is a classic enterprise architecture requirement, typically emerging when an application needs to segregate read/write traffic, integrate with legacy databases alongside a new domain store, or manage distinct transactional boundaries across separate bounded contexts. Out of the box, Spring Boot's autoconfiguration relies on a single DataSource bean, a single PlatformTransactionManager, and a single EntityManagerFactory. When introducing multiple data sources, you must dismantle this convention-over-configuration safety net. This requires explicitly defining individual DataSource instances (often using HikariCP properties), configuring bespoke LocalContainerEntityManagerFactoryBean instances for each database, and establishing distinct PlatformTransactionManagers to govern persistence operations. Furthermore, you must carefully assign @Primary markers or qualify wiring injections to prevent Spring's container from throwing non-unique bean definition exceptions during context initialization."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component",
+        "Single DataSource Setup",
+        "Multiple DataSource Setup"
+      ],
+      "rows": [
+        [
+          "DataSource Bean",
+          "Auto-configured via spring.datasource.*",
+          "Manually instantiated (e.g., primaryDataSource, secondaryDataSource)"
+        ],
+        [
+          "EntityManagerFactory",
+          "Implicitly managed by Spring Boot auto-config",
+          "Explicitly declared LocalContainerEntityManagerFactoryBean per store"
+        ],
+        [
+          "Transaction Management",
+          "Single DataSourceTransactionManager or JpaTransactionManager",
+          "Multiple PlatformTransactionManagers bound via @Qualifier"
+        ],
+        [
+          "Repository Scanning",
+          "@EnableJpaRepositories uses default package scan",
+          "@EnableJpaRepositories scoped strictly via basePackages and entityManagerFactoryRef"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "To prevent repositories from targeting the wrong database, you must partition your project packages logically and configure explicit basePackages and entityManagerFactoryRef attributes inside the @EnableJpaRepositories annotations.",
+        "Transaction demarcation requires extreme care; service methods interacting with multiple data sources simultaneously cannot rely on a single @Transactional annotation and require chained transaction managers or explicit programmatic transaction templates.",
+        "HikariCP connection pool parameters should be tuned independently for each DataSource to match the expected load characteristics of that specific underlying database instance."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableJpaRepositories(\n    basePackages = \"com.example.repository.primary\",\n    entityManagerFactoryRef = \"primaryEntityManagerFactory\",\n    transactionManagerRef = \"primaryTransactionManager\"\n)\npublic class PrimaryDatabaseConfig {\n\n    @Primary\n    @Bean(name = \"primaryDataSource\")\n    @ConfigurationProperties(prefix = \"spring.datasource.primary\")\n    public DataSource primaryDataSource() {\n        return DataSourceBuilder.create().build();\n    }\n\n    @Primary\n    @Bean(name = \"primaryEntityManagerFactory\")\n    public LocalContainerEntityManagerFactoryBean primaryEntityManagerFactory(\n            EntityManagerFactoryBuilder builder,\n            @Qualifier(\"primaryDataSource\") DataSource primaryDataSource) {\n        return builder\n                .dataSource(primaryDataSource)\n                .packages(\"com.example.domain.primary\")\n                .persistenceUnit(\"primary\")\n                .build();\n    }\n\n    @Primary\n    @Bean(name = \"primaryTransactionManager\")\n    public PlatformTransactionManager primaryTransactionManager(\n            @Qualifier(\"primaryEntityManagerFactory\") EntityManagerFactory primaryEntityManagerFactory) {\n        return new JpaTransactionManager(primaryEntityManagerFactory);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production pitfall when handling multiple data sources is forgetting to disable Spring Boot's Hibernate auto-DDL (`spring.jpa.hibernate.ddl-auto`) in the global application.properties and instead letting it bleed into your custom EntityManagerFactory configurations. Always explicitly configure your DDL and dialect settings within the respective builder calls to avoid unexpected schema alterations on your secondary databases during startup."
+    }
+  ],
+  "num": 853,
+  "title": "How do you handle Multiple DataSources in a single Spring Boot application?",
+  "category": "Spring Boot & Spring Framework"
+}

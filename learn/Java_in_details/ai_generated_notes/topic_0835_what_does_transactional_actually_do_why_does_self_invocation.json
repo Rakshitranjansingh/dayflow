@@ -1,0 +1,48 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "At its core, @Transactional is a declarative abstraction provided by Spring to manage transaction boundaries without polluting your business logic with boilerplate JDBC or JTA code. When you annotate a method with @Transactional, Spring creates a proxy around your bean. This proxy intercepts calls to the method, opens a transaction via the PlatformTransactionManager, executes the method, and then either commits or rolls back based on whether an exception was thrown. It handles the underlying connection lifecycle, ensuring that the connection is bound to the current thread via ThreadLocal, which allows downstream components like repositories to participate in the same unit of work.\n\nThe self-invocation issue occurs because of how Spring AOP (Aspect-Oriented Programming) proxies work. By default, Spring uses dynamic proxies (JDK or CGLIB). When you call a method inside the same class, you are calling the method directly on the 'this' reference—the raw object instance—bypassing the proxy entirely. Because the proxy is never invoked, the interceptor logic that starts the transaction never fires. Consequently, any database operations within that method execute outside the transactional context, leading to unexpected behavior where changes might not be committed or atomicity is lost."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Mechanism",
+        "External Call",
+        "Self-Invocation"
+      ],
+      "rows": [
+        [
+          "Proxy Interception",
+          "Yes (Proxy handles @Transactional)",
+          "No (Bypasses proxy, hits raw instance)"
+        ],
+        [
+          "Transaction Context",
+          "Active (Bound to ThreadLocal)",
+          "None (No transaction started)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring uses CGLIB or JDK Dynamic Proxies to wrap your beans. The proxy acts as a gatekeeper that wraps the target method call with begin/commit/rollback logic.",
+        "The 'this' reference in Java points to the actual object instance, not the proxy. Therefore, internal method calls are 'naked' and lack the cross-cutting concerns defined by AOP.",
+        "To fix self-invocation, you can either refactor the transactional method into a separate service bean (recommended) or use AopContext.currentProxy() to invoke the method through the proxy, though the latter is considered a code smell."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderService {\n    // This will NOT be transactional because it's called internally\n    public void processOrder(Order order) {\n        saveOrder(order); \n    }\n\n    @Transactional\n    public void saveOrder(Order order) {\n        repository.save(order);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is assuming @Transactional works on private methods. It does not. Spring's proxy-based AOP requires methods to be public (or protected/package-private depending on the proxy type) to be intercepted. Furthermore, if you catch an exception inside your @Transactional method without rethrowing it, the transaction will still attempt to commit because the proxy never sees the exception. Always rethrow or use TransactionAspectSupport.currentTransactionStatus().setRollbackOnly() if you must swallow the exception."
+    }
+  ],
+  "num": 836,
+  "title": "What does @Transactional actually do? Why does self-invocation break @Transactional?",
+  "category": "Spring Boot & Spring Framework"
+}

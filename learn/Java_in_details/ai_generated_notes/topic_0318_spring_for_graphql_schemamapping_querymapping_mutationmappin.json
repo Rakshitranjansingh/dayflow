@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring for GraphQL bridges the gap between the declarative, client-driven querying power of GraphQL and the robust enterprise ecosystem of the Spring Framework. By moving away from rigid REST endpoints and the traditional one-size-fits-all payload architectures, Spring for GraphQL allows developers to map incoming GraphQL operations directly to execution targets inside Spring beans using specialized stereotype annotations. At the core of this runtime execution model are three critical mapping annotations: @QueryMapping, @MutationMapping, and @SchemaMapping.\n\nThe @QueryMapping annotation is a specialized convenience variant of @SchemaMapping that binds incoming GraphQL queries from the 'Query' type directly to Java methods. It automatically infers the GraphQL field name from the method name unless explicitly overridden. Similarly, @MutationMapping handles root-level write operations defined under the 'Mutation' type, allowing clients to modify server-side state and receive precise payloads back in response. For non-root fields, or when you need granular control over object graphs, the @SchemaMapping annotation takes center stage. It maps any arbitrary field in your GraphQL schema to a Java method, enabling efficient field-level data fetching, traversal of complex relational object graphs, and seamless integration with data loaders to solve the notorious N+1 query problem."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Annotation",
+        "GraphQL Operation Type",
+        "Default Field Name Inference",
+        "Typical Use Case"
+      ],
+      "rows": [
+        [
+          "@QueryMapping",
+          "query",
+          "Inferred from Java method name",
+          "Fetching aggregates, entities, or read-only read models"
+        ],
+        [
+          "@MutationMapping",
+          "mutation",
+          "Inferred from Java method name",
+          "Creating, updating, or deleting server-side records"
+        ],
+        [
+          "@SchemaMapping",
+          "Any (Query, Mutation, or Object)",
+          "Requires explicit field/type attributes if method name differs",
+          "Resolving nested object fields and relational subgraphs"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Runtime Wiring and DataFetcher Registration: Spring for GraphQL inspects classes annotated with @Controller during application startup, scanning for @QueryMapping, @MutationMapping, and @SchemaMapping to dynamically register RuntimeWiring components and DataFetcher instances.",
+        "Argument Resolution Pipeline: Method parameters in these mapping methods are automatically resolved using a rich set of HandlerMethodArgumentResolvers, supporting annotations like @Argument, @ContextValue, @LocalContextValue, and direct binding to target DataFetchingEnvironment objects.",
+        "Batching and N+1 Prevention: @SchemaMapping methods work in tandem with Spring's BatchLoaderRegistry, allowing developers to implement reactive or imperative batch loaders that aggregate database queries across distinct field resolution phases."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Controller\npublic class BookController {\n\n    private final BookRepository bookRepository;\n    private final AuthorRepository authorRepository;\n\n    public BookController(BookRepository bookRepository, AuthorRepository authorRepository) {\n        this.bookRepository = bookRepository;\n        this.authorRepository = authorRepository;\n    }\n\n    @QueryMapping\n    public List<Book> books() {\n        return bookRepository.findAll();\n    }\n\n    @MutationMapping\n    public Book addBook(@Argument String title, @Argument Long authorId) {\n        return bookRepository.save(new Book(title, authorId));\n    }\n\n    @SchemaMapping(typeName = \"Book\", field = \"author\")\n    public CompletableFuture<Author> getAuthor(Book book, DataLoader<Long, Author> loader) {\n        return loader.load(book.getAuthorId());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when using @SchemaMapping for nested fields is accidentally triggering the N+1 query problem. If you resolve a list of 100 books and fetch each book's author inside a naive synchronous @SchemaMapping method without a DataLoader, you will execute 101 distinct database round-trips. Always leverage GraphQL Java's DataLoader mechanism combined with CompletableFuture or Project Reactor's Mono to batch downstream relational fetches."
+    }
+  ],
+  "num": 319,
+  "title": "Spring for GraphQL — @SchemaMapping, @QueryMapping, @MutationMapping",
+  "category": "REST APIs, WebFlux & Microservices"
+}

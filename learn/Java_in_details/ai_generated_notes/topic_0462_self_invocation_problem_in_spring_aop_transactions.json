@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The self-invocation problem in Spring AOP and declarative transactions (@Transactional) is one of the most insidious architectural traps encountered by Java developers working with the Spring Framework. To understand why it happens, we must examine how Spring implements aspect-oriented programming and transaction management: through dynamic proxies. When a client calls a public method on a Spring bean, it is rarely invoking the raw target instance directly. Instead, Spring wraps the bean in either a JDK dynamic proxy (if implementing interfaces) or a CGLIB subclass proxy (for class-based proxies). This proxy intercepts the method call, invokes any configured interceptors—such as transaction interceptors that start a database session or open a connection—and then delegates the call to the actual target object.\n\nThe self-invocation problem occurs when a method within the target bean calls another method on *itself* using the `this` reference. Because `this` points to the raw target object and not the surrounding proxy, the internal method call completely bypasses the proxy infrastructure. Consequently, any cross-cutting concerns attached to the inner method—most notably @Transactional declarative transaction boundaries, security checks, or caching annotations—are entirely ignored. If an inner method throws an exception, the outer caller's transaction manager will not catch it to trigger a rollback, or conversely, a method marked with @Transactional(propagation = Propagation.REQUIRES_NEW) will execute within the context of the calling transaction instead of spinning up a new physical transaction, leading to unexpected data consistency bugs."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Proxy Bypass Mechanism: The `this` reference inside a Spring bean instance refers to the raw target object, routing execution straight to the target's method table without traversing the `AopProxy` or `MethodInterceptor` chains.",
+        "Transaction Interceptor Ignored: Declarative transaction management relies on the `TransactionInterceptor` catching exceptions and handling commits/rollbacks. Self-invocation never hits this interceptor.",
+        "Refactoring Solutions: The problem can be resolved either by refactoring the self-invoking method into a separate Spring-managed bean, or by injecting an application context-aware proxy of the current bean using `AopContext.currentProxy()`."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderService {\n\n    @Autowired\n    private OrderRepository orderRepository;\n\n    // The public entry point\n    public void processOrder(Order order) {\n        // BUG: Self-invocation! 'this.validateAndSave' bypasses the Spring proxy.\n        // The @Transactional annotation on validateAndSave will be completely ignored.\n        this.validateAndSave(order);\n    }\n\n    @Transactional(propagation = Propagation.REQUIRES_NEW)\n    public void validateAndSave(Order order) {\n        orderRepository.save(order);\n        // If an exception occurs here, no new transaction was actually created,\n        // and rollback behavior will not match expectations of REQUIRES_NEW.\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "In production, relying on `AopContext.currentProxy()` to fix self-invocation requires setting `@EnableAspectJAutoProxy(exposeProxy = true)` explicitly on your configuration, otherwise it throws an IllegalStateException indicating that no proxy is available. However, heavy reliance on `AopContext` smells like a code smell; the cleaner architectural fix is always to extract the transactional logic into a distinct collaborator service bean."
+    }
+  ],
+  "num": 463,
+  "title": "Self-invocation problem in Spring AOP / Transactions",
+  "category": "Spring Boot & Spring Framework"
+}

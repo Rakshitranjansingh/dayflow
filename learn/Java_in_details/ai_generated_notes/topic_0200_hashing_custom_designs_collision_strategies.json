@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In high-throughput Java applications, particularly those dealing with low-level network I/O, NIO buffers, and custom caching layers, understanding hashing mechanics goes far beyond basic java.util.HashMap usage. Hashing transforms arbitrary keys into fixed-size integer values through a hash function, driving fast lookups in O(1) average time complexity. However, designing custom hash implementations requires careful consideration of bit-mixing, distribution uniformity, and memory locality to avoid catastrophic performance degradations under load. When two distinct inputs yield the same hash value, a collision occurs, demanding robust collision strategies like chaining or open addressing to maintain correctness."
+    },
+    {
+      "type": "prose",
+      "content": "In the context of I/O, NIO, and exceptional state management—such as tracking open file descriptors, managing direct byte buffer pools, or routing non-blocking socket channels—custom hashing prevents denial-of-service vectors caused by adversarial input crafted to trigger worst-case O(N) lookup times. Custom designs often leverage non-cryptographic hash functions like MurmurHash3 or WyHash, prioritizing raw throughput and avalanche effects over cryptographic security. Furthermore, collision resolution strategies dictate how memory is traversed when slots are contested; chaining utilizes linked lists or balanced trees per bucket, whereas open addressing uses linear probing, quadratic probing, or double hashing to store entries directly within a flat array, maximizing CPU cache line utilization."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy Aspect",
+        "Chaining (Separate Chaining)",
+        "Open Addressing (Linear Probing)"
+      ],
+      "rows": [
+        [
+          "Memory Layout",
+          "Array of bucket pointers pointing to linked nodes (scattered heap allocation)",
+          "Contiguous array of key-value slots (high cache locality)"
+        ],
+        [
+          "Load Factor Impact",
+          "Graceful degradation; performance drops linearly with chain length",
+          "Severe clustering issues; performance plummets as load factor approaches 1.0"
+        ],
+        [
+          "Deletion Complexity",
+          "Simple node unlinking",
+          "Requires tombstone markers to preserve probe sequences"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Custom hash designs must exhibit the avalanche effect: flipping a single bit in the input key should statistically flip roughly 50% of the bits in the resulting hash code to prevent clustering in power-of-two sized tables.",
+        "When implementing open addressing for low-latency I/O buffers, keeping the table capacity as a prime number minimizes common divisor interactions with poorly distributed hash codes, whereas power-of-two sizing allows fast bitwise masking instead of modulo operations.",
+        "Collision chaining in modern Java (post-Java 8 HashMap) automatically treeifies buckets from linked lists to red-black trees when a single bin exceeds a threshold of 8 elements, preventing malicious O(N^2) HashDoS attacks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public final class FastDirectBufferRegistry {\n    private final long[] keys;\n    private final Object[] values;\n    private final int capacityMask;\n\n    public FastDirectBufferRegistry(int capacity) {\n        int cap = Integer.highestOneBit(capacity) << 1;\n        this.keys = new long[cap];\n        this.values = new Object[cap];\n        this.capacityMask = cap - 1;\n    }\n\n    private int hash(long key) {\n        long h = key ^ (key >>> 30);\n        h *= 0xbf58476d1ce4e5b9L;\n        h ^= (h >>> 27);\n        h *= 0x94d049bb133111ebL;\n        return (int)(h ^ (h >>> 31));\n    }\n\n    public void put(long address, Object buffer) {\n        int idx = hash(address) & capacityMask;\n        while (keys[idx] != 0L && keys[idx] != address) {\n            idx = (idx + 1) & capacityMask;\n        }\n        keys[idx] = address;\n        values[idx] = buffer;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: When writing custom open-addressing hash maps for NIO off-heap pointer tracking, failing to handle 'tombstones' during deletions leads to memory leaks and broken probe chains. If you simply clear a slot by setting it to zero, subsequent lookups for keys that were inserted further down the probe sequence will prematurely return 'not found'. Always use a dedicated tombstone sentinel object or bitset to mark deleted slots."
+    }
+  ],
+  "num": 201,
+  "title": "Hashing — custom designs, collision strategies",
+  "category": "Exception Handling & I/O / NIO"
+}

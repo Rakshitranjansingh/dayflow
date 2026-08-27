@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Centralized configuration is an architectural pattern designed to solve the 'configuration drift' problem in distributed systems. Instead of hardcoding properties in application.properties or YAML files bundled within deployment artifacts, configuration is externalized into a single, version-controlled source of truth, such as a Git repository or a dedicated Key-Value store like HashiCorp Consul. This allows operators to update environment-specific settings—like database credentials, feature flags, or circuit breaker thresholds—without requiring a full recompilation or redeployment of the microservice. By decoupling the configuration lifecycle from the application lifecycle, teams can achieve immutable infrastructure where the same binary artifact behaves differently based on its environment context.\n\nSpring Cloud acts as the glue for these distributed systems, providing a suite of tools built on top of Spring Boot to manage the complexities of microservice orchestration. While centralized configuration is handled specifically by Spring Cloud Config, the broader Spring Cloud ecosystem addresses the 'fallacies of distributed computing.' It provides abstractions for service discovery (Eureka/Consul), load balancing (LoadBalancer), fault tolerance (Resilience4j), and API gateway routing (Spring Cloud Gateway). Essentially, Spring Cloud transforms a collection of independent JVM processes into a cohesive, manageable ecosystem by automating the plumbing that would otherwise require custom, error-prone boilerplate code."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Traditional Config",
+        "Centralized Config"
+      ],
+      "rows": [
+        [
+          "Deployment",
+          "Requires rebuild/restart",
+          "Dynamic refresh via Actuator"
+        ],
+        [
+          "Security",
+          "Secrets in plain text/files",
+          "Encrypted via Vault/JCE"
+        ],
+        [
+          "Consistency",
+          "Drift across nodes",
+          "Atomic global updates"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring Cloud Config Server acts as a REST-based proxy that fetches configuration from a backend repository, parses it into an Environment object, and serves it to client applications via HTTP.",
+        "Clients use the 'Bootstrap Context'—a parent application context initialized before the main application context—to fetch remote properties early in the startup sequence.",
+        "Dynamic configuration updates are facilitated by the @RefreshScope annotation, which forces the proxy to re-instantiate beans upon receiving a /refresh event, effectively swapping out dependencies at runtime.",
+        "Spring Cloud utilizes the Netflix Ribbon (legacy) or Spring Cloud LoadBalancer to handle client-side load balancing, ensuring that requests are distributed across healthy service instances discovered via service registries."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RefreshScope\npublic class ConfigController {\n    @Value(\"${app.feature.enabled:false}\")\n    private boolean isEnabled;\n\n    @GetMapping(\"/status\")\n    public String getStatus() {\n        return \"Feature enabled: \" + isEnabled;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall with @RefreshScope is the 'proxy overhead.' Because @RefreshScope creates a scoped proxy to allow for dynamic bean replacement, you may encounter 'BeanNotOfRequiredTypeException' if you attempt to cast the proxy to the concrete implementation rather than the interface. Additionally, always ensure that your Config Server is highly available; if the Config Server is unreachable during a rolling restart, your entire cluster may fail to bootstrap, turning your configuration layer into a single point of failure."
+    }
+  ],
+  "num": 1050,
+  "title": "What is centralized configuration? What is Spring Cloud used for?",
+  "category": "Exception Handling & I/O / NIO"
+}

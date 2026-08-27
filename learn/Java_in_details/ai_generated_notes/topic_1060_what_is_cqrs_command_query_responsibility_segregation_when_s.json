@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Command Query Responsibility Segregation (CQRS) is an architectural pattern that separates read operations (Queries) from write operations (Commands) at the architectural, model, and often data-store level. In traditional CRUD architectures, the same domain model, object graph, and relational database schema serve both transactional updates and user-facing reads. This creates severe friction as systems scale: write models must enforce complex business invariants, validation rules, and ACID guarantees via heavy normalization, whereas read models thrive on denormalized, flattened projections optimized for low-latency retrieval. By splitting these responsibilities, CQRS allows engineers to scale read and write paths independently, optimize database indexes specifically for distinct access patterns, and evolve domain logic without breaking query APIs.\n\nTo understand CQRS fully, one must dissect its two constituent concepts: Commands and Queries. Commands represent state-changing intents (e.g., CreateOrder, CancelSubscription) that modify the state of the system, return no data (or strictly an identifier/status), and must strictly enforce business rules. Queries represent pure data retrieval requests (e.g., GetOrderDetails, FetchUserDashboard) that carry zero side effects, never mutate domain state, and are optimized entirely for payload delivery speed. When you combine CQRS with Event-Driven Architecture, write models emit domain events upon successful execution, which are then consumed by background processors to project data into optimized read stores, such as Elasticsearch, Redis, or read-optimized SQL replicas."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Command Side (Writes)",
+        "Query Side (Reads)"
+      ],
+      "rows": [
+        [
+          "Primary Objective",
+          "Enforce business invariants and safely modify state",
+          "Retrieve data quickly and efficiently for clients"
+        ],
+        [
+          "Data Model",
+          "Normalized, highly structured domain aggregates",
+          "Denormalized flat views, materialized projections"
+        ],
+        [
+          "Consistency Model",
+          "Strongly consistent (ACID transactions, locking)",
+          "Eventually consistent (via asynchronous event streaming)"
+        ],
+        [
+          "Scaling Strategy",
+          "Scale write nodes, vertical DB scaling, write-locks",
+          "Horizontal read replicas, caching layers, CDNs"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Asymmetric Scalability: In high-throughput enterprise systems, the read-to-write ratio is often 100:1. CQRS allows you to deploy 10 read replicas backed by a read-optimized cache while keeping a single, highly secured master database for commands.",
+        "Simplified Domain Models: By stripping read-specific DTO projections, reporting fields, and UI display logic out of the write model, your aggregates become pure behavioral boundaries focused purely on business rules.",
+        "Eventual Consistency Latency: Because writes are decoupled from reads via message brokers like Apache Kafka or RabbitMQ, read models lag behind the write model by milliseconds or seconds. UI layers must be designed to gracefully handle this eventual consistency.",
+        "Increased Operational Complexity: Implementing CQRS requires maintaining two separate schemas, writing projection handlers, handling message deduplication, and managing distributed transactions or compensation logic."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public record CreateOrderCommand(UUID orderId, String customerId, List<OrderItemDto> items) {}\n\npublic record OrderDetailsQuery(UUID orderId) {}\n\n@Component\npublic class OrderCommandHandler {\n    private final OrderRepository orderRepository;\n    private final ApplicationEventPublisher eventPublisher;\n\n    public OrderCommandHandler(OrderRepository orderRepository, ApplicationEventPublisher eventPublisher) {\n        this.orderRepository = orderRepository;\n        this.eventPublisher = eventPublisher;\n    }\n\n    @Transactional\n    public void handle(CreateOrderCommand command) {\n        Order order = Order.create(command.orderId(), command.customerId(), command.items());\n        orderRepository.save(order);\n        eventPublisher.publishEvent(new OrderCreatedEvent(order.getId(), order.getCustomerId(), order.getTotal()));\n    }\n}\n\n@Component\npublic class OrderQueryHandler {\n    private final JdbcTemplate jdbcTemplate;\n\n    public OrderQueryHandler(JdbcTemplate jdbcTemplate) {\n        this.jdbcTemplate = jdbcTemplate;\n    }\n\n    public OrderDetailsDto handle(OrderDetailsQuery query) {\n        String sql = \"SELECT order_id, customer_id, total_amount, status FROM read_order_view WHERE order_id = ?\";\n        return jdbcTemplate.queryForObject(sql, new OrderRowMapper(), query.orderId());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Do not adopt CQRS for standard CRUD applications just because you anticipate future scale; doing so introduces massive accidental complexity. Only apply CQRS when you have severe asymmetric load, complex domain logic that clashes with reporting structures, or strict requirements for independent read/write scaling. A common production trap is failing to handle out-of-order event delivery in your projection handlers, leading to read models showing stale or corrupted states."
+    }
+  ],
+  "num": 1061,
+  "title": "What is CQRS (Command Query Responsibility Segregation)? When should you use it?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

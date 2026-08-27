@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing observability into a system is the practice of instrumenting your application to provide high-cardinality data that allows you to answer arbitrary questions about its internal state. Observability is built on the three pillars of telemetry: Metrics (aggregated numerical data), Logs (discrete event records), and Traces (causal chains of execution across service boundaries). Unlike monitoring, which tells you that a system is broken, observability provides the context required to understand why it is broken. Audit logging, by contrast, is a specialized subset of observability focused on security and compliance. It records 'who did what and when' to ensure accountability. While standard application logs might capture transient errors or debug information, audit logs must be immutable, tamper-proof, and often stored in a separate, highly secure repository to satisfy regulatory requirements like PCI-DSS or HIPAA."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Observability (Telemetry)",
+        "Audit Logging"
+      ],
+      "rows": [
+        [
+          "Primary Goal",
+          "System health & debugging",
+          "Compliance & accountability"
+        ],
+        [
+          "Data Retention",
+          "Short-term (days/weeks)",
+          "Long-term (years/permanent)"
+        ],
+        [
+          "Access Control",
+          "Developers/SREs",
+          "Security/Compliance Officers"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Implement Distributed Tracing using OpenTelemetry to propagate Trace IDs across thread boundaries and network calls, ensuring you can reconstruct the full request lifecycle.",
+        "Use structured logging (JSON format) for both application and audit logs to allow log aggregators like ELK or Splunk to index fields efficiently without expensive regex parsing.",
+        "For audit logging, employ the 'Decorator' or 'Aspect-Oriented Programming' (AOP) pattern to intercept sensitive method calls, ensuring that audit events are captured even if the business logic throws an exception.",
+        "Ensure audit logs include the 'Principal' (the authenticated user), the 'Action' performed, the 'Resource' accessed, and the 'Outcome' (success/failure) to provide a complete forensic trail."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Aspect\n@Component\npublic class AuditAspect {\n    @Around(\"@annotation(AuditAction)\")\n    public Object audit(ProceedingJoinPoint joinPoint) throws Throwable {\n        String user = SecurityContextHolder.getContext().getAuthentication().getName();\n        Object result = joinPoint.proceed();\n        log.info(\"AUDIT: User={} Action={} Status=SUCCESS\", user, joinPoint.getSignature().getName());\n        return result;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is logging sensitive PII (Personally Identifiable Information) in standard application logs. Always use a masking utility to scrub sensitive data before it hits the logging appender. For audit logs, never rely on the application's standard log rotation; stream them to a write-once-read-many (WORM) storage solution to prevent malicious actors from deleting their own tracks after a compromise."
+    }
+  ],
+  "num": 1108,
+  "title": "How do you design observability into a system? Audit logging?",
+  "category": "Core Java & Fundamentals"
+}

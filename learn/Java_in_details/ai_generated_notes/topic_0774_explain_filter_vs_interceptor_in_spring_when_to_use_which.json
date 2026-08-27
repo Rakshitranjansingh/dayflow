@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the architecture of a Spring-based web application, both Filters and Interceptors are foundational mechanisms used to intercept incoming HTTP requests and outgoing responses. However, they operate at completely different layers of the execution lifecycle, solving distinct problems. A Filter is a standard Java EE component defined by the Servlet specification (javax.servlet.Filter or jakarta.servlet.Filter). It sits outside the Spring IoC container's web framework context, operating directly within the servlet container's pipeline before any DispatcherServlet processing occurs. Because of this, Filters have no inherent knowledge of Spring MVC controllers, handlers, or method arguments; they see raw HTTP requests and responses.\n\nConversely, an Interceptor (HandlerInterceptor in Spring MVC) is a native Spring component managed by the application context. It executes deeper within the request lifecycle, specifically after the DispatcherServlet has received the request and mapped it to a specific handler (controller method) using a HandlerMapping. This privileged positioning allows Interceptors to interact directly with the Spring ecosystem, including controller instances, method signatures, and ModelMaps. Understanding the boundary between these two mechanisms is critical for designing performant, clean enterprise applications."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Servlet Filter",
+        "Spring Interceptor"
+      ],
+      "rows": [
+        [
+          "Specification",
+          "Jakarta EE / Servlet API",
+          "Spring Framework (HandlerInterceptor)"
+        ],
+        [
+          "Container Awareness",
+          "Servlet Container (Tomcat, Jetty)",
+          "Spring IoC Container / DispatcherServlet"
+        ],
+        [
+          "Execution Timing",
+          "Before DispatcherServlet",
+          "After DispatcherServlet, before/after Controller"
+        ],
+        [
+          "Access to Handler",
+          "No",
+          "Yes (via Object handler parameter)"
+        ],
+        [
+          "Use Cases",
+          "CORS, Compression, Authentication, Logging",
+          "Transaction management, Security checks, Metrics"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Filters intercept all requests matching a URL pattern, including static resources, CSS, JS, and JSP files, because they sit at the outermost perimeter of the web application boundary.",
+        "Interceptors execute in three distinct phases: preHandle (before the controller), postHandle (after the controller executes but before view rendering), and afterCompletion (after the complete request has finished and view is rendered).",
+        "Because Filters operate outside the Spring container by default, registering them traditionally required web.xml or special FilterRegistrationBean beans to ensure proper wiring if dependency injection is needed inside the filter logic."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Component\npublic class RequestTimingInterceptor implements HandlerInterceptor {\n    private static final Logger log = LoggerFactory.getLogger(RequestTimingInterceptor.class);\n    private static final ThreadLocal<Long> startTimeThreadLocal = new ThreadLocal<>();\n\n    @Override\n    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {\n        startTimeThreadLocal.set(System.currentTimeMillis());\n        return true; // Continue execution chain\n    }\n\n    @Override\n    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {\n        long startTime = startTimeThreadLocal.get();\n        long duration = System.currentTimeMillis() - startTime;\n        log.info(\"Handler: {} executed in {}ms\", handler.toString(), duration);\n        startTimeThreadLocal.remove();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern is attempting to perform security access control or fine-grained authorization inside a Filter when that logic relies heavily on Spring Security's SecurityContext or controller method metadata (like @PreAuthorize). Because Filters execute before the HandlerMapping, they lack the method-level context required for advanced Spring authorization checks. Use Filters strictly for low-level cross-cutting concerns like request sanitization, CORS headers, or JWT token extraction, and reserve Interceptors for business-aware web workflows."
+    }
+  ],
+  "num": 775,
+  "title": "Explain Filter vs Interceptor in Spring. When to use which?",
+  "category": "Core Java & Fundamentals"
+}

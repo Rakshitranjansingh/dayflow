@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java Collections Framework, a PriorityQueue is an unbounded queue-based data structure that orders its elements according to their natural ordering or by a custom java.util.Comparator provided at construction time. Unlike standard FIFO (First-In-First-Out) queues where elements are processed strictly in arrival order, a priority queue ensures that the element with the highest priority—determined by the heap invariant—is always at the head of the queue. To achieve logarithmic time complexity for insertion and extraction operations, PriorityQueue relies internally on a binary heap data structure, specifically structured as a complete binary tree mapped onto a flat, dynamically resizing backing array.\n\nThe mechanics of this queue pivot entirely around two heap variants: the Min-heap and the Max-heap. In a Min-heap, the value of each node is less than or equal to the values of its children, guaranteeing that the root element is globally the minimum in the collection. Conversely, a Max-heap enforces that parent nodes are greater than or equal to their children, positioning the maximum element at the root. By default, java.util.PriorityQueue instantiates a Min-heap. If a custom Comparator is supplied, the heap property adjusts to the sorting logic defined by that comparator, treating 'less than' as whatever the compare method dictates. Understanding how these heaps manage internal array indexing, pointerless tree traversal, and heapification (sift-up and sift-down algorithms) is critical for writing high-performance, low-latency Java applications where priority scheduling is required."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Operation",
+        "Min-Heap PriorityQueue",
+        "Max-Heap PriorityQueue (via Collections.reverseOrder())"
+      ],
+      "rows": [
+        [
+          "Root Element",
+          "Smallest element (highest priority)",
+          "Largest element (highest priority)"
+        ],
+        [
+          "Offer / Insertion",
+          "O(log n) via siftUp utilizing natural ordering",
+          "O(log n) via siftUp utilizing reversed comparator"
+        ],
+        [
+          "Poll / Extraction",
+          "O(log n) via siftDown from root",
+          "O(log n) via siftDown from root"
+        ],
+        [
+          "Peek",
+          "O(1) viewing array index 0",
+          "O(1) viewing array index 0"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Array-Based Complete Binary Tree Representation: The priority queue does not use explicit node objects with pointers. Instead, it stores elements in a transient Object[] queue array. For any node at index i, its left child is located at 2 * i + 1, its right child at 2 * i + 2, and its parent at (i - 1) / 2.",
+        "Sift-Up (Heapify-Up): When a new element is offered, it is initially placed at the next available slot at the end of the array (size). To restore the heap property, the siftUp method iteratively compares the element with its parent, swapping them if the child takes precedence over the parent, continuing upward until the root or a valid parent is reached.",
+        "Sift-Down (Heapify-Down): When polling the root element, the queue moves the last element in the array to index 0, decrements the size, and calls siftDown. This method compares the node with its children, swapping it with the smaller child (in a Min-heap) to push the out-of-place element down the tree until the heap invariant is restored.",
+        "Dynamic Capacity Expansion: When the backing array fills up, PriorityQueue grows its capacity by roughly 50% for smaller arrays (capacity < 64) or by 50% plus a growth factor using Arrays.copyOf, copying existing references to a new contiguous memory block in the JVM heap."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.PriorityQueue;\nimport java.util.Collections;\n\npublic class PriorityQueueDemo {\n    public static void main(String[] args) {\n        // Default: Min-heap (smallest integer has highest priority)\n        PriorityQueue<Integer> minHeap = new PriorityQueue<>();\n        minHeap.offer(40);\n        minHeap.offer(10);\n        minHeap.offer(20);\n        \n        System.out.println(minHeap.peek()); // Prints 10\n\n        // Custom: Max-heap using Collections.reverseOrder()\n        PriorityQueue<Integer> maxHeap = new PriorityQueue<>(Collections.reverseOrder());\n        maxHeap.offer(40);\n        maxHeap.offer(10);\n        maxHeap.offer(20);\n        \n        System.out.println(maxHeap.peek()); // Prints 40\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common performance pitfall with java.util.PriorityQueue is attempting to iterate over its elements using a standard for-each loop or an iterator. Iteration over a PriorityQueue does NOT traverse elements in sorted order; it simply walks the underlying array in index order (from 0 to size - 1), which reflects raw heap structural layout, not priority. If you need sorted iteration, you must either repeatedly poll the queue (which destroys it) or stream and sort the elements."
+    }
+  ],
+  "num": 543,
+  "title": "How does PriorityQueue work internally? (Min-heap / Max-heap)",
+  "category": "Collections Framework & Internals"
+}

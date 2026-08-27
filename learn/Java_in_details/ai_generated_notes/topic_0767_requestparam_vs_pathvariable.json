@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of Spring MVC and Spring Boot, @RequestParam and @PathVariable are the primary mechanisms for extracting data from incoming HTTP requests. @PathVariable is designed for RESTful resource identification; it extracts values directly from the URI path template, making it ideal for identifying specific entities (e.g., /users/{id}). It treats the URI as a hierarchical structure where the path segment is intrinsic to the resource identity. Conversely, @RequestParam is used to extract query parameters from the URL (e.g., /users?role=admin) or form-data. It is intended for filtering, sorting, pagination, or optional search criteria. While @PathVariable is mandatory for the URI to match the handler method, @RequestParam is often optional, allowing for flexible API design where specific parameters can be omitted without breaking the route."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "@PathVariable",
+        "@RequestParam"
+      ],
+      "rows": [
+        [
+          "Primary Use Case",
+          "Resource Identification",
+          "Filtering/Sorting/Pagination"
+        ],
+        [
+          "Location",
+          "URI Path Segment",
+          "Query String or Form Data"
+        ],
+        [
+          "Mandatory Status",
+          "Required by default",
+          "Optional by default"
+        ],
+        [
+          "REST Semantics",
+          "Represents the resource",
+          "Represents resource attributes"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "PathVariable binding relies on the UriTemplateHandler, which matches the incoming request path against the defined pattern. If the path variable is missing, the framework throws a MissingPathVariableException, resulting in a 404 or 400 error.",
+        "RequestParam binding uses the ServletRequest.getParameter() method internally. Spring performs type conversion automatically using the ConversionService, allowing you to bind query strings directly to complex objects or primitives.",
+        "When using @PathVariable, Spring automatically performs URL decoding on the extracted value, though you must be cautious of path traversal attacks if the input is used to access local file systems.",
+        "RequestParam supports multi-value parameters (e.g., ?id=1&id=2) by binding to a List or array, which is a common pattern for bulk operations."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@GetMapping(\"/products/{category}\")\npublic ResponseEntity<List<Product>> getProducts(\n    @PathVariable(\"category\") String category,\n    @RequestParam(value = \"sort\", defaultValue = \"asc\") String sort,\n    @RequestParam(required = false) Integer limit) {\n    return ResponseEntity.ok(productService.find(category, sort, limit));\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is using @PathVariable for sensitive data or identifiers that might contain special characters like slashes or dots. If a user passes a value containing a dot (e.g., /users/john.doe), Spring MVC might truncate the value because it interprets the dot as a file extension suffix. Always use a regex constraint in your path variable (e.g., @PathVariable(\"{id:.+}\")) to ensure the entire string is captured correctly."
+    }
+  ],
+  "num": 768,
+  "title": "@RequestParam vs @PathVariable?",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

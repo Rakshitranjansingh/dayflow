@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Object creation in Java is a multi-stage lifecycle orchestrated by the JVM to ensure memory safety and type consistency. When you invoke the 'new' keyword, the JVM first performs class loading and verification, ensuring the class definition is accessible and valid. Memory is then allocated on the heap for the object instance, including space for all instance variables inherited from the class hierarchy. The 'Object Creation Flow' is strictly defined by the JLS (Java Language Specification) to guarantee that no object is ever accessed in a partially initialized state.\n\nThe 'Order of Initialization' follows a rigid top-down approach. Before any constructor code executes, the JVM initializes static members (fields and static blocks) in the order they appear in the class. Once the instance is allocated, the JVM triggers the initialization of instance variables and instance blocks, followed by the superclass constructor, and finally the current class constructor. This ensures that when your constructor logic runs, all dependencies and parent state are already fully realized, preventing 'leaking this' references that could lead to unpredictable runtime behavior."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Phase",
+        "Scope",
+        "Trigger"
+      ],
+      "rows": [
+        [
+          "Static Init",
+          "Class Level",
+          "Class Loading"
+        ],
+        [
+          "Instance Init",
+          "Object Level",
+          "new keyword"
+        ],
+        [
+          "Constructor",
+          "Object Level",
+          "After Instance Init"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Memory Allocation: The JVM allocates zeroed-out memory on the heap for the object; instance variables are set to their default values (0, null, false) before any user code runs.",
+        "Superclass Constructor: The first line of every constructor is an implicit or explicit call to super(). This propagates the initialization chain up to java.lang.Object.",
+        "Instance Initializers: Blocks defined as { ... } are effectively copied into the beginning of every constructor by the compiler, ensuring they execute after the super() call.",
+        "Constructor Body: The final stage where custom logic runs. By this point, the object is technically 'alive' in the heap, but its state is being finalized."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class LifecycleDemo extends Parent {\n    static { System.out.println(\"1. Static block\"); }\n    private int x = initX(); // Instance variable\n\n    public LifecycleDemo() {\n        super(); // Implicit call\n        System.out.println(\"4. Constructor body\");\n    }\n\n    private int initX() {\n        System.out.println(\"3. Instance variable init\");\n        return 10;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production-grade trap is calling an overridable (non-final) method inside a constructor. Because the subclass constructor hasn't finished (or even started) executing, the method will run against a partially initialized object, often resulting in NullPointerExceptions or logic errors. Always mark methods called in constructors as final or private to prevent this polymorphism-induced instability."
+    }
+  ],
+  "num": 502,
+  "title": "What is object creation flow in Java? What is the order of initialization?",
+  "category": "Exception Handling & I/O / NIO"
+}

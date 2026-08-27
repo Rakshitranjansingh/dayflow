@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing multi-tenancy in enterprise applications requires an architectural strategy that balances cost-efficiency, scalability, and strict compliance boundaries. At its core, multi-tenancy allows a single instance of a software application to serve multiple distinct customer groups, known as tenants, while keeping their operational data and execution context completely separated. Achieving this relies heavily on rigorous tenant isolation strategies implemented across every layer of the system: the presentation layer, the application processing layer, the caching tiers, and the persistence storage layer. Without proper isolation, catastrophic data leaks, noisy-neighbor performance degradation, and security vulnerabilities emerge.\n\nTenant isolation generally manifests in three architectural patterns: Shared Database with Shared Schema (logical isolation via tenant discriminator columns like tenant_id), Shared Database with Isolated Schemas (logical isolation via database-level namespaces), and Isolated Databases (physical isolation). In high-throughput, I/O-bound environments relying on Java NIO and asynchronous non-blocking frameworks, managing the tenant context becomes even more complex. Because NIO multiplexes threads across numerous concurrent network connections using selector loops (Reactor pattern), traditional thread-local storage (`ThreadLocal`) fails because execution threads are continuously recycled and reassigned across requests. Therefore, propagating tenant context safely requires explicit context-passing mechanisms, reactive context operators (such as Reactor's `Context`), and asynchronous pipeline decoration to ensure that every disk read/write, database transaction, and network buffer operates strictly within the authorized tenant's boundary."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Isolation Model",
+        "Data Segregation",
+        "Cost & Resource Overhead",
+        "Security Risk Profile"
+      ],
+      "rows": [
+        [
+          "Shared DB / Shared Schema",
+          "Logical (Tenant ID Column)",
+          "Lowest (Shared connection pools)",
+          "High (Risk of missing WHERE clause filters)"
+        ],
+        [
+          "Shared DB / Isolated Schema",
+          "Schema-level Namespaces",
+          "Moderate (Separate tables per schema)",
+          "Medium (Cross-schema query bugs possible)"
+        ],
+        [
+          "Isolated Databases",
+          "Physical (Dedicated DB instances)",
+          "Highest (Provisioning per tenant)",
+          "Lowest (Hardware-enforced boundaries)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In reactive and NIO-based runtimes, use Project Reactor's SubscriberContext or Spring WebFlux's Mono.deferContextual to propagate tenant identifiers without relying on thread-affine ThreadLocal instances, which leak state across pooled NIO event loop threads.",
+        "Implement database-level Row-Level Security (RLS) or connection-level session variables (e.g., PostgreSQL SET app.current_tenant) as a defense-in-depth measure against application-level query builder omissions.",
+        "Partition caching layers such as Redis by prefixing keys with the tenant identifier (e.g., tenant:{id}:cache:{key}) or using separate Redis logical databases to prevent cross-tenant cache poisoning and data leakage.",
+        "Enforce rate-limiting and thread-pool isolation (bulkhead pattern) per tenant to mitigate the 'noisy neighbor' problem, ensuring that a single resource-intensive tenant cannot exhaust NIO worker threads or database connection pools for the entire cluster."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.springframework.web.server.ServerWebExchange;\nimport org.springframework.web.server.WebFilter;\nimport org.springframework.web.server.WebFilterChain;\nimport reactor.core.publisher.Mono;\n\npublic class TenantContextWebFilter implements WebFilter {\n    public static final String TENANT_KEY = \"currentTenant\";\n\n    @Override\n    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {\n        String tenantId = exchange.getRequest().getHeaders().getFirst(\"X-Tenant-ID\");\n        if (tenantId == null || tenantId.isBlank()) {\n            return Mono.error(new IllegalArgumentException(\"Missing Tenant Header\"));\n        }\n        return chain.filter(exchange)\n                .contextWrite(context -> context.put(TENANT_KEY, tenantId));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in reactive multi-tenant systems is capturing ThreadLocal variables inside asynchronous pipelines (e.g.,CompletableFuture or Project Reactor map operators). Because NIO worker threads are shared among thousands of concurrent requests, capturing a ThreadLocal during a context switch will cause state bleeding, where Tenant A's subsequent requests accidentally read Tenant B's cached configurations or security credentials. Always rely on immutable context propagation frameworks rather than mutable thread-bound state."
+    }
+  ],
+  "num": 1109,
+  "title": "How do you design multi-tenancy? Tenant isolation?",
+  "category": "Exception Handling & I/O / NIO"
+}

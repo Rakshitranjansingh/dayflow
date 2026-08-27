@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Idempotency is the property of an operation whereby performing it multiple times yields the same state change as performing it once. In the context of REST APIs, this is a protocol-level contract: GET, HEAD, PUT, and DELETE methods are idempotent by definition, while POST is not. When a client sends a PUT request to update a resource, the server ensures that the final state of the resource remains identical regardless of whether the request was processed once or ten times. In asynchronous message listeners, idempotency is even more critical because distributed systems rely on 'at-least-once' delivery semantics. Since network partitions or consumer crashes can lead to duplicate message processing, the listener must implement a mechanism to detect and ignore re-processed events to prevent data corruption or inconsistent side effects.\n\nRetries are the primary driver for idempotency. In microservices, transient failures—such as socket timeouts, 503 Service Unavailable, or database deadlocks—are inevitable. Without idempotency, a client or message broker retrying a failed operation would inadvertently trigger duplicate transactions, such as charging a customer twice or incrementing a counter multiple times. Idempotency transforms non-deterministic retry logic into a safe, deterministic operation, allowing the system to recover from instability without manual intervention or data reconciliation."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Mechanism",
+        "REST API Strategy",
+        "Message Listener Strategy"
+      ],
+      "rows": [
+        [
+          "Identification",
+          "Idempotency-Key Header",
+          "Unique Message ID (UUID)"
+        ],
+        [
+          "Persistence",
+          "Database Unique Constraint",
+          "Outbox/Processed Event Table"
+        ],
+        [
+          "Concurrency",
+          "Optimistic Locking (@Version)",
+          "Distributed Lock (Redis/Redlock)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "REST Idempotency: Use a client-generated 'Idempotency-Key' in the HTTP header. The server stores this key in a cache or database with a TTL. If a request arrives with a key already present, the server returns the cached response instead of re-executing the business logic.",
+        "Message Listener Idempotency: Implement the 'Idempotent Consumer' pattern. Before processing, the listener checks a 'processed_messages' table within the same local transaction as the business logic. If the message ID exists, the listener acknowledges the message and exits immediately.",
+        "Database Atomicity: Always wrap the idempotency check and the business state change in a single ACID transaction. If the check and the update are not atomic, a race condition occurs where two concurrent threads might both see the message as 'unprocessed' simultaneously."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Transactional\npublic void processOrder(OrderEvent event) {\n    if (processedMessageRepository.existsById(event.getMessageId())) {\n        return; // Already processed, skip\n    }\n    orderService.updateState(event.getOrderId(), Status.COMPLETED);\n    processedMessageRepository.save(new ProcessedMessage(event.getMessageId()));\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is using a TTL-based cache (like Redis) for idempotency keys without considering the 'read-after-write' consistency. If the cache expires while the database transaction is still pending, or if the cache is updated before the DB transaction commits, you risk a race condition. Always favor a database-backed idempotency store if your business requirements demand strict consistency, and ensure your idempotency keys are scoped to the specific user or resource to avoid global key collisions."
+    }
+  ],
+  "num": 1052,
+  "title": "How do you ensure Idempotency in REST APIs and Message Listeners? Why is idempotency important for retries?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

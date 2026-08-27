@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Introduced in Java 11 as a permanent standard feature via JEP 321, the HTTP Client (`java.net.http`) API modernized network programming in Java, replacing the legacy, inflexible `HttpURLConnection` which had lingered since Java 1.1. `HttpURLConnection` was plagued by archaic design choices, including a synchronous-only blocking execution model, poor handling of modern HTTP/2 features, cumbersome exception handling, and an overly rigid abstraction layer that made fluent configuration impossible without third-party libraries like Apache HttpClient or OkHttp. The new `java.net.http` package was engineered from the ground up to solve these pain points by natively supporting HTTP/1.1 and HTTP/2, asynchronous non-blocking requests using `CompletableFuture`, reactive streams integration via `Flow.Publisher` and `Flow.Subscriber` for streaming large payloads, and a clean, immutable builder pattern.\n\nThe core architecture centers around three primary interfaces and classes: `HttpClient`, `HttpRequest`, and `HttpResponse`. An `HttpClient` acts as the execution engine, managing connection pools, security contexts, cookie managers, and thread executors. It can be configured as synchronous or asynchronous, and it handles HTTP/2 multiplexing transparently under the hood. An `HttpRequest` is an immutable specification of an outbound call, built using a fluent `HttpRequest.Builder` that defines the URI, method, headers, timeout, and body publishers (such as `HttpRequest.BodyPublishers.ofString()` or `ofFile()`). Finally, an `HttpResponse<T>` captures the server's response, delegating body parsing to `HttpResponse.BodyHandlers`. This separation allows developers to effortlessly deserialize bodies into strings, files, byte arrays, or custom reactive streams without manually managing buffer allocations."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "HttpURLConnection (Legacy)",
+        "java.net.http.HttpClient (Java 11+)"
+      ],
+      "rows": [
+        [
+          "Protocol Support",
+          "HTTP/1.1 only",
+          "HTTP/1.1 and HTTP/2 (Automatic upgrade/multiplexing)"
+        ],
+        [
+          "Execution Model",
+          "Blocking synchronous threads only",
+          "Synchronous and Asynchronous non-blocking (CompletableFuture)"
+        ],
+        [
+          "API Design",
+          "Mutable state, side-effects, confusing error codes",
+          "Immutable builders, fluent configuration, clean separation of concerns"
+        ],
+        [
+          "Streaming & Reactive",
+          "Manual stream piping via InputStream/OutputStream",
+          "Native Flow API integration (BodyPublishers / BodyHandlers)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Connection Pooling and Multiplexing: The HttpClient maintains an internal connection pool. When HTTP/2 is negotiated, multiple concurrent requests share a single TCP connection through multiplexed streams, dramatically reducing handshake latency and socket exhaustion under high load.",
+        "Body Handlers and Publishers: The API uses a Strategy pattern via HttpResponse.BodyHandler to determine how to handle response bodies before the body bytes are even read. This allows developers to discard bodies, route them to files, or parse JSON on-the-fly without allocating massive contiguous byte arrays in the heap.",
+        "Asynchronous Pipeline Execution: When invoking client.sendAsync(request, BodyHandlers.ofString()), the request execution is handed off to the client's internal executor service, returning a CompletableFuture<HttpResponse<String>>. This allows non-blocking composition using methods like thenApply, thenCompose, and exceptionally."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.net.URI;\nimport java.net.http.HttpClient;\nimport java.net.http.HttpRequest;\nimport java.net.http.HttpResponse;\nimport java.time.Duration;\nimport java.util.concurrent.CompletableFuture;\n\npublic class HttpClientDemo {\n    public static void main(String[] args) {\n        HttpClient client = HttpClient.newBuilder()\n            .version(HttpClient.Version.HTTP_2)\n            .connectTimeout(Duration.ofSeconds(3))\n            .followRedirects(HttpClient.Redirect.NORMAL)\n            .build();\n\n        HttpRequest request = HttpRequest.newBuilder()\n            .uri(URI.create(\"https://api.example.com/data\"))\n            .header(\"Accept\", \"application/json\")\n            .header(\"Authorization\", \"Bearer token_xyz\")\n            .GET()\n            .build();\n\n        // Asynchronous non-blocking execution\n        CompletableFuture<Void> futureResponse = client.sendAsync(request, HttpResponse.BodyHandlers.ofString())\n            .thenApply(HttpResponse::body)\n            .thenAccept(body -> System.out.println(\"Received body length: \" + body.length()))\n            .exceptionally(ex -> {\n                System.err.println(\"Request failed: \" + ex.getMessage());\n                return null;\n            });\n\n        futureResponse.join(); // Block main thread solely for demonstration purposes\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when using HttpClient in high-throughput microservices is instantiating a new HttpClient via HttpClient.newHttpClient() for every outgoing request. HttpClient implements its own connection pooling, thread management, and cookie handling. Creating a new client instance per request bypasses connection reuse, leading to socket exhaustion (TIME_WAIT states) and excessive GC pressure. Always treat HttpClient as a singleton or reuse a shared instance across your application lifecycle."
+    }
+  ],
+  "num": 92,
+  "title": "HTTP Client (java.net.http) — Java 11",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

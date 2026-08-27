@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Exception handling in enterprise Java requires rigorous discipline, particularly when dealing with system stability, resource management, and code readability. Among the most critical design rules in production systems are never catching Throwable, never swallowing exceptions, and never using exceptions for control flow. Catching Throwable is a catastrophic anti-pattern because it intercepts not just standard Exception subclasses, but also Error objects like OutOfMemoryError, StackOverflowError, and InternalError. These low-level JVM errors signify fatal conditions where the runtime state is irrecoverably corrupted; attempting to catch them usually results in obscured failures or cascading corruptions rather than graceful recovery. \n\nSimilarly, swallowing exceptions—catching an exception block and leaving it completely empty or merely logging it at a debug level without propagating or handling it—destroys visibility into systemic failures. It creates silent bugs where downstream systems receive invalid states or null values, making root-cause analysis nearly impossible. Finally, using exceptions for control flow—such as throwing a custom RecordNotFoundException to exit a loop or check a conditional state—incurs a massive performance penalty. Constructing a Throwable requires capturing the entire execution stack trace via a native call to fillInStackTrace(), which involves heavy JVM introspection and CPU cycles. Relying on this mechanism for ordinary application logic destroys predictable control flow and masks intentional domain branches as error conditions."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Anti-Pattern",
+        "Immediate Risk",
+        "Production Impact"
+      ],
+      "rows": [
+        [
+          "Catching Throwable",
+          "Intercepts JVM Errors (OOM, StackOverflow)",
+          "Masks fatal hardware or runtime failures, preventing proper process termination."
+        ],
+        [
+          "Swallowing Exceptions",
+          "Silently discards caught exceptions without action",
+          "Conceals bugs, corrupts data pipelines, and breaks observability."
+        ],
+        [
+          "Exceptions for Control Flow",
+          "High CPU cost of stack trace generation",
+          "Severe performance degradation and unreadable, non-idiomatic code."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The JVM's fillInStackTrace() method is a native operation that bypasses JIT optimizations, making exception creation orders of magnitude more expensive than standard conditional branches.",
+        "Catching java.lang.Error subclasses prevents container orchestrators like Kubernetes from detecting pod health failures and restarting unhealthy instances.",
+        "Swallowing exceptions breaks the contract of checked and unchecked exceptions, leaving callers completely unaware that an operation failed midway through execution."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class OrderProcessor {\n\n    // CORRECT: Avoids control flow exceptions, does not swallow, catches specific types\n    public OrderStatus processOrder(String orderId) {\n        if (orderId == null || orderId.isBlank()) {\n            return OrderStatus.INVALID; // Pure conditional control flow\n        }\n\n        try {\n            Order order = externalInventoryClient.fetchOrder(orderId);\n            if (order == null) {\n                return OrderStatus.NOT_FOUND;\n            }\n            return executeFulfillment(order);\n        } catch (DataAccessException | NetworkTimeoutException e) {\n            // CORRECT: Preserves context by wrapping in a domain exception or logging with full stack trace\n            log.error(\"Failed to process order ID: {}\", orderId, e);\n            throw new OrderProcessingException(\"Transient infrastructure failure\", e);\n        }\n        // INCORRECT TO CATCH: catch (Throwable t) { /* Never do this */ }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "In high-throughput microservices, profiling often reveals that up to 15% of CPU time is wasted in java.lang.Throwable.<init> when legacy libraries use exceptions for business validation (e.g., throwing a NumberFormatException for every malformed query parameter instead of using Optional or Apache Commons validation utilities). Always enforce static analysis rules via Checkstyle or SonarQube to flag empty catch blocks and generic catch (Exception e) or catch (Throwable t) clauses."
+    }
+  ],
+  "num": 79,
+  "title": "Best practices — never catch Throwable, don't swallow, don't use exceptions for control flow",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The USE method, coined by Brendan Gregg, is a high-level strategy for performance engineering and resource monitoring. It stands for Utilization, Saturation, and Errors. It is designed to provide a systematic checklist for identifying bottlenecks in any system, from hardware components like CPUs and disks to software constructs like thread pools and NIO selectors. Utilization measures the time a resource is busy; it is not a metric of performance in isolation, as 100% utilization is often the goal for throughput-oriented systems. Saturation measures the degree to which a resource has extra work it cannot service, often queued, which is the primary indicator of latency degradation. Errors represent the count of failure events, which are often overlooked until they manifest as application-level exceptions or timeouts. In the context of Java NIO, these metrics allow you to distinguish between a saturated event loop (high saturation) and a blocked I/O operation (high utilization without progress)."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric",
+        "Definition",
+        "Java NIO Context"
+      ],
+      "rows": [
+        [
+          "Utilization",
+          "Time resource is busy",
+          "Selector poll time vs. processing time"
+        ],
+        [
+          "Saturation",
+          "Queued work/pending requests",
+          "Backlog of pending SelectionKeys"
+        ],
+        [
+          "Errors",
+          "Count of failed requests",
+          "IOException, ClosedChannelException"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Utilization in NIO is often tracked by measuring the ratio of time spent in Selector.select() versus the time spent processing the returned keys in the worker thread pool.",
+        "Saturation in NIO manifests as a growing queue of pending tasks in the ExecutorService that handles the I/O events, leading to increased latency for individual client requests.",
+        "Errors in NIO are frequently silent at the kernel level but manifest as specific Java exceptions; monitoring these is critical because they often signal underlying TCP state issues or file descriptor exhaustion.",
+        "The USE method is distinct from the RED method (Rate, Errors, Duration), as USE focuses on the resource itself, whereas RED focuses on the service request flow."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void monitorNioResource(Selector selector, ThreadPoolExecutor executor) {\n    // Utilization: Ratio of work time\n    long activeCount = executor.getActiveCount();\n    double utilization = (double) activeCount / executor.getMaximumPoolSize();\n    \n    // Saturation: Queue depth\n    int saturation = executor.getQueue().size();\n    \n    // Errors: Track via custom UncaughtExceptionHandler or logging interceptors\n    long errorCount = errorCounter.get();\n    \n    logger.info(\"U: {}, S: {}, E: {}\", utilization, saturation, errorCount);\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common trap for junior engineers is confusing Utilization with Saturation. In a high-performance NIO server, you want high utilization (keeping the CPU busy), but you must keep saturation near zero. If your saturation metrics (like task queue size) start climbing, you are hitting a performance cliff where latency will grow exponentially, eventually leading to cascading failures across your microservices."
+    }
+  ],
+  "num": 1178,
+  "title": "What is the USE method? (Utilization, Saturation, Errors)",
+  "category": "Exception Handling & I/O / NIO"
+}

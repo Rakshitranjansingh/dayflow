@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The ReadWriteLock interface, specifically its primary implementation ReentrantReadWriteLock, is a specialized synchronization primitive designed to optimize throughput in scenarios where shared resources are frequently read but only occasionally modified. Unlike the standard ReentrantLock, which enforces mutual exclusion for every thread regardless of intent, a ReadWriteLock maintains a pair of associated locks: a read lock and a write lock. The read lock is 'shared,' allowing multiple threads to hold it simultaneously as long as no thread holds the write lock. The write lock is 'exclusive,' ensuring that when a thread is modifying the state, no other thread—reader or writer—can access the resource. This design effectively solves the 'readers-writer' problem, where naive synchronization would unnecessarily bottleneck read-heavy workloads."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "ReentrantLock",
+        "ReentrantReadWriteLock"
+      ],
+      "rows": [
+        [
+          "Concurrency",
+          "Exclusive (One thread only)",
+          "Shared (Multiple readers) or Exclusive (One writer)"
+        ],
+        [
+          "Throughput",
+          "Lower for read-heavy workloads",
+          "Higher for read-heavy workloads"
+        ],
+        [
+          "Complexity",
+          "Low",
+          "Moderate (requires managing two locks)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Internal State Management: The lock uses a single 32-bit integer (state) within the AbstractQueuedSynchronizer (AQS) to track both read and write counts. The high 16 bits represent the shared read count, while the low 16 bits represent the exclusive write count.",
+        "Write-to-Read Downgrading: A unique feature allows a thread holding the write lock to acquire the read lock, then release the write lock, effectively 'downgrading' its access without losing visibility of the state.",
+        "Writer Starvation: By default, the implementation does not guarantee fairness. If there is a constant stream of readers, a writer thread may be blocked indefinitely. Setting the 'fair' parameter to true in the constructor forces a FIFO queue, which prevents starvation but significantly degrades overall throughput.",
+        "Reentrancy: Both the read and write locks support reentrancy, meaning a thread can acquire the same lock multiple times without deadlocking itself, provided it releases the lock an equal number of times."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "private final ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();\nprivate final Lock readLock = rwl.readLock();\nprivate final Lock writeLock = rwl.writeLock();\n\npublic Data get(String key) {\n    readLock.lock();\n    try { return map.get(key); }\n    finally { readLock.unlock(); }\n}\n\npublic void put(String key, Data value) {\n    writeLock.lock();\n    try { map.put(key, value); }\n    finally { writeLock.unlock(); }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Do not blindly reach for ReadWriteLock. It carries significant overhead compared to a standard ReentrantLock. If your critical section is extremely short (e.g., just reading a volatile variable or a single map lookup), the overhead of managing the read/write state in the AQS might actually make your code slower than a simple synchronized block or a standard lock. Use it only when the read-heavy workload is sustained and the protected operations are computationally non-trivial."
+    }
+  ],
+  "num": 678,
+  "title": "Explain ReadWriteLock. When is it beneficial?",
+  "category": "Core Java & Fundamentals"
+}

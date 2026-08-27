@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In traditional synchronous Spring MVC and Java servlet architectures, every incoming HTTP request ties up a dedicated container thread from the servlet container pool (like Tomcat or Jetty) for its entire lifecycle. When an application experiences high concurrency—especially involving heavy I/O operations such as querying external REST services, running database queries, or reading large streams—these threads get exhausted rapidly, leading to thread starvation, HTTP 503 errors, and skyrocketing response latencies. Asynchronous request handling solves this architectural bottleneck by releasing the container thread immediately back into the pool while the processing is handed off to a separate worker thread or external event loop. Once the payload is ready, the container dispatches a new thread to write the response back to the client socket.\n\nSpring MVC offers three primary abstractions to achieve non-blocking asynchronous request processing: Callable, DeferredResult, and WebAsyncTask. While Callable allows a controller method to simply return a value wrapped in a java.util.concurrent.Callable and lets Spring execute it using a configured TaskExecutor, it offers limited timeout and interception capabilities. DeferredResult elevates this by giving developers programmatic control over when and where the response is set, making it ideal for event-driven architectures, long-polling, and real-time messaging where the producer of the result is completely decoupled from the HTTP request thread. WebAsyncTask acts as a high-level wrapper around Callable, combining the simplicity of returning a callable with explicit timeout configurations, custom task executors, and lifecycle interceptors for timeouts, completions, and errors."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Callable<T>",
+        "DeferredResult<T>",
+        "WebAsyncTask<T>"
+      ],
+      "rows": [
+        [
+          "Execution Control",
+          "Spring handles thread pool submission automatically",
+          "Programmatic via setResult() from any thread",
+          "Spring handles execution with configurable TaskExecutor"
+        ],
+        [
+          "Timeout Handling",
+          "Global/Default MVC configuration",
+          "Manual via onTimeout() callback",
+          "Explicit timeout value and timeout callable support"
+        ],
+        [
+          "Primary Use Case",
+          "Simple offloading of blocking database or I/O calls",
+          "Comet, long-polling, event-driven, or push notifications",
+          "Callable execution requiring fine-grained timeout and interceptor logic"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "When a controller method returns a Callable, Spring MVC exits the servlet container thread by invoking request.startAsync(), and dispatches the Callable task to a configured TaskExecutor thread pool.",
+        "DeferredResult decouples the thread lifecycle by returning the DeferredResult instance immediately. Any background thread or message listener can later invoke DeferredResult.setResult(value) to complete the HTTP request asynchronously from a totally different thread context.",
+        "WebAsyncTask wraps a Callable while supplying an explicit java.util.concurrent.Callable, a timeout value in milliseconds, and a dedicated TaskExecutor, eliminating the need to configure global MVC async support for basic use cases.",
+        "Under the hood, all three mechanisms rely on the Servlet 3.0+ asynchronous processing specification, which suspends the response generation, exits the filter chain, and allows container threads to service new incoming connections."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/orders\")\npublic class OrderAsyncController {\n\n    private final OrderService orderService;\n    private final ThreadPoolTaskExecutor taskExecutor;\n\n    public OrderAsyncController(OrderService orderService, ThreadPoolTaskExecutor taskExecutor) {\n        this.orderService = orderService;\n        this.taskExecutor = taskExecutor;\n    }\n\n    @GetMapping(\"/{id}/callable\")\n    public Callable<ResponseEntity<Order>> getOrderCallable(@PathVariable Long id) {\n        return () -> {\n            Order order = orderService.fetchHeavyOrderDetails(id);\n            return ResponseEntity.ok(order);\n        };\n    }\n\n    @GetMapping(\"/{id}/deferred\")\n    public DeferredResult<ResponseEntity<Order>> getOrderDeferred(@PathVariable Long id) {\n        DeferredResult<ResponseEntity<Order>> deferredResult = new DeferredResult<>(5000L);\n        \n        deferredResult.onTimeout(() -> \n            deferredResult.setResult(ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT).build())\n        );\n\n        taskExecutor.execute(() -> {\n            try {\n                Order order = orderService.fetchHeavyOrderDetails(id);\n                deferredResult.setResult(ResponseEntity.ok(order));\n            } catch (Exception e) {\n                deferredResult.setErrorResult(ResponseEntity.internalServerError().build());\n            }\n        });\n\n        return deferredResult;\n    }\n\n    @GetMapping(\"/{id}/web-async\")\n    public WebAsyncTask<ResponseEntity<Order>> getOrderWebAsyncTask(@PathVariable Long id) {\n        Callable<ResponseEntity<Order>> task = () -> {\n            Order order = orderService.fetchHeavyOrderDetails(id);\n            return ResponseEntity.ok(order);\n        };\n        \n        WebAsyncTask<ResponseEntity<Order>> webAsyncTask = new WebAsyncTask<>(3000L, task);\n        webAsyncTask.setTaskExecutor(taskExecutor);\n        webAsyncTask.onTimeout(() -> ResponseEntity.status(HttpStatus.GATEWAY_TIMEOUT).build());\n        return webAsyncTask;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap with asynchronous request handling in Spring MVC is forgetting that security contexts (Spring Security's SecurityContextHolder) and ThreadLocal variables do not automatically propagate from the container thread to the asynchronous worker thread managed by your TaskExecutor. If your async tasks need access to the current authenticated user or request attributes, you must explicitly configure a DelegatingSecurityContextAsyncTaskExecutor or manually capture and set the context inside your Callable or DeferredResult execution blocks."
+    }
+  ],
+  "num": 297,
+  "title": "Async request handling (Callable, DeferredResult, WebAsyncTask)",
+  "category": "Core Java & Fundamentals"
+}

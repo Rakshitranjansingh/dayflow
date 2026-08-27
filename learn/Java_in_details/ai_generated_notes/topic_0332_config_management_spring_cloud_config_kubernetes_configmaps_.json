@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed cloud-native architectures, configuration management bridges the gap between immutable application artifacts and environment-specific parameters. Config management encompasses strategies for externalizing application settings, managing dynamic properties, and securing sensitive data across multiple deployment targets. When scaling Java workloads, hardcoding configuration or bundling properties into fat JARs violates twelve-factor app principles and cripples deployment agility.\n\nSpring Cloud Config addresses this by providing server-side and client-side support for externalized configuration in a distributed system. Using the Config Server, applications can manage their properties across all environments through a centralized version control repository (typically Git). As services bootstrap, they query the Config Server over HTTP to retrieve their environment-specific profiles, decrypting secure values transparently before loading them into the Spring Environment. However, in modern containerized orchestrators like Kubernetes, the infrastructure layer often supersedes application-level configuration servers.\n\nKubernetes ConfigMaps and Secrets natively solve the exact same problem from an infrastructure perspective. A ConfigMap decouples non-sensitive configuration artifacts from container images, while Secrets provide base64-encoded storage for sensitive data like database credentials or API keys. These constructs can be injected directly into pods as environment variables or mounted dynamically as ephemeral filesystem volumes. Mastering both Spring Cloud Config and Kubernetes ConfigMaps/Secrets ensures that enterprise Java applications remain portable, secure, and dynamically reconfigurable without requiring container rebuilds."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Dimension",
+        "Spring Cloud Config",
+        "Kubernetes ConfigMaps/Secrets"
+      ],
+      "rows": [
+        [
+          "Storage Backend",
+          "Git, SVN, Vault, or JDBC database",
+          "etcd (encrypted at rest if configured)"
+        ],
+        [
+          "Dynamic Refresh",
+          "Supports /actuator/refresh via Spring Cloud Bus / Webhooks",
+          "Requires rolling pod restarts or third-party operators (e.g., Reloader)"
+        ],
+        [
+          "Encryption Support",
+          "Built-in asymmetric/symmetric encryption via Jasypt or Spring Cloud Config Server",
+          "Native Kubernetes Secrets (base64 encoded, requires KMS/Sealed Secrets for real security)"
+        ],
+        [
+          "Environment Scoping",
+          "Application-specific profiles (dev, qa, prod) and branch-based mapping",
+          "Namespaces, selectors, and RBAC policies"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring Cloud Config bootstrap phase utilizes a bootstrap.yml or bootstrap.properties file (or spring.config.import in Spring Boot 2.4+) to locate and authenticate against the Config Server before the main ApplicationContext initializes.",
+        "Kubernetes mounts ConfigMaps and Secrets as tmpfs volumes, ensuring that sensitive credentials never touch persistent block storage disks, minimizing data leakage risks upon node decommissioning.",
+        "When updating a Kubernetes ConfigMap mounted as a volume, the file updates asynchronously via symbolic link atomic swaps managed by the kubelet, though the JVM property sources loaded at startup will not automatically reflect these changes without a context refresh."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RefreshScope\npublic class DatabaseFeatureController {\n\n    @Value(\"${feature.analytics.enabled:false}\")\n    private boolean analyticsEnabled;\n\n    @GetMapping(\"/features\")\n    public Map<String, Object> getFeatures() {\n        return Map.of(\"analyticsEnabled\", analyticsEnabled);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap when using Spring Cloud Config alongside Kubernetes ConfigMaps is assuming that changing a mounted ConfigMap file automatically updates your Java application's @Value fields. Because Spring loads properties into the Environment once at startup, volume-mounted changes require either an explicit call to /actuator/refresh paired with @RefreshScope, or integration with Kubernetes-native property source libraries that watch the filesystem."
+    }
+  ],
+  "num": 333,
+  "title": "Config management — Spring Cloud Config, Kubernetes ConfigMaps/Secrets",
+  "category": "Testing, Observability & Cloud Native"
+}

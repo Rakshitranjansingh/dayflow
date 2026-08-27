@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "CopyOnWriteArrayList is a thread-safe variant of ArrayList in which all mutative operations (add, set, remove) are implemented by making a fresh copy of the underlying array. It is part of the java.util.concurrent package and is designed for scenarios where the overhead of copying the array is outweighed by the performance gains of lock-free reads. Unlike synchronized collections or standard locks, this class allows multiple threads to traverse the list without blocking, as the iterator operates on a snapshot of the array taken at the moment the iterator was created. This effectively eliminates ConcurrentModificationException during iteration, making it an ideal choice for event listener lists or configuration caches where reads vastly outnumber writes."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "CopyOnWriteArrayList",
+        "Collections.synchronizedList(ArrayList)"
+      ],
+      "rows": [
+        [
+          "Read Performance",
+          "Lock-free, O(1)",
+          "Requires synchronization lock"
+        ],
+        [
+          "Write Performance",
+          "O(N) due to array copy",
+          "O(1) amortized"
+        ],
+        [
+          "Iterator Safety",
+          "Snapshot-based (no ConcurrentModificationException)",
+          "Requires external synchronization"
+        ],
+        [
+          "Memory Overhead",
+          "High (creates new array on every write)",
+          "Low (in-place modification)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The internal volatile array reference ensures that the most recent copy of the array is visible to all threads immediately after a write operation completes.",
+        "Mutative operations use a ReentrantLock to serialize writes, preventing race conditions where two simultaneous writes could result in lost updates.",
+        "The iterator holds a reference to the array state at the time of instantiation; subsequent modifications to the list do not affect the iterator, providing a 'snapshot' view.",
+        "Because the entire array is copied on every write, this structure is highly inefficient for write-heavy workloads, as it leads to excessive GC pressure and O(N) latency."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.CopyOnWriteArrayList;\nimport java.util.List;\n\npublic class EventDispatcher {\n    // Ideal for listeners where reads occur constantly but registration is rare\n    private final List<Runnable> listeners = new CopyOnWriteArrayList<>();\n\n    public void register(Runnable listener) {\n        listeners.add(listener);\n    }\n\n    public void dispatch() {\n        // No ConcurrentModificationException even if listeners are added during iteration\n        for (Runnable listener : listeners) {\n            listener.run();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is using CopyOnWriteArrayList for large datasets or high-frequency updates. Since every add() call triggers an array copy, you are essentially performing an O(N) operation per write. If your list grows to thousands of elements and you update it frequently, you will trigger frequent Young Gen GC cycles and potentially cause significant latency spikes. Always profile your write-to-read ratio before choosing this over a ConcurrentSkipListSet or a standard synchronized wrapper."
+    }
+  ],
+  "num": 544,
+  "title": "What is CopyOnWriteArrayList? When should it be used?",
+  "category": "Collections Framework & Internals"
+}

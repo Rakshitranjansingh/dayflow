@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In computer science, multitasking refers to the concurrent execution of multiple tasks or processes over a certain period of time. When applied specifically to the context of Java and JVM-based runtimes, multitasking bridges the operating system's process model with the application's internal concurrency models. Historically, operating systems handled multitasking through process-based paradigms where each executing program received an isolated memory space, demanding heavy context switching managed by the kernel. Java revolutionized this by providing a unified thread-based environment inside a single process, allowing developers to execute multiple instruction streams concurrently within the exact same memory heap.\n\nMultitasking in Java can be evaluated through two distinct lenses: process-based multitasking and thread-based multitasking. Process-based multitasking relies on the underlying OS to run disparate programs simultaneously, communicating via IPC (Inter-Process Communication) such as sockets or pipes. Thread-based multitasking, which forms the bedrock of Java concurrency, allows multiple threads of execution to share the same process memory space, enabling fine-grained parallelism, asynchronous operations, and responsive I/O processing without the exorbitant memory footprint of spawning full OS processes."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Process-Based Multitasking",
+        "Thread-Based Multitasking"
+      ],
+      "rows": [
+        [
+          "Memory Isolation",
+          "Complete isolation; separate address spaces",
+          "Shared heap and method area, separate stacks"
+        ],
+        [
+          "Context Switching Overhead",
+          "High (requires CPU register state and MMU updates)",
+          "Low (shares address space, only CPU registers and stack pointers change)"
+        ],
+        [
+          "Communication",
+          "Complex (IPC, sockets, shared memory files)",
+          "Simple (direct access to shared object references in heap)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Thread-based multitasking in Java relies on the JVM mapping Java threads directly to native OS threads in a 1:1 model on modern platforms, meaning every time a Thread object is started, the operating system allocates a native thread stack (typically 512KB to 1MB).",
+        "Because multiple threads share the same heap, thread safety becomes paramount; unsynchronized concurrent writes to mutable shared state will inevitably trigger race conditions, memory visibility bugs, and volatile state corruption.",
+        "The Java Memory Model (JMM) establishes happens-before relationships via synchronization primitives (synchronized, volatile, java.util.concurrent locks) to guarantee that CPU cache lines are flushed and instruction reordering does not violate multi-threaded program correctness."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class WorkerTask implements Runnable {\n    private final String taskName;\n\n    public WorkerTask(String taskName) {\n        this.taskName = taskName;\n    }\n\n    @Override\n    public void run() {\n        System.out.println(Thread.currentThread().getName() + \" executing: \" + taskName);\n        try {\n            Thread.sleep(100);\n        } catch (InterruptedException e) {\n            Thread.currentThread().interrupt();\n        }\n    }\n\n    public static void main(String[] args) {\n        Thread t1 = new Thread(new WorkerTask(\"Task-A\"), \"Worker-1\");\n        Thread t2 = new Thread(new WorkerTask(\"Task-B\"), \"Worker-2\");\n        \n        t1.start();\n        t2.start();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in Java thread-based multitasking is the creation of unbounded platform threads via 'new Thread().start()'. Under heavy load, this exhausts OS memory due to native stack allocations or hits system limits on max open file descriptors/threads, causing OutOfMemoryError: unable to create native thread. Always prefer structured task execution using ExecutorService pools or Project Loom virtual threads."
+    }
+  ],
+  "num": 641,
+  "title": "What is multitasking?",
+  "category": "Core Java & Fundamentals"
+}

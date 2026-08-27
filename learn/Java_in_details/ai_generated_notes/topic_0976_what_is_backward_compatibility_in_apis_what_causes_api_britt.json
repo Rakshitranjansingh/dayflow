@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Backward compatibility in Application Programming Interfaces (APIs) is the architectural guarantee that newer versions of a system, library, or service will continue to accept requests, process data, and return responses expected by existing clients without breaking their integrations. In the context of Java libraries and enterprise frameworks, achieving backward compatibility means that consumers can upgrade their dependency jars—for instance, from version 1.4 to 2.0—without needing to recompile their own code or experience runtime linkage errors such as NoSuchMethodError or ClassNotFoundException. When designing long-lived Java APIs, this requires meticulous attention to binary compatibility, source compatibility, and behavioral expectations.\n\nConversely, API brittleness refers to the fragile state of an interface where even minor, seemingly trivial modifications cause downstream consumer applications to fail. Brittleness is typically introduced when internal implementation details leak into the public contract, forcing tight coupling between the service provider and its clients. In Java ecosystems, brittleness manifests when public classes lack proper encapsulation, when unchecked exceptions are thrown unpredictably, or when changes to method signatures violate the Java Language Specification rules for binary compatibility. Understanding the roots of brittleness allows architects to employ design patterns and defensive coding strategies that preserve backward compatibility across evolving enterprise lifecycles."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Compatibility Dimension",
+        "Definition",
+        "Common Java Failure Mode"
+      ],
+      "rows": [
+        [
+          "Binary Compatibility",
+          "Existing compiled bytecode (class files) can run against the new library version without linkage errors.",
+          "Removing a public method, changing a method return type, or altering a field from non-final to final."
+        ],
+        [
+          "Source Compatibility",
+          "Existing client source code can be recompiled against the new library version without compilation errors.",
+          "Introducing a new method into an interface without a default implementation, causing implementing classes to fail compilation."
+        ],
+        [
+          "Behavioral Compatibility",
+          "The runtime semantics, performance profiles, and output contracts remain consistent for identical inputs.",
+          "Silently changing an exception type thrown or altering the null-handling semantics of a critical service method."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Exposing concrete classes instead of interfaces or abstract types tightly couples clients to internal state, making structural refactoring impossible without breaking binary compatibility.",
+        "Adding abstract methods to existing interfaces forces all downstream consumers to break source compatibility unless default interface methods (introduced in Java 8) are deliberately utilized.",
+        "Modifying method signatures by adding checked exceptions forces all calling code to update their try-catch blocks, destroying source compatibility instantly.",
+        "Overloading methods carelessly can lead to subtle resolution bugs at compile-time and runtime due to type-erasure and widening rules in the Java compiler."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.enterprise.api;\n\npublic interface PaymentService {\n    // Original method contract\n    PaymentResult processPayment(PaymentRequest request);\n\n    // Backward compatible addition using Java 8 default methods\n    default PaymentResult processPayment(PaymentRequest request, SecurityContext context) {\n        // Delegate to original method to preserve default behavior for existing implementers\n        return processPayment(request);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic trap for senior Java engineers is modifying the signature of public methods by changing a parameter type from an interface (e.g., List) to a more specific class (e.g., ArrayList) or vice versa. While it may feel like an optimization, it instantly breaks binary compatibility for any client whose bytecode was compiled against the original method signature, resulting in a runtime NoSuchMethodError when the class loader attempts linkage."
+    }
+  ],
+  "num": 977,
+  "title": "What is backward compatibility in APIs? What causes API brittleness?",
+  "category": "Core Java & Fundamentals"
+}

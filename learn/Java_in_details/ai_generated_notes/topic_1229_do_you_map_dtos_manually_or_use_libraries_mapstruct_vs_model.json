@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In production-grade Java systems, mapping between Data Transfer Objects (DTOs) and Domain Entities is a frequent source of boilerplate. Manual mapping involves writing explicit getter/setter chains, which is type-safe and performant but becomes a maintenance nightmare as schemas evolve. ModelMapper and MapStruct represent the two primary schools of thought for solving this. ModelMapper uses runtime reflection to inspect object graphs and infer mappings, providing a 'zero-config' experience that is highly flexible but incurs a significant performance penalty due to constant metadata caching and reflective access. MapStruct, conversely, is a compile-time code generator. It hooks into the Java Annotation Processing Tool (APT) to generate plain Java method calls that look exactly like what you would write manually, ensuring zero runtime overhead and immediate feedback on type mismatches."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "MapStruct",
+        "ModelMapper"
+      ],
+      "rows": [
+        [
+          "Execution Time",
+          "Compile-time",
+          "Runtime"
+        ],
+        [
+          "Performance",
+          "Native Java speed",
+          "Reflection-based overhead"
+        ],
+        [
+          "Type Safety",
+          "Compile-time validation",
+          "Runtime failure"
+        ],
+        [
+          "Debugging",
+          "Step through generated code",
+          "Complex stack traces"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "MapStruct generates standard Java source code in the target/generated-sources directory, allowing you to debug the mapping logic with standard breakpoints.",
+        "ModelMapper relies on reflection to traverse object graphs, which can lead to unpredictable behavior if circular references exist or if the security manager restricts reflective access.",
+        "MapStruct enforces strict contract validation; if a field in the target DTO cannot be mapped, the build fails, preventing runtime NullPointerExceptions or missing data bugs.",
+        "Because MapStruct generates plain methods, the JVM JIT compiler can easily inline the mapping logic, whereas reflection-based calls are often opaque to optimization passes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Mapper(componentModel = \"spring\")\npublic interface UserMapper {\n    UserMapper INSTANCE = Mappers.getMapper(UserMapper.class);\n\n    @Mapping(source = \"userId\", target = \"id\")\n    @Mapping(target = \"fullName\", expression = \"java(user.getFirstName() + ' ' + user.getLastName())\")\n    UserDto toDto(User user);\n}"
+    },
+    {
+      "type": "note",
+      "content": "The 'Senior Gotcha': While MapStruct is superior for performance, be wary of 'Mapping Bloat'. If your DTOs are massive, MapStruct generates massive amounts of code. If you find yourself needing complex custom logic for every field, stop and ask if your Domain Model and DTOs have drifted too far apart. Sometimes, the best mapper is a simple constructor or a static factory method if the mapping logic is trivial."
+    }
+  ],
+  "num": 1230,
+  "title": "Do you map DTOs manually or use libraries? (MapStruct vs ModelMapper). Why is MapStruct preferred?",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Handling authentication in a distributed microservice architecture requires moving away from traditional sticky-session, cookie-based HTTP flows toward a decentralized, stateless security model. In an enterprise system, the two foundational pillars of this architecture are OAuth2 and JSON Web Tokens (JWT) passed downstream via an API Gateway. When a client initiates a login request, it authenticates against an externalized Identity Provider (IdP) such as Keycloak, Okta, or Spring Authorization Server, adhering to the OAuth2 specification. Upon successful authentication, the IdP issues an access token—typically encoded as a signed JWT.\n\nThe API Gateway acts as the single entry point (Edge Service) for all client requests. Instead of forcing every downstream microservice to perform heavy cryptographic signature validations, query user databases, or communicate directly with the IdP, the API Gateway intercepts the initial request, validates the incoming OAuth2 token, strips or normalizes headers, and propagates the JWT or derived claims downstream. Downstream microservices operate in a zero-trust network environment where they trust the gateway's boundary enforcement, yet they still inspect the incoming JWT signature or claims locally using a shared public key (asymmetric RSA/ECDSA) or shared secret (symmetric HMAC) to extract roles and user IDs without incurring network round-trips to the authorization server."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Concern",
+        "OAuth2 (Authorization Framework)",
+        "JWT (JSON Web Token Format)"
+      ],
+      "rows": [
+        [
+          "Primary Role",
+          "Delegated authorization and token issuance protocol.",
+          "Self-contained credential payload format."
+        ],
+        [
+          "Statefulness",
+          "Can involve stateful sessions at the IdP or opaque database tokens.",
+          "Stateless by design; contains all necessary claims within the payload."
+        ],
+        [
+          "Microservice Impact",
+          "Defines how tokens are acquired and exchanged across services.",
+          "Defines how security context is propagated through HTTP headers."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "API Gateway Token Offloading: The gateway validates the OAuth2 token's signature, expiration (exp), and audience (aud). If invalid, it short-circuits the request with a 401 Unauthorized, protecting internal services from unnecessary load.",
+        "Propagation Mechanics: The gateway injects the validated JWT or transformed security context (e.g., X-User-Id, X-User-Roles headers) into the downstream HTTP request headers using a Spring Cloud Gateway GlobalFilter or Zuul filter.",
+        "Stateless Cryptographic Validation: Downstream microservices do not need to call an introspection endpoint for every request. By caching the IdP's JWK (JSON Web Key) Set, services locally verify the RS256/ES256 signature using public keys, ensuring extreme horizontal scalability."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\npublic class MicroserviceSecurityConfig {\n\n    @Bean\n    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {\n        http\n            .csrf(csrf -> csrf.disable())\n            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))\n            .authorizeHttpRequests(auth -> auth\n                .requestMatchers(\"/actuator/health/**\").permitAll()\n                .anyRequest().authenticated()\n            )\n            .oauth2ResourceServer(oauth2 -> oauth2\n                .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))\n            );\n        return http.build();\n    }\n\n    private Converter<Jwt, AbstractAuthenticationToken> jwtAuthenticationConverter() {\n        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();\n        converter.setJwtGrantedAuthoritiesConverter(new KeycloakRoleConverter());\n        return converter;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap in microservice security is relying entirely on the API Gateway for authentication without configuring local JWT validation in downstream services. If an internal network partition allows attackers to bypass the gateway and hit container IPs directly (via service discovery mesh routing), unprotected microservices are completely exposed. Always configure every downstream service as an OAuth2 Resource Server that independently validates the JWT signature and claims."
+    }
+  ],
+  "num": 1055,
+  "title": "How do you handle Authentication in Microservices? (JWT passed from Gateway, OAuth2)",
+  "category": "Spring Security & Web Security"
+}

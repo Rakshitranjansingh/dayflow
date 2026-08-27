@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Hexagonal Architecture, originally conceptualized by Alistair Cockburn and also widely known as Ports and Adapters, is an architectural pattern designed to create loosely coupled application components that can be easily connected to their software environment. The core philosophy centers on isolating the domain logic from external concerns such as databases, user interfaces, messaging queues, and third-party APIs. By structuring an application this way, the business logic remains entirely agnostic of how data enters or leaves the system. This directly addresses the fragility of traditional architectures where business rules become tightly wound with framework specifics and database schemas.\n\nTo understand the pattern, one must deconstruct its two primary constructs: Ports and Adapters. A Port is an API—defined strictly as a Java interface—that acts as a boundary or entry point for communication with the application core. Ports are divided into two distinct flavors: Driving (or Inbound) Ports, which are invoked by external actors like REST controllers or CLI runners to drive use cases, and Driven (or Outbound) Ports, which the application core invokes to push data or request services from the outside world, such as a persistence store or an email gateway. Adapters, on the other hand, are the concrete implementations or glue code that bridge the domain model to the outside world. Driving Adapters translate external requests (like HTTP JSON payloads) into method calls on driving ports. Driven Adapters implement the outbound ports, translating domain calls into specific technologies like JDBC, JPA, or Kafka producer calls. This inversion of dependencies ensures that the arrows of dependency always point inward toward the domain core.\n\nWhen comparing Hexagonal Architecture to a traditional Layered Architecture (Presentation, Business, Persistence), the structural divergence becomes clear. Layered architecture typically exhibits a top-down dependency flow where the presentation layer knows about the business layer, and the business layer directly knows about the persistence layer (often coupled with ORM entities and database constraints). This creates a dangerous cascading effect when database models change, requiring modifications across business and presentation layers. Hexagonal architecture eliminates this by placing the domain at the exact center. The database and UI are treated as peripheral plugins of equal weight, sitting outside the hexagon. If you need to swap a relational database for a NoSQL store, you simply write a new driven adapter implementing the existing outbound port, leaving the core business logic entirely untouched."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Dimension",
+        "Hexagonal Architecture",
+        "Layered Architecture"
+      ],
+      "rows": [
+        [
+          "Dependency Flow",
+          "Inward only (Adapters depend on Ports; Core has no external dependencies)",
+          "Top-down (Presentation -> Business -> Persistence)"
+        ],
+        [
+          "Coupling of Database",
+          "Loose (Isolated behind Outbound Ports and Adapters)",
+          "Tight (Business logic often directly references ORM entities/DAOs)"
+        ],
+        [
+          "Testability",
+          "High (Domain can be tested pure in-memory without mocks for frameworks or DBs)",
+          "Moderate to Low (Often requires database context or heavy framework mocking)"
+        ],
+        [
+          "Architectural Symmetry",
+          "Treats UI and DB as equal, interchangeable external plugins",
+          "Hierarchical, treating the database as a foundational tier"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Domain Core contains pure business logic, value objects, and aggregate roots, completely free of framework annotations like @Entity, @Autowired, or @RestController.",
+        "Inbound Ports (Driving Ports) represent the use cases of the application, often expressed as service interfaces like RegisterUserUseCase taking command objects.",
+        "Outbound Ports (Driven Ports) define data access and external integration contracts, completely agnostic of whether Hibernate, JOOQ, or a raw HTTP client fulfills them.",
+        "Adapters act as anti-corruption layers, translating external DTOs or database rows into domain-friendly models and vice versa, preventing domain model pollution."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.hexagon.core.port.outbound;\n\nimport com.example.hexagon.core.domain.User;\nimport java.util.Optional;\nimport java.util.UUID;\n\n// Driven Port (Outbound Port) defined purely in the domain core\npublic interface SaveUserPort {\n    User save(User user);\n    Optional<User> findById(UUID id);\n}\n\npackage com.example.hexagon.infrastructure.adapter.persistence;\n\nimport com.example.hexagon.core.domain.User;\nimport com.example.hexagon.core.port.outbound.SaveUserPort;\nimport org.springframework.stereotype.Repository;\nimport java.util.Optional;\nimport java.util.UUID;\n\n// Driven Adapter (Outbound Adapter) implementing the port using Spring Data / JPA\n@Repository\npublic class SpringDataJpaUserAdapter implements SaveUserPort {\n    \n    private final SpringDataJpaRepository repository;\n\n    public SpringDataJpaUserAdapter(SpringDataJpaRepository repository) {\n        this.repository = repository;\n    }\n\n    @Override\n    public User save(User user) {\n        UserEntity entity = UserEntity.fromDomain(user);\n        UserEntity saved = repository.save(entity);\n        return saved.toDomain();\n    }\n\n    @Override\n    public Optional<User> findById(UUID id) {\n        return repository.findById(id).map(UserEntity::toDomain);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic trap engineers fall into when implementing Hexagonal Architecture in Java is letting database entity models bleed into the domain core. If your domain objects are annotated with JPA's @Entity, you have bypassed the primary benefit of the architecture. Always maintain a strict boundary with separate domain models, inbound DTOs, and persistence entities, using mappers at the adapter boundaries."
+    }
+  ],
+  "num": 1227,
+  "title": "Explain Hexagonal Architecture (Ports and Adapters). How does it differ from Layered Architecture?",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In a distributed system, the 'payment deducted but order missing' scenario is a classic failure mode resulting from the lack of atomic transactions across service boundaries. When a monolithic database is split into microservices, you lose ACID guarantees. The Saga pattern addresses this by decomposing a distributed transaction into a sequence of local transactions. Each local transaction updates the service's database and publishes an event to trigger the next step. If a step fails—for instance, the Order Service fails to persist an order after the Payment Service successfully captures funds—the Saga must execute 'compensating transactions' to undo the previous successful steps, such as issuing a refund. However, Sagas are eventually consistent, meaning there is a window where the system state is inconsistent. This is where Reconciliation comes into play. Reconciliation is the asynchronous process of comparing the state across disparate systems (e.g., Payment Gateway logs vs. Order Database) to identify discrepancies. It acts as a safety net for edge cases where network partitions or message broker failures prevent the Saga from completing its compensation logic."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Saga Pattern",
+        "Reconciliation Process"
+      ],
+      "rows": [
+        [
+          "Timing",
+          "Real-time/Reactive",
+          "Batch/Scheduled"
+        ],
+        [
+          "Primary Goal",
+          "Orchestrate flow/consistency",
+          "Detect and fix drift"
+        ],
+        [
+          "Failure Handling",
+          "Compensating transactions",
+          "Manual or automated correction"
+        ],
+        [
+          "Scope",
+          "Single business process",
+          "System-wide data integrity"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Saga Orchestration: Use an orchestrator (state machine) to manage complex workflows, ensuring that if the Order Service fails, the orchestrator explicitly commands the Payment Service to execute a 'Refund' command.",
+        "Idempotency: Both Saga participants and Reconciliation jobs must be strictly idempotent. If a reconciliation job re-runs, it must not trigger duplicate refunds or duplicate order creation.",
+        "Outbox Pattern: To prevent the 'dual write' problem where a database update succeeds but the event publication fails, use the Transactional Outbox pattern to ensure events are reliably delivered to the message broker.",
+        "Reconciliation Mechanics: Implement a 'diff' engine that pulls snapshots from the Payment Gateway API and your internal Order DB, flagging records that exist in one but not the other for automated remediation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class PaymentReconciliationService {\n    public void reconcile() {\n        List<Payment> gatewayPayments = paymentGateway.fetchDailyTransactions();\n        for (Payment p : gatewayPayments) {\n            if (!orderRepository.existsByTransactionId(p.getId())) {\n                log.error(\"Discrepancy found: Payment {} exists but Order missing. Triggering compensation.\", p.getId());\n                paymentGateway.refund(p.getId());\n            }\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never rely solely on Sagas for consistency. Sagas fail when the message broker itself goes down or when a service crashes mid-compensation. Always implement a 'Reconciliation' job as a 'dead-man's switch' to catch the 0.1% of cases where distributed messaging fails. If you don't have a reconciliation strategy, you will eventually face a 'lost money' support ticket that you cannot trace."
+    }
+  ],
+  "num": 1250,
+  "title": "Scenario: A user reports payment was deducted but order was not placed. How do you handle this? (Saga, Reconciliation)",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

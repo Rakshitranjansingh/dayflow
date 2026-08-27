@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Proxy-based transaction management in Spring relies on AOP (Aspect-Oriented Programming) to intercept method calls and wrap them in transaction boundaries. When you annotate a method with @Transactional, the framework creates a proxy object—either a JDK dynamic proxy or a CGLIB subclass—that handles the begin, commit, and rollback logic. However, this architecture introduces significant limitations. The most pervasive issue is the 'self-invocation' problem: if a method within the same class calls another @Transactional method, the call bypasses the proxy entirely, executing directly on the 'this' instance. Consequently, the transaction interceptor is never triggered, and the nested method runs without transactional context. Furthermore, because these proxies wrap the target bean, private, protected, or final methods cannot be intercepted, as they are either inaccessible to the proxy or cannot be overridden by CGLIB, leading to silent failures where database operations occur outside of any managed transaction."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Limitation",
+        "Root Cause",
+        "Impact"
+      ],
+      "rows": [
+        [
+          "Self-invocation",
+          "Direct call to 'this'",
+          "Transactional metadata ignored"
+        ],
+        [
+          "Method Visibility",
+          "Proxy/CGLIB constraints",
+          "Private/Final methods bypass AOP"
+        ],
+        [
+          "Checked Exceptions",
+          "Default rollback policy",
+          "Uncommitted data on checked exceptions"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "JDK Dynamic Proxies require the target class to implement an interface; if the proxy cannot implement the interface, Spring falls back to CGLIB, which generates a subclass of the target bean.",
+        "The proxy interceptor only triggers on public methods; calls originating from outside the bean (e.g., from a Controller or Service) correctly traverse the proxy, but internal calls remain strictly bound to the target object's memory address.",
+        "Transaction propagation (e.g., REQUIRES_NEW) fails silently during self-invocation because the TransactionManager never receives the request to suspend or create a new physical transaction.",
+        "Exception handling in proxies is strict: by default, Spring only triggers rollbacks for RuntimeExceptions and Errors, ignoring checked exceptions unless explicitly configured via rollbackFor."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderService {\n    // This call will fail to start a transaction because it's a self-invocation\n    public void processOrder(Order order) {\n        saveOrder(order); \n    }\n\n    @Transactional\n    public void saveOrder(Order order) {\n        repository.save(order);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production-grade workaround for self-invocation is to inject the proxy of the current bean into itself via @Lazy or ApplicationContextAware, or better yet, refactor the transactional logic into a separate service class. Always remember that if you are debugging a transaction that isn't rolling back, enable 'org.springframework.transaction' logging at DEBUG level; if you don't see 'Creating new transaction' in the logs, your proxy is being bypassed."
+    }
+  ],
+  "num": 236,
+  "title": "Proxy-based transaction management limitations",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,30 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Building secure enterprise applications on the JVM requires a comprehensive understanding of the OWASP Top 10 vulnerabilities, specifically focusing on injection, broken authentication, cross-site scripting (XSS), server-side request forgery (SSRF), and security misconfiguration. In a modern Spring Boot ecosystem, these vulnerabilities manifest in distinct architectural layers, ranging from improper data access query construction to leaky state management and unvalidated egress web requests. Injection flaws happen when untrusted user input is directly interpreted by an interpreter, whether it is an SQL statement via raw JDBC, a JPQL query string, or SpEL (Spring Expression Language) execution. Broken authentication weakens session tracking, credential storage, or multi-factor mechanics, leaving entry points wide open to credential stuffing or session hijacking. Cross-site scripting (XSS) occurs when applications render unescaped user-supplied data into a browser context, allowing arbitrary script execution in a victim's DOM. Server-side request forgery (SSRF) exploits the application server's ability to issue outbound network connections, tricking it into querying internal metadata services or private subnet resources. Finally, security misconfiguration encompasses everything from exposed actuator endpoints and default credentials to overly permissive CORS policies and missing security headers."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Injection vulnerabilities are thwarted by enforcing parameterized queries, using JPA/Hibernate Criteria API or type-safe parameters, and avoiding SpEL evaluation on raw, user-supplied request headers or query strings.",
+        "Broken authentication is mitigated in Spring Security by leveraging robust PasswordEncoder implementations like BCrypt or Argon2, enforcing robust session fixation protection, and correctly configuring stateless JWT or secure HttpOnly/Secure/SameSite cookie lifecycles.",
+        "XSS defense in modern web frameworks relies heavily on context-aware output encoding, Content Security Policy (CSP) headers that restrict script execution sources, and ensuring frontend frameworks treat inputs as text rather than raw HTML.",
+        "SSRF prevention mandates the implementation of strict egress network firewalls, URL parsing validation, and allowlists for outbound HTTP clients (like WebClient or RestTemplate) to prevent calls to loopback and private IP spaces.",
+        "Security misconfiguration is mitigated through automated security scanning, hardening Spring Boot Actuator endpoints by restricting exposure, explicitly declaring security configuration filters, and disabling directory listings."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\npublic class ProductionSecurityConfig {\n\n    @Bean\n    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {\n        http\n            .csrf(csrf -> csrf\n                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())\n            )\n            .headers(headers -> headers\n                .contentSecurityPolicy(csp -> csp\n                    .policyDirectives(\"default-src 'self'; script-src 'self'\")\n                )\n                .frameOptions(FrameOptionsConfig::deny)\n            )\n            .authorizeHttpRequests(auth -> auth\n                .requestMatchers(\"/actuator/health\", \"/api/public/**\").permitAll()\n                .requestMatchers(\"/actuator/**\").hasRole(\"ADMIN\")\n                .anyRequest().authenticated()\n            )\n            .sessionManagement(session -> session\n                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)\n            );\n        return http.build();\n    }\n\n    @Bean\n    public PasswordEncoder passwordEncoder() {\n        return new BCryptPasswordEncoder(12);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha regarding SSRF and Injection in Spring is the misuse of WebClient or RestTemplate alongside custom SpEL evaluation contexts. Developers often accept external URLs or identifiers to dynamically fetch remote webhooks or parse documents. If an attacker passes a URL targeting AWS or GCP metadata services (e.g., http://169.254.169.254/latest/meta-data/), an unvalidated outbound request can exfiltrate IAM instance profile credentials. Always validate and sanitize outbound URL schemas and resolve domain names against a restricted IP range before execution."
+    }
+  ],
+  "num": 281,
+  "title": "OWASP Top 10 — injection, broken auth, XSS, SSRF, security misconfiguration",
+  "category": "Spring Security & Web Security"
+}

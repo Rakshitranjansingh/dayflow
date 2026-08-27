@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Cache Stampede, often referred to as the Thundering Herd problem, occurs in high-concurrency systems when a highly popular cache key expires or is invalidated, triggering a massive surge of concurrent requests to the underlying data source (usually a database). When the cache entry is missing, every incoming thread observes the cache miss and simultaneously attempts to recompute or fetch the data from the source. This leads to a spike in CPU, memory, and database I/O, effectively turning the cache into a bottleneck rather than a performance booster. In a distributed system, this can lead to cascading failures where the database becomes unresponsive, causing latency to ripple across the entire service architecture."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Mechanism",
+        "Cache Stampede",
+        "Normal Cache Operation"
+      ],
+      "rows": [
+        [
+          "Request Flow",
+          "Concurrent threads all hit DB",
+          "Single thread hits DB, others wait"
+        ],
+        [
+          "Latency",
+          "Spikes during expiration",
+          "Consistent low latency"
+        ],
+        [
+          "Resource Utilization",
+          "High DB load, potential crash",
+          "Minimal DB load"
+        ],
+        [
+          "Primary Trigger",
+          "TTL Expiration",
+          "Cache Hit"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Mutex/Locking: Use a distributed lock (e.g., Redis Redlock or Zookeeper) to ensure only one thread performs the recomputation while others block or return a stale value.",
+        "Probabilistic Early Recomputation (XFetch): Instead of waiting for expiration, threads calculate the probability of recomputing the cache based on the time remaining in the TTL, effectively 'refreshing' the cache before it expires.",
+        "Soft TTL: Store the expiry time inside the cache value itself. When the main TTL expires, the first thread to notice the soft-expiry triggers an asynchronous background update, while other threads continue to serve the stale data.",
+        "Request Collapsing (Singleflight): Use a pattern where concurrent requests for the same key are collapsed into a single execution context, ensuring only one request reaches the backend."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public V getWithStampedeProtection(String key) {\n    V value = cache.get(key);\n    if (value == null) {\n        synchronized(this) {\n            value = cache.get(key);\n            if (value == null) {\n                value = database.fetch(key);\n                cache.put(key, value);\n            }\n        }\n    }\n    return value;\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: The 'Double-Checked Locking' pattern shown above is effective for single-node JVMs, but it fails in distributed architectures. In a clustered environment, you must use a distributed lock or a 'lock-free' approach like returning stale data while a background thread updates the cache. Always consider the trade-off: is it better to serve slightly stale data or to let the system hang while waiting for a fresh DB read?"
+    }
+  ],
+  "num": 914,
+  "title": "What is Cache Stampede (Thundering Herd)? How do you prevent it?",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed systems, handling distributed locks is essential for preventing concurrent access to shared resources across multiple JVMs or physical nodes. When multiple instances of a microservice attempt to mutate the same database record, process identical jobs from a queue, or perform singleton operations, standard in-memory Java synchronization primitives like synchronized blocks or ReentrantLocks fail because they are scoped strictly to a single JVM's heap. Distributed locks solve this by externalizing the synchronization state to a shared, highly available coordination layer.\n\nChoosing the right distributed lock mechanism—whether Apache ZooKeeper, Redis locks (such as Redlock), or database locks—requires a deep understanding of consistency models, network partitions, and the CAP theorem. ZooKeeper is built on the Zab atomic broadcast protocol, guaranteeing strict linearizability and sequential consistency through ephemeral sequential nodes, making it ideal for leader election and coordination tasks where correctness trumps raw throughput. Redis offers blazing-fast lock acquisition using in-memory operations and Lua scripting, often implemented via the Redlock algorithm across independent master nodes to survive partial network partitions, though it sacrifices absolute consistency under extreme clock drift or asynchronous replication edge cases. Database locks, leveraging row-level locks via SELECT ... FOR UPDATE or optimistic locking patterns with version columns, provide transactional safety coupled directly with your persistent storage, making them a natural choice when locks must be strictly coupled to ACID transactions, albeit with severe throughput and scaling limitations."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Apache ZooKeeper",
+        "Redis (Redlock / Redisson)",
+        "Database Locks"
+      ],
+      "rows": [
+        [
+          "Consistency Model",
+          "Linearizable (CP)",
+          "Eventual/Quorum-based (AP/CP tunable)",
+          "Strict ACID Transactions (CP)"
+        ],
+        [
+          "Performance & Latency",
+          "Moderate (disk I/O for transaction log)",
+          "Ultra-low latency (in-memory)",
+          "Lowest throughput (connection pool & lock contention)"
+        ],
+        [
+          "Failure Mode",
+          "Session expiration on network drop",
+          "Lock expiration during GC pauses or clock drift",
+          "Deadlocks, connection exhaustion, timeouts"
+        ],
+        [
+          "Best Use Case",
+          "Leader election, cluster coordination",
+          "High-throughput rate limiting, cart locks",
+          "Transactional financial updates, data integrity"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "ZooKeeper achieves locks by creating ephemeral sequential nodes under a parent lock node. A client watches the node immediately preceding its own sequence number; if that node is deleted, the client acquires the lock, ensuring fair, FIFO queuing and immediate cleanup if the client session drops due to network partition.",
+        "Redis distributed locks rely on setting a unique random value with a Time-To-Live (TTL) using SET resource_name client_random_value NX PX 30000. Release must be executed via an atomic Lua script that verifies the client_random_value matches before deleting the key to prevent releasing another thread's lock after a long Stop-The-World garbage collection pause.",
+        "Database pessimistic locks utilize transaction locks (e.g., SELECT ... FOR UPDATE) held until the transaction commits or rolls back, whereas optimistic locks use a version column where updates fail if the version has changed, avoiding lock contention entirely at the cost of application-level retry logic."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.redisson.api.RLock;\nimport org.redisson.api.RedissonClient;\nimport java.util.concurrent.TimeUnit;\n\npublic class DistributedLockService {\n    private final RedissonClient redissonClient;\n\n    public DistributedLockService(RedissonClient redissonClient) {\n        this.redissonClient = redissonClient;\n    }\n\n    public void executeWithLock(String lockKey, Runnable task) {\n        RLock lock = redissonClient.getLock(lockKey);\n        try {\n            // Wait up to 100 seconds, lock automatically expires after 10 seconds to prevent deadlocks\n            boolean isLocked = lock.tryLock(100, 10, TimeUnit.SECONDS);\n            if (!isLocked) {\n                throw new IllegalStateException(\"Could not acquire distributed lock for key: \" + lockKey);\n            }\n            task.run();\n        } catch (InterruptedException e) {\n            Thread.currentThread().interrupt();\n            throw new RuntimeException(\"Thread interrupted while acquiring lock\", e);\n        } finally {\n            // Only unlock if the current thread actually holds the lock\n            if (lock.isHeldByCurrentThread()) {\n                lock.unlock();\n            }\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap with Redis distributed locks is failing to account for JVM Stop-The-World (STW) garbage collection pauses. If Thread A acquires a Redis lock with a 5-second TTL, but experiences a 6-second GC pause, its lock will expire and be acquired by Thread B. When Thread A resumes, it will execute concurrently with Thread B, violating mutual exclusion. Always use frameworks like Redisson which implement a 'watchdog' thread to automatically extend the lock lease time while the owning thread is still processing."
+    }
+  ],
+  "num": 1107,
+  "title": "How do you handle distributed locks? When to use ZooKeeper, Redis locks, or database locks?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

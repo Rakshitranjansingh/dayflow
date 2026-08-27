@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java ecosystem, the distinction between checked and unchecked exceptions is a fundamental design choice that dictates how your API communicates failure to consumers. Checked exceptions, which inherit from java.lang.Exception but not RuntimeException, force the caller to explicitly handle or declare the error via the 'throws' clause. They are intended for recoverable conditions—scenarios where the program can reasonably be expected to take corrective action, such as a missing configuration file or an expired session token. By enforcing handle-or-declare, the compiler acts as a guardrail, ensuring that developers acknowledge the possibility of failure in external systems.\n\nConversely, unchecked exceptions, which inherit from RuntimeException, represent programming errors or unrecoverable state transitions. These include NullPointerException, IllegalArgumentException, or IndexOutOfBoundsException. Because these represent bugs or logic failures that the caller usually cannot fix at runtime, Java does not require them to be caught. Overusing checked exceptions often leads to 'exception swallowing' or bloated method signatures that leak implementation details, breaking encapsulation. Modern Java development, particularly in frameworks like Spring, leans heavily toward unchecked exceptions to reduce boilerplate and keep business logic clean, reserving checked exceptions only for scenarios where the caller must be forced to handle a specific, expected failure path."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Checked Exceptions",
+        "Unchecked Exceptions"
+      ],
+      "rows": [
+        [
+          "Inheritance",
+          "java.lang.Exception",
+          "java.lang.RuntimeException"
+        ],
+        [
+          "Compiler Enforcement",
+          "Forced (Handle or Declare)",
+          "Optional (No enforcement)"
+        ],
+        [
+          "Typical Use Case",
+          "Recoverable external failures",
+          "Programming bugs / Logic errors"
+        ],
+        [
+          "API Impact",
+          "Pollutes method signatures",
+          "Clean, transparent signatures"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Checked exceptions create a tight coupling between the caller and the callee's internal failure modes, which can make refactoring difficult if the underlying subsystem changes its error reporting strategy.",
+        "The JVM treats both types identically at runtime; the distinction is purely a compile-time check enforced by the Java compiler (javac) to ensure API contracts are respected.",
+        "Unchecked exceptions are preferred for 'fail-fast' scenarios where continuing execution would lead to data corruption or inconsistent states that cannot be safely recovered from.",
+        "When wrapping checked exceptions in a library, it is standard practice to catch the checked exception and rethrow it as a custom unchecked 'DomainException' to hide implementation details from the end-user."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void processFile(String path) {\n    try {\n        // Checked exception: Caller must handle or rethrow\n        Files.readAllLines(Paths.get(path));\n    } catch (IOException e) {\n        // Wrap in unchecked exception to maintain clean API boundaries\n        throw new DataProcessingException(\"Failed to load config: \" + path, e);\n    }\n}\n\npublic void validateInput(String data) {\n    // Unchecked exception: Logic error, no need to force caller to catch\n    if (data == null) {\n        throw new IllegalArgumentException(\"Data cannot be null\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Be wary of the 'Exception Swallowing' anti-pattern. If you find yourself catching a checked exception and leaving the catch block empty, you are likely using the wrong exception type. If the error is truly unrecoverable, wrap it in a RuntimeException. If you are tempted to declare 'throws Exception' on every method to avoid handling errors, you are effectively disabling the compiler's safety net, which is a significant technical debt trap that masks critical failures until they hit production logs."
+    }
+  ],
+  "num": 582,
+  "title": "When should you use checked exceptions vs unchecked exceptions?",
+  "category": "Exception Handling & I/O / NIO"
+}

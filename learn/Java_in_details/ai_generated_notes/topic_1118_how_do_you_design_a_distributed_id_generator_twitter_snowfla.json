@@ -1,0 +1,61 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a distributed ID generator requires balancing uniqueness, temporal sorting, scalability, and operational complexity across independent network nodes. In modern microservices architectures, relying on single-database auto-increment fields introduces a catastrophic single point of failure and a massive bottleneck for horizontal write scaling. To solve this, alternative patterns have emerged, each making distinct trade-offs regarding storage footprint, entropy, and network coordination.\n\nTwitter Snowflake solves this by generating 64-bit integers composed of a timestamp, a datacenter/machine identifier, and a local atomic sequence counter, granting us time-ordered, highly scalable identifiers without network round-trips during generation. Universally Unique Identifiers (UUIDs), specifically versions like UUID v4 (randomly generated) and UUID v7 (time-ordered with random entropy), offer completely decentralized ID generation at the cost of larger storage footprints and severe database index fragmentation. Database auto-increment integers provide absolute sequential predictability and minimal storage, but completely fail in multi-master or sharded database clusters due to collision risks and sequence synchronization overhead."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Ordering",
+        "Storage Size",
+        "Decentralization",
+        "Primary Bottleneck"
+      ],
+      "rows": [
+        [
+          "Twitter Snowflake",
+          "Time-ordered (roughly)",
+          "8 Bytes (Long)",
+          "High (Requires node ID)",
+          "Clock synchronization (NTP drift)"
+        ],
+        [
+          "UUID v4 / v7",
+          "v4: None / v7: Time-ordered",
+          "16 Bytes",
+          "Absolute (No coordination)",
+          "B-Tree index fragmentation (v4)"
+        ],
+        [
+          "DB Auto-Increment",
+          "Strictly sequential per table",
+          "4-8 Bytes",
+          "Low (Requires central lock)",
+          "Write scalability / Single Point of Failure"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Twitter Snowflake bit allocation typically consists of 1 sign bit (always 0), 41 bits for timestamp millis (yielding ~69 years of runway from a custom epoch), 10 bits for machine/datacenter IDs (supporting 1024 nodes), and 12 bits for a local sequence counter (permitting 4096 IDs per millisecond per node).",
+        "UUID v4 utilizes 122 bits of cryptographic or pseudo-random entropy alongside 4 version bits and 2 variant bits, guaranteeing near-zero collision probability but causing random disk writes in database clustered indexes.",
+        "UUID v7 addresses B-Tree fragmentation by front-loading a Unix timestamp in milliseconds into the upper bits, combining temporal sorting benefits with decentralized generation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class SnowflakeIdGenerator {\n    private final long twepoch = 1288834974657L;\n    private final long workerIdBits = 5L;\n    private final long datacenterIdBits = 5L;\n    private final long maxWorkerId = ~(-1L << workerIdBits);\n    private final long maxDatacenterId = ~(-1L << datacenterIdBits);\n    private final long sequenceBits = 12L;\n\n    private final long workerIdShift = sequenceBits;\n    private final long datacenterIdShift = sequenceBits + workerIdBits;\n    private final long timestampLeftShift = sequenceBits + workerIdBits + datacenterIdBits;\n    private final long sequenceMask = ~(-1L << sequenceBits);\n\n    private long workerId;\n    private long datacenterId;\n    private long sequence = 0L;\n    private long lastTimestamp = -1L;\n\n    public SnowflakeIdGenerator(long workerId, long datacenterId) {\n        if (workerId > maxWorkerId || workerId < 0) {\n            throw new IllegalArgumentException(String.format(\"worker Id can't be greater than %d\", maxWorkerId));\n        }\n        if (datacenterId > maxDatacenterId || datacenterId < 0) {\n            throw new IllegalArgumentException(String.format(\"datacenter Id can't be greater than %d\", maxDatacenterId));\n        }\n        this.workerId = workerId;\n        this.datacenterId = datacenterId;\n    }\n\n    public synchronized long nextId() {\n        long timestamp = timeGen();\n        if (timestamp < lastTimestamp) {\n            throw new RuntimeException(\"Clock moved backwards. Refusing to generate id.\");\n        }\n        if (lastTimestamp == timestamp) {\n            sequence = (sequence + 1) & sequenceMask;\n            if (sequence == 0) {\n                timestamp = tilNextMillis(lastTimestamp);\n            }\n        } else {\n            sequence = 0L;\n        }\n        lastTimestamp = timestamp;\n        return ((timestamp - twepoch) << timestampLeftShift)\n                | (datacenterId << datacenterIdShift)\n                | (workerId << workerIdShift)\n                | sequence;\n    }\n\n    private long tilNextMillis(long lastTimestamp) {\n        long timestamp = timeGen();\n        while (timestamp <= lastTimestamp) {\n            timestamp = timeGen();\n        }\n        return timestamp;\n    }\n\n    private long timeGen() {\n        return System.currentTimeMillis();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: NTP time synchronization adjustments (especially backward leaps caused by slew or step corrections) will instantly break Snowflake implementations by triggering the 'Clock moved backwards' exception or, worse, generating duplicate IDs if exceptions aren't thrown. Always configure your infrastructure to use slew mode rather than step mode for NTP, and ensure robust machine ID allocation via coordination services like ZooKeeper or Consul."
+    }
+  ],
+  "num": 1119,
+  "title": "How do you design a distributed ID generator? (Twitter Snowflake, UUID, DB auto-increment)",
+  "category": "Core Java & Fundamentals"
+}

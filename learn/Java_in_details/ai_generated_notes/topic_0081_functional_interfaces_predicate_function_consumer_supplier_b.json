@@ -1,0 +1,83 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Functional interfaces sit at the very core of Java's lambda expression ecosystem, introduced in Java 8 to bridge object-oriented paradigms with functional programming. A functional interface is any interface containing exactly one abstract method, though it may contain multiple default or static methods, and is typically annotated with @FunctionalInterface for compiler enforcement. They provide the target typing for lambda expressions and method references, allowing developers to pass behavior as data and radically reducing boilerplate code compared to anonymous inner classes.\n\nThe java.util.function package standardizes the most common functional patterns, ensuring interoperability across libraries. A Predicate<T> evaluates an argument and returns a boolean, making it ideal for filtering collections or defining validation rules. A Function<T, R> transforms an input of type T into an output of type R, serving as the foundational mapping construct in the Stream API. A Consumer<T> accepts a single input argument and returns no result, primarily used for side-effect operations like logging, mutation, or output streaming. Conversely, a Supplier<T> takes no arguments but yields a result, perfectly suited for lazy initialization, factory patterns, and deferred execution.\n\nMoving beyond the single-argument paradigm, a BiFunction<T, U, R> accepts two distinct inputs and produces a result, acting as the foundation for complex mapping and reduction operations such as combining map entries. A UnaryOperator<T> is a specialized extension of Function<T, T> where the input and output share the exact same type, making it heavily utilized in in-place mutations, accumulation loops, and stream element transformations like string formatting or mathematical scaling. Mastering these interfaces eliminates custom interface proliferation and unlocks expressive, declarative, and concurrent-safe pipeline design."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Interface",
+        "Abstract Method",
+        "Input Types",
+        "Return Type",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "Predicate<T>",
+          "boolean test(T t)",
+          "T",
+          "boolean",
+          "Filtering, validation, conditional checks"
+        ],
+        [
+          "Function<T, R>",
+          "R apply(T t)",
+          "T",
+          "R",
+          "Mapping, transforming types in streams"
+        ],
+        [
+          "Consumer<T>",
+          "void accept(T t)",
+          "T",
+          "void",
+          "Side effects, logging, terminal collection iterations"
+        ],
+        [
+          "Supplier<T>",
+          "T get()",
+          "None",
+          "T",
+          "Lazy evaluation, factories, default value generation"
+        ],
+        [
+          "BiFunction<T, U, R>",
+          "R apply(T t, U u)",
+          "T, U",
+          "R",
+          "Combining two distinct inputs into a single result"
+        ],
+        [
+          "UnaryOperator<T>",
+          "T apply(T t)",
+          "T",
+          "T",
+          "Transforming an input where input and output types match"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Under the hood, the JVM leverages invokedynamic bytecode instructions and lambda metafactories (LambdaMetafactory) to instantiate functional interfaces at runtime without writing physical class files to disk, optimizing startup time and footprint.",
+        "Default methods such as Predicate.and(), Function.compose(), and Consumer.andThen() allow functional interfaces to be chained fluently, building sophisticated behavior trees without mutating intermediate state.",
+        "Primitive specializations like IntPredicate, LongFunction, or DoubleConsumer prevent the performance overhead of autoboxing by operating directly on stack-allocated primitives, which is critical for high-throughput stream operations.",
+        "UnaryOperator inherits from Function, meaning any API accepting a Function<T, T> can seamlessly accept a UnaryOperator<T>, maintaining strict type safety while enforcing homogeneous input-output typing."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.function.*;\nimport java.util.List;\nimport java.util.ArrayList;\n\npublic class FunctionalPipelineDemo {\n    public static void main(String[] args) {\n        Supplier<List<String>> listSupplier = ArrayList::new;\n        Consumer<String> logger = str -> System.out.println(\"Processing: \" + str);\n        Predicate<String> lengthFilter = s -> s != null && s.length() > 3;\n        UnaryOperator<String> upperCaseTransformer = String::toUpperCase;\n        \n        BiFunction<Integer, String, String> indexFormatter = (idx, str) -> idx + \": \" + str;\n        \n        List<String> rawData = List.of(\"io\", \"nio\", \"exception\", \"handling\");\n        List<String> processed = listSupplier.get();\n        \n        int index = 1;\n        for (String item : rawData) {\n            if (lengthFilter.test(item)) {\n                String transformed = upperCaseTransformer.apply(item);\n                logger.accept(transformed);\n                processed.add(indexFormatter.apply(index++, transformed));\n            }\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Watch out for unhandled checked exceptions inside standard functional interfaces. Because interfaces like Function and Consumer do not declare throws clauses, wrapping checked exceptions inside lambdas requires either ugly try-catch blocks or custom functional interfaces equipped with exception signatures. Furthermore, frequent lambda allocations inside tight loops can trigger minor GC pressure if the lambda captures local variables (causing object capture allocation rather than stateless constant bootstrapping)."
+    }
+  ],
+  "num": 82,
+  "title": "Functional interfaces — Predicate, Function, Consumer, Supplier, BiFunction, UnaryOperator",
+  "category": "Exception Handling & I/O / NIO"
+}

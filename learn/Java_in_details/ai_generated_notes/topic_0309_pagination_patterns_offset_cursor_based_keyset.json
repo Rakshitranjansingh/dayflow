@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Pagination patterns are crucial mechanisms for managing large datasets transferred across I/O boundaries, preventing memory exhaustion and reducing network latency in distributed systems. When dealing with extensive database results, fetching everything at once violates fundamental resource management principles, leading to OutOfMemoryError in the JVM or overwhelming client buffers. To solve this, pagination breaks down massive datasets into manageable chunks. In modern backend engineering, choosing the right pagination strategy—specifically contrasting offset-based, cursor-based, and keyset-based approaches—dictates the performance, scalability, and data integrity of your I/O operations and database query execution.\n\nOffset-based pagination utilizes traditional SQL constructs like LIMIT and OFFSET. It works by skipping a specified number of rows before beginning to return results. While intuitive and trivial to implement for simple UIs that require jumping to arbitrary page numbers, it suffers from severe performance degradation at scale. The database engine must still scan and discard the offset rows, turning an $O(N)$ operation into a massive performance sink as the offset grows. Furthermore, offset pagination is notoriously susceptible to data drift, where concurrent insertions or deletions cause duplicate entries or skipped records across page transitions.\n\nCursor-based and keyset-based pagination patterns eliminate these performance bottlenecks by leveraging index structures instead of row-skipping. Keyset pagination (often referred to as seek method pagination) uses the values of the last seen row's columns (typically a unique, indexed column like id and a sort column like created_at) to construct a deterministic WHERE clause, allowing the database query planner to jump directly to the target B-tree leaf node via an index scan. Cursor-based pagination is conceptually similar but typically encapsulates these keyset values into an opaque, often base64-encoded token passed back to the client. This abstraction hides internal database implementation details while providing the exact same O(1) or O(log N) index-seeking performance benefits, making it the industry standard for infinite-scroll APIs and real-time data streams."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Pagination Strategy",
+        "Time Complexity",
+        "Random Access Support",
+        "Resilience to Data Drift"
+      ],
+      "rows": [
+        [
+          "Offset-based",
+          "O(Offset + Limit)",
+          "Yes (Jump to page X)",
+          "Poor (Shifts cause duplicates/skips)"
+        ],
+        [
+          "Keyset-based",
+          "O(Log N) Index Seek",
+          "No (Sequential only)",
+          "High (Ties to absolute column values)"
+        ],
+        [
+          "Cursor-based",
+          "O(Log N) Index Seek",
+          "No (Sequential only)",
+          "High (Opaque token mapping to keyset)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Offset pagination forces the storage engine to execute a sequential scan of offset + limit rows on deeply nested pages, discarding unwanted records and wasting CPU and memory bandwidth.",
+        "Keyset pagination relies heavily on composite indexes (e.g., CREATE INDEX idx_created_id ON logs(created_at DESC, id DESC)). Without a matching index, the database falls back to a full table scan, rendering the optimization useless.",
+        "Cursor tokens decouple the client from the database schema by encoding sorting keys (like timestamps or UUIDs) into a secure string, preventing clients from directly manipulating SQL query parameters."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Repository\npublic class LogRepository {\n\n    @PersistenceContext\n    private EntityManager entityManager;\n\n    public List<LogEntity> findNextPage(Instant lastCreatedAt, Long lastId, int limit) {\n        // Keyset pagination implementation using JPA Criteria API\n        CriteriaBuilder cb = entityManager.getCriteriaBuilder();\n        CriteriaQuery<LogEntity> query = cb.createQuery(LogEntity.class);\n        Root<LogEntity> root = query.from(LogEntity.class);\n\n        Predicate paginationPredicate;\n        if (lastCreatedAt != null && lastId != null) {\n            Predicate chronologicalCheck = cb.lessThan(root.get(\"createdAt\"), lastCreatedAt);\n            Predicate idTieBreaker = cb.and(\n                cb.equal(root.get(\"createdAt\"), lastCreatedAt),\n                cb.lessThan(root.get(\"id\"), lastId)\n            );\n            paginationPredicate = cb.or(chronologicalCheck, idTieBreaker);\n        } else {\n            paginationPredicate = cb.conjunction(); // First page\n        }\n\n        query.select(root)\n             .where(paginationPredicate)\n             .orderBy(cb.desc(root.get(\"createdAt\")), cb.desc(root.get(\"id\")));\n\n        return entityManager.createQuery(query)\n                .setMaxResults(limit)\n                .getResultList();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap with cursor and keyset pagination occurs when sorting by columns that contain non-unique values without a secondary tie-breaker column (like the primary key id). If multiple rows share the exact same timestamp value, pagination logic based solely on that timestamp will randomly skip or duplicate rows during boundary transitions. Always enforce a deterministic secondary sort column (e.g., primary key or UUID) to guarantee stable, predictable iterations."
+    }
+  ],
+  "num": 310,
+  "title": "Pagination patterns — offset, cursor-based, keyset",
+  "category": "Exception Handling & I/O / NIO"
+}

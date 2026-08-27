@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Serverless computing, specifically AWS Lambda, shifts the operational burden of infrastructure management away from the developer by abstracting the underlying execution environment. In this model, the cloud provider dynamically manages the allocation of machine resources, spinning up ephemeral containers to execute code only in response to specific triggers or events. This event-driven architecture allows for massive scalability and a pay-per-use billing model, effectively eliminating the need to provision or maintain long-running server instances. However, this abstraction introduces the 'Cold Start' problem, a latency penalty incurred when a request hits a function that has no active execution environment. In Java, this is particularly pronounced due to the JVM's heavyweight initialization process, which involves class loading, JIT compilation, and framework bootstrapping (like Spring Boot or Micronaut) before the first line of business logic can execute."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric",
+        "Traditional Server (EC2)",
+        "Serverless (Lambda)"
+      ],
+      "rows": [
+        [
+          "Scaling",
+          "Manual/Auto-scaling Groups",
+          "Automatic per-request"
+        ],
+        [
+          "Initialization",
+          "Always running (Warm)",
+          "On-demand (Cold Start)"
+        ],
+        [
+          "Billing",
+          "Hourly/Instance-based",
+          "Duration/Request-based"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "JVM Class Loading: The JVM must load hundreds of classes from the JAR into the Metaspace, which is a disk-to-memory bottleneck during the initial execution phase.",
+        "Framework Overhead: Dependency Injection containers (e.g., Spring) perform classpath scanning and bean wiring at runtime, which adds significant milliseconds to the startup time.",
+        "JIT Compilation: The Just-In-Time compiler initially interprets bytecode; it takes time to profile the code and optimize it into native machine code, leading to slower initial request processing.",
+        "GraalVM Native Image: A common mitigation strategy where Ahead-of-Time (AOT) compilation converts Java code into a standalone native binary, bypassing the JVM startup phase entirely."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class LambdaHandler implements RequestHandler<Map<String, String>, String> {\n    // Static initialization runs during the cold start phase\n    private static final ObjectMapper mapper = new ObjectMapper();\n\n    @Override\n    public String handleRequest(Map<String, String> input, Context context) {\n        // Business logic executes after the JVM is warm\n        return \"Processed: \" + input.get(\"id\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Never perform heavy initialization (like database connection pool creation or SDK client instantiation) inside the handler method. Always place these in the static constructor or class-level fields. This allows the AWS Lambda runtime to reuse these objects across 'warm' invocations, significantly reducing latency for subsequent requests. If you are using Spring Boot, consider migrating to Spring Cloud Function or Micronaut to leverage AOT compilation, as standard Spring Boot 2.x+ is often too heavy for latency-sensitive Lambda triggers."
+    }
+  ],
+  "num": 1182,
+  "title": "Explain serverless computing (AWS Lambda). Cold start problem in Java?",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

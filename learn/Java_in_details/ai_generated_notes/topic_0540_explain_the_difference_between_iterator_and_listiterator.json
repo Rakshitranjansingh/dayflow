@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Within the Java Collections Framework, traversing collection elements efficiently and safely is a fundamental requirement. The Iterator and ListIterator interfaces serve this exact purpose, though they operate at different levels of capability and abstraction. Iterator is the foundational cursor designed for general Collection implementations like HashSet, PriorityQueue, and ArrayList. It allows read-only traversal or safe element removal in a forward-only direction. Because general collections do not guarantee sequential ordering or index-based retrieval, Iterator must remain simple, exposing only hasNext(), next(), and remove().\n\nConversely, ListIterator is a specialized, bidirectional cursor explicitly engineered for List implementations such as ArrayList, LinkedList, and Vector. Unlike its predecessor, ListIterator knows about sequence, indices, and positional state. It unlocks the ability to traverse backwards via hasPrevious() and previous(), inspect adjacent indices using nextIndex() and previousIndex(), and perform runtime structural modifications through add(E e) and set(E e). Understanding the distinct architectural boundaries between these two interfaces is vital for preventing ConcurrentModificationException, avoiding unnecessary collection copying, and writing performant algorithms over ordered linear data structures."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Capability",
+        "Iterator",
+        "ListIterator"
+      ],
+      "rows": [
+        [
+          "Applicable Collections",
+          "All Collection types (Set, List, Queue)",
+          "List implementations only (ArrayList, LinkedList)"
+        ],
+        [
+          "Traversal Direction",
+          "Forward only",
+          "Bidirectional (Forward and Backward)"
+        ],
+        [
+          "Index Awareness",
+          "No concept of indices",
+          "Tracks next and previous indices"
+        ],
+        [
+          "Modification Operations",
+          "remove() only",
+          "remove(), set(E), add(E)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Fail-Fast Architecture: Both iterators maintain an internal structural modification count (modCount in ArrayList, header pointers in LinkedList). If the underlying collection is structurally modified by anything other than the iterator's own methods (remove, add, set) during iteration, a ConcurrentModificationException is thrown immediately via a fast check on expectedModCount.",
+        "Cursor Positioning Mechanics: An Iterator is always conceptually positioned immediately before the element returned by the next() call. A ListIterator sits precisely between elements; calling next() shifts the cursor forward past an element, while calling previous() shifts it backward.",
+        "Bidirectional Mechanics in LinkedList: For ListIterator backed by a doubly-linked list, calling previous() is an O(1) operation because node pointers are evaluated relative to the current cursor position, avoiding redundant traversals from the head."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.ArrayList;\nimport java.util.List;\nimport java.util.ListIterator;\n\npublic class ListIteratorDemo {\n    public static void main(String[] args) {\n        List<String> pipeline = new ArrayList<>();\n        pipeline.add(\"STAGE_ONE\");\n        pipeline.add(\"LEGACY_STAGE\");\n        pipeline.add(\"STAGE_THREE\");\n\n        ListIterator<String> iterator = pipeline.listIterator();\n        \n        while (iterator.hasNext()) {\n            String current = iterator.next();\n            if (\"LEGACY_STAGE\".equals(current)) {\n                // Replace element in-place without structural corruption\n                iterator.set(\"MODERN_STAGE\");\n                // Insert a new element immediately after the cursor\n                iterator.add(\"NEW_INJECTED_STAGE\");\n            }\n        }\n        \n        // Traverse backwards to verify state\n        while (iterator.hasPrevious()) {\n            System.out.println(iterator.previous());\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is calling Iterator.remove() or ListIterator.add() outside of the correct iteration cadence. Specifically, calling remove() or set() without a preceding call to next() or previous() will throw an IllegalStateException. Furthermore, remember that ListIterator operations on an ArrayList require array shifting for add() and remove(), leading to O(N) worst-case time complexity per invocation if performed mid-list."
+    }
+  ],
+  "num": 541,
+  "title": "Explain the difference between Iterator and ListIterator.",
+  "category": "Collections Framework & Internals"
+}

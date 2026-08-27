@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Framework, `@RequestMapping` and `@GetMapping` are foundational annotations used to map web requests to specific handler methods within Spring MVC or Spring Boot controllers. `@RequestMapping` is the original, comprehensive mapping annotation introduced in early versions of Spring. It acts as a swiss-army knife, capable of handling any HTTP method (GET, POST, PUT, DELETE, PATCH, etc.) depending on how its explicit `method` attribute is configured. Because of this broad applicability, it can be applied at both the class level to establish a shared URI prefix and the method level to target specific endpoints.\n\nOn the other hand, `@GetMapping` is a specialized, composed annotation introduced in Spring 4.3 to streamline and simplify code readability through meta-annotation. Under the hood, `@GetMapping` is simply a shortcut for `@RequestMapping(method = RequestMethod.GET)`. It eliminates boilerplate configuration by hardcoding the HTTP method to GET, forcing developers to rely on dedicated annotations like `@PostMapping`, `@PutMapping`, or `@DeleteMapping` for mutating operations. Understanding the distinction between these two annotations is essential for building clean, maintainable RESTful APIs that adhere strictly to HTTP semantics and constraints."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "@RequestMapping",
+        "@GetMapping"
+      ],
+      "rows": [
+        [
+          "HTTP Method Scope",
+          "Can handle any HTTP method; requires explicit method configuration.",
+          "Restricted strictly to HTTP GET requests."
+        ],
+        [
+          "Meta-Annotation Status",
+          "Base annotation containing extensive configuration attributes.",
+          "Composed annotation built on top of @RequestMapping."
+        ],
+        [
+          "Readability & Intent",
+          "Ambiguous at the method level without inspecting attributes.",
+          "Immediately communicates a read-only query operation."
+        ],
+        [
+          "Class-Level Usage",
+          "Commonly used to define base URI paths for all methods in a controller.",
+          "Rarely used at the class level; primarily restricted to method endpoints."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Meta-annotation architecture: Spring processes composed annotations by scanning the hierarchy for annotations meta-annotated with @RequestMapping, registering the handler method with the exact sameDispatcherServlet mappings.",
+        "HTTP method safety: Using @GetMapping enforces safe and idempotent API design constraints, preventing accidental mapping of state-changing payloads to GET endpoints.",
+        "RequestMapping fallback attributes: When using general @RequestMapping at the method level without specifying a method type, Spring will route *all* HTTP verbs to that single handler, which frequently results in unexpected MethodNotAllowed or payload-binding bugs."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/v1/users\")\npublic class UserController {\n\n    @GetMapping\n    public ResponseEntity<List<UserDto>> getAllUsers() {\n        return ResponseEntity.ok(userService.findAll());\n    }\n\n    @RequestMapping(value = \"/legacy\", method = RequestMethod.GET)\n    public ResponseEntity<List<UserDto>> getLegacyUsers() {\n        return ResponseEntity.ok(userService.findLegacy());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha occurs when developers use class-level @RequestMapping alongside method-level annotations without specifying consumes or produces constraints. If multiple GET handlers match a URI pattern due to ambiguous path variables or overlapping ant-path expressions, Spring's RequestMappingHandlerMapping may throw an IllegalStateException during startup or dispatch unpredictable requests. Always prefer specialized annotations like @GetMapping over bare @RequestMapping to keep your URL space strictly typed and semantically sound."
+    }
+  ],
+  "num": 767,
+  "title": "@RequestMapping vs @GetMapping?",
+  "category": "Core Java & Fundamentals"
+}

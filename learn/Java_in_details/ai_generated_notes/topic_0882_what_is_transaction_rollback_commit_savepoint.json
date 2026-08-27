@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java applications, managing data integrity across persistent storage requires strict adherence to ACID properties (Atomicity, Consistency, Isolation, Durability). At the heart of this mechanism lie three foundational operations: transaction rollback, commit, and savepoint. A transaction represents a logical unit of work comprised of multiple database or I/O operations. When all operations execute successfully without violating integrity constraints, a commit is issued, permanently writing the changes to the underlying data store and releasing associated locks. Conversely, if an exception or failure disrupts this sequence, a transaction rollback must occur, undoing all uncommitted modifications made within the context of that transaction to restore the system to its initial, consistent state.\n\nTo achieve granular control over large transactions, developers leverage a savepoint. A savepoint acts as a designated marker within the boundary of a larger transaction, allowing for partial rollbacks. Rather than aborting an entire batch of operations due to a localized failure, an application can roll back execution precisely to a previously established savepoint, discarding only the subsequent sub-operations while preserving the work completed prior to the marker. This combination of atomic finalization (commit), complete reversal (rollback), and granular backtracking (savepoint) forms the bedrock of reliable exception handling in enterprise persistence layers like JDBC, JPA, and Spring's declarative transaction management."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Operation",
+        "Primary Objective",
+        "Resource Impact"
+      ],
+      "rows": [
+        [
+          "Commit",
+          "Persists all uncommitted changes permanently to the database.",
+          "Releases locks, clears undo/redo log states for the transaction."
+        ],
+        [
+          "Rollback",
+          "Aborts the transaction, discarding all modifications made since inception.",
+          "Releases locks, rolls back changes using undo logs."
+        ],
+        [
+          "Savepoint",
+          "Establishes an intermediate rollback marker within a transaction.",
+          "Maintains partial locks; restricts rollback scope to operations after the marker."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Commit operations trigger the database engine to flush dirty pages from the buffer pool to disk or write-ahead logs (WAL), ensuring durability even in the event of a subsequent system crash.",
+        "Rollback relies heavily on undo logs (or rollback segments). The storage engine traverses the undo log chain to reverse memory and disk changes instruction by instruction.",
+        "Savepoints operate by creating a lightweight identifier within the active transaction context, enabling the database to truncate its internal savepoint stack without destroying the parent transaction."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.sql.Connection;\nimport java.sql.DriverManager;\nimport java.sql.SQLException;\nimport java.sql.Savepoint;\nimport java.sql.Statement;\n\npublic class TransactionManagerDemo {\n    public void executeBusinessLogic(String dbUrl, String user, String pass) {\n        try (Connection conn = DriverManager.getConnection(dbUrl, user, pass)) {\n            conn.setAutoCommit(false); // Begin transaction\n\n            try (Statement stmt = conn.createStatement()) {\n                stmt.executeUpdate(\"INSERT INTO accounts (id, balance) VALUES (1, 500)\");\n                \n                // Set a savepoint after the first operation\n                Savepoint sp1 = conn.setSavepoint(\"BeforeRiskyOperation\");\n\n                try {\n                    stmt.executeUpdate(\"UPDATE inventory SET stock = stock - 1 WHERE id = 99\");\n                } catch (SQLException e) {\n                    // Rollback only to the savepoint, preserving the initial insert\n                    conn.rollback(sp1);\n                    conn.releaseSavepoint(sp1);\n                }\n\n                // Finalize the transaction\n                conn.commit();\n            } catch (Exception e) {\n                // Total failure: rollback everything\n                conn.rollback();\n                throw e;\n            }\n        } catch (SQLException e) {\n            // Handle connection or fatal database errors\n            e.printStackTrace();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in Spring-managed applications is catching checked exceptions inside a transactional service method without rethrowing them or explicitly marking the transaction for rollback. By default, Spring's `@Transactional` annotation only triggers a rollback on unchecked exceptions (instances of `RuntimeException` or `Error`). If you catch an exception and fail to call `TransactionAspectSupport.currentTransactionStatus().setRollbackOnly()`, the transaction will commit partially completed or corrupted state, leading to silent data inconsistency."
+    }
+  ],
+  "num": 883,
+  "title": "What is transaction rollback? Commit? Savepoint?",
+  "category": "Exception Handling & I/O / NIO"
+}

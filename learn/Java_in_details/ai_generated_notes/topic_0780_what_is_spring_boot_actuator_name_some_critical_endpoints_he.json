@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Boot Actuator is a production-ready module designed to help monitor, manage, and inspect Spring Boot applications in real-time. In a distributed microservice architecture, gaining visibility into application health, internal metrics, and memory usage without restarting or SSHing into production nodes is essential. Actuator brings production-grade telemetry directly to your runtime environment by exposing pre-built HTTP endpoints or JMX beans.\n\nTo effectively operate applications at scale, engineers rely heavily on several critical Actuator endpoints. The `/health` endpoint aggregates application liveness and readiness states, pulling data from underlying components like database connection pools, disk space, and custom health indicators. The `/metrics` endpoint taps into Micrometer, exposing dimensional runtime statistics such as JVM garbage collection pauses, HTTP request latencies, CPU utilization, and thread pool usage. Finally, the `/heapdump` endpoint captures a complete memory snapshot (HPROF binary file) of the running JVM heap, allowing engineers to diagnose complex memory leaks and out-of-memory errors offline using tools like Eclipse MAT or VisualVM."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Endpoint",
+        "Primary Purpose",
+        "Production Operational Risk"
+      ],
+      "rows": [
+        [
+          "/health",
+          "Returns application up/down status and subsystem health checks.",
+          "Low risk; frequently exposed internally to orchestrators like Kubernetes."
+        ],
+        [
+          "/metrics",
+          "Exposes time-series performance data via Micrometer integration.",
+          "Medium risk; high cardinality tags can cause memory pressure."
+        ],
+        [
+          "/heapdump",
+          "Downloads a binary HPROF memory snapshot of the JVM heap.",
+          "High risk; blocking operation that can cause STW pauses and high I/O."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Actuator endpoints are auto-configured when spring-boot-starter-actuator is on the classpath, but by default, most endpoints (except /health and /info) are restricted to prevent sensitive data exposure.",
+        "The /health endpoint utilizes a hierarchical CompositeHealthContributor model, segregating liveness (/health/liveness) and readiness (/health/readiness) probes for Kubernetes container orchestration.",
+        "The /metrics endpoint acts as a facade over Micrometer, decoupling the metric recording instrumentation from underlying monitoring backends like Prometheus, Datadog, or New Relic.",
+        "Generating a /heapdump triggers a full Garbage Collection cycle prior to dumping the heap, which forces a massive Stop-The-World (STW) pause on large heaps, potentially timing out load balancers."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "management:\n  endpoints:\n    web:\n      exposure:\n        include: \"health,metrics,heapdump\"\n      base-path: \"/manage\"\n  endpoint:\n    health:\n      show-details: \"always\"\n      probes:\n        enabled: true\n    heapdump:\n      enabled: true"
+    },
+    {
+      "type": "note",
+      "content": "Senior Production Gotcha: Never expose Actuator endpoints on the same port as your business web traffic (server.port) in public-facing architectures. Always configure management.server.port to run Actuator on an isolated internal port or network interface, and secure it via Spring Security. Exposing /heapdump publicly is an immediate remote disclosure vulnerability that leaks sensitive user session data, database credentials, and cached entities residing in the JVM heap."
+    }
+  ],
+  "num": 781,
+  "title": "What is Spring Boot Actuator? Name some critical endpoints (/health, /metrics, /heapdump).",
+  "category": "Spring Boot & Spring Framework"
+}

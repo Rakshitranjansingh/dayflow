@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Achieving Exactly-once semantics (EOS) in Apache Kafka is a sophisticated orchestration of distributed transactions designed to solve the 'at-least-once' delivery problem, where network retries or producer failures lead to duplicate records in the log. In a distributed system, achieving true EOS requires a coordinated effort between the producer and the broker to ensure that writes are atomic and idempotent. The mechanism relies on three pillars: Idempotent Producers, Transactional API, and Offset Commits. An idempotent producer assigns a Producer ID (PID) and a monotonically increasing sequence number to every batch, allowing the broker to discard duplicates if a retry occurs due to an ACK timeout. However, idempotency only handles single-partition, single-session failures. To achieve EOS across multiple partitions or multiple topics—often required in stream processing pipelines—Kafka introduces the Transactional API. This allows a producer to send a batch of messages and commit their offsets as a single atomic unit, ensuring that either all messages are visible to consumers or none are."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Mechanism",
+        "Scope",
+        "Use Case"
+      ],
+      "rows": [
+        [
+          "Idempotent Producer",
+          "Single Partition",
+          "Preventing duplicate writes on retries"
+        ],
+        [
+          "Transactional API",
+          "Atomic Multi-Partition",
+          "Read-Process-Write stream pipelines"
+        ],
+        [
+          "Consumer Offset Commits",
+          "Consumer Group",
+          "Ensuring state consistency in offsets"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Transaction Coordinator (a broker-side module) manages the transaction state machine, tracking the status of ongoing transactions via the __transaction_state internal topic.",
+        "When a producer initiates a transaction, it requests a Transactional ID, which remains persistent across restarts, allowing the coordinator to fence off zombies (old producer instances) using an epoch increment.",
+        "The 'Read-Process-Write' pattern requires the consumer to be configured with 'isolation.level=read_committed', ensuring the consumer only sees messages from transactions that have successfully reached the 'Complete' state.",
+        "Transactional markers are written to the log by the broker to signify the commit or abort status of a transaction, which the consumer uses to filter out uncommitted data."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "Properties props = new Properties();\nprops.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, \"true\");\nprops.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, \"prod-123\");\n\nKafkaProducer<String, String> producer = new KafkaProducer<>(props);\nproducer.initTransactions();\n\ntry {\n    producer.beginTransaction();\n    producer.send(new ProducerRecord<>(\"topic\", \"key\", \"value\"));\n    producer.sendOffsetsToTransaction(offsets, consumerGroupId);\n    producer.commitTransaction();\n} catch (ProducerFencedException | OutOfOrderSequenceException e) {\n    producer.abortTransaction();\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is assuming EOS is 'free'. Enabling transactions introduces significant latency overhead due to the coordination required with the Transaction Coordinator and the need for consumers to wait for commit markers. Furthermore, if you use external systems (like a database) alongside Kafka, Kafka's internal transactions cannot span those external systems; you must implement the Outbox Pattern or two-phase commit to maintain end-to-end consistency."
+    }
+  ],
+  "num": 944,
+  "title": "How to achieve Exactly-once semantics in Kafka?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

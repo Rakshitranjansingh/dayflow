@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a search system at scale requires moving beyond simple linear scans of data structures. At its core, a search system must balance indexing latency, query throughput, and memory footprint. The fundamental challenge is the 'Inverted Index'—a mapping of content to its location—which allows us to bypass O(N) full-table scans. In Java, this is often implemented using a combination of ConcurrentHashMaps for in-memory lookups and disk-based B-Trees or LSM-Trees for persistence. For high-performance search, we must consider the JVM heap constraints; storing massive inverted indexes in the heap leads to catastrophic Garbage Collection (GC) pauses due to the sheer volume of long-lived objects. Instead, we typically offload the index to off-heap memory (using DirectByteBuffers) or leverage memory-mapped files (mmap) to allow the OS kernel to manage page caching, keeping the JVM heap clean for request processing and business logic."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Latency",
+        "Memory Overhead",
+        "Use Case"
+      ],
+      "rows": [
+        [
+          "In-Memory Hash Index",
+          "O(1)",
+          "High",
+          "Small, volatile datasets"
+        ],
+        [
+          "Inverted Index (LSM-Tree)",
+          "O(log N)",
+          "Medium",
+          "Large-scale text search"
+        ],
+        [
+          "Full Table Scan",
+          "O(N)",
+          "Low",
+          "Ad-hoc, rare queries"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Tokenization and Normalization: Before indexing, raw text must be processed through an analyzer pipeline that handles stemming, stop-word removal, and case folding to ensure search relevance.",
+        "Concurrency Control: Using Read-Write locks or Lock-free structures like ConcurrentSkipListMap is essential to prevent search results from becoming stale while the index is being updated by background ingestion threads.",
+        "Memory Mapping (mmap): By mapping index files directly into the process address space, we allow the OS to swap pages in and out of physical RAM, effectively caching the most frequent index segments without bloating the JVM heap.",
+        "Query Expansion: Implementing a search system often requires handling synonyms and fuzzy matching (Levenshtein distance), which significantly increases the complexity of the query parser."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class InvertedIndex {\n    private final Map<String, Set<Long>> index = new ConcurrentHashMap<>();\n\n    public void addDocument(long docId, String content) {\n        String[] tokens = content.toLowerCase().split(\"\\\\W+\");\n        for (String token : tokens) {\n            index.computeIfAbsent(token, k -> ConcurrentHashMap.newKeySet()).add(docId);\n        }\n    }\n\n    public Set<Long> search(String query) {\n        return index.getOrDefault(query.toLowerCase(), Collections.emptySet());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: The biggest trap in building a custom search system is the 'Object Overhead' problem. If you store millions of document IDs in a standard `HashSet<Long>`, you are paying for the object header of every Long and every Entry object. In a production system, always prefer primitive collections (like fastutil or Trove) or bitsets (RoaringBitmap) to compress your index. A RoaringBitmap can reduce the memory footprint of an inverted index by 10x-50x compared to standard Java Collections, while simultaneously enabling lightning-fast bitwise intersection operations for multi-term queries."
+    }
+  ],
+  "num": 1100,
+  "title": "How would you design a search system?",
+  "category": "Core Java & Fundamentals"
+}

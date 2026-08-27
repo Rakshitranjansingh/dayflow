@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java applications, securing resources requires moving beyond rudimentary authentication to sophisticated authorization models. Role-Based Access Control (RBAC) and Attribute-Based Access Control (ABAC) are the two prevailing authorization paradigms used to govern who can access what within a system. RBAC structures access around organizational roles, assigning users to specific positions such as ADMIN, MANAGER, or USER. Permissions are bound directly to these roles rather than individuals, making it straightforward to manage access in stable environments where job functions map cleanly to permissions. However, as applications scale and security requirements grow more granular, RBAC often leads to role explosion—an unmanageable proliferation of custom roles designed to satisfy edge-case permissions.\n\nAttribute-Based Access Control (ABAC) solves the limitations of RBAC by evaluating access requests against a dynamic set of environmental, user, and resource attributes. Instead of checking if a user possesses a static role, ABAC evaluates policies based on contextual data points such as the user's department, the time of day, the classification level of the document, and the current IP address. In Java-based systems, ABAC is typically implemented using Policy Decision Points (PDP) and Policy Enforcement Points (PEP), leveraging expression languages like SpEL (Spring Expression Language) or standards like XACML to execute fine-grained, contextual security policies at runtime."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Role-Based Access Control (RBAC)",
+        "Attribute-Based Access Control (ABAC)"
+      ],
+      "rows": [
+        [
+          "Evaluation Basis",
+          "User's assigned roles",
+          "Dynamic attributes (User, Resource, Action, Environment)"
+        ],
+        [
+          "Granularity",
+          "Coarse-grained to medium-grained",
+          "Extremely fine-grained"
+        ],
+        [
+          "Scalability Challenge",
+          "Role explosion in complex domains",
+          "Policy management overhead and evaluation latency"
+        ],
+        [
+          "Context Awareness",
+          "Static; unaware of environment or time",
+          "Dynamic; evaluates real-time contextual variables"
+        ],
+        [
+          "Implementation Complexity",
+          "Low to Moderate (native to Spring Security/Jakarta EE)",
+          "High (requires custom evaluation engines or PDP/PEP frameworks)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "RBAC relies on a hierarchical graph of users, roles, and permissions stored in a relational schema, where access checks typically boil down to SQL join queries or in-memory collection lookups against a SecurityContext holder.",
+        "ABAC models access via boolean logic expressions evaluated dynamically against contextual context maps, enabling conditions such as 'Allow access if user.department == resource.department AND environment.time < 18:00'.",
+        "Performance optimization in RBAC is achieved by caching user authorities in the HTTP session or JWT claims, whereas ABAC requires careful caching strategies for attribute fetchers to prevent database N+1 performance bottlenecks during authorization evaluation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/documents\")\npublic class DocumentController {\n\n    // RBAC Example using Spring Security @PreAuthorize\n    @GetMapping(\"/{id}\")\n    @PreAuthorize(\"hasRole('ADMIN') or hasAuthority('DOCUMENT_READ')\")\n    public ResponseEntity<Document> getDocumentRbac(@PathVariable Long id) {\n        return ResponseEntity.ok(documentService.findById(id));\n    }\n\n    // ABAC Example evaluating dynamic attributes using SpEL\n    @PutMapping(\"/{id}\")\n    @PreAuthorize(\"@abacEvaluator.canAccess(#id, principal, 'UPDATE')\")\n    public ResponseEntity<Document> updateDocumentAbac(@PathVariable Long id, @RequestBody DocumentDto dto) {\n        return ResponseEntity.ok(documentService.update(id, dto));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall when implementing ABAC in high-throughput Java applications is evaluating expensive attribute lookups (such as querying relational databases for user reporting lines or document metadata) inside security annotations on every single request. Always implement request-scoped caching or leverage asynchronous attribute loaders to prevent authorization bottlenecks from degrading application latency."
+    }
+  ],
+  "num": 1009,
+  "title": "Explain Role-Based Access Control (RBAC) vs Attribute-Based Access Control (ABAC).",
+  "category": "Core Java & Fundamentals"
+}

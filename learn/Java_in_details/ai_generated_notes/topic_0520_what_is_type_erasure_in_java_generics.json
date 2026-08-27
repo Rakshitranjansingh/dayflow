@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Type Erasure in Java Generics is a compilation-phase mechanism implemented by the Java compiler (javac) to enforce generic type constraints at compile-time while ensuring absolute binary compatibility with legacy pre-Java 5 JVM bytecode. When Java introduced generics in J2SE 5.0, the designers faced a severe architectural constraint: they could not alter the underlying Java Virtual Machine specification or redesign the execution engine to support reified generics (like C# or Scala). If generics were reified, every parameterized type like List<String> and List<Integer> would instantiate a distinct runtime class, bloating memory and breaking every existing library compiled against raw types. To solve this dilemma, the compiler strips away all generic type parameters during translation, replacing them with their bounds (or java.lang.Object if unbounded) and systematically inserting synthetic checkcast instructions wherever the values are read back out.\n\nTo achieve this without breaking polymorphism, the compiler occasionally generates bridge methods. Consider a subclass implementing a generic interface where the type parameter is bound to a specific class. Because erasure turns the parameter into Object, the method signatures in the bytecode might no longer match the expected signature in the interface. The compiler solves this by automatically injecting a synthetic bridge method that accepts Object, casts it, and delegates to the strongly-typed method. Understanding type erasure exposes the stark reality that generics in Java are strictly a compile-time syntactic sugar and static safety net, completely invisible to the runtime environment, meaning you cannot perform runtime checks like instanceof List<String> or instantiate new T() directly."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Concept",
+        "Compile-Time View",
+        "Runtime (Bytecode) View"
+      ],
+      "rows": [
+        [
+          "Class Declaration",
+          "class Box<T> { T item; }",
+          "class Box { Object item; }"
+        ],
+        [
+          "Bounded Type",
+          "class NumberBox<T extends Number>",
+          "class NumberBox { Number item; }"
+        ],
+        [
+          "Method Invocation",
+          "String s = box.getItem();",
+          "String s = (String) box.getItem();"
+        ],
+        [
+          "Type Safety Check",
+          "Strict compiler checking",
+          "None (Relies on implicit casts)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Unbounded type parameters like <T> are universally erased to java.lang.Object, meaning the raw bytecode operates entirely on Object references.",
+        "Bounded type parameters like <T extends Comparable<T>> are erased to their leftmost bound (in this case, java.lang.Comparable), allowing the compiler to emit bytecode calling methods defined on the bound safely.",
+        "Signature clashes caused by erasure are resolved via compiler-generated bridge methods, ensuring method overriding rules of the JVM are strictly satisfied without violating Java's type safety guarantees.",
+        "Heap pollution occurs when a variable of a parameterized type refers to an object that is not of that parameterized type, bypassing compiler safety checks via raw types or unchecked casts."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ErasureDemonstration<T extends Comparable<T>> {\n    private T data;\n\n    public void setData(T data) {\n        this.data = data;\n    }\n\n    public T getData() {\n        return data;\n    }\n\n    // What the compiler sees: Strict type checking against T.\n    // What the bytecode actually contains after Type Erasure:\n    // private Comparable data;\n    // public void setData(Comparable data) { this.data = data; }\n    // public Comparable getData() { return this.data; }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap related to type erasure is attempting to do reflection on generic types at runtime, such as trying to discover that a List<String> is specifically a String list. Because of erasure, List<String>.class does not exist; it is simply List.class. To bypass this limitation when frameworks (like Jackson or Spring) need to serialize or deserialize complex generics, engineers must use TypeToken patterns, super type tokens, or inspect java.lang.reflect.ParameterizedType on method parameters or field declarations where generic signature attributes are preserved in the class file metadata."
+    }
+  ],
+  "num": 521,
+  "title": "What is Type Erasure in Java Generics?",
+  "category": "Generics & Type System"
+}

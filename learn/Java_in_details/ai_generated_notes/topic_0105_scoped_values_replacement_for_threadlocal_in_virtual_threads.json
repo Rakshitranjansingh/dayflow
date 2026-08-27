@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "As Java applications scale to handle millions of concurrent operations via Project Loom's Virtual Threads, traditional mechanisms for sharing context, such as ThreadLocal, reveal severe architectural scaling bottlenecks. ThreadLocal allows thread-confined mutable state, meaning every thread holds its own independent map of values. When scaling to millions of virtual threads, if each thread binds transient request contexts, user profiles, or transactional data using ThreadLocal, memory overhead skyrockets due to unbounded map growth, and thread confinement guarantees are easily violated because ThreadLocal variables are inherently mutable via their `set()` method. Furthermore, ThreadLocal values can leak across thread boundaries in thread-pool environments if not explicitly cleaned up via `remove()`.\n\nScoped Values (introduced as part of JEP 429, 446, 448, and finalized in Java 22) provide a modern, immutable, and high-performance replacement for ThreadLocal, specifically designed with virtual threads in mind. Unlike ThreadLocal, a ScopedValue is bound to a specific lexical scope. When execution exits the scope, the value is automatically rendered unbound and immutable throughout its lifecycle. This immutability guarantees thread-safety without explicit synchronization, and because scoped values are designed to be shared efficiently across hierarchical method calls, they drastically reduce memory footprints compared to traditional thread-local maps. By eliminating mutability and enforcing automatic lifetime management, Scoped Values prevent memory leaks and make concurrent data flow transparent and deterministic."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "ThreadLocal",
+        "Scoped Values (JEP 446/448)"
+      ],
+      "rows": [
+        [
+          "Mutablility",
+          "Mutable via set() anywhere in execution",
+          "Strictly immutable during execution scope"
+        ],
+        [
+          "Lifetime",
+          "Manual lifecycle via remove(), prone to leaks",
+          "Lexically scoped; automatically unbound on exit"
+        ],
+        [
+          "Virtual Thread Scale",
+          "High memory overhead with millions of threads",
+          "Optimized for millions of concurrent virtual threads"
+        ],
+        [
+          "Inheritance",
+          "InheritableThreadLocal copies data, high overhead",
+          "Structured sharing via StructuredTaskScope"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Scoped values operate on a write-once, read-many paradigm. The binding occurs at the entry of a specific lambda or block via `ScopedValue.where(key, value).run(...)` or `call(...)`.",
+        "Under the hood, the JVM stores scoped values in a carrier-thread-agnostic structure linked to the execution stack of the virtual thread, enabling rapid lookup without hashing overhead.",
+        "They integrate seamlessly with Structured Concurrency (JEP 453). When spawning child virtual threads via StructuredTaskScope, scoped values can be safely and explicitly inherited by sub-tasks without accidental data mutation leaks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import jdk.incubator.concurrent.ScopedValue;\nimport java.util.concurrent.StructuredTaskScope;\n\npublic class ScopedValueDemo {\n    private static final ScopedValue<String> CURRENT_USER = ScopedValue.newInstance();\n\n    public void handleRequest(String username) throws Exception {\n        ScopedValue.where(CURRENT_USER, username).run(() -> {\n            processSubTask();\n        });\n    }\n\n    private void processSubTask() {\n        // Read the immutable scoped value safely without explicit parameters\n        System.out.println(\"Processing request for user: \" + CURRENT_USER.get());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Do not attempt to use Scoped Values as a drop-in mutable registry like you might have done with ThreadLocal. Because they are immutable and bound to a strict lexical scope, you cannot update a scoped value halfway down a deeply nested call stack. If you need to accumulate state across operations, pass a mutable container (like an atomic data structure) *inside* an immutable ScopedValue, though doing so defeats the safety guarantees. Design your architecture so that context is purely read-only downstream."
+    }
+  ],
+  "num": 106,
+  "title": "Scoped Values (replacement for ThreadLocal in virtual threads)",
+  "category": "Virtual Threads & Concurrency"
+}

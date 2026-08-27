@@ -1,0 +1,67 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern distributed systems and microservices architectures, static IP configurations are rendered obsolete by auto-scaling, containerization, and ephemeral deployments. Service Discovery is the automated process of detecting the network locations (IP addresses and ports) of service instances dynamically. When a service wants to communicate with another, it cannot rely on hardcoded configurations; instead, it queries a centralized registry or a name resolution subsystem. Netflix Eureka, HashiCorp Consul, and Kubernetes (K8s) DNS are the primary pillars of this ecosystem, each solving the registration and discovery lifecycle through different trade-offs in consistency, CAP theorem alignment, and protocol design. Netflix Eureka is an application-level, AP-oriented (Available and Partition-tolerant) registry tailored heavily for the Java and Spring Cloud ecosystem, where clients maintain local caches and aggressively heartbeat. HashiCorp Consul, on the other hand, operates as a CP (Consistent and Partition-tolerant) system using the Raft consensus algorithm, providing not just service discovery but also a distributed key-value store, health checking via gRPC/HTTP/TCP, and a native service mesh capability via Consul Connect. Kubernetes DNS abstracts service discovery entirely to the infrastructure layer, utilizing CoreDNS to assign internal DNS records (e.g., service.namespace.svc.cluster.local) to sets of Pod IPs backed by endpoints, removing the need for application-level client libraries entirely."
+    },
+    {
+      "type": "prose",
+      "content": "The architecture of service discovery splits fundamentally into two patterns: Client-side Discovery and Server-side Discovery. In Client-side Discovery, the client service is responsible for querying the service registry directly, fetching the full registry metadata or a load-balanced subset, and implementing its own load-balancing algorithm (like Round-Robin or Weighted Response Time) to pick an instance before issuing a network call. This eliminates extra network hops through a central proxy, giving the client absolute control, but it tightly couples the client application to the specific service registry's SDK or discovery client. Conversely, in Server-side Discovery, the client makes a request to a centralized load balancer or reverse proxy (such as an AWS ALB, an Envoy sidecar, or an NGINX instance). This load balancer queries the service registry or is updated dynamically by the orchestration engine, routes the traffic to an available backend instance, and hides all registry mechanics from the client entirely. While this keeps client code clean and language-agnostic, it introduces an extra network hop and places high reliability and throughput demands on the intermediary proxy layer."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / System",
+        "Netflix Eureka",
+        "HashiCorp Consul",
+        "Kubernetes (K8s) DNS"
+      ],
+      "rows": [
+        [
+          "CAP Theorem Profile",
+          "AP (Availability / Partition Tolerance)",
+          "CP (Consistency / Partition Tolerance via Raft)",
+          "CP/AP hybrid depending on etcd and DNS caching"
+        ],
+        [
+          "Discovery Pattern",
+          "Client-side (Spring Cloud LoadBalancer)",
+          "Client-side or Server-side (Consul Connect/Template)",
+          "Infrastructure-level / DNS / Server-side via Kube-proxy"
+        ],
+        [
+          "Health Checking",
+          "HTTP/TCP heartbeat renewal from client",
+          "Active HTTP, gRPC, TCP, or script health checks by server",
+          "Kubernetes liveness and readiness probes"
+        ],
+        [
+          "Ecosystem / Language",
+          "Java / Spring Cloud centric",
+          "Polyglot (HTTP API, DNS interface, native Consul CLI)",
+          "Container-native, language agnostic"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Eureka's self-preservation mode protects the registry during network partitions; if a large percentage of heartbeats fail simultaneously due to a network blip rather than instance crashes, Eureka stops evicting instances to prevent cascading failures.",
+        "Consul utilizes a gossip protocol (Serf) over UDP/TCP for cluster membership and failure detection, allowing thousands of nodes to discover each other and propagate cluster changes without querying the Raft leaders directly.",
+        "Kubernetes DNS leverages CoreDNS to parse queries against internal service abstractions. StatefulSets provide stable network identities via headless services, bypassing traditional virtual IPs to resolve directly to individual Pod DNS records."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@SpringBootApplication\n@EnableDiscoveryClient\npublic class OrderServiceApplication {\n    public static void main(String[] args) {\n        SpringApplication.run(OrderServiceApplication.class, args);\n    }\n\n    @Bean\n    @LoadBalanced\n    public RestTemplate restTemplate() {\n        return new RestTemplate();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in client-side discovery (like Eureka or Consul) is ignoring client-side load balancer cache TTLs. If your registry evicts an unhealthy instance, but your client application's internal ribbon or load-balancer cache has a stale TTL of 30 seconds, your services will continue routing traffic to dead IPs, throwing cascading ConnectException errors. Always tune your client-side refresh intervals to align with your registry's health check heartbeat parameters."
+    }
+  ],
+  "num": 1039,
+  "title": "What is Service Discovery? (Netflix Eureka, Consul, K8s DNS). Client-side vs Server-side discovery?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

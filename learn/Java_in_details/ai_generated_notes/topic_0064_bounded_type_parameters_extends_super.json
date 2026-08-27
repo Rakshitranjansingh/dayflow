@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Bounded type parameters are a core feature of the Java Generics and Type System that enable developers to restrict the types that can be used as type arguments. Without bounds, a type parameter like T is bounded only by Object, limiting you to basic methods available on the root class. By introducing bounded type parameters, you unlock both upper bounds using the extends keyword and lower bounds using the super keyword. This dual capability forms the absolute bedrock of robust API design, collection manipulation, and the expressive PECS (Producer Extends, Consumer Super) paradigm defined by Joshua Bloch.\n\nThe extends keyword sets an upper bound on a type parameter, ensuring that the specified type or any of its subtypes are accepted. When you declare a class or method with <T extends Number>, the compiler guarantees that any argument passed into T has Number as a supertype, allowing you to safely invoke methods defined in Number, such as doubleValue(), directly on instances of T. Behind the scenes, the Java compiler uses type erasure to replace the bounded parameter with its upper bound (Number in this case), inserting the necessary checkcast bytecodes at call sites to maintain type safety without incurring runtime overhead.\n\nConversely, the super keyword establishes a lower bound, typically used in wildcard type arguments rather than direct type parameter declarations, written as <? super T>. This means the unknown type is either T or a supertype of T. Lower bounds are essential when you are writing data into a collection or structure. If you have a list meant to consume Integer objects, typing it as List<? super Integer> allows you to safely insert Integers or any of its subtypes, knowing that the underlying collection can safely store them because its element type is guaranteed to be a supertype of Integer. Understanding how extends and super interact with covariance and contravariance is what separates junior Java developers from senior engineers who can design flexible, bulletproof generic architectures."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Keyword",
+        "Upper Bound (extends)",
+        "Lower Bound (super)"
+      ],
+      "rows": [
+        [
+          "Syntax representation",
+          "<T extends ClassName>",
+          "<? super ClassName>"
+        ],
+        [
+          "Variance",
+          "Covariant",
+          "Contravariant"
+        ],
+        [
+          "Primary use case",
+          "Reading data safely (Producer)",
+          "Writing data safely (Consumer)"
+        ],
+        [
+          "Get/Read capability",
+          "Returns the bound type or its subtype",
+          "Returns only Object"
+        ],
+        [
+          "Put/Write capability",
+          "Only null (immutable view)",
+          "Accepts the specified type and subtypes"
+        ]
+      ]
+    },
+    {
+      "bullet_list": [
+        "Upper bounds allow multiple constraints to be chained using the ampersand symbol, such as <T extends Number & Comparable<T>>, where the first bound must be a class if a class is specified, followed by any number of interfaces.",
+        "Type erasure translates <T extends Number> into the Number class bytecode, while an unbounded <T> erases strictly to java.lang.Object, impacting how bridge methods are generated during compilation.",
+        "The PECS rule (Producer Extends, Consumer Super) dictates that if your parameterized structure only produces data (you read from it), use extends; if it only consumes data (you write to it), use super.",
+        "Lower bounds cannot be applied to class declarations directly (e.g., class Box<? super T> is illegal syntax); they are strictly reserved for wildcard type arguments in method parameters, local variables, and return types."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.List;\n\npublic class CollectionUtils {\n\n    // Upper bound: Reads numbers from the producer list safely\n    public static double sum(List<? extends Number> list) {\n        double total = 0.0;\n        for (Number number : list) {\n            total += number.doubleValue();\n        }\n        return total;\n    }\n\n    // Lower bound: Writes integers into the consumer list safely\n    public static void addIntegers(List<? super Integer> list) {\n        for (int i = 1; i <= 3; i++) {\n            list.add(i);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic trap when working with lower bounds (? super T) is attempting to read typed objects from the structure. Because the compiler only knows that the collection holds some unknown supertype of T, the only safe return type when getting an element is Object. Casting blindly from Object leads to ClassCastExceptions at runtime if the underlying collection actually holds a higher ancestor class. Always use extends for reading and super for writing."
+    }
+  ],
+  "num": 65,
+  "title": "Bounded type parameters — extends, super",
+  "category": "Generics & Type System"
+}

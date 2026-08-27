@@ -1,0 +1,62 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Multi-Version Concurrency Control (MVCC) is a sophisticated concurrency control mechanism utilized by database management systems like PostgreSQL and MySQL (via the InnoDB storage engine) to isolate database transactions without relying on pessimistic locking for reads. In high-concurrency enterprise applications, readers must never block writers, and writers must never block readers. Traditional locking models force transactions to wait when data is modified, leading to thread contention, connection pool exhaustion, and poor throughput. MVCC solves this by maintaining multiple physical versions of a single logical row. When a transaction updates a record, instead of overwriting the existing data in place, the database creates a new version of the row, stamping it with creation and expiration metadata. This allows a reading transaction to view a historically consistent snapshot of the data as it existed at a specific point in time, completely bypassing locks for non-blocking read operations."
+    },
+    {
+      "type": "prose",
+      "content": "While both PostgreSQL and MySQL's InnoDB implement MVCC, their underlying physical storage strategies and metadata architectures diverge significantly. PostgreSQL adopts an append-only architecture. Every UPDATE operation inserts a brand-new tuple into the heap page, utilizing internal system columns like `xmin` (the transaction ID that created the row version) and `xmax` (the transaction ID that deleted or superseded the row version). Because updates append new versions directly into table pages, PostgreSQL relies heavily on a background process called the Vacuum worker to perform garbage collection, reclaiming dead tuples and space fragmentation. Conversely, MySQL InnoDB uses an undo log-centric approach (often called the rollback segment). When a row is updated in InnoDB, the current record in the clustered index is modified in place, and the prior image of the row is written to undo logs. Subsequent readers looking for an older snapshot traverse a version chain (or history list) anchored by Roll Pointer (ROLL_PTR) and Transaction ID (TRX_ID) fields embedded within the clustered index record, reconstructing the historical row state on the fly."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "PostgreSQL MVCC",
+        "MySQL InnoDB MVCC"
+      ],
+      "rows": [
+        [
+          "Storage Strategy",
+          "Append-only heap; new row versions written directly to data pages.",
+          "In-place updates on clustered index with historical images stored in Undo Logs."
+        ],
+        [
+          "Row Metadata",
+          "System columns: xmin, xmax, cmin, cmax, and t_ctid.",
+          "Hidden columns: DB_TRX_ID, DB_ROLL_PTR, and DB_ROW_ID."
+        ],
+        [
+          "Garbage Collection",
+          "Vacuum / Autovacuum process to clean dead tuples and freeze transaction IDs.",
+          "Purge thread that sweeps undo logs when no active read view requires them."
+        ],
+        [
+          "Write Amplification",
+          "High update churn causes table bloat, requiring frequent VACUUM FULL or pg_repack.",
+          "Undo log growth and potential rollback segment bottlenecks under heavy concurrent writes."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In PostgreSQL, visibility is determined by inspecting the `xmin` and `xmax` system columns against the Transaction Status Log (CLOG) to verify whether the modifying transaction has committed, aborted, or is still running relative to the reader's Read View.",
+        "InnoDB constructs a ReadView at the start of a transaction (in Repeatable Read isolation) or statement (in Read Committed), containing a list of all currently active uncommitted transaction IDs (m_ids), the low watermark (m_low_limit_id), and the high watermark (m_up_limit_id).",
+        "The InnoDB purge system continuously traverses undo logs to remove historical versions that are no longer visible to any active ReadView, freeing up rollback segment extents and preventing undo log space exhaustion."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "sql",
+      "content": "-- Demonstrating transaction isolation and non-blocking reads in PostgreSQL\nBEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;\n\n-- This query establishes a Read View snapshot.\n-- Even if another concurrent transaction updates and commits changes to this table,\n-- this transaction will continue to see the exact data state as of transaction start.\nSELECT id, balance FROM accounts WHERE account_type = 'CHECKING';\n\nCOMMIT;"
+    },
+    {
+      "type": "note",
+      "content": "A classic production gotcha in PostgreSQL MVCC is table bloat caused by dead tuples that autovacuum fails to clean up quickly enough—often triggered by long-running analytical queries or idle transactions that hold back the transaction horizon (xmin). In MySQL InnoDB, an unpurged undo log due to a long-running transaction will cause undo tablespace data files to bloat indefinitely, severely degrading I/O performance and eventually causing disk exhaustion."
+    }
+  ],
+  "num": 362,
+  "title": "MVCC (Multi-Version Concurrency Control) — how Postgres/MySQL handle it",
+  "category": "Multithreading & Java Concurrency"
+}

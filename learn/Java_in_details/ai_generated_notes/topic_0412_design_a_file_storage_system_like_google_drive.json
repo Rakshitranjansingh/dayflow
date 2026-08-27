@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a distributed File Storage System like Google Drive requires a deep mastery of Java Exception Handling and Java New I/O (NIO). When building a production-grade file repository, you must seamlessly coordinate non-blocking disk operations via FileChannels, asynchronous socket communications for client chunk uploads, and robust transaction boundaries to prevent partial writes. Exception handling in this domain goes far beyond catching a generic IOException; it requires translating low-level operating system errors (like ENOSPC for disk full or EACCES for permission denied) into domain-specific, resilient failure states that clients can gracefully handle without corrupting underlying block stores or leaving dangling metadata references.\n\nAt the core of an NIO-driven storage engine lies the `Selector` and `ByteBuffer` architecture, enabling thousands of concurrent client connections to stream file chunks concurrently without thread starvation. As bytes stream over the network, your system must write them efficiently to persistent storage using zero-copy transfers where possible, such as piping network channels directly into file channels via `FileChannel.transferFrom`. Exception handling must wrap these pipeline flows to ensure that if a client unexpectedly severs a connection mid-upload, the partially written temporary file is immediately purged from the staging directory using targeted try-with-resources blocks, avoiding silent storage leaks."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Traditional I/O (java.io)",
+        "Java NIO (java.nio.channels)"
+      ],
+      "rows": [
+        [
+          "Stream vs Channel",
+          "Blocking, byte-stream oriented streams",
+          "Non-blocking, buffer-oriented channels"
+        ],
+        [
+          "Threading Model",
+          "One thread per active client connection",
+          "Reactor pattern using a single Selector thread"
+        ],
+        [
+          "Memory Management",
+          "Garbage collector managed heap byte arrays",
+          "Direct ByteBuffers allocated outside JVM heap"
+        ],
+        [
+          "Exception Strategy",
+          "Generic IOException propagation",
+          "Granular ClosedByInterruptException, AsynchronousCloseException"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Direct ByteBuffer pooling is critical to prevent frequent Full GCs caused by high-throughput file chunking, as direct buffers bypass the JVM heap and interact directly with native OS memory.",
+        "When handling concurrent file writes to the same metadata namespace, explicit file-locking via FileLock must be coordinated with careful exception management to avoid deadlocks across multiple application threads.",
+        "Asynchronous file channel operations (AsynchronousFileChannel) utilize completion handlers, requiring exception callbacks to explicitly close handles and release thread pool resources under failure conditions."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.io.IOException;\nimport java.nio.ByteBuffer;\nimport java.nio.channels.FileChannel;\nimport java.nio.file.Path;\nimport java.nio.file.StandardOpenOption;\nimport java.util.EnumSet;\n\npublic class SecureChunkStorageEngine {\n    public void persistChunk(Path targetPath, ByteBuffer chunkData) throws IOException {\n        EnumSet<StandardOpenOption> options = EnumSet.of(\n            StandardOpenOption.CREATE,\n            StandardOpenOption.WRITE,\n            StandardOpenOption.APPEND\n        );\n        \n        try (FileChannel fileChannel = FileChannel.open(targetPath, options)) {\n            fileChannel.lock(); // Acquire exclusive lock for thread-safe block append\n            while (chunkData.hasRemaining()) {\n                fileChannel.write(chunkData);\n            }\n            fileChannel.force(false); // Ensure durability to disk\n        } catch (IOException e) {\n            // Translate low-level disk exceptions into domain context\n            throw new StorageEngineException(\"Failed to persist file block to path: \" + targetPath, e);\n        }\n    }\n}\n"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in NIO file storage systems is failing to account for partial writes when using non-blocking channels or dealing with disk-quota exhaustion. If a FileChannel.write() operation writes only a fraction of the ByteBuffer due to a full disk, assuming all bytes were written will lead to silent file corruption. Always wrap your channel write operations inside a while loop checking `chunkData.hasRemaining()`, and explicitly catch `NonWritableChannelException` or OS-level `IOException` to trigger cleanup routines that remove orphaned staging files."
+    }
+  ],
+  "num": 413,
+  "title": "Design a File Storage System (like Google Drive)",
+  "category": "Exception Handling & I/O / NIO"
+}

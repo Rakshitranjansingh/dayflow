@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "At its core, java.util.HashMap is an implementation of the Map interface built on top of a hash table data structure, offering O(1) average time complexity for basic operations like get and put. Understanding its internal working requires looking deep into how it organizes data using a Node array, distributes items across internal buckets, resolves hash collisions, and dynamically resizes using a load factor. When you insert a key-value pair, the HashMap does not simply store it sequentially. Instead, it computes the hash code of the key object using its hashCode() method, and then passes that integer through a secondary perturbation function (the hash() method) to spread out poorly written hash codes. This bitwise manipulation reduces clustering and prepares the integer to map directly to an index within the Node array.\n\nThe Node array itself forms the backbone of the map, where each slot in the array is commonly referred to as a bucket. A bucket holds the head of a linked list or, in Java 8 and later, a self-balancing Red-Black tree. Because the size of the Node array is always kept at a power of two, HashMap avoids expensive modulo arithmetic during index calculation. Instead, it uses a swift bitwise AND operation (hash & (capacity - 1)) to determine the exact bucket index. However, because the keyspace of possible hash codes is immense while the array capacity is finite, hash collisions are inevitable. A hash collision occurs when two distinct keys evaluate to the exact same bucket index. To handle this, HashMap relies on chaining. Prior to Java 8, colliding elements were simply appended to a singly linked list at that bucket index, causing performance to degrade to O(n) if many items collided in the same bucket. Modern Java solves this through treeification: when a single bucket exceeds a threshold of 8 elements and the total capacity is at least 64, that linked list transforms into a TreeNode structure, changing worst-case lookup time from O(n) to O(log n).\n\nTo ensure that operations remain near-constant time, the map monitors its occupancy via the load factor, which defaults to 0.75. The load factor is a measure of how full the HashMap is allowed to get before its capacity is automatically doubled. When the number of stored mappings exceeds the product of the current capacity and the load factor, a resize operation (re-hashing) is triggered. This creates a new Node array of double the previous capacity, iterates through all existing buckets, recalculates the indices for every single Node based on the new capacity, and redistributes them. While resize operations are expensive, maintaining a load factor of 0.75 provides an optimal time-space tradeoff, balancing memory overhead against the statistical probability of frequent collisions."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric / Concept",
+        "Default Value",
+        "Purpose & Impact"
+      ],
+      "rows": [
+        [
+          "Initial Capacity",
+          "16",
+          "The starting size of the Node array. Must be a power of two."
+        ],
+        [
+          "Load Factor",
+          "0.75",
+          "The threshold ratio determining when the HashMap doubles its array capacity."
+        ],
+        [
+          "Treeify Threshold",
+          "8",
+          "The minimum number of nodes in a single bucket required to convert a linked list into a Red-Black tree."
+        ],
+        [
+          "Untreeify Threshold",
+          "6",
+          "The maximum number of nodes in a tree bucket during a resize that causes it to revert back to a linked list."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The hash() perturbation function XORs the upper 16 bits of the hashCode() with its lower 16 bits (h ^ (h >>> 16)). This ensures that even if a poorly implemented hashCode() has high-order entropy, lower-order bits are still influenced, drastically reducing collisions when the array capacity is small.",
+        "When resizing occurs in Java 8+, the implementation avoids full re-hashing by using the capacity's power-of-two nature. A node's new index is either its exact old index or its old index plus the old capacity, determined simply by testing a single bit of the hash using a bitwise AND operation.",
+        "To prevent infinite loops and CPU spikes historically caused by concurrent resizing in multithreaded environments (a legacy issue of pre-Java 8 head-insertion into linked lists), always use ConcurrentHashMap or proper synchronization wrappers when sharing a HashMap across multiple threads."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class HashMapInternalsDemo {\n    public static void main(String[] args) {\n        // Creating a map with a custom initial capacity and load factor\n        Map<String, Integer> customMap = new HashMap<>(32, 0.75f);\n        \n        customMap.put(\"Engine\", 1);\n        customMap.put(\"Transmission\", 2);\n        \n        // Retrieving a value triggers hash computation, bucket lookup, \n        // and potentially traversing a linked list or tree node.\n        int val = customMap.get(\"Engine\");\n        System.out.println(\"Retrieved value: \" + val);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap is using mutable objects as keys in a HashMap. If you use an object whose fields (participating in its hashCode() and equals() contracts) are modified after insertion into the map, the object's hash code will change. Consequently, when you attempt to retrieve, remove, or check containment, the map will look in the completely wrong bucket based on the new hash, leading to memory leaks, lost data, and ghost entries that can never be garbage collected through map operations."
+    }
+  ],
+  "num": 549,
+  "title": "Explain the internal working of HashMap. (Hash collision, Buckets, Node array, load factor)",
+  "category": "Collections Framework & Internals"
+}

@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java, you cannot directly instantiate an array of a generic type, such as 'new T[10]' or 'new List<String>[10]'. This restriction exists because of the fundamental way Java handles type erasure and the runtime behavior of arrays. Arrays in Java are 'reified', meaning they carry their component type information at runtime and perform type checking during every array store operation. Conversely, generics are implemented via type erasure, where the compiler strips away generic type parameters (like <String> or <T>) during compilation to maintain backward compatibility with pre-Java 5 code. If you were allowed to create a generic array, the JVM would be unable to enforce type safety at runtime because the generic type information would have been erased, leading to a 'Heap Pollution' scenario where a non-matching type could be inserted into an array that the compiler believes is type-safe."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Arrays",
+        "Generics"
+      ],
+      "rows": [
+        [
+          "Type Information",
+          "Reified (Known at runtime)",
+          "Erased (Known at compile-time)"
+        ],
+        [
+          "Type Safety",
+          "Checked at runtime (ArrayStoreException)",
+          "Checked at compile-time"
+        ],
+        [
+          "Variance",
+          "Covariant (Integer[] is an Object[])",
+          "Invariant (List<Integer> is not a List<Object>)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Array Store Exception: Because arrays are covariant, the JVM must perform a runtime check on every assignment to an array to ensure the object type matches the array's component type. Since generic types are erased, the JVM cannot verify if a 'T' is actually a 'String' at runtime.",
+        "Type Erasure Mechanics: During compilation, 'List<T>' becomes 'List<Object>'. If you could create 'new T[10]', the compiler would have to treat it as 'new Object[10]', which breaks the contract of generic type safety.",
+        "Workaround Strategy: The idiomatic way to handle this is to use a collection (like ArrayList) instead of an array, or to use a raw array casted via a generic type parameter, though the latter requires suppressing unchecked warnings."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// This will fail to compile: new T[10];\n\n// The standard workaround using a raw array cast:\npublic class GenericArrayFactory<T> {\n    private final T[] array;\n\n    @SuppressWarnings(\"unchecked\")\n    public GenericArrayFactory(Class<T> clazz, int size) {\n        // We create a raw array and cast it to T[]\n        this.array = (T[]) java.lang.reflect.Array.newInstance(clazz, size);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common trap for junior developers is attempting to cast a raw Object array to a generic array directly: '(T[]) new Object[10]'. While this compiles with a warning, it will throw a ClassCastException at runtime if you try to assign the result to a variable of type 'T[]'. Always prefer using 'java.lang.reflect.Array.newInstance' or simply refactoring your API to use 'List<T>' instead of arrays, as collections are the preferred way to handle generic containers in modern Java."
+    }
+  ],
+  "num": 568,
+  "title": "Can you create arrays of generic types? Why not?",
+  "category": "Generics & Type System"
+}

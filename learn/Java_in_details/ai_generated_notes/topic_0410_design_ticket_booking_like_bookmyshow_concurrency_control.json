@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a high-throughput ticket booking platform like BookMyShow under massive concurrent load requires solving one of the most classic distributed systems and multithreading challenges: preventing double-booking of seats during flash sales. When millions of users attempt to reserve the exact same seat simultaneously, naive database queries or unsynchronized thread operations lead to race conditions, over-allocation, and corrupted state. In a Java-based backend, handling this requires a multi-layered concurrency control strategy combining application-level synchronization, distributed locks, database-level isolation levels, and non-blocking asynchronous processing.\n\nAt the JVM level, standard synchronization primitives like synchronized blocks or java.util.concurrent.locks.ReentrantLock are insufficient because modern ticket systems scale horizontally across multiple instances, nodes, and JVMs. Therefore, concurrency control must bridge in-memory thread coordination with external state managers. We must leverage optimistic and pessimistic locking patterns at the database layer (using JDBC or JPA/Hibernate with @Version or SELECT ... FOR UPDATE), coupled with distributed locking mechanisms (such as Redis Redlock or distributed Apache ZooKeeper locks) to serialize critical sections per seat or per show-time entity. Furthermore, to prevent thread starvation and thread pool exhaustion under heavy traffic spikes, we incorporate reactive programming models or asynchronous executor services with bounded queues, ensuring that backend throughput remains predictable and resilient against thundering herd problems."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Concurrency Control Mechanism",
+        "Best Used For",
+        "Trade-offs & Scalability Bottlenecks"
+      ],
+      "rows": [
+        [
+          "Optimistic Locking (@Version)",
+          "Low contention, read-heavy seat browsing phases before final checkout.",
+          "High retry rates and CPU waste during massive flash sales when many threads try to update the same row."
+        ],
+        [
+          "Pessimistic Locking (SELECT ... FOR UPDATE)",
+          "High contention seat reservation and payment processing phase.",
+          "Database connection pool exhaustion, thread blocking, and potential deadlock risks."
+        ],
+        [
+          "Distributed Redis Locks",
+          "Multi-instance microservice coordination before touching the persistent database.",
+          "Requires handling Redis failover edge cases, clock drift anomalies, and lock expiration tuning."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Seat State Machine Invariants: A seat must transition strictly through predefined states (AVAILABLE -> LOCKED -> BOOKED). The transition from LOCKED to BOOKED must be strictly guarded by an atomic compare-and-swap or an exclusive lock to prevent ghost bookings after timeout expiration.",
+        "Distributed Lock TTL Tuning: When utilizing Redis for seat-level locking during checkout, the Time-To-Live (TTL) must be carefully calibrated to match the user's active session payment window (e.g., 5 minutes). If the JVM hosting the checkout thread crashes, the lock must automatically expire to release the seat back to the pool.",
+        "Database Isolation Levels: To prevent phantom reads and non-repeatable reads during concurrent seat selection, transactions must operate at least at the READ COMMITTED or REPEATABLE READ level, keeping transaction durations as short as possible to minimize lock holding times."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class TicketBookingService {\n\n    private final SeatRepository seatRepository;\n    private final RedissonClient redissonClient;\n\n    public TicketBookingService(SeatRepository seatRepository, RedissonClient redissonClient) {\n        this.seatRepository = seatRepository;\n        this.redissonClient = redissonClient;\n    }\n\n    @Transactional\n    public boolean bookSeat(Long showId, Long seatId, Long userId) {\n        String lockKey = \"lock:show:\" + showId + \":seat:\" + seatId;\n        RLock lock = redissonClient.getLock(lockKey);\n\n        try {\n            // Attempt to acquire lock within 3 seconds, hold for up to 10 seconds\n            boolean isLocked = lock.tryLock(3, 10, TimeUnit.SECONDS);\n            if (!isLocked) {\n                throw new SeatContentionException(\"Seat is currently being booked by another user.\");\n            }\n\n            Seat seat = seatRepository.findByIdAndShowId(seatId, showId)\n                .orElseThrow(() -> new EntityNotFoundException(\"Seat not found\"));\n\n            if (seat.getStatus() != SeatStatus.AVAILABLE) {\n                return false; // Already booked or locked\n            }\n\n            seat.setStatus(SeatStatus.LOCKED);\n            seat.setLockedByUserId(userId);\n            seat.setLockExpirationTime(Instant.now().plusSeconds(300));\n            seatRepository.save(seat);\n\n            return true;\n        } catch (InterruptedException e) {\n            Thread.currentThread().interrupt();\n            throw new BookingProcessingException(\"Booking interrupted\", e);\n        } finally {\n            if (lock.isHeldByCurrentThread()) {\n                lock.unlock();\n            }\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production pitfall in ticket booking systems is holding database transactions open while waiting for external payment gateway callbacks. Never wrap payment network I/O inside a database transaction or while holding a distributed Redis lock longer than necessary. Instead, decouple the 'Seat Lock' phase from the 'Payment Execution' phase using a tokenized reservation queue, ensuring your database connection pool does not get starved by slow network downstream dependencies."
+    }
+  ],
+  "num": 411,
+  "title": "Design Ticket Booking (like BookMyShow) — concurrency control",
+  "category": "Multithreading & Java Concurrency"
+}

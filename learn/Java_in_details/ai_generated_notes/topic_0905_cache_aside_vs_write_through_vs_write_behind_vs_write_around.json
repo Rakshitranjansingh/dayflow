@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed systems and high-performance Java applications, managing the consistency between a primary data store (typically a relational database) and a caching layer (like Redis or Caffeine) is a critical architectural decision. Cache-Aside, also known as Lazy Loading, is the most common pattern where the application code is responsible for checking the cache; on a miss, it fetches from the DB and populates the cache. It is resilient to cache failures but suffers from a 'cold start' latency penalty. Write-Through caches treat the cache as the primary interface; the application writes to the cache, which synchronously updates the database. This ensures strong consistency but increases write latency. Write-Behind (or Write-Back) optimizes this by updating the cache and returning immediately, queueing the database update for an asynchronous background process. This provides extreme write performance at the cost of potential data loss if the cache node crashes before the flush. Finally, Write-Around bypasses the cache entirely during writes, writing directly to the database and only populating the cache on subsequent reads. This is ideal for write-heavy workloads where data is rarely read back immediately, preventing 'cache pollution' from transient data."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Write Latency",
+        "Consistency",
+        "Best Use Case"
+      ],
+      "rows": [
+        [
+          "Cache-Aside",
+          "Low",
+          "Eventual",
+          "Read-heavy, general purpose"
+        ],
+        [
+          "Write-Through",
+          "High",
+          "Strong",
+          "Critical data, low-latency reads"
+        ],
+        [
+          "Write-Behind",
+          "Very Low",
+          "Eventual",
+          "High-throughput logging/metrics"
+        ],
+        [
+          "Write-Around",
+          "Medium",
+          "Eventual",
+          "Write-heavy, infrequent reads"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Cache-Aside logic requires careful handling of race conditions during cache invalidation; always use a TTL (Time-To-Live) to prevent permanent stale data if an update fails.",
+        "Write-Behind implementations in Java often leverage a Disruptor pattern or a BlockingQueue to buffer database operations, requiring a graceful shutdown hook to flush remaining queue items to the DB.",
+        "Write-Through requires the cache provider to support atomic transactions or two-phase commits if the database update fails, otherwise, the cache and DB diverge immediately.",
+        "Write-Around avoids cache churn, but you must ensure that your read-path logic correctly invalidates or updates the cache if a subsequent read occurs after a write."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public User getUser(String id) {\n    // Cache-Aside Pattern\n    User user = cache.get(id);\n    if (user == null) {\n        user = db.findById(id);\n        if (user != null) cache.put(id, user);\n    }\n    return user;\n}\n\npublic void saveUser(User user) {\n    // Write-Around Pattern\n    db.save(user);\n    cache.invalidate(user.getId());\n}"
+    },
+    {
+      "type": "note",
+      "content": "The most common production failure with Cache-Aside is the 'Cache Stampede' (or Thundering Herd) problem. If a popular key expires, hundreds of threads might simultaneously miss the cache and hammer the database. Always use a distributed lock (like Redlock) or a 'probabilistic early expiration' strategy to ensure only one thread recomputes the cache value."
+    }
+  ],
+  "num": 906,
+  "title": "Cache Aside vs Write-Through vs Write-Behind vs Write-Around?",
+  "category": "Core Java & Fundamentals"
+}

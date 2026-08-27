@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The short answer is no, Redis is not strictly single-threaded anymore, though its core architecture revolves around a single-threaded event loop. When engineers ask whether Redis is single-threaded, they are usually referring to the command execution engine, which processes client requests sequentially using a non-blocking I/O multiplexing model. Since version 6.0, Redis has officially introduced multithreading, but specifically for network I/O—meaning the reading and writing of socket buffers and parsing of commands. The actual execution of database commands remains strictly single-threaded.\n\nThis architectural choice avoids the classic multi-threading pitfalls that plague distributed datastores, such as thread contention, complex synchronization primitives, lock convoy effects, context-switching overhead, and race conditions. Because data structures like hashes, sorted sets, and lists are manipulated sequentially within the main thread, Redis achieves atomic command execution without requiring explicit database locks. To understand why Redis is exceptionally fast despite this bottleneck, we must look beyond core CPU threads and examine its memory-first design. Redis is an in-memory data structure store, meaning its working dataset lives entirely in RAM, bypassing disk I/O latencies altogether. It leverages highly optimized custom data structures, an epoll/kqueue-based event loop multiplexing mechanism, and efficient memory allocators like jemalloc to maximize throughput and maintain predictable sub-millisecond latencies."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Layer",
+        "Single-Threaded Component",
+        "Multi-Threaded Component (v6.0+)"
+      ],
+      "rows": [
+        [
+          "Network I/O",
+          "Legacy design (pre-6.0 reads/writes)",
+          "Parallel socket reading and writing via worker threads"
+        ],
+        [
+          "Command Execution",
+          "Sequential, single-threaded event loop",
+          "None (commands run strictly one-by-one to ensure atomicity)"
+        ],
+        [
+          "Background Tasks",
+          "Asynchronous lazy freeing and expiration",
+          "Dedicated threads for AOF rewrites and snapshotting (fork)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Event-Driven Multiplexing: Redis uses epoll (Linux), kqueue (macOS), or select depending on the OS. This allows a single thread to monitor thousands of client sockets simultaneously, waking up only when socket activity occurs.",
+        "In-Memory Data Layout: Storing data in RAM eliminates the mechanical latency of disk seeks. Algorithmic complexity of Redis commands is predominantly O(1) or O(log N), keeping CPU cycles per request remarkably low.",
+        "Zero Lock Contention: Because data mutations happen on a single thread, atomic operations like INCR, HSET, or Lua scripts execute without Mutex overhead, avoiding deadlocks and cache line bouncing across cores."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import redis.clients.jedis.Jedis;\nimport redis.clients.jedis.JedisPool;\n\npublic class RedisHighThroughputDemo {\n    private static final JedisPool pool = new JedisPool(\"localhost\", 6379);\n\n    public void executePipeline() {\n        // Leveraging pipelining reduces round-trip time (RTT), maximizing \n        // the single-threaded event loop's network batching efficiency.\n        try (Jedis jedis = pool.getResource()) {\n            var pipeline = jedis.pipelined();\n            for (int i = 0; i < 10000; i++) {\n                pipeline.set(\"key:\" + i, \"value:\" + i);\n            }\n            pipeline.sync();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern that violates the single-threaded assumption is executing blocking or heavy O(N) commands like KEYS *, SMEMBERS on a massive set, or large HGETALLs on production instances. Because the command execution engine is single-threaded, a single expensive command will completely block the event loop, causing connection timeouts and cascading failures across your entire microservices architecture. Always prefer SCAN over KEYS and monitor slow logs using SLOWLOG GET."
+    }
+  ],
+  "num": 911,
+  "title": "Is Redis single-threaded? If yes, why is it so fast?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

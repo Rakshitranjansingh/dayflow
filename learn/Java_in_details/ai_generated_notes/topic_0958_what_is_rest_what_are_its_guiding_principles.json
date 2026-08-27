@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "RETAINED AS RAW JSON:\n\nREST, which stands for Representational State Transfer, is an architectural style designed by Roy Fielding in his landmark 2000 doctoral dissertation. It defines a set of constraints for creating stateless, scalable, and loosely coupled web services. Unlike rigid protocols such as SOAP, REST is not a standard or a product; rather, it is a design philosophy that leverages the existing capabilities and semantics of the HTTP protocol. In modern distributed systems, REST serves as the de facto communication paradigm between microservices, single-page applications, and cloud-native backends, allowing heterogeneous systems to interoperate seamlessly over the internet.\n\nTo truly understand REST, one must understand its guiding principles, often referred to as architectural constraints. These principles include a uniform interface, statelessness, cacheability, a client-server architecture, a layered system, and code-on-demand (optional). The uniform interface is the core engine of RESTful design, mandating that resources are identified by URIs, manipulated through standard HTTP methods (GET, POST, PUT, DELETE, PATCH), and accompanied by hypermedia links (HATEOAS). Statelessness requires that every client-to-server request contain all the context necessary to understand and process the request, freeing the server from the burden of maintaining session affinity and enabling horizontal scaling behind load balancers."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Guiding Principle",
+        "Architectural Intent",
+        "Implementation Impact"
+      ],
+      "rows": [
+        [
+          "Statelessness",
+          "Eliminate server-side session state for requests.",
+          "Improves horizontal scalability and fault tolerance; any backend node can handle any request."
+        ],
+        [
+          "Uniform Interface",
+          "Decouple client implementations from server implementations.",
+          "Simplifies architecture, improves visibility, and standardizes resource identification via URIs."
+        ],
+        [
+          "Cacheability",
+          "Implicitly or explicitly label responses as cacheable or non-cacheable.",
+          "Reduces client-server network latency and offloads traffic from backend databases."
+        ],
+        [
+          "Layered System",
+          "Restrict component behavior so each layer cannot see beyond the immediate layer.",
+          "Enables proxying, load balancing, security firewalls, and shared caches without client awareness."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Uniform Interface Constraint: Enforces resource-based naming (nouns over verbs in URIs) and leverages standard HTTP status codes (200 OK, 201 Created, 204 No Content, 400 Bad Request, 404 Not Found, 500 Internal Server Error) to convey semantic intent.",
+        "HATEOAS (Hypermedia As The Engine Of Application State): The ultimate maturity level (Level 3 in the Richardson Maturity Model) where the server provides dynamic links in the response payload, allowing the client to navigate the API state machine without hardcoding URI structures.",
+        "Statelessness Enforcement: Relies on cryptographic tokens like JWT (JSON Web Tokens) or explicit authorization headers rather than HttpSession or sticky sessions, ensuring that distributed microservices behind an API gateway can scale elastically."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/v1/orders\")\npublic class OrderController {\n\n    private final OrderService orderService;\n\n    public OrderController(OrderService orderService) {\n        this.orderService = orderService;\n    }\n\n    @GetMapping(\"/{id}\")\n    public ResponseEntity<OrderResponse> getOrderById(@PathVariable Long id) {\n        OrderResponse order = orderService.findById(id)\n            .orElseThrow(() -> new OrderNotFoundException(id));\n        return ResponseEntity.ok(order);\n    }\n\n    @PostMapping\n    public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody OrderRequest request) {\n        OrderResponse created = orderService.save(request);\n        URI location = ServletUriComponentsBuilder\n            .fromCurrentRequest()\n            .path(\"/{id}\")\n            .buildAndExpand(created.getId())\n            .toUri();\n        return ResponseEntity.created(location).body(created);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production anti-pattern in REST API design is treating HTTP as a mere transport tunnel for Remote Procedure Calls (RPC)—for example, building URIs like POST /getAndUpdateUser. This violates the uniform interface constraint. Always design your APIs around resource representations (nouns) manipulated via standard HTTP verbs, and correctly return status 201 Created with a Location header upon resource creation rather than a generic 200 OK with the payload."
+    }
+  ],
+  "num": 959,
+  "title": "What is REST? What are its guiding principles?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

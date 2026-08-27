@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the MySQL InnoDB storage engine, concurrency control and transaction isolation—specifically Repeatable Read—rely heavily on sophisticated locking mechanisms to prevent data anomalies. Among these, Gap Locking is a critical component designed to solve the infamous 'phantom read' problem. Unlike a record lock that locks an actual index record, a gap lock locks a 'gap' between index records, or a gap before the first or after the last index record. A gap lock is purely defensive: its sole purpose is to prevent other transactions from inserting new rows into the locked gap. It does not matter whether the gap is occupied by existing rows or empty; the presence of a gap lock completely blocks any INSERT operations targeted within that boundary.\n\nTo fully understand gap locking, one must examine how it interacts with Record Locks to form Next-Key Locks. InnoDB uses next-key locking by default for index searches and scans, which is a combination of a record lock on the index record and a gap lock on the gap preceding the index record. If a query has a range condition, InnoDB might acquire gap locks on the intervals it traverses. This ensures that concurrent transactions cannot insert new records that would satisfy the range condition if the query were executed again, thereby guaranteeing repeatable reads and preventing phantoms. Gap locks are completely compatible with each other; transaction A holding a gap lock on an index range does not prevent transaction B from holding a gap lock on the exact same range. The conflict arises exclusively when a transaction attempts to insert a record into a gap locked by another transaction, resulting in a lock wait or a timeout."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Lock Type",
+        "Targeted Entity",
+        "Primary Purpose"
+      ],
+      "rows": [
+        [
+          "Record Lock",
+          "The exact index record itself",
+          "Prevents updates or deletions of a specific row"
+        ],
+        [
+          "Gap Lock",
+          "The space between index records",
+          "Prevents insertions into a specific range to stop phantom reads"
+        ],
+        [
+          "Next-Key Lock",
+          "Combination of Record Lock + Gap Lock",
+          "Default locking strategy in REPEATABLE READ to secure a row and its preceding gap"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Gap locking can be explicitly disabled by setting the transaction isolation level to READ COMMITTED or by enabling the system variable innodb_locks_unsafe_for_binlog (deprecated in modern versions), which forces InnoDB to use record locks only.",
+        "If a query uses an equality condition on a unique index to search for a unique row, InnoDB drops the gap lock and acquires only a record lock, because a unique index constraint guarantees that no phantom rows can be inserted at that specific index point.",
+        "Gap locks are bidirectional. When a gap lock is placed on an index interval, insertions are blocked whether they come from implicit autocommit statements or explicit multi-row INSERT queries."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "sql",
+      "content": "-- Session A (Repeated Read transaction)\nSTART TRANSACTION;\nSELECT * FROM employees WHERE id BETWEEN 10 AND 20 FOR UPDATE;\n\n-- Session B (Concurrent transaction trying to insert into the locked gap)\nINSERT INTO employees (id, name) VALUES (15, 'Alice'); \n-- Result: Session B blocks here, waiting for Session A to release the gap lock."
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap with InnoDB gap locking is deadlocks under high concurrency with range queries. Because gap locks acquired by multiple transactions can overlap on shared index intervals, two transactions can easily deadlock each other while trying to insert rows into the same neighborhood. If you encounter frequent deadlock graphs showing lock modes 'waiting for gap lock', consider switching your application's isolation level to READ COMMITTED if business logic permits, which eliminates gap locks entirely for non-foreign-key checks."
+    }
+  ],
+  "num": 897,
+  "title": "What is Gap Locking in InnoDB?",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Within the realm of Java's java.util.concurrent.locks framework, Condition objects (often referred to simply as condition variables) serve as a sophisticated, modern alternative to the intrinsic monitor methods provided by Object.wait(), Object.notify(), and Object.notifyAll(). A Condition instance is bound explicitly to a Lock implementation—typically a ReentrantLock—obtained via the Lock.newCondition() factory method. While legacy synchronization models couple every monitor with a single, monolithic wait queue, Condition objects allow a single lock to possess multiple, distinct wait-sets. This decoupling directly solves the classic lost-wakeup and spurious-wakeup orchestration problems in complex concurrent topologies, such as bounded multi-producer/multi-consumer blocking queues. By segregating threads waiting for space availability from threads waiting for item availability, the JVM eliminates thundering-herd wakes and unnecessary context switches.\n\nIn the context of New I/O (NIO) and asynchronous exception handling pipelines, Condition objects are frequently leveraged to bridge non-blocking selector loops with worker thread pools. When implementing custom connection pools, reactive backpressure buffers, or thread-per-client multiplexers using Selector and Channel abstractions, threads often need to block safely until a buffer slot frees up or an exception boundary is cleared. Condition objects provide deterministic, interruptible, and time-bounded waiting mechanics (await, awaitNanos, awaitUntil) that integrate cleanly with structured concurrency models. They throw checked InterruptedException or unchecked timeout variants, allowing robust exception propagation up the I/O handling stack without corrupting underlying monitor states."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Behavior",
+        "Intrinsic Object Monitors (wait/notify)",
+        "java.util.concurrent.locks.Condition"
+      ],
+      "rows": [
+        [
+          "Wait-Sets per Lock",
+          "Exactly one implicit wait queue per monitor.",
+          "Multiple explicit wait queues per Lock instance."
+        ],
+        [
+          "Signaling Precision",
+          "notifyAll() wakes all threads, causing thundering herds.",
+          "signal() wakes a specific wait queue, targeting precise threads."
+        ],
+        [
+          "Interruptibility",
+          "Thread.interrupt() throws InterruptedException from wait().",
+          "Supports both interruptible (await) and uninterruptible variants."
+        ],
+        [
+          "Timeouts",
+          "wait(long timeout) lacks nanosecond precision.",
+          "awaitNanos(long nanosTimeout) allows high-resolution timing."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Condition queues are tightly bound to the synchronization state of their owning Lock. When a thread invokes await(), it atomically releases the associated Lock and suspends its execution, placing itself onto the condition's internal FIFO wait queue.",
+        "Upon being signaled via signal() or signalAll(), the thread is migrated from the condition's wait queue back into the Lock's acquisition queue. It cannot resume execution until it successfully re-acquires the exclusive lock.",
+        "Because of spurious wakeups—where a thread wakes up from await() without an explicit signal due to OS-level signal interruptions—Condition primitives must always be evaluated inside a guarded 'while' loop checking the state predicate.",
+        "Unlike legacy monitors, Condition implementations support fairness policies. If the parent ReentrantLock is instantiated with fairness set to true, threads waking up from a Condition queue are granted access based on their arrival order."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.locks.Condition;\nimport java.util.concurrent.locks.ReentrantLock;\nimport java.io.IOException;\n\npublic class NIOBufferChannelPool {\n    private final ReentrantLock lock = new ReentrantLock(true);\n    private final Condition notFull = lock.newCondition();\n    private final Condition notEmpty = lock.newCondition();\n    private final ByteBuffer[] bufferPool;\n    private int count = 0, putIndex = 0, takeIndex = 0;\n\n    public NIOBufferChannelPool(int capacity) {\n        this.bufferPool = new ByteBuffer[capacity];\n    }\n\n    public void put(ByteBuffer data) throws InterruptedException, IOException {\n        lock.lock();\n        try {\n            while (count == bufferPool.length) {\n                notFull.await(); // Releases lock safely, handles NIO buffer backpressure\n            }\n            bufferPool[putIndex] = data;\n            if (++putIndex == bufferPool.length) putIndex = 0;\n            count++;\n            notEmpty.signal(); // Wake up consumers waiting for data\n        } catch (InterruptedException e) {\n            Thread.currentThread().interrupt();\n            throw new IOException(\"Channel pool put operation interrupted\", e);\n        } finally {\n            lock.unlock();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern when using Condition objects is invoking signal() or await() without holding the owning Lock. Doing so immediately throws an unchecked IllegalMonitorStateException. Additionally, always wrap your await calls in a predicate loop to defend against spurious wakeups. Never assume that waking up from an await() call guarantees the resource state has changed; always re-evaluate the condition."
+    }
+  ],
+  "num": 131,
+  "title": "Condition objects",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,65 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Classloaders are a cornerstone of the Java Virtual Machine (JVM) architecture, responsible for dynamically loading Java classes into memory during runtime. Rather than loading the entire application at once, the JVM loads classes lazily as they are referenced. The classloading subsystem operates through a hierarchy of distinct loaders: the Bootstrap Classloader, the Extension (or Platform) Classloader, and the Application (or System) Classloader. Working alongside these is the Parent Delegation Model, a strict architectural pattern that dictates how these loaders cooperate to find and load requested types, ensuring both security and modularity across the application lifecycle."
+    },
+    {
+      "type": "prose",
+      "content": "At the root of the hierarchy sits the Bootstrap Classloader. Written natively in C or C++ (not Java), it has no parent and represents the primordial loader of the JVM. Its sole responsibility is loading core runtime classes from the JDK's internal modules or the legacy rt.jar, such as java.lang.Object, java.lang.String, and core primitive wrappers. Below the Bootstrap loader is the Extension Classloader (referred to as the Platform Classloader from Java 9 onward, coinciding with the introduction of the Java Platform Module System). Implemented in Java as part of the URLClassLoader lineage, it loads extensions from standard directory paths or modular platform extensions, shielding non-core packages from direct visibility by untrusted code. Finally, the Application Classloader (frequently called the System Classloader) is responsible for loading user-defined classes from the application's explicit classpath—defined by the java.class.path property, environment variables, or build tool configurations like Maven and Gradle dependencies."
+    },
+    {
+      "type": "prose",
+      "content": "The Parent Delegation Model is the execution contract that governs how these three loaders interact. When a classloader is requested to load a class (via Class.forName() or bytecode resolution), it does not immediately search its own local classpath. Instead, it delegates the request upward to its parent classloader. This upward traversal continues recursively until it hits the Bootstrap Classloader. If the parent loader successfully locates and loads the class, that loaded Class object is returned. If the parent fails and throws a ClassNotFoundException, only then does the child loader attempt to locate the class within its own defined search path. This delegation architecture guarantees that core Java API classes cannot be overridden by malicious or accidental user code placed on the application classpath, maintaining strict type safety and JVM integrity."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Classloader",
+        "Implementation Language",
+        "Default Scope / Source",
+        "Parent"
+      ],
+      "rows": [
+        [
+          "Bootstrap",
+          "Native (C/C++)",
+          "Core Java APIs (e.g., java.lang.*)",
+          "None (Root)"
+        ],
+        [
+          "Extension / Platform",
+          "Java",
+          "Platform extensions and modular runtimes",
+          "Bootstrap"
+        ],
+        [
+          "Application / System",
+          "Java",
+          "Application classpath (-cp, -classpath, dependencies)",
+          "Extension/Platform"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Delegation ensures that a custom class named java.lang.String written by a developer cannot be injected into the JVM because the Bootstrap loader will always intercept and load the legitimate JDK string implementation first.",
+        "Custom classloaders can be built by extending java.lang.ClassLoader and overriding the findClass() method rather than loadClass(), which preserves the safety guarantees of the parent delegation algorithm.",
+        "Java 9 modules (Project Jigsaw) altered the internal mechanics slightly by replacing the old extension classloader with the platform classloader, but the foundational parent delegation principle remains completely intact."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class CustomClassloaderDemo {\n    public static void main(String[] args) {\n        ClassLoader appLoader = CustomClassloaderDemo.class.getClassLoader();\n        System.out.println(\"Application Classloader: \" + appLoader);\n        \n        ClassLoader platformLoader = appLoader.getParent();\n        System.out.println(\"Platform/Extension Classloader: \" + platformLoader);\n        \n        ClassLoader bootstrapLoader = platformLoader.getParent();\n        System.out.println(\"Bootstrap Classloader: \" + bootstrapLoader);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap in enterprise application servers (like Tomcat or OSGi containers) is breaking the parent delegation model to support hot-deployments or multi-tenant isolation. If you improperly override loadClass() without maintaining delegation, you risk triggering ClassCastException bugs. These occur when two different classloaders load the same fully qualified class name into the JVM, creating distinct runtime type identities that are completely incompatible with each other despite sharing identical source code."
+    }
+  ],
+  "num": 523,
+  "title": "Explain Classloaders in Java (Bootstrap, Extension, Application). Parent delegation model?",
+  "category": "JVM Architecture & Memory Tuning"
+}

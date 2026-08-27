@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Project Loom introduced virtual threads to Java as lightweight, user-mode threads managed directly by the Java Virtual Machine runtime rather than the underlying operating system kernel. Understanding when virtual threads help versus when they do not comes down to isolating the architectural boundaries of your workload: I/O bound tasks versus CPU bound tasks. An I/O bound application spends the vast majority of its lifecycle blocked on network sockets, database calls, or disk reads, waiting for external systems to respond. Traditional platform threads—being thin wrappers around OS threads—make this blocking model expensive because each thread consumes megabytes of contiguous stack memory and forces expensive kernel context switches when parked. Virtual threads solve this by unmounting themselves from carrier threads when blocking on I/O, freeing the underlying CPU cores to execute other tasks.\n\nConversely, a CPU bound workload is bottlenecked by raw computational throughput, arithmetic logic units, cache misses, and CPU cycle availability. Examples include heavy matrix multiplication, cryptographic hashing, complex serialization pipelines, or deep recursive algorithms. In these scenarios, the CPU is constantly saturated. Virtual threads do not magically increase the number of physical CPU cores or grant hyper-threading capabilities. If you run a CPU-bound task on a virtual thread, it maps to a ForkJoinPool carrier thread (typically sized to Runtime.getRuntime().availableProcessors()) and holds onto that CPU core without yielding. Trying to run massive numbers of CPU-bound virtual threads actually degrades performance due to thread scheduler overhead, work-stealing queue contention, and cache thrashing."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Characteristic",
+        "Virtual Threads (I/O Bound)",
+        "Virtual Threads (CPU Bound)"
+      ],
+      "rows": [
+        [
+          "Primary Bottleneck",
+          "Network latency, JDBC queries, disk I/O",
+          "CPU cache, ALU execution, floating-point ops"
+        ],
+        [
+          "Carrier Thread Interaction",
+          "Unmounts during blocking operations, freeing the carrier",
+          "Monopolizes the carrier thread, preventing work-stealing efficiency"
+        ],
+        [
+          "Concurrency Scaling",
+          "Scales to millions of concurrent tasks cleanly",
+          "Degrades if concurrency exceeds available CPU cores"
+        ],
+        [
+          "Recommended Approach",
+          "Ideal use case for web servers, reactive database calls",
+          "Keep platform threads or fixed thread pools (e.g., parallel streams)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "When an I/O operation occurs within a virtual thread—such as reading from an InputStream or executing a java.net.http.HttpClient request—the JDK's underlying socket implementation uses non-blocking poll mechanisms combined with custom parking logic. The JVM unmounts the virtual thread from its carrier thread (a ForkJoinWorkerThread), allowing the carrier to immediately pick up another mounted virtual thread.",
+        "CPU-bound tasks lack natural yielding points. If millions of virtual threads enter a heavy computational loop, they will saturate the ForkJoinPool's parallelism limit. Because the JVM carrier pool size is constrained by default to the number of available processor cores, overflowing this pool with CPU-heavy tasks introduces severe scheduling latency.",
+        "Synchronized blocks and native methods (JNI/FFI) can 'pin' a virtual thread to its carrier thread. When pinned, the carrier thread cannot be reclaimed by other virtual threads during blocking calls, temporarily mitigating the high-throughput benefits of Loom if not carefully refactored to use java.util.concurrent.locks.ReentrantLock."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class ThreadingComparison {\n    // PERFECT FOR VIRTUAL THREADS: I/O Bound\n    public void handleIoBoundWork(List<String> urls) {\n        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {\n            for (String url : urls) {\n                executor.submit(() -> {\n                    // Blocking network call unmounts the virtual thread automatically\n                    return fetchRemoteData(url);\n                });\n            }\n        }\n    }\n\n    // WRONG FOR VIRTUAL THREADS: CPU Bound\n    public void handleCpuBoundWork(List<byte[]> payloads) {\n        // Use a fixed pool matching core count instead of virtual threads\n        int cores = Runtime.getRuntime().availableProcessors();\n        try (var executor = Executors.newFixedThreadPool(cores)) {\n            for (byte[] payload : payloads) {\n                executor.submit(() -> {\n                    // Heavy cryptographic computation saturating the CPU core\n                    return computeExpensiveHash(payload);\n                });\n            }\n        }\n    }\n\n    private native String fetchRemoteData(String url); \n    private native byte[] computeExpensiveHash(byte[] payload);\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production antipattern is replacing every single thread pool in an enterprise application with Executors.newVirtualThreadPerTaskExecutor(). If your legacy application runs heavy image processing, JSON parsing of massive payloads, or machine learning inference embeddings, wrapping those in virtual threads will cause severe thread starvation and latency spikes due to carrier thread contention and monitor pinning."
+    }
+  ],
+  "num": 149,
+  "title": "When virtual threads help (I/O bound) vs don't (CPU bound)",
+  "category": "Virtual Threads & Concurrency"
+}

@@ -1,0 +1,62 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the realm of modern Java and enterprise frameworks like Spring, dependency injection is the cornerstone of inversion of control (IoC). However, the way dependencies are wired into a class drastically impacts immutability, thread safety, testing complexity, and architectural integrity. The three primary mechanisms—Constructor Injection, Setter Injection, and Field Injection—offer vastly different trade-offs. Constructor injection forces dependencies to be passed during object instantiation, guaranteeing that an object is never in a partially initialized or invalid state. It enforces immutability by allowing fields to be marked as final, which provides crucial memory visibility guarantees under the Java Memory Model (JMM). Conversely, setter injection allows dependencies to be mutable and optional, making it suitable for configuration properties that may change over time or optional collaborators, though it opens the door to NullPointerExceptions if consumers forget to invoke the setter before utilizing the object. Field injection, typically executed via reflection using annotations like @Autowired directly on instance variables, completely bypasses constructors and setters. While it offers concise boilerplate code, it hides dependencies, tightly couples the class to a specific IoC container, renders unit testing difficult without framework bootstrapping, and prevents fields from being declared final."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Injection Type",
+        "Mutability",
+        "Testability",
+        "Mandatory Dependencies",
+        "Circular Dependency Detection"
+      ],
+      "rows": [
+        [
+          "Constructor Injection",
+          "Immutable (final fields)",
+          "High (easy plain Java instantiation)",
+          "Enforced at compile/startup time",
+          "Fails fast (BeanCurrentlyInCreationException)"
+        ],
+        [
+          "Setter Injection",
+          "Mutable",
+          "Medium (requires setter calls in tests)",
+          "Optional (can lead to nulls)",
+          "Allowed (resolved post-construction)"
+        ],
+        [
+          "Field Injection",
+          "Mutable",
+          "Low (requires reflection or Spring runner)",
+          "Hidden (implicit requirements)",
+          "Allowed (silently masked)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Under the Java Memory Model, final fields set via constructor injection provide safe publication guarantees, ensuring that other threads see fully constructed object states without explicit synchronization.",
+        "Field injection relies heavily on slow Reflection API calls (Field.setAccessible(true)) during container startup, which degrades application boot performance compared to direct bytecode execution in constructors.",
+        "Constructor injection makes dependency graph cycles impossible to ignore, forcing developers to refactor tightly coupled architectures rather than masking circular references like setter and field injection do.",
+        "Without an IoC container, instantiating a class that relies on field injection requires manual reflection hacking in unit tests, whereas constructor injection allows immediate, lightweight unit testing using standard 'new MyClass(mockDependency)' syntax."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class OrderProcessingService {\n\n    private final PaymentGateway paymentGateway;\n    private final InventoryService inventoryService;\n    private int defaultTimeoutSeconds = 30; // Mutable optional dependency via setter\n\n    // Preferred: Constructor injection for mandatory, immutable dependencies\n    public OrderProcessingService(PaymentGateway paymentGateway, InventoryService inventoryService) {\n        this.paymentGateway = paymentGateway;\n        this.inventoryService = inventoryService;\n    }\n\n    // Acceptable: Setter injection strictly for optional configuration properties\n    @Autowired(required = false)\n    public void setDefaultTimeoutSeconds(int defaultTimeoutSeconds) {\n        this.defaultTimeoutSeconds = defaultTimeoutSeconds;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Architect Gotcha: Avoid field injection entirely, even though IDEs and legacy tutorials make it tempting. Spring's engineering team officially discourages field injection because it encourages classes to accumulate too many responsibilities (violating the Single Responsibility Principle) without making the constructor signature unwieldy. If your constructor has more than 4 or 5 parameters, your class is doing too much; fix the architecture instead of retreating to @Autowired on fields!"
+    }
+  ],
+  "num": 218,
+  "title": "Constructor vs Setter vs Field injection — why constructor is preferred",
+  "category": "Exception Handling & I/O / NIO"
+}

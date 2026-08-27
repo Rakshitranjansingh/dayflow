@@ -1,0 +1,70 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of database management systems, DELETE, TRUNCATE, and DROP represent three distinct levels of data removal, each with significant implications for transaction logs, performance, and schema integrity. DELETE is a Data Manipulation Language (DML) operation that removes rows one by one, firing any associated triggers and logging each deletion individually, which makes it transactional and reversible via rollback. TRUNCATE is a Data Definition Language (DDL) operation that effectively resets the table by deallocating data pages; it is significantly faster than DELETE because it bypasses individual row logging, though it typically cannot be rolled back in many SQL dialects and does not fire triggers. DROP is the most destructive DDL operation, as it removes the entire table structure, indexes, and constraints from the database schema, rendering the object non-existent."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "DELETE",
+        "TRUNCATE",
+        "DROP"
+      ],
+      "rows": [
+        [
+          "Command Type",
+          "DML",
+          "DDL",
+          "DDL"
+        ],
+        [
+          "Performance",
+          "Slow (Row-by-row)",
+          "Fast (Page deallocation)",
+          "Instant"
+        ],
+        [
+          "Rollback",
+          "Supported",
+          "Database dependent",
+          "Database dependent"
+        ],
+        [
+          "Triggers",
+          "Fired",
+          "Not fired",
+          "Not fired"
+        ],
+        [
+          "Structure",
+          "Retained",
+          "Retained",
+          "Removed"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "DELETE operates within a transaction context, meaning the undo log must track every row modification, which can lead to transaction log bloat and performance degradation on large datasets.",
+        "TRUNCATE resets the identity/auto-increment counter of a table, whereas DELETE leaves the counter at its current value, potentially causing gaps in primary key sequences.",
+        "DROP removes the metadata from the data dictionary, causing all dependent views, stored procedures, or foreign key constraints to become invalid or throw errors immediately upon execution.",
+        "In high-concurrency Java applications using JPA/Hibernate, calling TRUNCATE via native SQL bypasses the persistence context, leading to potential stale cache issues if the EntityManager is not cleared."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "sql",
+      "content": "-- DML: Conditional removal\nDELETE FROM users WHERE active = false;\n\n-- DDL: Reset table content\nTRUNCATE TABLE audit_logs;\n\n-- DDL: Destroy schema object\nDROP TABLE temporary_staging_data;"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never use TRUNCATE or DROP in a production migration script without an explicit check for foreign key constraints. Many databases will throw a hard error if you attempt to truncate a table referenced by a foreign key, even if the referencing table is empty. Always prefer DELETE for audit-heavy tables where trigger execution is required for compliance logging."
+    }
+  ],
+  "num": 860,
+  "title": "What is the difference between DELETE, TRUNCATE, and DROP?",
+  "category": "Core Java & Fundamentals"
+}

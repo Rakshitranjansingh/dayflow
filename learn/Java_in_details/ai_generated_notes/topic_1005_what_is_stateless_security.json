@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Stateless security is an architectural paradigm in web application development where the server does not store any client session state between requests. In a traditional stateful model, the server maintains an in-memory session (often backed by an HttpSession object) mapped to a JSESSIONID cookie. In contrast, stateless security shifts the burden of identity verification to the client, typically via self-contained tokens like JSON Web Tokens (JWT). Every request must carry all necessary credentials—usually in the Authorization header—to allow the server to authenticate and authorize the user from scratch. This approach is the backbone of modern microservices and RESTful API design because it eliminates the need for sticky sessions and complex distributed session replication across server clusters."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Stateful Security",
+        "Stateless Security"
+      ],
+      "rows": [
+        [
+          "Storage",
+          "Server-side (Memory/Redis)",
+          "Client-side (Token)"
+        ],
+        [
+          "Scalability",
+          "Requires Session Replication",
+          "Horizontally Linear"
+        ],
+        [
+          "Revocation",
+          "Immediate (Invalidate Session)",
+          "Complex (Requires Blacklist/Short TTL)"
+        ],
+        [
+          "Coupling",
+          "Tight (Server-Client Affinity)",
+          "Loose (API-first)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Statelessness relies on cryptographic signatures (HMAC or RSA/ECDSA) to verify that the token payload has not been tampered with since issuance.",
+        "In Spring Security, stateless configuration is achieved by setting the SessionCreationPolicy to STATELESS, which instructs the framework to skip the creation of the SecurityContextHolder's session-based persistence.",
+        "Because the server does not track sessions, it cannot natively 'log out' a user; revocation requires either short-lived access tokens paired with refresh tokens or a distributed cache (like Redis) to store blacklisted token identifiers.",
+        "The lack of server-side state forces the application to be idempotent and self-contained, significantly reducing the memory footprint on the JVM heap by avoiding the accumulation of thousands of session objects during high-traffic events."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@EnableWebSecurity\npublic class SecurityConfig {\n    @Bean\n    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {\n        return http\n            .csrf(AbstractHttpConfigurer::disable)\n            .sessionManagement(session -> \n                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)\n            )\n            .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())\n            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)\n            .build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is assuming that 'stateless' means 'secure by default.' If you use JWTs, you must ensure the secret key is rotated regularly and stored in a secure vault (like HashiCorp Vault or AWS KMS). Never store sensitive PII in the JWT payload, as it is base64-encoded, not encrypted. Furthermore, if you implement a blacklist for token revocation, you effectively re-introduce state, which can lead to a performance bottleneck if not implemented with a high-performance, distributed cache."
+    }
+  ],
+  "num": 1006,
+  "title": "What is stateless security?",
+  "category": "Spring Security & Web Security"
+}

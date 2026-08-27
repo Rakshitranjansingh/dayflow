@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java applications, deploying the exact same codebase across radically different environments—such as local development, integration testing, staging, and production—demands a robust mechanism for environment-specific configuration and bean wiring. Profiles in the Spring Framework provide a logical segregation mechanism that allows developers to group bean definitions and configuration properties, activating only the subset relevant to the current runtime target. This eliminates the anti-pattern of hardcoding environment checks or maintaining fragmented deployment branches.\n\nThe @Profile annotation serves as the metadata anchor at the class or method level, instructing the Spring IoC container whether to register a specific bean definition during the application context refresh phase. Conversely, spring.profiles.active acts as the externalized configuration flag—typically supplied via JVM system properties, environment variables, or application.properties—that signals to the Environment abstraction which named profiles are currently enabled. When the container boots, it evaluates the active profiles against the expressions defined in @Profile, orchestrating conditional bean registration and property resolution with zero runtime performance overhead once the context is initialized."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The @Profile annotation supports complex boolean expressions using operators like NOT (!), AND (&), and OR (|), enabling sophisticated targeting such as @Profile(\"prod & (us-east | eu-west)\").",
+        "spring.profiles.active can be supplemented by spring.profiles.default, which provides a fallback profile set if no active profiles are explicitly declared by the operations team.",
+        "Spring Boot automatically processes profile-specific configuration files, loading application-{profile}.properties or application-{profile}.yml and overriding baseline properties accordingly."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class DatabaseConfig {\n\n    @Bean\n    @Profile(\"dev\")\n    public DataSource embeddedDataSource() {\n        return new EmbeddedDatabaseBuilder()\n            .setType(EmbeddedDatabaseType.H2)\n            .addScript(\"classpath:schema.sql\")\n            .build();\n    }\n\n    @Bean\n    @Profile(\"prod\")\n    public DataSource productionDataSource() {\n        HikariDataSource dataSource = new HikariDataSource();\n        dataSource.setJdbcUrl(System.getenv(\"PROD_DB_URL\"));\n        dataSource.setUsername(System.getenv(\n            \"PROD_DB_USER\"\n        ));\n        return dataSource;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production trap involves relying on spring.profiles.active inside code via @Value or Environment checks without realizing that profile activation happens strictly during context initialization. If you attempt to programmatically change active profiles after the ApplicationContext has been refreshed, the container will not re-evaluate existing bean definitions or trigger secondary bean instantiations. Always configure active profiles prior to or during the initial bootstrapping of SpringApplication."
+    }
+  ],
+  "num": 225,
+  "title": "Profiles — @Profile, spring.profiles.active",
+  "category": "Exception Handling & I/O / NIO"
+}

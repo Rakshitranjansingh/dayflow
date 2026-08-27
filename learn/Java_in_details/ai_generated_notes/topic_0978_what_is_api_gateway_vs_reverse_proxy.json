@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern distributed system architectures, handling ingress traffic efficiently, securely, and reliably requires clear architectural boundaries. Two foundational components often deployed at the perimeter of a network are the Reverse Proxy and the API Gateway. While both sit in front of backend servers and intercept client requests, they operate at fundamentally different layers of abstraction, solving distinct operational and routing challenges.\n\nA Reverse Proxy is a lower-level infrastructure component that sits between client devices and backend servers, forwarding client requests to appropriate origin servers and returning the server's response to the client. Its primary responsibilities are transport-level routing, load balancing across instances, TLS termination, IP masking, and static caching. It treats incoming HTTP payloads as opaque streams of bytes, routing them based on uniform resource identifiers (URIs), host headers, or IP addresses without understanding the underlying business logic, routing semantics, or authentication schemas of the payloads.\n\nConversely, an API Gateway is an evolution of the reverse proxy tailored specifically for microservices architectures. It acts as a single entry point for a defined set of microservices, serving as a layer-7 orchestration engine. Beyond basic routing, an API Gateway understands application logic and API contracts. It performs cross-cutting concerns such as dynamic request routing, API composition (aggregating responses from multiple downstream services to satisfy a single client payload), rate limiting, JWT validation, payload transformation, and analytics tracking. While a reverse proxy routes traffic based on network and transport primitives, an API Gateway routes and manages traffic based on service definitions, client tiers, and security policies."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Reverse Proxy",
+        "API Gateway"
+      ],
+      "rows": [
+        [
+          "Primary Abstraction Layer",
+          "Layer 4 / Layer 7 (Transport & Network)",
+          "Layer 7 (Application & API Protocol)"
+        ],
+        [
+          "Payload Inspection",
+          "Opaque routing; minimal or no inspection",
+          "Deep payload parsing, JSON/GraphQL validation, and transformation"
+        ],
+        [
+          "Security Scope",
+          "SSL/TLS termination, IP whitelisting, basic DDoS mitigation",
+          "OAuth2/JWT verification, fine-grained RBAC, rate limiting, token bucket throttling"
+        ],
+        [
+          "Service Discovery Integration",
+          "Static IP/DNS configuration or simple round-robin pools",
+          "Dynamic integration with service registries like Consul, Eureka, or Kubernetes DNS"
+        ],
+        [
+          "Typical Use Cases",
+          "Load balancing NGINX/HAProxy setups, caching static assets, hiding internal infra",
+          "Microservices ingress, API versioning, protocol translation (gRPC to HTTP/JSON)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Reverse proxies typically maintain a connection pool to upstream servers using simple socket multiplexing, evaluating routing tables based on static configuration files evaluated at startup.",
+        "API Gateways execute complex filter chains, interceptors, and reactive execution pipelines (such as Spring Cloud Gateway on Project Reactor or Netflix Zuul) that can mutate requests, block threads, or fan-out calls to multiple downstream microservices concurrently.",
+        "An API Gateway abstracts backend refactoring by providing stable public-facing contracts, allowing teams to split monolithic endpoints into fine-grained microservices without breaking client applications."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.gateway;\n\nimport org.springframework.cloud.gateway.route.RouteLocator;\nimport org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;\nimport org.springframework.context.annotation.Bean;\nimport org.springframework.context.annotation.Configuration;\n\n@Configuration\npublic class ApiGatewayRoutingConfig {\n\n    @Bean\n    public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {\n        return builder.routes()\n            .route(\"user_service_route\", r -> r\n                .path(\"/api/v1/users/**\")\n                .filters(f -> f\n                    .addRequestHeader(\"X-Gateway-Client\", \"SpringCloudGateway\")\n                    .circuitBreaker(config -> config.setName(\"userServiceCB\").setFallbackUri(\"forward:/fallback/users\"))\n                    .retry(3))\n                .uri(\"lb://user-service\"))\n            .build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production anti-pattern in distributed systems is routing heavy database-heavy reporting payloads directly through an API Gateway or treating a reverse proxy like NGINX as an API Gateway by writing complex, unmaintainable Lua scripts for auth checks. Keep reverse proxies at the edge for transport optimization, and use API Gateways for application-level service orchestration. Also, beware of the 'Gateway Bottleneck' where high fan-out calls inside an API Gateway filter chain can exhaust your reactive event-loop worker threads, causing cascading failures across your entire microservices ecosystem."
+    }
+  ],
+  "num": 979,
+  "title": "What is API gateway vs reverse proxy?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

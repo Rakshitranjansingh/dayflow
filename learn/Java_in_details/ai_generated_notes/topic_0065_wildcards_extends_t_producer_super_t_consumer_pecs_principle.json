@@ -1,0 +1,61 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Java generics are invariant by default, meaning that a `List<Integer>` is strictly not a subtype of `List<Number>`, despite `Integer` extending `Number`. Without variance control, collections and APIs would become rigid and unusable for polymorphic algorithms. To solve this limitation, Java utilizes wildcards combined with bounded type parameters, governed by the PECS principle: Producer Extends, Consumer Super. Named famously by Joshua Bloch in Effective Java, PECS dictates how and when to apply upper-bounded wildcards (`? extends T`) versus lower-bounded wildcards (`? super T`).\n\nThe upper-bounded wildcard, `? extends T`, creates a covariant relationship. It guarantees that any object retrieved from the structure is at least of type `T`. Because the compiler cannot verify the exact subtype being inserted (it could be any subclass of `T`), the structure becomes read-only for writes, making it ideal for producers that supply data. Conversely, the lower-bounded wildcard, `? super T`, creates a contravariant relationship. It establishes that the collection can accept `T` or any of its supertypes up to `Object`. Because anything you write into it is guaranteed to be a valid assignment to `T` or its supertypes, the structure becomes safe for writes, making it ideal for consumers that ingest data."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Wildcard Type",
+        "Mnemonic",
+        "Get (Read) Type",
+        "Put (Write) Safety",
+        "Collection Role"
+      ],
+      "rows": [
+        [
+          "? extends T",
+          "Producer Extends",
+          "Returns T (or subtype)",
+          "Only null allowed",
+          "Read-only data source"
+        ],
+        [
+          "? super T",
+          "Consumer Super",
+          "Returns Object",
+          "Accepts T (and subtypes)",
+          "Write-only data sink"
+        ],
+        [
+          "<T>",
+          "Invariant",
+          "Returns exact T",
+          "Accepts exact T",
+          "Mutable bi-directional"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Upper-bounded wildcards (? extends T) restrict the compiler's type safety checks by establishing an upper limit. When iterating over a List<? extends Number>, the loop variable can safely be typed as Number, but invoking the add() method with an explicit value (other than null) fails compilation because the underlying collection might be a List<Double>.",
+        "Lower-bounded wildcards (? super Integer) allow the insertion of Integer and all its subtypes because any container capable of holding a Super type or Object can safely store an Integer. However, reading from a ? super Integer collection forces you to cast or treat the retrieved items as plain java.lang.Object.",
+        "The PECS rule directly maps to method signature design in frameworks like the Collections API, notably Collections.copy(List<? super T> dest, List<? extends T> src), where the source produces items and the destination consumes them."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.List;\n\npublic class PecsDemonstration {\n\n    // Producer: Reads numbers out of the list\n    public static double sum(List<? extends Number> list) {\n        double total = 0.0;\n        for (Number number : list) {\n            total += number.doubleValue();\n        }\n        return total;\n    }\n\n    // Consumer: Writes integers into the list\n    public static void addIntegers(List<? super Integer> list) {\n        for (int i = 1; i <= 3; i++) {\n            list.add(i); // Safe because any supertype of Integer can hold an Integer\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic trap for senior engineers is attempting to use wildcards on class definitions or method return types. Wildcards are designed exclusively for site-variance (method parameters and local variables). Never use ? extends T or ? super T as a class declaration (e.g., class Foo<? extends Number> is a syntax error) and avoid returning wildcard types from public APIs, as it forces callers to continuously deal with complex bounding restrictions."
+    }
+  ],
+  "num": 66,
+  "title": "Wildcards — ? extends T (producer), ? super T (consumer) — PECS principle",
+  "category": "Generics & Type System"
+}

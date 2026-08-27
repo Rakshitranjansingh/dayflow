@@ -1,0 +1,50 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed systems engineering, the CAP theorem and its extension, PACELC, serve as the foundational mental models for navigating data consistency and availability tradeoffs. Formulated originally as Eric Brewer's conjecture, CAP states that any distributed data store can simultaneously provide at most two of three guarantees: Consistency (every read receives the most recent write or an error), Availability (every non-failing node returns a non-error response without a guarantee that it contains the most recent write), and Partition Tolerance (the system continues to operate despite an arbitrary number of messages being dropped or delayed by the network between nodes). Because network partitions are an unavoidable physical reality in distributed infrastructure, a system must fundamentally choose between Consistency and Availability during a partition (CP vs. AP).\n\nHowever, CAP only describes system behavior during an active network partition—an exceptional state. To address normal, failure-free operations, Daniel Abadi formulated PACELC. PACELC expands the design space by stating: If there is a Partition (P), how does the system choose between Availability (A) and Consistency (C)? Else (E), when the system is running normally without partitions, how does it choose between Latency (L) and Consistency (C)? This classification categorizes modern databases into engines like PC/EC (e.g., traditional ACID databases like PostgreSQL or Spanner prioritizing consistency at the cost of availability and latency), PA/EL (e.g., Apache Cassandra or DynamoDB prioritizing availability during partitions and lower latency during normal operations by leveraging eventual consistency), and PA/EC systems (e.g., MongoDB, which favors availability during partitions but sacrifices write latency to achieve strong consistency during normal operations)."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Theorem / Model",
+        "Primary Focus",
+        "Network Partition Behavior",
+        "Normal Operations Behavior"
+      ],
+      "rows": [
+        [
+          "CAP Theorem",
+          "Tradeoffs under network failure",
+          "Choose either Consistency (CP) or Availability (AP)",
+          "Not addressed (assumes ideal network)"
+        ],
+        [
+          "PACELC Theorem",
+          "Tradeoffs during failure AND normal operations",
+          "If Partition: choose Availability (A) or Consistency (C)",
+          "Else: choose Latency (L) or Consistency (C)"
+        ]
+      ]
+    },
+    {
+      "bullet_list": [
+        "CP systems enforce linearizability using consensus protocols like Raft or Paxos, forcing followers to sync with leaders before acknowledging writes, which increases latency and risk of timeouts during network splits.",
+        "AP and PA/EL systems embrace eventual consistency through vector clocks, gossip protocols, and conflict-free replicated data types (CRDTs), returning stale data locally rather than failing requests.",
+        "The Latency (L) versus Consistency (C) trade-off during normal operations highlights the physical speed-of-light constraints; synchronous multi-region replication forces high latency to guarantee strong consistency, whereas asynchronous replication minimizes latency at the cost of potential data loss (rollback/reconciliation)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import com.datastax.oss.driver.api.core.CqlSession;\nimport com.datastax.oss.driver.api.core.cql.SimpleStatement;\nimport com.datastax.oss.driver.api.core.consistency.DefaultConsistencyLevel;\n\npublic class PacelcAwareDataClient {\n    private final CqlSession session;\n\n    public PacelcAwareDataClient(CqlSession session) {\n        this.session = session;\n    }\n\n    public void writeWithLowLatencyProfile(String userId, String status) {\n        // Demonstrating an 'Else -> Latency' choice (PA/EL model)\n        // We choose LOCAL_QUORUM to keep latency low while maintaining a degree of consistency\n        SimpleStatement statement = SimpleStatement.builder(\n                \"UPDATE user_status SET status = ? WHERE user_id = ?\")\n                .addPositionalValues(status, userId)\n                .setConsistencyLevel(DefaultConsistencyLevel.LOCAL_QUORUM)\n                .build();\n        \n        session.execute(statement);\n    }\n}\n"
+    },
+    {
+      "type": "note",
+      "content": "A common interview trap is stating that databases are strictly 'AP' or 'CP'. In reality, systems like MongoDB or Apache Cassandra are configurable. MongoDB defaults to a CP posture via majority writes and reads, but can be tuned down to AP for specific collections. Always evaluate the specific consistency level (e.g., ALL vs ONE in Cassandra, or writeConcern in MongoDB) rather than labeling the entire database engine."
+    }
+  ],
+  "num": 393,
+  "title": "CAP theorem & PACELC",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Framework, the Java-based configuration model shifts the paradigm from XML descriptors to type-safe, programmatic bean definitions. At the core of this model lies the `@Configuration` annotation, which marks a class as a source of bean definitions and instructs the Spring IoC container to process it using CGLIB-based byte-enhancement. This enhancement intercepts invocations of methods annotated with `@Bean`, ensuring that singleton semantics are strictly enforced by returning cached instances rather than invoking the method repeatedly. Complementing this, `@ComponentScan` automates the discovery of candidate components—such as those annotated with `@Component`, `@Service`, or `@Repository`—by scanning specified packages and registering their corresponding `BeanDefinition` metadata into the `BeanDefinitionRegistry`. Finally, modularity and architectural decoupling are achieved through `@Import`, which allows developers to seamlessly bring in additional `@Configuration` classes, `ImportSelector` implementations, or `ImportBeanDefinitionRegistrar` routines into the primary application context without relying on sprawling package hierarchies."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Annotation",
+        "Primary Responsibility",
+        "Mechanism of Action",
+        "Target Type"
+      ],
+      "rows": [
+        [
+          "@Configuration",
+          "Declares bean sources & enforces singleton proxies",
+          "CGLIB byte-enhancement proxy generation",
+          "Classes"
+        ],
+        [
+          "@Bean",
+          "Instantiates, configures, and initializes a managed object",
+          "Method execution intercepted by ConfigurationClassEnhancer",
+          "Methods"
+        ],
+        [
+          "@ComponentScan",
+          "Discovers and registers stereotyped components",
+          "ClassPathBeanDefinitionScanner & ASM bytecode reading",
+          "Classes"
+        ],
+        [
+          "@Import",
+          "Imports external configuration classes or registrars",
+          "ConfigurationClassParser processing logic",
+          "Classes"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "When `@Configuration` is processed, Spring's `ConfigurationClassPostProcessor` uses CGLIB to subclass the configuration class at runtime, overriding `@Bean` methods to check the `BeanFactory` for an existing instance before executing the factory method.",
+        "`@ComponentScan` utilizes Spring's `MetadataReader` interface powered by the ASM library to inspect class bytecode directly without loading the actual `.class` file into the JVM Classloader during the initial scanning phase.",
+        "The `@Import` annotation supports four distinct strategies: importing a raw configuration class, importing an ImportSelector for conditional logic, importing an ImportBeanDefinitionRegistrar for programmatic bean registration, and regular component importing.",
+        "Methods annotated with `@Bean` inside classes *not* annotated with `@Configuration` (termed 'lite' mode) do not undergo CGLIB enhancement, meaning cross-method calls will instantiate new objects rather than resolving references through the IoC container."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@ComponentScan(basePackages = \"com.enterprise.service\")\n@Import(DatabaseConfiguration.class)\npublic class AppConfig {\n\n    @Bean\n    public DataSource dataSource(Environment env) {\n        DriverManagerDataSource dataSource = new DriverManagerDataSource();\n        dataSource.setDriverClassName(env.getProperty(\"db.driver\"));\n        dataSource.setUrl(env.getProperty(\"db.url\"));\n        dataSource.setUsername(env.getProperty(\"db.username\"));\n        dataSource.setPassword(env.getProperty(\"db.password\"));\n        return dataSource;\n    }\n\n    @Bean\n    public JdbcTemplate jdbcTemplate(DataSource dataSource) {\n        // Calling dataSource() here is intercepted safely due to @Configuration proxying\n        return new JdbcTemplate(dataSource());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap occurs when developers place `@Bean` definitions inside a standard `@Component` or `@Service` class instead of a `@Configuration` class. Because Spring does not apply CGLIB byte-enhancement to standard components ('lite' mode), any inter-bean method calls within that class will execute the factory method multiple times, bypassing the singleton cache and inadvertently spawning duplicate object instances."
+    }
+  ],
+  "num": 222,
+  "title": "@Configuration, @Bean, @ComponentScan, @Import",
+  "category": "Exception Handling & I/O / NIO"
+}

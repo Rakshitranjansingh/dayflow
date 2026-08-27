@@ -1,0 +1,69 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Trees represent hierarchical abstractions foundational to both low-level JVM memory management and high-performance in-memory indexing. When operating on tree data structures, mastering specific algorithmic patterns is non-negotiable for systems engineers. BST validations ensure that the binary search tree invariant holds globally, not just locally: every node in the left subtree must be strictly less than the current node, and every node in the right subtree strictly greater, necessitating explicit min/max boundary propagation during recursion. Traversals—specifically Inorder, Preorder, and Postorder—form the DFS family, where Inorder traversal of a valid BST naturally yields sorted output, Preorder facilitates serialization or cloning, and Postorder guarantees children are processed before parents, making it ideal for bottom-up metric aggregations like computing subtree sizes or heights. \n\nFinding the Lowest Common Ancestor (LCA) in a BST leverages the ordering property to achieve O(h) time complexity by comparing node values against the target values, whereas in a general binary tree, it requires exploring both subtrees and returning the node where targets diverge. Level Order Traversal implements Breadth-First Search (BFS) using a FIFO queue, visiting nodes level by level, which is critical for computing spatial properties or serializing tree layers. Finally, computing Max Depth and Diameter requires bottom-up recursive accumulation: max depth is simply the maximum height between left and right subtrees plus one, while the diameter—the length of the longest path between any two nodes—requires calculating the sum of left and right depths at every single node without assuming the path must pass through the root."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Traversal / Operation",
+        "Time Complexity",
+        "Space Complexity",
+        "Primary System Use-Case"
+      ],
+      "rows": [
+        [
+          "BST Validation",
+          "O(N)",
+          "O(H)",
+          "Index integrity checks and metadata validation"
+        ],
+        [
+          "Inorder Traversal",
+          "O(N)",
+          "O(H)",
+          "Range queries, sorted iteration, AST generation"
+        ],
+        [
+          "Level Order",
+          "O(N)",
+          "O(W)",
+          "Breadth-first serialization, layer-based execution"
+        ],
+        [
+          "LCA (BST)",
+          "O(H)",
+          "O(1)",
+          "Hierarchical routing and taxonomic relationship resolution"
+        ],
+        [
+          "Diameter",
+          "O(N)",
+          "O(H)",
+          "Network topology mapping, longest-path analysis"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "BST Validation requires passing bounding intervals (min, max) down the recursive call stack rather than merely checking immediate left/right children, preventing classic validation bugs where a right descendant violates a grandparent's constraint.",
+        "Level Order Traversal tracks level boundaries either by maintaining the queue size at the start of each iteration loop or by injecting a null delimiter marker, avoiding mixing nodes from adjacent tiers.",
+        "Diameter optimization relies on a post-order return pattern where helper methods return the local height while mutating an external or wrapped integer reference representing the running maximum diameter."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class TreeNode {\n    public int val;\n    public TreeNode left;\n    public TreeNode right;\n    public TreeNode(int val) { this.val = val; }\n}\n\npublic class TreeAlgorithms {\n    private int maxDiameter = 0;\n\n    public boolean isValidBST(TreeNode root) {\n        return validate(root, null, null);\n    }\n\n    private boolean validate(TreeNode node, Integer low, Integer high) {\n        if (node == null) return true;\n        if ((low != null && node.val <= low) || (high != null && node.val >= high)) {\n            return false;\n        }\n        return validate(node.left, low, node.val) && validate(node.right, node.val, high);\n    }\n\n    public int diameterOfBinaryTree(TreeNode root) {\n        calculateHeight(root);\n        return maxDiameter;\n    }\n\n    private int calculateHeight(TreeNode node) {\n        if (node == null) return 0;\n        int leftHeight = calculateHeight(node.left);\n        int rightHeight = calculateHeight(node.right);\n        maxDiameter = Math.max(maxDiameter, leftHeight + rightHeight);\n        return Math.max(leftHeight, rightHeight) + 1;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Beware of stack overflow exceptions when running recursive tree operations on deeply unbalanced trees (where H equals N). If the tree depth exceeds the JVM stack size configured via -Xss, recursive implementations will fail. In production systems handling untrusted hierarchies, either pre-balance the tree into an AVL or Red-Black variant, or rewrite traversals iteratively using an explicit Deque."
+    }
+  ],
+  "num": 1189,
+  "title": "Trees: BST validations, Inorder/Preorder/Postorder traversals, LCA, Level Order Traversal, Max depth/diameter.",
+  "category": "Exception Handling & I/O / NIO"
+}

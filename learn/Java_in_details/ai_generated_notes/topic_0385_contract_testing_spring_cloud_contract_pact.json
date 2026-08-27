@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern distributed architectures governed by microservices, integration bugs frequently surface during deployment because traditional end-to-end testing suites are brittle, slow, and expensive to maintain. Contract testing solves this by shifting integration verification left, validating individual services against a shared 'contract' without spinning up entire environments. Spring Cloud Contract and Pact are the two premier frameworks tackling this challenge, albeit through different paradigms: Spring Cloud Contract relies on JVM-centric producer-driven contracts (often written in Groovy or YAML) where the service provider generates stubs for consumers. Conversely, Pact champions a consumer-driven approach where the consumer defines its expectations as a JSON pact file, which the provider then verifies against its codebase. By decoupling services in this manner, development teams achieve rapid feedback loops, robust backward compatibility guarantees, and isolation from ephemeral network dependencies during CI/CD execution."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Spring Cloud Contract",
+        "Pact"
+      ],
+      "rows": [
+        [
+          "Driven By",
+          "Producer-Driven (mostly)",
+          "Consumer-Driven"
+        ],
+        [
+          "Language Support",
+          "Polyglot for consumers, JVM-heavy for producers",
+          "Polyglot (Java, JS, Go, Ruby, Python, .NET)"
+        ],
+        [
+          "Artifact Distribution",
+          "Maven/Gradle repositories (JAR stubs)",
+          "Pact Broker (JSON artifacts via HTTP)"
+        ],
+        [
+          "Stub Generation",
+          "Automatically generated wiremock mappings",
+          "Consumer tests generate pact files, verified via framework runners"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring Cloud Contract parses DSL or YAML definitions to automatically generate WireMock stubs and test cases, ensuring the producer never breaks its API guarantees.",
+        "Pact relies on a Pact Broker as an organizational source of truth, enabling advanced workflows like 'can-i-deploy' checks that analyze matrix versions before production releases.",
+        "Consumer tests execute against a local mock server using the defined expectations, recording interactions into a contract artifact that represents the exact client requirements."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RunWith(PactRunner.class)\n@Provider(\"user-service\")\n@Consumer(\"order-service\")\npublic class UserConsumerPactTest {\n    \n    @Pact(consumer = \"order-service\")\n    public RequestResponsePact createPact(PactDslWithProvider builder) {\n        return builder\n            .given(\"user 42 exists\")\n            .path(\"/users/42\")\n            .method(\"GET\")\n            .willRespondWith()\n            .status(200)\n            .body(new PactDslJsonBody()\n                .integerType(\"id\", 42)\n                .stringType(\"username\", \"johndoe\"))\n            .toPact();\n    }\n\n    @Test\n    @PactVerification(\"user-service\")\n    public void testGetUser(MockServer mockServer) {\n        // Execute client call against mockServer.getUrl() and assert response\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap in consumer-driven contracts is failing to version your payloads or handling optional fields incorrectly. If a consumer writes a brittle pact expecting exact JSON ordering or omitting forward-compatible properties, provider deployments will fail arbitrarily. Always design your pacts using lenient matchers (e.g., regex, type matching rather than exact value matching) to prevent tight coupling across microservice boundaries."
+    }
+  ],
+  "num": 386,
+  "title": "Contract testing — Spring Cloud Contract / Pact",
+  "category": "Core Java & Fundamentals"
+}

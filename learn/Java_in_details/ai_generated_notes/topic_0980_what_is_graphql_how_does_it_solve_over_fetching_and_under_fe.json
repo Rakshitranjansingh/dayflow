@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "GraphQL is a query language for APIs and a server-side runtime for executing queries by using a type system you define for your data. Developed by Meta in 2012 and publicly released in 2015, GraphQL fundamentally shifts the API paradigm from server-driven resource endpoints to client-driven data specification. In a traditional architectural landscape, client applications consume fixed endpoints exposed by a backend, which frequently introduces severe inefficiencies in data transfer over constrained networks.\n\nOver-fetching occurs when a client requests an endpoint—such as a RESTful GET /api/users/123—and receives a massive JSON payload containing dozens of fields (user profile details, billing addresses, audit logs, preferences) when the UI only requires the user's first name and avatar URL. This wastes network bandwidth, increases payload parsing overhead on mobile clients, and bloats memory footprints. Conversely, under-fetching happens when a single endpoint does not return enough data, forcing the client to execute sequential cascading round-trips. For instance, to render a user dashboard, a client might first fetch the user resource, parse the primary keys of their recent orders, and then issue N separate requests to fetch the details for each individual order—the classic N+1 query problem transferred from the database layer to the HTTP transport layer.\n\nGraphQL completely eliminates both over-fetching and under-fetching by allowing the client to formulate a precise query payload specifying exactly the scalar fields and relational subgraphs it needs. The execution engine on the server parses this query against an abstract syntax tree (AST), validates it against a strongly typed schema, and traverses the underlying data resolvers to construct a single, nested JSON response mirroring the exact structural shape requested by the client in a single HTTP round-trip."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "REST APIs",
+        "GraphQL"
+      ],
+      "rows": [
+        [
+          "Endpoint Structure",
+          "Multiple fixed endpoints (e.g., /users, /users/{id}/orders)",
+          "Single unified endpoint (typically /graphql)"
+        ],
+        [
+          "Payload Determination",
+          "Server decides what fields are returned in the resource representation",
+          "Client specifies exact fields via query projection"
+        ],
+        [
+          "Network Round-trips",
+          "Prone to under-fetching leading to N+1 client-side HTTP requests",
+          "Single round-trip fetches deeply nested relational graphs"
+        ],
+        [
+          "Caching Strategy",
+          "Native HTTP caching via URL keys, ETags, and proxies",
+          "Requires complex client-side normalization caches (e.g., Apollo Client)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Schema Definition Language (SDL) forms the contract between client and server, establishing scalar types (String, Int, Boolean, ID, Float) and object types that map domain models.",
+        "Resolvers are functions responsible for populating the data for a single field in your schema, executing business logic, and querying relational databases or downstream microservices.",
+        "The execution engine processes queries recursively, invoking child resolvers only if the corresponding field is explicitly requested in the client query AST.",
+        "DataLoader pattern is mandatory in production GraphQL servers to batch and cache downstream database calls, preventing the server-side N+1 query problem when resolving lists of nested relationships."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Controller\npublic class UserGraphQLController {\n\n    private final UserService userService;\n    private final OrderDataLoader orderDataLoader;\n\n    public UserGraphQLController(UserService userService, OrderDataLoader orderDataLoader) {\n        this.userService = userService;\n        this.orderDataLoader = orderDataLoader;\n    }\n\n    @QueryMapping\n    public User userById(@Argument Long id) {\n        return userService.findById(id);\n    }\n\n    @SchemaMapping(typeName = \"User\", field = \"orders\")\n    public CompletableFuture<List<Order>> getOrders(User user, DataFetchingEnvironment environment) {\n        // Uses DataLoader to batch and cache downstream calls, solving the N+1 problem\n        return orderDataLoader.load(user.getId());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap in GraphQL is allowing clients to execute arbitrarily deep, complex queries that lead to denial-of-service (DoS) attacks via database exhaustion or thread pool starvation. Because clients dictate the shape of the graph, a malicious or poorly written query requesting infinite self-referential relations (e.g., user -> friends -> friends -> friends) can cripple your backend. Always implement query complexity analysis, maximum depth limitation validation rules, and execution timeouts at the gateway layer before pushing GraphQL into production."
+    }
+  ],
+  "num": 981,
+  "title": "What is GraphQL? How does it solve Over-fetching and Under-fetching?",
+  "category": "REST APIs, WebFlux & Microservices"
+}

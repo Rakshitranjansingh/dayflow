@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Security's architecture centers around a robust, modular pipeline designed to intercept HTTP requests and enforce authorization policies. At the heart of this web security ecosystem sit Custom Filters, the AuthenticationManager, and the AuthenticationProvider. A custom filter intercepts raw HTTP requests—typically extracting credentials like JWTs, API keys, or basic auth headers—and wraps them into an unauthenticated Authentication object. Rather than authenticating these credentials directly, the filter delegates the workload to the AuthenticationManager, which serves as the central orchestration API for authentication requests.\n\nThe AuthenticationManager (typically implemented by ProviderManager) does not perform the heavy lifting itself; instead, it iterates through a configured list of AuthenticationProviders. Each AuthenticationProvider encapsulates specialized authentication logic for a specific kind of credential payload, such as a UsernamePasswordAuthenticationToken or a custom pre-authenticated token. By decoupling the HTTP extraction layer (filters) from the delegation layer (manager) and the cryptographic/datastore verification layer (providers), Spring Security achieves extreme extensibility, allowing developers to plug in custom identity stores like LDAP, OAuth2, or relational databases seamlessly."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component",
+        "Primary Responsibility",
+        "Key Interface / Implementation"
+      ],
+      "rows": [
+        [
+          "Custom Filter",
+          "Intercept HTTP requests, extract credentials, instantiate unauthenticated tokens, and push them to the SecurityContext.",
+          "OncePerRequestFilter"
+        ],
+        [
+          "AuthenticationManager",
+          "Orchestrate authentication requests by delegating to a chain of registered authentication providers.",
+          "ProviderManager"
+        ],
+        [
+          "AuthenticationProvider",
+          "Perform the actual verification of user credentials against a data source and return a fully populated, authenticated token.",
+          "AuthenticationProvider"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Filters reside inside the standard Servlet Container Filter Chain, wrapping the request handling pipeline via the Spring Security FilterChainProxy.",
+        "The ProviderManager handles hierarchical authentication by delegating failures down the chain to subsequent providers unless a specific provider explicitly throws an AccountStatusException.",
+        "Upon successful verification, the AuthenticationProvider returns an Authentication object populated with granted authorities (roles), which is then stored in the SecurityContextHolder by the downstream security filters."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Component\npublic class CustomApiKeyFilter extends OncePerRequestFilter {\n    private final AuthenticationManager authenticationManager;\n\n    public CustomApiKeyFilter(AuthenticationManager authenticationManager) {\n        this.authenticationManager = authenticationManager;\n    }\n\n    @Override\n    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)\n            throws ServletException, IOException {\n        String apiKey = request.getHeader(\"X-API-KEY\");\n        if (apiKey == null) {\n            filterChain.doFilter(request, response);\n            return;\n        }\n\n        try {\n            Authentication authRequest = new ApiKeyAuthenticationToken(apiKey);\n            Authentication authResult = authenticationManager.authenticate(authRequest);\n            SecurityContextHolder.getContext().setAuthentication(authResult);\n        } catch (AuthenticationException e) {\n            SecurityContextHolder.clearContext();\n            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());\n            return;\n        }\n\n        filterChain.doFilter(request, response);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A notorious production pitfall when implementing custom filters and authentication providers is forgetting to clear the SecurityContextHolder upon authentication failure, or failing to propagate thread-local security context across asynchronous thread boundaries. Always ensure that if you mutate the SecurityContext inside a custom filter, you handle cleanup cleanly or leverage SecurityContextHolderStrategy for reactive or multi-threaded request processing."
+    }
+  ],
+  "num": 280,
+  "title": "Custom filters, AuthenticationProvider, AuthenticationManager",
+  "category": "Spring Security & Web Security"
+}

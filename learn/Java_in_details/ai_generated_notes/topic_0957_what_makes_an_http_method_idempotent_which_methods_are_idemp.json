@@ -1,0 +1,65 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of RESTful architecture and the HTTP specification (RFC 9110), idempotency is a property of a request method where multiple identical requests have the same effect on the server-side state as a single request. It is crucial to understand that idempotency does not mean the response is identical; it means the state of the resource remains unchanged after the first successful invocation. This is a vital guarantee for distributed systems, as it allows clients to safely retry requests that may have failed due to network timeouts or intermittent connectivity without fear of causing unintended side effects, such as duplicate database entries or incorrect balance updates."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "HTTP Method",
+        "Idempotent",
+        "Reasoning"
+      ],
+      "rows": [
+        [
+          "GET",
+          "Yes",
+          "Retrieves data; read-only operations do not modify state."
+        ],
+        [
+          "PUT",
+          "Yes",
+          "Replaces the resource entirely; subsequent PUTs overwrite the same state."
+        ],
+        [
+          "DELETE",
+          "Yes",
+          "Removes the resource; once deleted, subsequent calls result in a 404, but state remains 'deleted'."
+        ],
+        [
+          "POST",
+          "No",
+          "Creates a new resource; multiple calls create multiple distinct resources."
+        ],
+        [
+          "PATCH",
+          "No",
+          "Applies partial updates; depending on implementation, it may be non-idempotent (e.g., appending to a list)."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "GET and HEAD are idempotent because they are defined as safe methods; they are strictly read-only and must not trigger side effects on the server.",
+        "PUT idempotency relies on the client providing the full state of the resource. If a client sends 'PUT /user/1' with specific fields, the server replaces the existing entity, making the end state predictable regardless of execution count.",
+        "DELETE is idempotent because the final state is 'resource does not exist'. Whether the server returns a 200 (first deletion) or 404 (subsequent deletions), the server-side state is consistent.",
+        "POST is inherently non-idempotent because it is designed to append or create. In a banking API, calling POST /transactions twice will result in two separate ledger entries, which is the exact behavior idempotency is meant to prevent.",
+        "PATCH is technically non-idempotent by specification, though it can be implemented as idempotent if the update logic is strictly a set operation rather than an increment or append operation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\npublic class ResourceController {\n    // Idempotent: Multiple calls result in the same state\n    @PutMapping(\"/items/{id}\")\n    public ResponseEntity<Item> updateItem(@PathVariable String id, @RequestBody Item item) {\n        return ResponseEntity.ok(repository.save(item));\n    }\n\n    // Non-Idempotent: Multiple calls create multiple resources\n    @PostMapping(\"/items\")\n    public ResponseEntity<Item> createItem(@RequestBody Item item) {\n        return ResponseEntity.status(HttpStatus.CREATED).body(repository.save(item));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never rely solely on HTTP method semantics for idempotency in critical business logic. If you are building a payment gateway, even a 'PUT' request should be guarded by an 'Idempotency-Key' header. Clients send a unique UUID in this header, and the server stores this key in a distributed cache (like Redis) with a TTL. If a request arrives with a key already present in the cache, the server returns the cached response instead of re-executing the business logic. This pattern is the industry standard for handling network failures in mission-critical systems."
+    }
+  ],
+  "num": 958,
+  "title": "What makes an HTTP method Idempotent? Which methods are idempotent?",
+  "category": "Core Java & Fundamentals"
+}

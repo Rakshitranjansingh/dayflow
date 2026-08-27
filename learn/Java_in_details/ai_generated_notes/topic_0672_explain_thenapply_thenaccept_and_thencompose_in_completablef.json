@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern Java concurrency, managing asynchronous pipelines requires non-blocking combinators that transform, consume, or flatten futures without stalling the calling thread. The CompletableFuture class provides a rich fluent API for this exact purpose, centered around three core dependent stage methods: thenApply(), thenAccept(), and thenCompose(). Understanding how these methods operate, how they differ in their functional signatures, and how they handle thread execution boundaries is vital for building reactive, high-throughput microservices.\n\nFirst, thenApply() is designed for transforming the synchronous or asynchronous result of a completed stage. It takes a Function<? super T, ? extends U> functional interface, accepting the raw output T of the upstream future and returning a new future containing the transformed value U. This mirrors the map operation found in Java Streams or Optional, making it ideal for pure, non-blocking computations like parsing a JSON payload into a domain object.\n\nSecond, thenAccept() terminates an asynchronous pipeline branch by consuming the final result. It accepts a Consumer<? super T> functional interface, takes the value T from the completed future, and returns a CompletableFuture<Void>. Because it yields a void result, it acts as a terminal sink, commonly used for side effects such as persisting an entity to a database, logging metrics, or dispatching an event notification.\n\nThird, thenCompose() solves the classic 'future of a future' flattening problem. When an asynchronous transformation itself returns a CompletableFuture<U> (e.g., calling another async service based on the result of the first), using thenApply() would yield a nested CompletableFuture<CompletableFuture<U>>. thenCompose() takes a Function<? super T, ? extends CompletionStage<U>> and automatically flattens the resulting nested stage into a single flat CompletableFuture<U>, exactly like flatMap in monadic operations."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Method",
+        "Functional Interface",
+        "Return Type",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "thenApply()",
+          "Function<T, U>",
+          "CompletableFuture<U>",
+          "Transforming result data from type T to type U."
+        ],
+        [
+          "thenAccept()",
+          "Consumer<T>",
+          "CompletableFuture<Void>",
+          "Consuming the result for side effects without returning a value."
+        ],
+        [
+          "thenCompose()",
+          "Function<T, CompletionStage<U>>",
+          "CompletableFuture<U>",
+          "Flattening nested asynchronous operations (async flatMap)."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Execution Threading: Methods without an async suffix (like thenApply, thenAccept, thenCompose) execute on the same thread that completed the previous stage, or on the caller thread if the previous stage is already complete. If async isolation is required, developers must use thenApplyAsync, thenAcceptAsync, or thenComposeAsync, which delegate execution to the ForkJoinPool.commonPool() or a custom Executor.",
+        "Monadic Flattening Mechanics: thenCompose() inspects the completion stage returned by its mapper function. If the inner future is already complete, it propagates its result immediately; otherwise, it registers a dependent action on the inner future, avoiding manual nested blocking or redundant future unwrapping.",
+        "Exception Propagation: All three methods short-circuit if the upstream future completes exceptionally. The exception bypasses the transformation, consumption, or composition logic and is directly propagated down the asynchronous pipeline until caught by exceptionally(), handle(), or whenComplete()."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.concurrent.CompletableFuture;\nimport java.util.concurrent.ExecutorService;\nimport java.util.concurrent.Executors;\n\npublic class CompletableFuturePipelineDemo {\n\n    public static void main(String[] args) {\n        ExecutorService executor = Executors.newFixedThreadPool(4);\n\n        CompletableFuture.supplyAsync(() -> \"user_123\", executor)\n            // thenApply: Transform String userId to User object\n            .thenApply(userId -> fetchUserFromDatabase(userId))\n            // thenCompose: Flatten an async dependency call (fetching user permissions)\n            .thenCompose(user -> fetchPermissionsAsync(user.getId(), executor))\n            // thenAccept: Terminal side-effect consumer\n            .thenAccept(permissions -> System.out.println(\"Loaded permissions: \" + permissions))\n            .join();\n\n        executor.shutdown();\n    }\n\n    private static User fetchUserFromDatabase(String userId) {\n        return new User(userId, \"Alice\");\n    }\n\n    private static CompletableFuture<String> fetchPermissionsAsync(String userId, ExecutorService exec) {\n        return CompletableFuture.supplyAsync(() -> \"[READ, WRITE]\", exec);\n    }\n\n    private static class User {\n        private final String id;\n        private final String name;\n        public User(String id, String name) { this.id = id; this.name = name; }\n        public String getId() { return id; }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is confusing thenApply() with thenCompose(). If your transformation function returns a CompletableFuture, using thenApply() will result in a nested CompletableFuture<CompletableFuture<T>> type signature, forcing you to call .join() or .get() inside your pipeline—which blocks the thread and defeats the entire purpose of reactive asynchronous programming. Always reach for thenCompose() when chaining dependent asynchronous tasks."
+    }
+  ],
+  "num": 673,
+  "title": "Explain thenApply(), thenAccept(), and thenCompose() in CompletableFuture.",
+  "category": "Multithreading & Java Concurrency"
+}

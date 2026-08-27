@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Framework, @Configuration and @Bean are the cornerstones of the Java-based configuration model, replacing the legacy XML-based wiring. @Configuration is a class-level annotation that marks a class as a source of bean definitions for the Spring IoC container. When the container processes a class annotated with @Configuration, it uses CGLIB to dynamically subclass the class, ensuring that calls to @Bean methods within the same configuration class are intercepted to return the singleton instance from the container rather than executing the method body repeatedly. This mechanism is critical for maintaining the singleton scope and ensuring dependency injection integrity.\n\n@Bean is a method-level annotation that informs the IoC container that the method returns an object that should be registered as a bean in the application context. While @Configuration classes provide the structural framework, @Bean methods define the actual objects. By default, these beans are singletons, meaning the container creates one instance per context. This approach allows developers to manage third-party library objects or complex component initialization logic that cannot be achieved through simple component scanning, providing a type-safe, programmatic way to configure the application's object graph."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "@Configuration",
+        "@Bean"
+      ],
+      "rows": [
+        [
+          "Target",
+          "Class level",
+          "Method level"
+        ],
+        [
+          "Primary Purpose",
+          "Defines a configuration source",
+          "Defines an individual bean instance"
+        ],
+        [
+          "Container Role",
+          "Enables CGLIB proxying",
+          "Registers the returned object as a bean"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The @Configuration class is processed by the ConfigurationClassPostProcessor, which uses CGLIB to generate a proxy. This ensures that when one @Bean method calls another, the container returns the existing bean instance instead of invoking the method again.",
+        "When using @Configuration, the proxying behavior is enabled by default (proxyBeanMethods = true). If you set this to false, the class is treated as a plain factory, and inter-bean method calls will execute the method body, creating new instances.",
+        "The @Bean annotation supports lifecycle callbacks via initMethod and destroyMethod attributes, allowing you to hook into the bean's lifecycle without implementing Spring-specific interfaces like InitializingBean.",
+        "Dependency injection occurs automatically when a @Bean method accepts parameters; the container will resolve these parameters from the existing application context."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class AppConfig {\n\n    @Bean\n    public DataSource dataSource() {\n        return new HikariDataSource();\n    }\n\n    @Bean\n    public JdbcTemplate jdbcTemplate(DataSource dataSource) {\n        // The container injects the bean created by dataSource() above\n        return new JdbcTemplate(dataSource);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is attempting to use @Bean methods inside a class not annotated with @Configuration, or worse, inside a @Component class. In such cases, Spring does not apply CGLIB proxying. If you call a 'bean' method from another method within that class, you will get a brand new object instance every time, effectively breaking the singleton contract and potentially causing massive memory leaks if those objects hold expensive resources like database connections or thread pools."
+    }
+  ],
+  "num": 758,
+  "title": "What is @Configuration? What is @Bean?",
+  "category": "Exception Handling & I/O / NIO"
+}

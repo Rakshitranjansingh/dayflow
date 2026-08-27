@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed Java applications running on modern JVMs, understanding the internal health and behavior requires three distinct pillars of observability: metrics, logs, and traces. Metrics are numerically aggregated, time-series data points that represent system performance, such as heap memory consumption, GC pause times, or HTTP request throughput via Micrometer and Prometheus. They are exceptionally cheap to store and query, alerting you *that* a problem exists by revealing statistical anomalies in CPU utilization or thread pools. Logs, conversely, are discrete, immutable timestamped text records of discrete events emitted by SLF4J or Logback within a specific thread context. They capture the rich, contextual narrative of an execution path—such as a NullPointerException stack trace or a failed database connection attempt—allowing engineers to diagnose *why* a failure occurred. Finally, traces map the lifecycle of a request as it traverses asynchronous boundaries, thread pools, and network hops across microservices, utilizing OpenTelemetry or Jaeger. A trace is composed of hierarchical spans that track latency bottlenecks and propagation headers, answering the *where* in a complex topology latency or errors originate."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Observability Pillar",
+        "Data Structure",
+        "Primary Use Case",
+        "Storage Cost"
+      ],
+      "rows": [
+        [
+          "Metrics",
+          "Aggregated numerical time-series",
+          "Alerting and capacity planning",
+          "Very low"
+        ],
+        [
+          "Logs",
+          "Discrete text events with context",
+          "Root-cause analysis and auditing",
+          "High"
+        ],
+        [
+          "Traces",
+          "Directed acyclic graphs of spans",
+          "Distributed latency tracking and dependency mapping",
+          "Moderate to High"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Metrics leverage efficient in-memory ring buffers and atomic counters in libraries like Micrometer to minimize GC pressure and lock contention during high-throughput execution.",
+        "Logs rely on asynchronous appenders (e.g., Logback AsyncAppender) utilizing LMAX Disruptor queues to prevent I/O blocking on the calling application thread.",
+        "Traces use W3C Trace Context headers (traceparent, tracestate) injected into HTTP requests and thread-local storage (MDC) to correlate distributed execution across thread pools."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import io.micrometer.core.instrument.Counter;\nimport io.micrometer.core.instrument.MeterRegistry;\nimport org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\nimport org.slf4j.MDC;\nimport io.opentelemetry.api.trace.Span;\nimport io.opentelemetry.api.trace.Tracer;\n\npublic class ObservabilityDemoService {\n    private static final Logger log = LoggerFactory.getLogger(ObservabilityDemoService.class);\n    private final Counter requestCounter;\n    private final Tracer tracer;\n\n    public ObservabilityDemoService(MeterRegistry registry, Tracer tracer) {\n        this.requestCounter = registry.counter(\"app.requests.total\", \"service\", \"demo\");\n        this.tracer = tracer;\n    }\n\n    public void processOrder(String orderId) {\n        requestCounter.increment();\n        Span span = tracer.spanBuilder(\"processOrder\").startSpan();\n        try (var scope = span.makeCurrent()) {\n            MDC.put(\"orderId\", orderId);\n            MDC.put(\"traceId\", span.getSpanContext().getTraceId());\n            log.info(\"Processing order execution started.\");\n            // Business logic execution...\n        } catch (Exception e) {\n            span.recordException(e);\n            log.error(\"Failed to process order: {}\", orderId, e);\n            throw e;\n        } finally {\n            span.end();\n            MDC.clear();\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is logging high-cardinality metadata (like user IDs or raw JSON payloads) directly into metrics tags, which instantly blows up the Prometheus time-series database (TSDB) cardinality limits, leading to OOM errors or memory leaks in the monitoring agent. Always keep metrics low-cardinality, put high-cardinality identifiers into structured logs, and propagate them via trace spans."
+    }
+  ],
+  "num": 1047,
+  "title": "What is metrics versus logs versus traces?",
+  "category": "Core Java & Fundamentals"
+}

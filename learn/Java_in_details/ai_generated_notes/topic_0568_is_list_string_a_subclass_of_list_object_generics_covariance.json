@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A common point of confusion for developers transitioning to modern Java is the relationship between generic types like List<String> and List<Object>. Intuition from standard Object-Oriented Programming (OOP) suggests that since a String is a subclass of Object, a List of Strings should naturally be a subclass of a List of Objects. However, in the Java type system, List<String> is NOT a subclass of List<Object>. This restriction exists to preserve type safety and prevent runtime Heap Pollution via ClassCastException, which would break the core invariants of generics if covariance were allowed indiscriminately on mutable collections.\n\nTo safely achieve covariance—meaning the ability to read from a generic structure using a subtype—Java provides wildcard types with upper bounds, denoted by the extends keyword (e.g., List<? extends Object>). Conversely, contravariance handles write safety using lower bounds via the super keyword (e.g., List<? super String>). Understanding these distinctions is critical for writing robust generic APIs, leveraging the Get-Producer, Put-Consumer (PECS) principle coined by Joshua Bloch, and avoiding subtle compiler errors when working with collections."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Type Declaration",
+        "Read Operations (Get)",
+        "Write Operations (Put)",
+        "Covariant/Contravariant"
+      ],
+      "rows": [
+        [
+          "List<String>",
+          "Returns String",
+          "Accepts only String",
+          "Invariant (Strict equality)"
+        ],
+        [
+          "List<? extends Object>",
+          "Returns Object (Safe read)",
+          "Disallowed (except null)",
+          "Covariant (Producer Extends)"
+        ],
+        [
+          "List<? super String>",
+          "Returns Object (Unsafe)",
+          "Accepts String and subclasses",
+          "Contravariance (Consumer Super)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Generic type parameters in Java are invariant by default to prevent type corruption through aliasing; allowing List<String> to be assigned to List<Object> would let you insert an Integer into a String list through the Object reference.",
+        "The PECS principle (Producer Extends, Consumer Super) dictates that if your parameterized type is primarily fetching data out of a structure, use extends; if it is accepting data into the structure, use super.",
+        "Type erasure ensures that at bytecode execution time, both List<String> and List<Object> collapse down to a raw java.util.List, meaning runtime instanceof checks cannot differentiate generic type arguments."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.List;\nimport java.util.ArrayList;\n\npublic class GenericsDemonstration {\n    public static void printList(List<? extends Object> list) {\n        for (Object elem : list) {\n            System.out.println(elem);\n        }\n    }\n\n    public static void main(String[] args) {\n        List<String> stringList = new ArrayList<>();\n        stringList.add(\"Hello\");\n        \n        // Compile-time error if we tried: List<Object> objList = stringList;\n        // But covariance via wildcards allows safe reading:\n        printList(stringList);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production pitfall involves trying to add elements to a collection typed with an upper-bounded wildcard (e.g., List<? extends Number>). Because the compiler only knows that the list holds some unknown subtype of Number, it locks down write operations completely to protect type integrity—you cannot even add a Double or Integer to it, except for null. If you need to mutate the collection, use a lower-bounded wildcard (List<? super Integer>) instead."
+    }
+  ],
+  "num": 569,
+  "title": "Is List<String> a subclass of List<Object>? (Generics covariance)",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

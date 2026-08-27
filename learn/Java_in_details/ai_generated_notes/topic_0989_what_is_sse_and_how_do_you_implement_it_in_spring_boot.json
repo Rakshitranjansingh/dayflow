@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Server-Sent Events (SSE) is a standards-based technology that enables servers to push real-time data updates to web clients over a single, long-lived HTTP connection. Unlike WebSockets, which provide full-duplex communication, SSE is strictly unidirectional—from server to client—making it an ideal, lightweight choice for streaming live dashboards, stock tickers, or notification feeds. SSE leverages the 'text/event-stream' MIME type, allowing the browser to keep the connection open and process incoming data chunks incrementally without the overhead of the WebSocket handshake or the latency of periodic HTTP polling.\n\nIn the Spring Boot ecosystem, SSE is seamlessly integrated through the 'SseEmitter' class, which abstracts the complexity of managing persistent HTTP connections. When a client initiates a request to an endpoint returning an SseEmitter, Spring keeps the request thread alive. As events occur, the application pushes data through the emitter, which the browser's 'EventSource' API consumes as a stream of events. This approach is highly efficient in reactive or non-blocking architectures, as it avoids the 'N+1' connection problem associated with traditional polling and minimizes resource consumption on both the client and the server."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "SSE",
+        "WebSockets"
+      ],
+      "rows": [
+        [
+          "Directionality",
+          "Unidirectional (Server to Client)",
+          "Full-Duplex (Bi-directional)"
+        ],
+        [
+          "Protocol",
+          "Standard HTTP",
+          "Custom Upgrade Protocol"
+        ],
+        [
+          "Complexity",
+          "Low (Native browser support)",
+          "High (Requires protocol handling)"
+        ],
+        [
+          "Reconnection",
+          "Automatic (Built-in)",
+          "Manual (Requires logic)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "SseEmitter lifecycle: The server maintains an open connection; if the client disconnects, the emitter throws an IOException, which must be handled to prevent memory leaks or thread starvation.",
+        "Event structure: SSE messages consist of 'data:', 'event:', and 'id:' fields. Spring's SseEmitter handles the serialization, but you can manually define event names to trigger specific listeners on the client-side.",
+        "Thread management: In a standard Servlet container, each SseEmitter consumes a request thread. For high-concurrency scenarios, you should use Spring WebFlux (Flux<ServerSentEvent>) to leverage non-blocking I/O and prevent thread pool exhaustion.",
+        "Timeouts: Always configure the timeout duration on the SseEmitter constructor to prevent idle connections from lingering indefinitely in the JVM heap."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@GetMapping(value = \"/stream\", produces = MediaType.TEXT_EVENT_STREAM_VALUE)\npublic SseEmitter streamUpdates() {\n    SseEmitter emitter = new SseEmitter(60_000L);\n    executorService.execute(() -> {\n        try {\n            for (int i = 0; i < 10; i++) {\n                emitter.send(SseEmitter.event().name(\"update\").data(\"Message \" + i));\n                Thread.sleep(1000);\n            }\n            emitter.complete();\n        } catch (Exception e) {\n            emitter.completeWithError(e);\n        }\n    });\n    return emitter;\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is the 'HTTP/1.1 connection limit'. Browsers restrict the number of concurrent connections to a single domain (usually 6). If your application opens multiple SSE streams, you will hit this limit, causing subsequent requests to hang. Always ensure your architecture uses HTTP/2, which multiplexes streams over a single TCP connection, effectively bypassing this browser-side bottleneck."
+    }
+  ],
+  "num": 990,
+  "title": "What is SSE and how do you implement it in Spring Boot?",
+  "category": "Spring Boot & Spring Framework"
+}

@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed enterprise applications, network partitions, cascading service failures, and upstream timeouts are not exceptions—they are standard operating conditions. Designing robust systems requires a deliberate strategy for error handling and partial responses. Traditional monolithic error models dictate that if a single transactional boundary or composite data aggregation fails, the entire request fails with a blunt 500 Internal Server Error or an unhandled RuntimeException. However, modern microservices architectures and high-throughput APIs often aggregate data from dozens of disparate domains into a single client payload. If a recommendation microservice goes down while a user is fetching their personalized dashboard, crashing the entire view because non-critical data is missing represents a catastrophic failure of user experience and resilience design.\n\nError handling in this context moves beyond simple try-catch blocks to embrace explicit partial failure domains. Instead of propagating unchecked exceptions up the call stack, robust systems isolate failures at the component or service level. Partial responses involve encapsulating both successful payloads and granular, domain-specific error envelopes within a unified transport structure. This design pattern ensures that clients—whether they are single-page web applications, mobile apps, or backend-for-frontend (BFF) layers—can render available UI modules while displaying localized placeholders or fallback data for failed dependencies. Implementing this requires combining defensive programming idioms in Core Java, such as CompletableFuture composition with exceptionally() and handle() combinators, alongside rigorous contract definitions in data transfer objects (DTOs) that explicitly model success, partial failure, and complete failure states."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "All-or-Nothing (Traditional)",
+        "Partial Response & Error Isolation"
+      ],
+      "rows": [
+        [
+          "Failure Propagation",
+          "Cascades upward; a single downstream failure aborts the entire execution thread.",
+          "Contained locally; failures are caught, wrapped, and reported alongside successful data."
+        ],
+        [
+          "Client Experience",
+          "Generic error screen (e.g., 500 Server Error) blocking all application utility.",
+          "Degraded but functional UI displaying available sections and localized warnings."
+        ],
+        [
+          "Concurrency & I/O",
+          "Often synchronous and blocking, worsening thread starvation during outages.",
+          "Asynchronous and non-blocking using futures, parallel streams, or reactive streams."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "When orchestrating parallel data fetch operations using CompletableFuture, utilizing methods like exceptionally() allows developers to intercept low-level network or database exceptions and map them to fallback domain objects rather than letting the root future complete exceptionally.",
+        "Partial response DTO designs must distinguish between structural failures (the resource itself does not exist) and transactional degradation (the resource exists, but an enrichment property failed to load), mapping each to distinct HTTP status codes or embedded error collections.",
+        "Thread pool isolation via bulkhead patterns prevents a failing downstream service from exhausting the JVM's common fork-join pool or custom thread pools, safeguarding the availability of critical components."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class DashboardService {\n    private final UserService userService;\n    private final RecommendationService recommendationService;\n\n    public DashboardResponse getDashboard(String userId) {\n        CompletableFuture<UserDto> userFuture = CompletableFuture\n            .supplyAsync(() -> userService.getUser(userId));\n            \n        CompletableFuture<List<RecommendationDto>> recsFuture = CompletableFuture\n            .supplyAsync(() -> recommendationService.getRecommendations(userId))\n            .handle((recs, ex) -> {\n                if (ex != null) {\n                    // Log the isolated failure and return a safe fallback\n                    LoggerFactory.getLogger(DashboardService.class)\n                        .warn(\"Failed to fetch recommendations: {}\", ex.getMessage());\n                    return Collections.emptyList();\n                }\n                return recs;\n            });\n\n        return CompletableFuture.allOf(userFuture, recsFuture)\n            .thenApply(v -> new DashboardResponse(\n                userFuture.join(),\n                recsFuture.join(),\n                recsFuture.isCompletedExceptionally() ? \"Degraded recommendations\" : null\n            )).join();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when implementing partial responses with CompletableFuture.handle() or exceptionally() is silently swallowing critical runtime exceptions like OutOfMemoryError, ThreadDeath, or LinkageError. Always ensure your fallback handlers check if the underlying Throwable is an instance of VirtualMachineError or other unrecoverable errors, and rethrow them immediately to avoid masking catastrophic JVM failures."
+    }
+  ],
+  "num": 322,
+  "title": "Error handling and partial responses",
+  "category": "Core Java & Fundamentals"
+}

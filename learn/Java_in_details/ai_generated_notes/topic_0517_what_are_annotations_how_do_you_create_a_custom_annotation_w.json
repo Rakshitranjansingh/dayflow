@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Annotations are metadata tags that provide data about a program but are not part of the program itself. They have no direct effect on the operation of the code they annotate unless processed by an external tool, framework, or the JVM itself. In the context of Java, they serve as a declarative way to provide configuration, enforce compile-time constraints, or enable runtime reflection-based logic. By decoupling configuration from business logic, annotations allow frameworks like Spring or Hibernate to perform 'magic'—such as dependency injection or ORM mapping—without requiring verbose XML configuration files. Creating a custom annotation involves defining an interface using the @interface keyword, which implicitly extends java.lang.annotation.Annotation. To control the lifecycle and application of these annotations, we use meta-annotations: @Retention and @Target. Retention determines how long the annotation persists (source, class, or runtime), while Target restricts the Java elements (methods, classes, fields) where the annotation can be legally applied."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Retention Policy",
+        "Availability",
+        "Use Case"
+      ],
+      "rows": [
+        [
+          "SOURCE",
+          "Compiler only",
+          "Static analysis, code generation (Lombok)"
+        ],
+        [
+          "CLASS",
+          "Class file",
+          "Bytecode instrumentation, tools (default)"
+        ],
+        [
+          "RUNTIME",
+          "JVM memory",
+          "Reflection, framework dependency injection"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Retention Policy: Defines the scope of existence. SOURCE annotations are discarded by the compiler. CLASS annotations are stored in the .class file but not available via reflection at runtime. RUNTIME is the most common for frameworks, as it allows access to metadata during execution via the Reflection API.",
+        "Target Meta-Annotation: Uses the ElementType enum to restrict usage. Common targets include TYPE (classes/interfaces), FIELD, METHOD, and PARAMETER. Omitting @Target allows the annotation to be applied to any valid Java element.",
+        "Annotation Processors: For SOURCE-level annotations, you must implement the javax.annotation.processing.Processor API. This allows you to hook into the compilation phase to generate boilerplate code or validate architectural constraints before a single line of bytecode is generated."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Retention(RetentionPolicy.RUNTIME)\n@Target(ElementType.METHOD)\npublic @interface LogExecutionTime {\n    String value() default \"DefaultLogger\";\n}\n\n// Usage in a service\n@LogExecutionTime(value = \"OrderService\")\npublic void processOrder(Order order) {\n    // Logic here\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is forgetting to set the @Retention to RUNTIME when building framework-level logic. If you leave it as the default (CLASS), your runtime reflection calls (e.g., method.getAnnotation()) will return null, leading to silent failures that are notoriously difficult to debug. Always verify the retention policy if your annotation logic isn't triggering during application startup."
+    }
+  ],
+  "num": 518,
+  "title": "What are Annotations? How do you create a custom Annotation? What is annotation retention and target?",
+  "category": "Exception Handling & I/O / NIO"
+}

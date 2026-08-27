@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Managing configurations across a distributed microservices architecture introduces significant operational friction, as traditional property files fail to scale when dozens or hundreds of independent services require distinct, environment-specific parameters. To solve this, centralized configuration management decouples application properties from deployment artifacts. Spring Cloud Config acts as the primary architectural bridge in the Spring ecosystem, providing a server-client abstraction backed by Git or native file systems to serve version-controlled YAML or properties files dynamically. However, storing plaintext configuration data introduces severe security vulnerabilities regarding sensitive credentials, API keys, and database passwords.\n\nTo secure these properties, HashiCorp Vault is integrated as an enterprise-grade secrets management solution that handles dynamic secret generation, encryption-as-a-service, and strict access revocation policies. Complementing Vault, HashiCorp Consul provides a robust distributed key-value store combined with a service mesh capability, serving as an alternative or cooperative backend for dynamic configuration updates and real-time health monitoring. Together, Spring Cloud Config, Consul, and Vault form a comprehensive ecosystem where configuration is centrally versioned, securely encrypted at rest and in transit, and dynamically refreshed across running microservices without requiring JVM restarts."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Metric",
+        "Spring Cloud Config Server",
+        "HashiCorp Consul",
+        "HashiCorp Vault"
+      ],
+      "rows": [
+        [
+          "Primary Storage",
+          "Git Repository / File System",
+          "Consul In-Memory KV Store",
+          "Encrypted Storage Backends (Consul, Raft)"
+        ],
+        [
+          "Secret Encryption",
+          "Basic Symmetric/Asymmetric (Jasypt/Spring Security)",
+          "ACLs and Basic Transport Encryption",
+          "Native Dynamic Encryption & Vault Transit Engine"
+        ],
+        [
+          "Service Discovery",
+          "Not natively provided (relies on Eureka/Consul)",
+          "Native Service Discovery & Health Checking",
+          "N/A (Focused purely on secrets/data)"
+        ],
+        [
+          "Dynamic Refresh",
+          "Via Spring Cloud Bus or /actuator/refresh",
+          "Native Watch mechanism & KV blocking queries",
+          "Lease expiration and token revocation"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring Cloud Config resolves property files using a strict naming convention, querying the Config Server with paths like /{application}/{profile}/{label}, allowing environment-specific overrides (e.g., prod, dev) backed by Git branches.",
+        "HashiCorp Vault uses an ephemeral token-based authentication model integrated with Spring Cloud Vault, allowing microservices to authenticate via AppRole or Kubernetes service accounts to fetch scoped secrets directly into the Spring Environment.",
+        "Consul leverages the Raft consensus algorithm for its key-value store, ensuring strong consistency across distributed nodes when updating configuration properties in real-time.",
+        "Runtime configuration updates leverage Spring Cloud's @RefreshScope annotation, which proxies beans, invalidates their cached instances upon an actuator refresh event, and re-injects properties without restarting the application context."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "spring:\n  application:\n    name: payment-service\n  config:\n    import: optional:vault://\n  cloud:\n    vault:\n      uri: http://127.0.0.1:8200\n      authentication: APPROLE\n      app-role:\n        role-id: ${VAULT_ROLE_ID}\n        secret-id: ${VAULT_SECRET_ID}\n      kv:\n        enabled: true\n        backend: secret\n        default-context: payment-service\n    config:\n      uri: http://config-server.internal:8888"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha when combining Spring Cloud Config with Vault is failing to handle token expiration or lease renewals correctly. If a microservice authenticates via AppRole but fails to schedule background lease renewals for dynamic database credentials acquired from Vault, the connection pools will abruptly fail with authentication errors once the TTL expires. Always ensure Spring Cloud Vault's lifecycle management is explicitly configured to handle renewable leases."
+    }
+  ],
+  "num": 1049,
+  "title": "How do you manage configurations across multiple microservices? (Spring Cloud Config, HashiCorp Consul/Vault)",
+  "category": "Spring Security & Web Security"
+}

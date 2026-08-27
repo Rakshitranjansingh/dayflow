@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java applications, particularly those running on the Spring Boot ecosystem, managing configuration properties via traditional @Value annotations leads to fragmented, error-prone, and untyped codebases. To solve this, @ConfigurationProperties provides a robust mechanism for binding externalized configuration files (such as application.yaml or application.properties) directly to strongly-typed Plain Old Java Objects (POJOs). When combined with modern validation constraints (JSR-303/JSR-380 annotations like @NotNull, @Min, or custom validators), type-safe config and validation ensures that misconfigurations—such as missing ports, out-of-range pool sizes, or malformed URIs—are caught at application startup time rather than failing silently in production under heavy load. This architecture shifts configuration errors from runtime I/O and business logic failures to immediate initialization failures, drastically improving system reliability and developer feedback loops."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring Boot uses relaxed binding algorithms to match environment variables and property names (e.g., app.thread-pool-size, APP_THREAD_POOL_SIZE, and app.threadPoolSize all bind successfully to a property named threadPoolSize).",
+        "Bean validation is triggered automatically when the @Validated annotation is placed alongside @ConfigurationProperties, leveraging the Hibernate Validator engine during the context refresh lifecycle.",
+        "Nested property binding allows complex configurations to be broken down into composable, reusable immutable record classes or mutable JavaBean classes without sacrificing validation guarantees."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.springframework.boot.context.properties.ConfigurationProperties;\nimport org.springframework.validation.annotation.Validated;\nimport jakarta.validation.constraints.Max;\nimport jakarta.validation.constraints.Min;\nimport jakarta.validation.constraints.NotBlank;\n\n@Validated\n@ConfigurationProperties(prefix = \"app.io\")\npublic record IoConfig(\n    @NotBlank String storagePath,\n    @Min(1024) @Max(65536) int bufferSize,\n    boolean directMemory\n) {}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha when using @ConfigurationProperties with immutable records is forgetting to annotate the configuration class with @EnableConfigurationProperties (or missing the @ConfigurationPropertiesScan scanner), which leaves the bean unmanaged by the IoC container. Additionally, if you migrate from mutable classes with setters to immutable Java records, ensure you use constructor binding; otherwise, Spring will fail to populate the properties at startup."
+    }
+  ],
+  "num": 243,
+  "title": "@ConfigurationProperties — type-safe config, validation",
+  "category": "Exception Handling & I/O / NIO"
+}

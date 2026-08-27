@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Spring Cache abstraction provides a consistent, transparent caching layer over various cache providers (such as Caffeine, EhCache, or Redis) without binding business logic directly to a specific vendor API. At its core, the mechanism leverages Spring's AOP dynamic proxies to intercept method invocations. When a service method is annotated, the interceptor checks whether the target method has been invoked previously with the exact same parameter signature. The abstraction relies heavily on key generation strategies and cache managers to manage entry lifecycles across memory or distributed stores.\n\nTo orchestrate this caching behavior, Spring exposes several foundational annotations: @Cacheable, @CacheEvict, @CachePut, and @Caching. The @Cacheable annotation marks a method as cacheable, meaning the result of the invocation is stored in the cache so subsequent invocations with the same arguments return the cached value without executing the actual method body. Conversely, @CachePut allows developers to execute the method regardless of cache state, updating the cache with the new return value, which is vital for database write operations that need to synchronize cache entries. @CacheEvict coordinates cache invalidation, systematically removing stale or outdated entries from one or more specified caches either conditionally or unconditionally. Finally, @CacheCaching acts as a meta-annotation container, empowering developers to group multiple caching operations—such as combining multiple @CacheEvict or mixed caching rules—on a single Java method where Java's single-annotation restriction would otherwise prevent repetition."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Annotation",
+        "Method Execution",
+        "Cache Interaction",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "@Cacheable",
+          "Skipped if cache hit",
+          "Reads/Writes",
+          "Read-heavy database queries or expensive computations"
+        ],
+        [
+          "@CachePut",
+          "Always executed",
+          "Writes/Updates",
+          "Entity update methods requiring cache synchronization"
+        ],
+        [
+          "@CacheEvict",
+          "Always executed",
+          "Removes entries",
+          "Delete or update operations requiring cache invalidation"
+        ],
+        [
+          "@Caching",
+          "Dependent on children",
+          "Mixed operations",
+          "Applying multiple mixed caching or eviction rules on one method"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring AOP proxies intercept calls to annotated methods; self-invocation (calling a @Cacheable method from another method within the same class) bypasses the proxy entirely, causing the cache to miss.",
+        "The default KeyGenerator uses a simple hash-code strategy based on method parameters; complex entity graphs or mutable objects passed as keys can lead to cache collisions or memory leaks.",
+        "Transactional synchronization hooks ensure that cache eviction or updates via @CacheEvict and @CachePut occur only after the underlying database transaction successfully commits, preventing dirty cache states."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class ProductService {\n\n    @Cacheable(cacheNames = \"products\", key = \"#id\")\n    public Product getProductById(Long id) {\n        return productRepository.findById(id)\n            .orElseThrow(() -> new EntityNotFoundException(\"Product not found\"));\n    }\n\n    @CachePut(cacheNames = \"products\", key = \"#result.id\")\n    public Product updateProduct(Product product) {\n        return productRepository.save(product);\n    }\n\n    @Caching(evict = {\n        @CacheEvict(cacheNames = \"products\", key = \"#id\"),\n        @CacheEvict(cacheNames = \"productSummaries\", allEntries = true)\n    })\n    public void deleteProduct(Long id) {\n        productRepository.deleteById(id);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production pitfall involves self-invocation: invoking a @Cacheable method from within the same class bypasses the Spring AOP proxy, executing the underlying database query directly. Furthermore, failing to handle cache eviction during high-concurrency writes can result in race conditions where stale data overwrites fresh database updates. Always verify your transaction boundaries and ensure cache operations align with your database isolation levels."
+    }
+  ],
+  "num": 375,
+  "title": "Spring Cache abstraction — @Cacheable, @CacheEvict, @CachePut, @Caching",
+  "category": "Exception Handling & I/O / NIO"
+}

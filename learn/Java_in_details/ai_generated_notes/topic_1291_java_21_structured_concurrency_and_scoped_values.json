@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Java 21 introduces Structured Concurrency and Scoped Values as part of Project Loom, fundamentally shifting how we handle asynchronous tasks and data propagation. Structured Concurrency treats multiple tasks running in different threads as a single unit of work, ensuring that lifetimes are nested and predictable. Before this, 'fire-and-forget' tasks often led to thread leaks or orphaned tasks that continued running even after the parent operation failed. By using StructuredTaskScope, the JVM enforces a strict hierarchy where a parent thread waits for its children to complete or fail, automatically canceling siblings if one task encounters an exception. This eliminates the 'split-brain' concurrency patterns common in CompletableFuture chains.\n\nScoped Values address the limitations of ThreadLocal, which has been the standard for implicit data propagation for decades. ThreadLocal variables are mutable, have unbounded lifetimes, and suffer from significant memory overhead when used with virtual threads because they are copied during thread migration. Scoped Values provide an immutable, read-only mechanism for sharing data across a thread's call stack. They are designed to be bound for a specific scope—the duration of a method call or task—and are automatically cleared when that scope exits. This makes them significantly more memory-efficient and safer for the high-concurrency environments enabled by virtual threads."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "ThreadLocal",
+        "Scoped Values"
+      ],
+      "rows": [
+        [
+          "Mutability",
+          "Mutable",
+          "Immutable"
+        ],
+        [
+          "Inheritance",
+          "Explicit/Manual",
+          "Automatic to child threads"
+        ],
+        [
+          "Memory Usage",
+          "High (per-thread map)",
+          "Low (stack-based pointer)"
+        ],
+        [
+          "Lifecycle",
+          "Indefinite until removed",
+          "Bound to execution scope"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "StructuredTaskScope.ShutdownOnFailure ensures that if any subtask fails, the entire scope is shut down, and all other subtasks are interrupted, preventing resource waste.",
+        "Scoped Values utilize the JVM's stack structure to store bindings, allowing child threads to inherit values from parents without copying the entire map, which is critical for scaling to millions of virtual threads.",
+        "When using Structured Concurrency, the 'join()' method acts as a synchronization barrier, ensuring the parent thread does not proceed until all spawned subtasks have reached a terminal state (success, failure, or cancellation).",
+        "Scoped Values are 'write-once' per scope; you cannot modify a value once bound, which eliminates the race conditions inherent in ThreadLocal.set() operations."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "private static final ScopedValue<String> REQUEST_ID = ScopedValue.newInstance();\n\npublic void handleRequest() {\n    ScopedValue.where(REQUEST_ID, \"TXN-123\").run(() -> {\n        try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {\n            scope.fork(() -> performDatabaseOp());\n            scope.fork(() -> performLoggingOp());\n            scope.join().throwIfFailed();\n        } catch (ExecutionException | InterruptedException e) {\n            // Handle failure; siblings are already cancelled\n        }\n    });\n}"
+    },
+    {
+      "type": "note",
+      "content": "A critical production trap: Do not attempt to use Scoped Values to pass mutable state between threads. While they solve the 'leaky' nature of ThreadLocal, they are strictly read-only. If you need to accumulate results across tasks, use a thread-safe collection or a ConcurrentHashMap passed explicitly into your tasks. Also, remember that StructuredTaskScope is a preview feature in some versions or requires careful handling of the 'close()' method; always use try-with-resources to ensure the scope lifecycle is correctly managed."
+    }
+  ],
+  "num": 1292,
+  "title": "(Java 21) Structured Concurrency and Scoped Values.",
+  "category": "Multithreading & Java Concurrency"
+}

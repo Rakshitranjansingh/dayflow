@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Outbox Pattern is a robust architectural strategy used in distributed systems to ensure data consistency between a primary database and downstream event consumers, such as message brokers (Kafka, RabbitMQ) or other microservices. The core problem it solves is the 'dual-write' dilemma: when a service performs a database transaction and simultaneously attempts to publish an event, one may succeed while the other fails. Because these two operations span different systems (the RDBMS and the Message Broker), they cannot participate in a single atomic transaction without resorting to expensive, high-latency distributed transaction protocols like 2PC (Two-Phase Commit), which are generally avoided in modern microservices due to the CAP theorem and performance bottlenecks. The Outbox Pattern sidesteps this by treating the event as part of the local database transaction, ensuring atomicity at the source."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Scenario",
+        "Dual-Write (Anti-Pattern)",
+        "Outbox Pattern"
+      ],
+      "rows": [
+        [
+          "Atomicity",
+          "None (Partial failures possible)",
+          "Guaranteed (ACID transaction)"
+        ],
+        [
+          "Latency",
+          "Low (Synchronous)",
+          "Slightly higher (Asynchronous relay)"
+        ],
+        [
+          "Consistency",
+          "Eventual (Inconsistent state)",
+          "Eventual (Strongly consistent source)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The service writes the business entity and the corresponding event record into an 'OUTBOX' table within the same local database transaction, ensuring that if the business logic fails, the event is never persisted.",
+        "A separate Message Relay process (or Change Data Capture tool like Debezium) polls the OUTBOX table or tails the database transaction log to publish events to the broker.",
+        "The relay process must implement 'at-least-once' delivery semantics, which necessitates that downstream consumers be idempotent to handle potential duplicate events caused by network retries.",
+        "By offloading the event publishing to an asynchronous relay, the main business thread is freed from the latency of network calls to external brokers, improving system throughput."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Transactional\npublic void createOrder(Order order) {\n    orderRepository.save(order);\n    OutboxEvent event = new OutboxEvent(\"ORDER_CREATED\", order.toJson());\n    outboxRepository.save(event);\n    // No network call to Kafka here; the transaction handles atomicity.\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is the 'polling trap.' If you use a simple SELECT query to fetch pending events, you risk performance degradation as the OUTBOX table grows. Always ensure you have a composite index on (processed, created_at) and implement a cleanup strategy to archive or delete processed events. For high-scale systems, prefer log-based CDC (like Debezium) over polling to avoid putting additional load on your primary database engine."
+    }
+  ],
+  "num": 1060,
+  "title": "What is the Outbox Pattern? How does it solve the dual-write problem?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

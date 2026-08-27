@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A memory leak in Java occurs when objects are no longer needed by the application execution logic, but remain referenced through a chain of strong references originating from GC roots (such as static fields, thread-local variables, or active thread stacks). Because the Garbage Collector uses a reachability analysis algorithm to determine whether objects are live, these unintentionally retained objects cannot be reclaimed, leading to a steady, creeping consumption of available heap space. Over time, this exhaustion triggers increasingly frequent stop-the-world Garbage Collection pauses as the JVM desperately tries to scavenge bytes, culminating inevitably in a catastrophic java.lang.OutOfMemoryError: Java heap space."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Unclosed resource handles and streams that register internal listeners or static tracking collections without proper removal.",
+        "Improper implementations of hashCode() and equals() when storing dynamic objects inside hash-based collections like HashMap or HashSet, causing keys to become un-removable.",
+        "ThreadLocal variables leaking across pooled worker threads in application servers like Tomcat, where thread execution contexts outlive individual HTTP requests.",
+        "Inner classes holding implicit strong references to their enclosing outer class instances, thereby preventing the outer class from being garbage collected."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class LeakExample {\n    private static final List<Double> cache = new ArrayList<>();\n\n    public void populateCache() {\n        for (int i = 0; i < 100_000; i++) {\n            // The static list acts as a GC root, preventing garbage collection\n            cache.add(Math.random());\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "In production environments, a common pitfall is forgetting to call ThreadLocal.remove() after request processing finishes in a thread pool. Because application server threads are perpetually reused, any data left sitting in a ThreadLocal map will persist indefinitely, causing subtle leaks that evade simple heap dumps unless you specifically analyze thread-local reference paths using tools like Eclipse MAT or Java Flight Recorder."
+    }
+  ],
+  "num": 705,
+  "title": "What is a memory leak in Java?",
+  "category": "Core Java & Fundamentals"
+}

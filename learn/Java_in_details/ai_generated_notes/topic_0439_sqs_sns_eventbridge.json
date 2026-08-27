@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed systems architecture, SQS, SNS, and EventBridge form the backbone of asynchronous messaging and event-driven patterns. Amazon SQS (Simple Queue Service) is a managed message queuing service that decouples microservices by providing a durable buffer; it acts as a pull-based system where consumers poll for messages, ensuring that if a downstream service is overwhelmed or offline, the message remains safely persisted in the queue until processed. Amazon SNS (Simple Notification Service) is a pub/sub messaging service designed for fan-out architectures. Unlike SQS, SNS is push-based; when a publisher sends a message to a topic, SNS broadcasts it to all subscribed endpoints, such as SQS queues, Lambda functions, or HTTP webhooks, making it ideal for broadcasting events to multiple independent consumers simultaneously. Amazon EventBridge is a serverless event bus that acts as the central nervous system for event-driven applications. It goes beyond simple pub/sub by providing sophisticated event routing, filtering, and schema registry capabilities. While SNS is optimized for high-throughput message delivery, EventBridge is designed for complex event orchestration, allowing you to route events based on content patterns rather than just topic subscriptions."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "SQS",
+        "SNS",
+        "EventBridge"
+      ],
+      "rows": [
+        [
+          "Primary Pattern",
+          "Point-to-Point (Queue)",
+          "Pub/Sub (Fan-out)",
+          "Event Bus (Routing)"
+        ],
+        [
+          "Consumption Model",
+          "Pull (Polling)",
+          "Push (Broadcast)",
+          "Push (Rule-based)"
+        ],
+        [
+          "Persistence",
+          "Durable (up to 14 days)",
+          "Transient (no storage)",
+          "Transient (routing only)"
+        ],
+        [
+          "Use Case",
+          "Workload Leveling",
+          "Broadcasting Notifications",
+          "Event-Driven Orchestration"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "SQS Visibility Timeout: When a consumer pulls a message, it becomes invisible to others for a set duration. If the consumer fails to delete the message before this timeout, it reappears in the queue, potentially causing duplicate processing if your logic isn't idempotent.",
+        "SNS Fan-out Pattern: A common production architecture involves publishing to an SNS topic, which then pushes the message to multiple SQS queues. This allows you to decouple producers from consumers while ensuring each consumer has its own dedicated buffer for retries.",
+        "EventBridge Content-Based Filtering: Unlike SNS, which broadcasts everything to a subscriber, EventBridge allows you to define JSON-based rules. You can route specific events to specific targets based on fields like 'source' or 'detail-type', significantly reducing unnecessary compute cycles in downstream microservices.",
+        "Dead Letter Queues (DLQ): Both SQS and EventBridge support DLQs. In production, always configure a DLQ to capture messages that fail processing after maximum retries; otherwise, you risk 'poison pill' messages blocking your pipeline indefinitely."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Example using AWS SDK v2 to send a message to SQS\nSqsClient sqsClient = SqsClient.builder().region(Region.US_EAST_1).build();\n\nSendMessageRequest request = SendMessageRequest.builder()\n    .queueUrl(\"https://sqs.us-east-1.amazonaws.com/12345/my-queue\")\n    .messageBody(\"{\\\"orderId\\\": \\\"ORD-99\\\", \\\"status\\\": \\\"CREATED\\\"}\")\n    .build();\n\n\nsqsClient.sendMessage(request);"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is assuming 'exactly-once' delivery. SQS Standard queues and SNS/EventBridge guarantee 'at-least-once' delivery. You must implement idempotency in your Java consumers—usually by tracking processed message IDs in a distributed cache like Redis or a database unique constraint—to prevent side effects from duplicate messages during network partitions."
+    }
+  ],
+  "num": 440,
+  "title": "SQS, SNS, EventBridge",
+  "category": "Core Java & Fundamentals"
+}

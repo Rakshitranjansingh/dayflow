@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In high-availability, distributed messaging systems, ensuring that published messages survive node crashes without data loss is a critical architectural requirement. A quorum queue in RabbitMQ is a modern queue type designed specifically to address the high-availability and safety limitations of legacy infrastructure. Built on top of the Raft consensus algorithm, a quorum queue replicates messages across a cluster of nodes where a strict majority (quorum) must acknowledge operations before a write or delete is considered committed. This design provides robust data safety, linearizability, and automated partition recovery out-of-the-box.\n\nConversely, a mirrored queue is the legacy mechanism RabbitMQ historically used for high availability. Mirrored queues rely on a master-slave replication model where a single master node coordinates all writes and broadcasts state to secondary mirrors. Unlike the Raft-driven peer architecture of quorum queues, mirrored queues suffer from severe architectural drawbacks: split-brain edge cases, unpredicted leader election storms, unbounded memory overheads during network partitions, and poor recovery behavior when nodes rejoin. Understanding the transition from mirrored queues (which are officially deprecated in modern RabbitMQ versions) to quorum queues is vital for architecting resilient event-driven systems that demand strict durability guarantees."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Quorum Queue",
+        "Mirrored Queue (Legacy)"
+      ],
+      "rows": [
+        [
+          "Consensus Protocol",
+          "Raft Consensus Algorithm",
+          "Master-Slave Asynchronous/Sync Broadcast"
+        ],
+        [
+          "Data Safety & Durability",
+          "High (guaranteed by majority write commitment)",
+          "Lower (prone to data loss during master failure/split-brain)"
+        ],
+        [
+          "Queue State Persistence",
+          "Always persistent (disk-backed via SQLite/ETS optimizations)",
+          "Configurable (can be transient or persistent)"
+        ],
+        [
+          "Memory Management",
+          "Optimized memory footprint with paging and lazy loading",
+          "Mirrors duplicate master memory pressure, leading to OOM risks"
+        ],
+        [
+          "Cluster Recovery",
+          "Automatic leader election and log synchronization via Raft terms",
+          "Manual or brittle recovery syncs that can block the cluster"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Raft Log Replication: Quorum queues store messages in an append-only log replicated across cluster nodes. Every write operation (publish or delivery acknowledgment) is assigned a log index and term, requiring an acknowledgement from a majority ($N/2 + 1$) of nodes before returning success to the publisher.",
+        "Leader and Term Management: At any time, one node acts as the Raft leader for the queue partition, processing client interactions, while followers replicate the log entries. If the leader fails, a new election occurs based on term numbers and log completeness.",
+        "Dead Lettering and Delivery Limits: Quorum queues natively support advanced delivery tracking, preventing poison-pill messages from causing infinite redelivery loops by enforcing a maximum delivery count directly within the consensus state machine.",
+        "Memory vs Disk Footprint: Quorum queues are aggressively optimized for disk storage to minimize RAM overhead. They maintain a small in-memory cache of recent entries while paging older entries out to disk, whereas mirrored queues often kept all replicas hot in memory across all nodes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import com.rabbitmq.client.Channel;\nimport com.rabbitmq.client.Connection;\nimport com.rabbitmq.client.ConnectionFactory;\nimport java.util.HashMap;\nimport java.util.Map;\n\npublic class QuorumQueueDeclaration {\n    public static void main(String[] args) throws Exception {\n        ConnectionFactory factory = new ConnectionFactory();\n        factory.setHost(\"localhost\");\n        \n        try (Connection connection = factory.newConnection();\n             Channel channel = connection.createChannel()) {\n            \n            Map<String, Object> argsMap = new HashMap<>();\n            // Explicitly declare the queue type as quorum\n            argsMap.put(\"x-queue-type\", \"quorum\");\n            // Optional: Configure delivery limit for poison pill protection\n            argsMap.put(\"x-delivery-limit\", 5);\n            \n            channel.queueDeclare(\"order.processing.quorum\", true, false, false, argsMap);\n            \n            System.out.println(\"Quorum queue declared successfully with Raft consensus.\");\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when migrating from mirrored queues to quorum queues is assuming 100% API parity. Quorum queues do not support transient (non-durable) queues or exclusive queues, as every quorum queue must be durable by definition to maintain a reliable Raft log on disk. Additionally, because quorum queues rely heavily on disk I/O for consensus, putting them on slow network-attached storage (SAN/EBS without provisioned IOPS) will severely bottleneck your cluster's throughput compared to memory-heavy mirrored queues."
+    }
+  ],
+  "num": 953,
+  "title": "RabbitMQ: What is a quorum queue? How does it differ from a mirrored queue?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

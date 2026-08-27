@@ -1,0 +1,62 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing high-performance caching solutions is a foundational challenge in systems engineering, requiring a deep understanding of data structures, algorithmic complexity, and memory management. In Java systems, cache eviction policies dictate how memory is reclaimed when resource thresholds are breached. An LRU (Least Recently Used) cache evicts the items that have not been accessed for the longest duration of time, making it exceptionally effective for workloads exhibiting temporal locality. Conversely, an LFU (Least Frequently Used) cache tracks the number of times an item is accessed, evicting the items with the lowest access frequency, which handles skewed workloads where certain items remain permanently popular regardless of recent inactivity. Building both from scratch requires harmonizing hash tables for $O(1)$ lookup times with secondary structural invariants like doubly linked lists or frequency bucket chains."
+    },
+    {
+      "type": "prose",
+      "content": "To achieve deterministic $O(1)$ time complexity for insertions, updates, and evictions, an LRU cache is typically engineered by combining a standard `HashMap` with a custom doubly linked list. The hash map provides direct pointer access to list nodes, while the doubly linked list maintains the recency order, allowing node detachment and re-attachment at the head in constant time without scanning adjacent elements. An LFU cache, on the other hand, introduces a multi-tier architectural challenge. It requires mapping keys to node references and simultaneously maintaining doubly linked lists for each distinct frequency count, often managed through a 'min-frequency' pointer to bypass linear scans during evictions."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "LRU (Least Recently Used)",
+        "LFU (Least Frequently Used)"
+      ],
+      "rows": [
+        [
+          "Eviction Metric",
+          "Time elapsed since last access (Recency)",
+          "Total number of accesses (Frequency)"
+        ],
+        [
+          "Time Complexity (Get/Put)",
+          "O(1) amortized using HashMap + Doubly Linked List",
+          "O(1) using HashMap + Frequency Buckets (Doubly Linked Lists)"
+        ],
+        [
+          "Memory Footprint",
+          "Low overhead: 2 pointer references per node",
+          "Higher overhead: Multiple pointers per node plus frequency maps"
+        ],
+        [
+          "Workload Suitability",
+          "Temporal locality (recent data accessed again)",
+          "Frequency locality (popular data remains popular)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In an LRU implementation backed by `LinkedHashMap`, passing `accessOrder = true` to the protected constructor modifies the underlying doubly linked list reordering logic during every `get()` invocation, ensuring traversal occurs from least to most recent.",
+        "An LFU cache must handle tie-breaking scenarios when multiple items share the exact same minimum frequency. Standard implementations fall back to an internal LRU sub-policy among those tied items to prevent arbitrary data loss.",
+        "Thread safety in concurrent custom caches requires careful lock striping or leveraging ConcurrentHashMap alongside explicit stamped locks to prevent deadlocks during concurrent evictions and structural pointer adjustments."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.HashMap;\nimport java.util.Map;\n\npublic class LRUCache<K, V> {\n    private final int capacity;\n    private final Map<K, Node<K, V>> map;\n    private final Node<K, V> head;\n    private final Node<K, V> tail;\n\n    private static class Node<K, V> {\n        K key;\n        V value;\n        Node<K, V> prev;\n        Node<K, V> next;\n        Node(K k, V v) { key = k; value = v; }\n    }\n\n    public LRUCache(int capacity) {\n        this.capacity = capacity;\n        this.map = new HashMap<>();\n        this.head = new Node<>(null, null);\n        this.tail = new Node<>(null, null);\n        head.next = tail;\n        tail.prev = head;\n    }\n\n    public synchronized V get(K key) {\n        Node<K, V> node = map.get(key);\n        if (node == null) return null;\n        moveToHead(node);\n        return node.value;\n    }\n\n    public synchronized void put(K key, V value) {\n        Node<K, V> node = map.get(key);\n        if (node != null) {\n            node.value = value;\n            moveToHead(node);\n        } else {\n            if (map.size() >= capacity) {\n                Node<K, V> lru = popTail();\n                map.remove(lru.key);\n            }\n            Node<K, V> newNode = new Node<>(key, value);\n            map.put(key, newNode);\n            addToHead(newNode);\n        }\n    }\n\n    private void removeNode(Node<K, V> node) {\n        node.prev.next = node.next;\n        node.next.prev = node.prev;\n    }\n\n    private void addToHead(Node<K, V> node) {\n        node.prev = head;\n        node.next = head.next;\n        head.next.prev = node;\n        head.next = node;\n    }\n\n    private void moveToHead(Node<K, V> node) {\n        removeNode(node);\n        addToHead(node);\n    }\n\n    private Node<K, V> popTail() {\n        Node<K, V> lru = tail.prev;\n        removeNode(lru);\n        return lru;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production gotcha when implementing custom caches in Java is memory retention caused by stale references in the backing map or linked lists. If you wrap nodes in objects that do not properly handle key/value nullification upon eviction, the Garbage Collector cannot reclaim the objects, resulting in severe memory leaks. Furthermore, synchronizing every get() and put() method introduces lock contention under high multi-threaded concurrency; for production-grade throughput, consider concurrent architectures like Caffeine that utilize ring buffers and read/write concurrent maintenance maps."
+    }
+  ],
+  "num": 209,
+  "title": "Designing LRU / LFU Cache",
+  "category": "Collections Framework & Internals"
+}

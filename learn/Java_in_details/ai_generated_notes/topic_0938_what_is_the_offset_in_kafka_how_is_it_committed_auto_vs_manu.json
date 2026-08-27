@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Apache Kafka, an offset is a sequential, immutable 64-bit integer assigned by a partition leader to each message as it is appended to a partition log. It serves as a unique identifier for a message within a specific partition, providing a strict ordering guarantee. Because Kafka logs are append-only data structures distributed across brokers, consumers rely entirely on offsets to track their exact read position, known as the consumer position or high-water mark. Without offsets, distributed stream processing would lack the deterministic state tracking required to resume consumption safely after network partitions, consumer crashes, or rolling deployments.\n\nOffset commitment is the mechanism by which a consumer records its current progress back to Kafka. When a consumer group processes messages, it periodically stores the offsets of successfully consumed records. There are two primary strategies for managing this lifecycle: auto commit and manual commit. Auto-commit offloads this burden to the consumer client library, which periodically flushes offsets in the background based on a time interval. Conversely, manual commit relinquishes background automation, forcing developers to explicitly invoke API methods to record progress only after downstream side effects, such as database writes, have successfully completed. Choosing between them dictates whether your system prioritizes throughput simplicity or transactional delivery semantics."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Behavioral Dimension",
+        "Auto Commit",
+        "Manual Commit"
+      ],
+      "rows": [
+        [
+          "Trigger Mechanism",
+          "Background thread timer (enable.auto.commit=true)",
+          "Explicit developer code invocation (commitSync/commitAsync)"
+        ],
+        [
+          "Delivery Semantic Risk",
+          "At-most-once or At-least-once depending on timing; highly prone to data loss on failure",
+          "At-least-once (default) or exactly-once when coordinated with external stores"
+        ],
+        [
+          "Performance & Throughput",
+          "High, as commits are batched and executed asynchronously without blocking the poll loop",
+          "Lower overhead due to network round-trips for synchronous commits, but safer"
+        ],
+        [
+          "Failure Recovery",
+          "May reprocess duplicate messages if a crash occurs before the timer fires, or drop messages if unread records were marked committed",
+          "Guarantees records are only marked committed after successful business logic execution"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Internally, committed offsets are written to a specialized compacted Kafka topic named '__consumer_offsets'. The group coordinator broker handles these writes, ensuring that partition offsets are durable and replicated across the cluster.",
+        "When using auto-commit (enable.auto.commit=true), the KafkaConsumer client triggers commits during the execution of the poll() method if the time elapsed exceeds auto.commit.interval.ms. This creates a dangerous race condition: if poll() is called, offsets are committed, but processing fails mid-batch, those messages are permanently lost from the perspective of retry mechanisms.",
+        "Manual commits come in two flavors: synchronous (commitSync()) and asynchronous (commitAsync()). commitSync() blocks the thread until the broker acknowledges the offset write, providing safety at the cost of throughput. commitAsync() fires and forgets, passing a callback to handle potential offset persistence failures without stalling the consumer loop."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "Properties props = new Properties();\nprops.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, \"localhost:9092\");\nprops.put(ConsumerConfig.GROUP_ID_CONFIG, \"order-processing-group\");\nprops.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, \"false\"); // Crucial for manual commit\nprops.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());\nprops.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());\n\nKafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);\nconsumer.subscribe(Collections.singletonList(\"orders-topic\"));\n\ntry {\n    while (true) {\n        ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));\n        for (ConsumerRecord<String, String> record : records) {\n            processOrderBusinessLogic(record);\n        }\n        // Explicit manual synchronous commit after successful processing of the entire batch\n        consumer.commitSync();\n    }\n} catch (Exception e) {\n    logger.error(\"Batch processing failed, offsets not committed. Re-polling will reprocess.\", e);\n} finally {\n    consumer.close();\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern is using auto-commit while performing asynchronous business logic inside worker threads. Because the main consumer thread keeps calling poll() and auto-committing based on time, your offsets will drift far ahead of your actual thread pool execution. If the pod crashes, you will experience massive data loss. Always disable auto-commit when orchestrating multi-threaded processing or integrating with transactional databases."
+    }
+  ],
+  "num": 939,
+  "title": "What is the offset in Kafka? How is it committed? (Auto vs Manual commit)",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

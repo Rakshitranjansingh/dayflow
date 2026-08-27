@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Optimistic Locking is a concurrency control strategy that assumes multiple transactions can complete without affecting each other. Instead of locking database rows at the start of a transaction (Pessimistic Locking), JPA uses a versioning mechanism to detect conflicts only at the moment of commit. The @Version annotation is the cornerstone of this mechanism. When you annotate a field in your entity with @Version, Hibernate automatically increments this value every time the entity is updated. During an update operation, Hibernate generates a SQL statement that includes a WHERE clause checking the current version in the database against the version held by the entity instance. If they match, the update proceeds and the version is incremented. If they do not match, it implies another process modified the record, and Hibernate throws an OptimisticLockException.\n\nWhen an OptimisticLockException occurs, it signals that the application's state is stale. Since the transaction is effectively rolled back by the persistence context, the database remains in a consistent state, but the user's intent has been thwarted by a concurrent write. Handling this requires a strategy: either silently retrying the operation by re-fetching the entity and re-applying changes, or bubbling the exception up to the UI layer to inform the user that the data was modified by someone else, forcing a manual refresh."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Optimistic Locking",
+        "Pessimistic Locking"
+      ],
+      "rows": [
+        [
+          "Locking Strategy",
+          "Version-based check at commit",
+          "SELECT ... FOR UPDATE at read"
+        ],
+        [
+          "Performance",
+          "High concurrency, no DB locks",
+          "Low concurrency, blocks other transactions"
+        ],
+        [
+          "Failure Handling",
+          "Throws OptimisticLockException",
+          "Blocks until lock is acquired or timeout"
+        ],
+        [
+          "Use Case",
+          "Low contention, web UIs",
+          "High contention, financial systems"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The @Version field must be a supported type: int, Integer, short, Short, long, Long, or Timestamp. Hibernate manages the incrementing logic internally; you should never manually update this field in your business logic.",
+        "When Hibernate executes an UPDATE, it issues: UPDATE table SET col1=?, version=version+1 WHERE id=? AND version=?. If the row count returned is 0, Hibernate knows the version has changed and throws the exception.",
+        "OptimisticLockException is a runtime exception. In a Spring environment, if you do not catch it, the transaction interceptor will mark the transaction for rollback, and the exception will propagate to the global exception handler.",
+        "For complex aggregate roots, the version field is only checked on the root entity. If you modify a child collection, you must ensure the parent entity's version is updated to maintain consistency."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Entity\npublic class Product {\n    @Id @GeneratedValue\n    private Long id;\n\n    @Version\n    private Long version;\n\n    private String name;\n}\n\n// Service layer handling\n@Transactional\npublic void updateProduct(Long id, String newName) {\n    try {\n        Product p = repository.findById(id).orElseThrow();\n        p.setName(newName);\n        repository.save(p);\n    } catch (OptimisticLockException e) {\n        // Logic to handle conflict: retry, notify user, or log\n        throw new ConflictException(\"Data was updated by another user\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common 'gotcha' is the 'Lost Update' scenario in long-running conversations. If you are using detached entities (e.g., passing an entity to a frontend and receiving it back later), ensure the version field is preserved in your DTO/JSON. If the version is missing or null, Hibernate might perform an insert or fail to detect the collision, effectively bypassing your locking strategy."
+    }
+  ],
+  "num": 844,
+  "title": "How do you implement Optimistic Locking in JPA? (@Version). What happens if OptimisticLockException is thrown?",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

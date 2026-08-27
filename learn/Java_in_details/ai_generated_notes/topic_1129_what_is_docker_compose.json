@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Docker Compose is a declarative orchestration tool designed to define and manage multi-container applications using a single YAML configuration file. In a cloud-native ecosystem, microservices rarely exist in isolation; they depend on backing services like PostgreSQL, Redis, or Kafka. Manually spinning up these containers via individual 'docker run' commands is error-prone, leads to configuration drift, and makes environment parity nearly impossible to achieve across development, CI/CD, and staging environments. Docker Compose solves this by treating your infrastructure as code, allowing you to spin up an entire stack with a single 'docker-compose up' command.\n\nBeyond simple container orchestration, Compose acts as a local-development abstraction layer. It manages the lifecycle of your services, including network creation, volume mounting for persistent storage, and dependency ordering. By defining services, networks, and volumes in a 'docker-compose.yml' file, you ensure that every developer on your team is running the exact same environment topology, effectively eliminating the 'it works on my machine' syndrome. It is the bridge between a single isolated container and the complex, orchestrated reality of Kubernetes."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Docker CLI (Individual)",
+        "Docker Compose"
+      ],
+      "rows": [
+        [
+          "Configuration",
+          "Imperative (CLI flags)",
+          "Declarative (YAML)"
+        ],
+        [
+          "Dependency Management",
+          "Manual start order",
+          "Automatic (depends_on)"
+        ],
+        [
+          "Environment Parity",
+          "Difficult to replicate",
+          "High (Version-controlled)"
+        ],
+        [
+          "Scaling",
+          "Manual container creation",
+          "Declarative (up --scale)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Project Isolation: Compose creates a dedicated bridge network for each project, ensuring that services in one stack do not collide with services in another unless explicitly linked.",
+        "Service Lifecycle: It manages the 'up', 'down', 'start', and 'stop' states, handling the underlying Docker API calls to create containers, attach volumes, and configure virtual networks.",
+        "Dependency Ordering: Through the 'depends_on' attribute, Compose ensures that services start in the correct sequence, though it is important to note that it only waits for the container to start, not for the application inside to be 'ready' (e.g., a DB might be up but not accepting connections).",
+        "Volume Persistence: Compose simplifies the mapping of host directories to container paths, allowing for hot-reloading of code during development by mounting local source code directly into the container's runtime directory."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "version: '3.8'\nservices:\n  api:\n    build: .\n    ports: [\"8080:8080\"]\n    depends_on:\n      - db\n    environment:\n      DB_URL: jdbc:postgresql://db:5432/mydb\n  db:\n    image: postgres:15-alpine\n    volumes:\n      - pgdata:/var/lib/postgresql/data\nvolumes:\n  pgdata:"
+    },
+    {
+      "type": "note",
+      "content": "A common production-grade trap is assuming 'depends_on' handles application readiness. If your Spring Boot app crashes because the PostgreSQL container is 'up' but the database engine hasn't finished its initialization script, your Compose stack will fail. Always implement a 'wait-for-it' script or a health-check mechanism in your Dockerfile or entrypoint to ensure the backing service is truly ready to accept traffic before the application container proceeds."
+    }
+  ],
+  "num": 1130,
+  "title": "What is Docker Compose?",
+  "category": "Testing, Observability & Cloud Native"
+}

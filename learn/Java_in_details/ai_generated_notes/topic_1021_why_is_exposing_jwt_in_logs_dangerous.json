@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Exposing JSON Web Tokens (JWT) in application logs is a critical security vulnerability that effectively grants an attacker the keys to the kingdom. A JWT is a self-contained, stateless credential typically consisting of a Header, Payload, and Signature. Because the payload often contains sensitive claims—such as user IDs, roles, permissions, or even PII—logging the raw token string exposes these claims to anyone with read access to your log aggregation platform (e.g., ELK stack, Splunk, or CloudWatch). If an attacker gains access to these logs, they can perform session hijacking or privilege escalation by replaying the stolen token, as the server will treat the request as authenticated without needing the user's original credentials.\n\nFurthermore, logging JWTs violates the principle of least privilege regarding data exposure. Even if the token is short-lived, the sheer volume of logs generated in a high-traffic Spring Boot application means you are effectively creating a searchable database of active user sessions. If the token is not properly masked or scrubbed, it persists in long-term storage, potentially bypassing the security benefits of short expiration times. In a production environment, logs are often ingested by third-party services or stored in backups, expanding the attack surface far beyond your immediate infrastructure."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Risk Factor",
+        "Impact Level",
+        "Mitigation Strategy"
+      ],
+      "rows": [
+        [
+          "Credential Theft",
+          "Critical",
+          "Implement log masking filters"
+        ],
+        [
+          "PII Exposure",
+          "High",
+          "Strip sensitive claims from JWT payload"
+        ],
+        [
+          "Session Replay",
+          "Critical",
+          "Use short-lived tokens and refresh rotation"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "JWTs are base64url encoded, not encrypted by default. Anyone with access to the logs can decode the payload using simple tools like jwt.io without needing the secret key.",
+        "Log aggregation systems often lack the granular RBAC required to protect sensitive authentication artifacts, making them a primary target for lateral movement within a network.",
+        "In Spring Security, developers often inadvertently log the entire SecurityContext or the HttpServletRequest object, which may contain the 'Authorization: Bearer <token>' header.",
+        "Compliance frameworks like PCI-DSS and GDPR strictly prohibit the logging of authentication credentials, which can lead to significant legal and financial penalties during an audit."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Component\npublic class JwtLogFilter extends OncePerRequestFilter {\n    @Override\n    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) \n            throws ServletException, IOException {\n        String authHeader = request.getHeader(\"Authorization\");\n        if (authHeader != null && authHeader.startsWith(\"Bearer \")) {\n            // Mask the token before it reaches any logging framework\n            String maskedToken = \"Bearer \" + authHeader.substring(7, 12) + \"*****\";\n            MDC.put(\"jwt_token\", maskedToken);\n        }\n        try {\n            chain.doFilter(request, response);\n        } finally {\n            MDC.remove(\"jwt_token\");\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Never rely on 'security through obscurity' by hoping developers won't log the token. Always implement a global Logback or Log4j2 'MaskingLayout' or a custom 'Converter' that uses Regex to identify and redact patterns matching the JWT structure (header.payload.signature). If you see a JWT in your logs, treat the entire log index as compromised and rotate your signing keys immediately."
+    }
+  ],
+  "num": 1022,
+  "title": "Why is exposing JWT in logs dangerous?",
+  "category": "Spring Security & Web Security"
+}

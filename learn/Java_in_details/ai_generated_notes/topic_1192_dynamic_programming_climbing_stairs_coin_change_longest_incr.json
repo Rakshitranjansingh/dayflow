@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Dynamic Programming (DP) is an algorithmic paradigm that solves complex optimization and counting problems by breaking them down into overlapping subproblems and storing their solutions to avoid redundant computations. In technical interviews and real-world system optimization—such as route planning, resource allocation, and packet scheduling—mastering classic DP patterns is mandatory. We will examine four foundational problems that map directly to these techniques: Climbing Stairs, Coin Change, Longest Increasing Subsequence, and Knapsack 0/1.\n\nClimbing Stairs is the canonical introductory DP problem, structurally identical to the Fibonacci sequence. Given n steps to reach the top, where you can climb either 1 or 2 steps at a time, the total number of distinct ways to reach step n is the sum of the ways to reach step n-1 and step n-2. This demonstrates optimal substructure and overlapping subproblems, paving the way for state-transition equations. Coin Change shifts our focus to a minimum-cost or minimum-element optimization problem. Given an array of coin denominations and a target amount, we must compute the fewest coins needed to make up that amount, handling cases where values cannot be formed by returning -1. \n\nLongest Increasing Subsequence (LIS) introduces sequence-based DP where the subproblems depend on the relative ordering of elements rather than a strict arithmetic sum. Given an unsorted array of integers, LIS finds the length of the longest subsequence such that all elements of the subsequence are sorted in strictly increasing order. Its quadratic time complexity can be optimized to O(n log n) using binary search with a patience sorting approach. Finally, Knapsack 0/1 represents the pinnacle of constrained combinatorial optimization. Given a set of items, each with a specific weight and profit value, and a maximum weight capacity, we must determine the maximum value we can amass without exceeding the capacity limit, where each item can either be included entirely or excluded completely (hence 0/1)."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Problem",
+        "State Definition",
+        "Time Complexity",
+        "Space Complexity"
+      ],
+      "rows": [
+        [
+          "Climbing Stairs",
+          "dp[i] = ways to reach step i",
+          "O(n)",
+          "O(1) with rolling variables"
+        ],
+        [
+          "Coin Change",
+          "dp[i] = min coins for amount i",
+          "O(amount * coins.length)",
+          "O(amount)"
+        ],
+        [
+          "Longest Increasing Subsequence",
+          "dp[i] = LIS ending at index i",
+          "O(n^2) standard / O(n log n)",
+          "O(n)"
+        ],
+        [
+          "Knapsack 0/1",
+          "dp[i][w] = max value with i items and w weight",
+          "O(N * W)",
+          "O(W) with rolling array"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Climbing Stairs uses a recurrence relation of dp[i] = dp[i-1] + dp[i-2]. By maintaining only the last two computed values, space complexity drops from O(n) to O(1).",
+        "Coin Change builds an array of size target + 1 initialized to infinity. The state transition is dp[i] = Math.min(dp[i], dp[i - coin] + 1) for every valid coin denomination.",
+        "Longest Increasing Subsequence can be solved by iterating through the array and using binary search (e.g., Collections.binarySearch in Java) to maintain a tail table of smallest ending values for all increasing subsequences of various lengths.",
+        "Knapsack 0/1 employs a 2D matrix or a 1D space-optimized array traversed backwards to ensure each item is processed precisely once, avoiding the unbounded multi-choice behavior characteristic of the Unbounded Knapsack variant."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class DynamicProgrammingMasterclass {\n    \n    // 1. Climbing Stairs\n    public int climbStairs(int n) {\n        if (n <= 2) return n;\n        int prev2 = 1, prev1 = 2;\n        for (int i = 3; i <= n; i++) {\n            int current = prev1 + prev2;\n            prev2 = prev1;\n            prev1 = current;\n        }\n        return prev1;\n    }\n\n    // 2. Coin Change\n    public int coinChange(int[] coins, int amount) {\n        int[] dp = new int[amount + 1];\n        java.util.Arrays.fill(dp, amount + 1);\n        dp[0] = 0;\n        for (int i = 1; i <= amount; i++) {\n            for (int coin : coins) {\n                if (i - coin >= 0) {\n                    dp[i] = Math.min(dp[i], dp[i - coin] + 1);\n                }\n            }\n        }\n        return dp[amount] > amount ? -1 : dp[amount];\n    }\n\n    // 3. Knapsack 0/1\n    public int knapsack(int capacity, int[] weights, int[] values) {\n        int n = weights.length;\n        int[] dp = new int[capacity + 1];\n        for (int i = 0; i < n; i++) {\n            for (int w = capacity; w >= weights[i]; w--) {\n                dp[w] = Math.max(dp[w], dp[w - weights[i]] + values[i]);\n            }\n        }\n        return dp[capacity];\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "When implementing Knapsack 0/1 with space optimization (a 1D array of size capacity + 1), failing to traverse the weight loop backwards from capacity down to weights[i] will silently mutate your state using current-row values instead of previous-row values. This transforms your 0/1 Knapsack into an Unbounded Knapsack, introducing subtle logic bugs that are notoriously difficult to debug under production pressure."
+    }
+  ],
+  "num": 1193,
+  "title": "Dynamic Programming: Climbing Stairs, Coin Change, Longest Increasing Subsequence, Knapsack 0/1.",
+  "category": "Core Java & Fundamentals"
+}

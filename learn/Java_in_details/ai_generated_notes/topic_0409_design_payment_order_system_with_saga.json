@@ -1,0 +1,51 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a distributed payment and order processing system requires abandoning traditional ACID guarantees via monolithic database transactions, as network partitions and multi-service boundaries make distributed locking or two-phase commit (2PC) brittle and unscalable. Instead, systems rely on eventual consistency orchestrated through the Saga Pattern, which manages business transactions across microservices via a sequence of local transactions. Each step in a Saga updates data within a single service's local database and publishes a domain event or message to trigger the next step. If a local transaction fails halfway through the workflow—for instance, when a payment gateway declines a credit card charge after the order has already been created and inventory has been reserved—the Saga pattern executes a series of compensating transactions. These compensating actions logically undo the partial updates in reverse order, returning the distributed system to a clean, consistent state without ever holding long-lived database locks across network boundaries."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Saga Orchestration Type",
+        "Control Flow",
+        "Coupling & Maintenance",
+        "Failure Handling"
+      ],
+      "rows": [
+        [
+          "Orchestration-Based",
+          "Centralized orchestrator service explicitly dictates the workflow steps and issues commands.",
+          "Low coupling to domain services, but central orchestrator can become a domain bottleneck.",
+          "Handled explicitly in code within the orchestrator by tracking state machine execution."
+        ],
+        [
+          "Choreography-Based",
+          "Decentralized event-driven; services listen to domain events and react autonomously.",
+          "High coupling via message topics/queues; difficult to trace end-to-end flow visually.",
+          "Distributed error handling; each service listens for failure events and triggers local compensation."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Idempotency enforcement is mandatory because message brokers like Kafka or RabbitMQ guarantee at-least-once delivery, meaning duplicate payment requests or inventory reservations will inevitably arrive during network retries.",
+        "Outbox Pattern integration ensures that local database updates and event publishing occur atomically, preventing split-brain scenarios where a service commits a local transaction but crashes before emitting the corresponding Kafka event.",
+        "State machine persistence for orchestrators requires storing the exact Saga step, correlation IDs, and payload state in an ACID database to allow seamless workflow recovery following a JVM crash or node failure."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Component\npublic class OrderSagaOrchestrator {\n\n    private final OrderServiceClient orderService;\n    private final InventoryServiceClient inventoryService;\n    private final PaymentServiceClient paymentService;\n\n    public OrderSagaOrchestrator(OrderServiceClient o, InventoryServiceClient i, PaymentServiceClient p) {\n        this.orderService = o;\n        this.inventoryService = i;\n        this.paymentService = p;\n    }\n\n    public void executeOrderWorkflow(CreateOrderCommand cmd) {\n        String orderId = orderService.createPendingOrder(cmd);\n        try {\n            inventoryService.reserveStock(orderId, cmd.getItems());\n            paymentService.processPayment(orderId, cmd.getPaymentDetails());\n            orderService.completeOrder(orderId);\n        } catch (PaymentFailedException ex) {\n            // Compensating Transactions\n            inventoryService.releaseStock(orderId);\n            orderService.cancelOrder(orderId);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production failure mode in Saga architectures is neglecting transient network timeouts during compensation execution. If a compensating transaction (e.g., releasing inventory) fails due to a database timeout, your orchestrator must retry indefinitely using exponential backoff with jitter and alert operations staff. Never leave a Saga in an indeterminate 'compensating-failed' state without automated dead-letter routing or manual remediation runbooks."
+    }
+  ],
+  "num": 410,
+  "title": "Design Payment / Order System (with Saga)",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

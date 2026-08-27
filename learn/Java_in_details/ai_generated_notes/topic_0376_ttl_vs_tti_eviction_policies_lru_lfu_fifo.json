@@ -1,0 +1,70 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When designing high-throughput caching layers or specialized memory-bound collections in Java, managing the lifecycle and memory footprint of cached items is critical to avoiding OutOfMemoryErrors and maintaining predictable latency profiles. Time-To-Live (TTL) and Time-To-Idle (TTI) define expiration boundaries based on wall-clock aging. TTL measures the absolute lifespan of an entry from the exact moment it is written to the cache, regardless of how many times it is subsequently read or updated. Conversely, TTI measures the relative inactivity duration, resetting its expiration clock every time the specific entry is accessed or read. These temporal eviction mechanisms work hand-in-hand with spatial capacity-based eviction policies such as Least Recently Used (LRU), Least Frequently Used (LFU), and First-In, First-Out (FIFO) when bounded memory limits are reached.\n\nWhile TTL and TTI address temporal validity (clearing stale data), spatial eviction policies address space constraints. FIFO discards the oldest inserted entry based on insertion order, completely ignoring access patterns or frequency, which often leads to cache thrashing if hot data is dropped early. LRU tracks access ordering, evicting the entry that has not been read or written for the longest duration, assuming that recently accessed items will be accessed again soon. LFU tracks access frequency via hit counters or probabilistic frequency estimators, evicting items that are referenced the fewest times. Selecting the right combination of TTL, TTI, and eviction policies depends entirely on access skew, workload read-to-write ratios, and domain-specific consistency requirements."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Policy / Metric",
+        "Trigger Mechanism",
+        "Primary Advantage",
+        "Primary Failure Mode"
+      ],
+      "rows": [
+        [
+          "TTL",
+          "Absolute time elapsed since write",
+          "Guaranteed maximum data staleness",
+          "Evicts hot items if they reach absolute age"
+        ],
+        [
+          "TTI",
+          "Inactivity duration since last access",
+          "Keeps frequently accessed items alive",
+          "Can keep stale data alive indefinitely under constant load"
+        ],
+        [
+          "LRU",
+          "Capacity limit hit (oldest access time)",
+          "Adapts well to temporal locality shifts",
+          "Scan-heavy queries pollute cache with one-hit wonders"
+        ],
+        [
+          "LFU",
+          "Capacity limit hit (lowest hit count)",
+          "Preserves long-term frequently used items",
+          "Vulnerable to historical pollution if frequency decays slowly"
+        ],
+        [
+          "FIFO",
+          "Capacity limit hit (oldest insertion time)",
+          "Minimal overhead (simple queue or linked list)",
+          "Ignores access frequency and recency completely"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "LRU internals typically leverage a combination of a hash table for O(1) lookups and a doubly linked list for O(1) access-order updates. Every time a node is retrieved, it is unlinked and spliced to the head of the list.",
+        "LFU implementations require careful maintenance of frequency buckets or aging mechanisms. Without frequency decay or maximum threshold caps, LFU counters can saturate, preventing newer hot items from displacing legacy cold items.",
+        "Passive expiration (lazy deletion) checks TTL/TTI boundaries upon read requests, avoiding background thread overhead, but it risks retaining expired memory indefinitely if keys are never accessed again.",
+        "Active expiration relies on background scheduled threads or amortized sampling passes (similar to Redis's probabilistic expiration) to actively scan and purge expired keys before capacity limits trigger."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.LinkedHashMap;\nimport java.util.Map;\n\npublic class LruCacheWithTtl<K, V> extends LinkedHashMap<K, CacheEntry<V>> {\n    private final int capacity;\n    private final long ttlMillis;\n\n    public LruCacheWithTtl(int capacity, long ttlMillis) {\n        // true for access-order, false for insertion-order\n        super(capacity, 0.75f, true);\n        this.capacity = capacity;\n        this.ttlMillis = ttlMillis;\n    }\n\n    @Override\n    protected boolean removeEldestEntry(Map.Entry<K, CacheEntry<V>> eldest) {\n        boolean sizeExceeded = size() > capacity;\n        boolean expired = System.currentTimeMillis() - eldest.getValue().timestamp > ttlMillis;\n        return sizeExceeded || expired;\n    }\n\n    public void putValue(K key, V value) {\n        super.put(key, new CacheEntry<>(value, System.currentTimeMillis()));\n    }\n\n    public V getValue(K key) {\n        CacheEntry<V> entry = super.get(key);\n        if (entry == null) return null;\n        if (System.currentTimeMillis() - entry.timestamp > ttlMillis) {\n            super.remove(key);\n            return null;\n        }\n        return entry.value;\n    }\n\n    private static class CacheEntry<V> {\n        final V value;\n        final long timestamp;\n        CacheEntry(V value, long timestamp) {\n            this.value = value;\n            this.timestamp = timestamp;\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap when implementing custom LRU caches via LinkedHashMap is thread safety. LinkedHashMap is NOT thread-safe. Wrapping it blindly in Collections.synchronizedMap() introduces severe lock contention under high concurrency, as structural modifications and access-order node re-linking require exclusive monitors. For production high-concurrency caches, prefer Caffeine, which utilizes ConcurrentLinkedHashMap internals, fine-grained striping, and ring buffers to maintain high-performance bounded eviction without global lock bottlenecks."
+    }
+  ],
+  "num": 377,
+  "title": "TTL vs TTI, eviction policies (LRU, LFU, FIFO)",
+  "category": "Collections Framework & Internals"
+}

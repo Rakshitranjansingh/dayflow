@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java Collections Framework, HashMap allows exactly one null key because its internal implementation explicitly handles nulls by mapping them to index 0 of the underlying bucket array. When you call put(null, value), the hash code is calculated as 0, bypassing the standard Object.hashCode() invocation that would otherwise throw a NullPointerException. Conversely, ConcurrentHashMap strictly forbids null keys and null values. This design choice is rooted in the ambiguity of the 'atomic' operations provided by the ConcurrentHashMap API. Specifically, the get() method returns null if a key is not present; if null were a valid key, you would be unable to distinguish between a key that maps to a null value and a missing entry, leading to the 'null-check ambiguity' problem. Furthermore, ConcurrentHashMap uses volatile reads and CAS (Compare-And-Swap) operations that rely on the assumption that null is a sentinel value representing 'no mapping'."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "HashMap",
+        "ConcurrentHashMap"
+      ],
+      "rows": [
+        [
+          "Null Key Support",
+          "Allowed (max 1)",
+          "Forbidden"
+        ],
+        [
+          "Null Value Support",
+          "Allowed (multiple)",
+          "Forbidden"
+        ],
+        [
+          "Thread Safety",
+          "Not Synchronized",
+          "Lock-Striping/CAS"
+        ],
+        [
+          "Design Rationale",
+          "Flexibility",
+          "Atomic Ambiguity Prevention"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "HashMap internal mechanics: The put(null, value) call invokes a specific private method that places the entry in the first bucket, effectively ignoring the hash calculation for that specific key.",
+        "ConcurrentHashMap atomicity: The method get(key) returns null if the key is absent. If null were allowed as a key, you would need to call containsKey(null) to verify existence, which is not an atomic operation, breaking the thread-safe contract of the map.",
+        "Memory visibility: ConcurrentHashMap relies on the fact that a null return from a volatile read of a Node's value field definitively indicates that the key does not exist in the map."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "Map<String, String> map = new HashMap<>();\nmap.put(null, \"Value1\"); // Works fine\n\nMap<String, String> concurrentMap = new ConcurrentHashMap<>();\n// concurrentMap.put(null, \"Value2\"); // Throws NullPointerException immediately\n\n// The ambiguity problem in ConcurrentHashMap:\nString val = concurrentMap.get(\"missingKey\");\nif (val == null) {\n    // Is the key missing, or is the value associated with the key actually null?\n    // ConcurrentHashMap avoids this by disallowing nulls entirely."
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Never try to bypass ConcurrentHashMap's null restriction by using a custom 'NULL_OBJECT' constant. While common in older patterns, it often leads to subtle bugs in stream operations or collectors that expect nulls to be filtered out. If you find yourself needing nulls in a concurrent map, evaluate if your domain model is correctly representing 'absence' or if you should be using Optional wrappers (though be wary of the performance overhead of Optional in high-throughput collections)."
+    }
+  ],
+  "num": 558,
+  "title": "Can we use null as a key in HashMap? What about ConcurrentHashMap? Why?",
+  "category": "Collections Framework & Internals"
+}

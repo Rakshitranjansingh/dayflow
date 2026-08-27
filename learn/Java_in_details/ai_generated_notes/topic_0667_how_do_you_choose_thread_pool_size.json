@@ -1,0 +1,49 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Choosing the optimal thread pool size is a balancing act between throughput and resource saturation. If your pool is too small, tasks queue up, leading to latency spikes and underutilization of CPU cores. If it is too large, you trigger excessive context switching, where the kernel spends more time saving and restoring thread states than executing actual bytecode, eventually leading to cache thrashing and memory exhaustion due to the stack memory allocated for each thread. The 'golden rule' for sizing depends entirely on whether your workload is CPU-bound or I/O-bound. For CPU-bound tasks, you want to match the number of threads to the number of available logical cores to minimize context switching. For I/O-bound tasks—such as database queries, network calls, or file system access—the thread spends most of its time in a BLOCKED or WAITING state, meaning you can afford a much larger pool to keep the CPU busy while other threads wait for external responses."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Workload Type",
+        "Primary Constraint",
+        "Recommended Strategy"
+      ],
+      "rows": [
+        [
+          "CPU-bound",
+          "Number of Cores",
+          "N_threads = N_cores + 1"
+        ],
+        [
+          "I/O-bound",
+          "Wait Time / Service Time",
+          "N_threads = N_cores * (1 + WaitTime/ServiceTime)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The N_cores + 1 formula for CPU-bound tasks accounts for occasional page faults or OS-level interruptions that might cause a thread to pause, ensuring the CPU remains saturated.",
+        "For I/O-bound tasks, the ratio of WaitTime to ServiceTime (the 'blocking coefficient') is critical. If a task spends 90% of its time waiting for a database response, the blocking coefficient is 9, allowing for a significantly higher thread count.",
+        "Thread stack size (defaulting to 1MB on many JVMs) is a hidden memory killer. A thread pool of 1000 threads consumes roughly 1GB of heap-off-memory, which can trigger an OutOfMemoryError or force the OS to swap memory to disk, destroying performance.",
+        "Always monitor the ThreadPoolExecutor's queue size and active count using JMX or Micrometer; if the queue is consistently growing, you are either undersized or your tasks are taking too long to process."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "int cores = Runtime.getRuntime().availableProcessors();\n// For CPU-bound tasks\nExecutorService cpuPool = Executors.newFixedThreadPool(cores + 1);\n\n// For I/O-bound tasks with a calculated blocking coefficient\ndouble blockingCoefficient = 0.9;\nint poolSize = (int) (cores / (1 - blockingCoefficient));\nExecutorService ioPool = new ThreadPoolExecutor(\n    poolSize, poolSize, 0L, TimeUnit.MILLISECONDS,\n    new LinkedBlockingQueue<>(1000),\n    new ThreadPoolExecutor.CallerRunsPolicy()\n);"
+    },
+    {
+      "type": "note",
+      "content": "The most common production mistake is using a fixed thread pool size based on a static number without considering the underlying container environment. In Kubernetes, if you use Runtime.getRuntime().availableProcessors() inside a container that has been throttled by CPU limits, you might get the host's core count rather than the container's quota, leading to massive over-provisioning and subsequent OOM kills. Always use a configuration-driven approach or a library that is container-aware."
+    }
+  ],
+  "num": 668,
+  "title": "How do you choose thread pool size?",
+  "category": "Multithreading & Java Concurrency"
+}

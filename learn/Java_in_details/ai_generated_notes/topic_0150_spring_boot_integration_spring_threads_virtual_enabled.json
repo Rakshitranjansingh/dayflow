@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Java 21 introduced Project Loom, which brings lightweight user-mode threads, known as Virtual Threads, to the JVM. Unlike traditional platform threads that are mapped directly to expensive OS-level threads (typically requiring a 1MB contiguous stack), virtual threads are managed entirely by the Java runtime. When a virtual thread blocks on I/O, network operations, or synchronization primitives, the JVM unmounts it from its carrier platform thread, freeing that OS thread to execute other virtual threads. This architecture eliminates the traditional thread-pool sizing constraints in high-concurrency enterprise applications. In the context of Spring Boot integration, the configuration property spring.threads.virtual.enabled acts as a high-level orchestration switch. When set to true, Spring Boot automatically reconfigures its underlying web server infrastructure (such as Tomcat or Jetty) and task execution machinery to dispatch incoming HTTP requests and background asynchronous tasks onto virtual threads instead of platform thread pools."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Platform Threads",
+        "Virtual Threads"
+      ],
+      "rows": [
+        [
+          "OS Mapping",
+          "1:1 with OS threads",
+          "M:N managed by JVM runtime"
+        ],
+        [
+          "Stack Size",
+          "Fixed (typically 1MB)",
+          "Dynamic, grows and shrinks with demand"
+        ],
+        [
+          "Creation Cost",
+          "High (OS syscall, memory allocation)",
+          "Negligible (regular Java heap object)"
+        ],
+        [
+          "Ideal Workload",
+          "CPU-bound or short-lived tasks",
+          "Blocking I/O-bound enterprise web requests"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Enabling spring.threads.virtual.enabled instructs Spring Boot's TomcatProtocolHandler to replace its standard platform thread executor with Executors.newVirtualThreadPerTaskExecutor(), removing the historical need to tune max-threads.",
+        "Task execution annotations such as @Async leverage a customized TaskExecutor bean, allowing asynchronous methods to seamlessly spin up virtual threads without thread starvation.",
+        "Spring Integration and Spring Cloud message listeners can offload payload processing to virtual threads, maximizing throughput when consuming messages from remote message brokers like RabbitMQ or Kafka."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "spring:\n  threads:\n    virtual:\n      enabled: true\nserver:\n  tomcat:\n    threads:\n      max: 200 # Ignored or bypassed when virtual threads are active for request processing"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Do not use synchronized blocks, native JNI calls, or ThreadLocal caching extensively with virtual threads. Synchronized blocks pin the underlying carrier platform thread to the virtual thread during execution, temporarily defeating the non-blocking benefits of Project Loom. Use java.util.concurrent.locks.ReentrantLock instead of synchronized, and carefully review legacy libraries for ThreadLocal memory leaks before activating virtual threads globally."
+    }
+  ],
+  "num": 151,
+  "title": "Spring Boot integration — spring.threads.virtual.enabled",
+  "category": "Spring Boot & Spring Framework"
+}

@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In high-throughput microservices architectures, communication relies heavily on gRPC for its strict typing, HTTP/2 multiplexing, and Protocol Buffers serialization efficiency. However, raw RPC calls are rarely sufficient for production-grade systems; teams desperately need cross-cutting concerns like distributed tracing, authentication, payload logging, metric collection, and rate limiting. This is where gRPC interceptors and middleware come into play. Interceptors act as the gRPC equivalent of HTTP filters or servlet filters, allowing developers to intercept unary and streaming remote procedure calls on both the client and server sides.\n\nServer interceptors intercept inbound RPCs before they reach the service implementation, while client interceptors wrap the outgoing stub calls before they hit the transport layer. Because gRPC supports both synchronous and streaming patterns (client-streaming, server-streaming, and bidirectional-streaming), writing robust middleware requires handling context propagation, metadata extraction, and stream-level wrappers carefully. Middleware in this context often refers to higher-level abstractions or chaining patterns built on top of native interceptors to coordinate multiple cross-cutting behaviors in a predictable execution order."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "gRPC Interceptors",
+        "Spring Web / WebFlux Filters"
+      ],
+      "rows": [
+        [
+          "Protocol Layer",
+          "HTTP/2 & Protobuf Streams",
+          "HTTP/1.1 or HTTP/2 Servlets / Netty"
+        ],
+        [
+          "Execution Scope",
+          "Unary, Client/Server/Bidi Streaming",
+          "HTTP Request/Response lifecycle"
+        ],
+        [
+          "Context Propagation",
+          "io.grpc.Context & Metadata (Headers)",
+          "Reactor Context or ThreadLocal / ServerWebExchange"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Server-side Unary Interceptors implement the ServerInterceptor interface, overriding interceptCall to wrap the ServerCall and ServerCall.Listener to intercept message delivery and call completion events.",
+        "Client-side interceptors use ChannelInterceptor to inspect or modify outgoing Metadata headers, deadlines, and call options before dispatching over the managed channel.",
+        "Context propagation is vital: gRPC uses io.grpc.Context rather than ThreadLocal to carry distributed trace IDs and security credentials across thread boundaries and async callbacks.",
+        "Streaming interceptors must wrap the ForwardingServerCallListener.SimpleForwardingServerCallListener to safely intercept individual messages as they stream through the network channel."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class LoggingServerInterceptor implements ServerInterceptor {\n    private static final Logger log = LoggerFactory.getLogger(LoggingServerInterceptor.class);\n\n    @Override\n    public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(\n            ServerCall<ReqT, RespT> call,\n            Metadata headers,\n            ServerCallHandler<ReqT, RespT> next) {\n        \n        String methodName = call.getMethodDescriptor().getFullMethodName();\n        log.info(\"Incoming gRPC call: {}, Headers: {}\", methodName, headers);\n\n        ServerCall<ReqT, RespT> wrappedCall = new ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT>(call) {\n            @Override\n            public void sendHeaders(Metadata headers) {\n                headers.put(Metadata.Key.of(\"x-server-processed\", Metadata.ASCII_STRING_MARSHALLER), \"true\");\n                super.sendHeaders(headers);\n            }\n        };\n\n        return next.startCall(wrappedCall, headers);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when writing gRPC interceptors is mutating the io.grpc.Context without calling .attach() and .detach() inside a try-finally block, which leads to severe context leaks across pooled threads in Netty. Always remember that gRPC client calls are asynchronous by default; mutating ThreadLocal values inside a client interceptor will fail if the underlying IO thread switches."
+    }
+  ],
+  "num": 329,
+  "title": "gRPC interceptors and middleware",
+  "category": "REST APIs, WebFlux & Microservices"
+}

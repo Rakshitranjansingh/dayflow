@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Framework, managing bean scopes is fundamental to application architecture. By default, Spring beans are managed as singletons, meaning the IoC container creates a single shared instance of the bean and injects it wherever requested. Conversely, a prototype-scoped bean instantiates a brand-new object every single time it is requested from the container. A classic architectural puzzle arises when a long-lived Singleton bean needs to depend on a short-lived Prototype bean. Because standard dependency injection via constructor or field occurs only once during the singleton's initialization phase, the prototype bean gets bound once and remains trapped inside the singleton forever, effectively subverting its prototype scope and behaving like a singleton.\n\nTo solve this dependency lifecycle mismatch without resorting to anti-patterns like passing the ApplicationContext directly into the singleton, Spring provides the @Lookup annotation. The @Lookup annotation tells the Spring container to override an annotated, no-arg method on the singleton bean at runtime by dynamically generating a CGLIB subclass. Whenever the singleton calls this lookup method, Spring intercepts the invocation and delegates to the container's getBean() method, fetching a fresh prototype instance on demand. This bridges the gap between singleton stability and prototype transiency seamlessly, preserving clean separation of concerns and thread-safety invariants across service boundaries."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Standard field or constructor injection of a prototype into a singleton locks a single instance of the prototype inside the singleton upon container startup, entirely neutralizing its prototype lifecycle behavior.",
+        "The @Lookup annotation leverages runtime bytecode generation (via CGLIB) to implement the method dynamically, meaning the class containing the @Lookup method cannot be final and the method itself cannot be private.",
+        "When the singleton calls the annotated lookup method, Spring's proxy intercepts the call, invokes BeanFactory.getBean(BeanClass.class), and returns a freshly initialized prototype bean instance.",
+        "Alternatively, ObjectProvider<T> can be used as a programmatic alternative to @Lookup, offering stream support, conditional retrieval, and avoiding the need for concrete lookup methods on the bean."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Component\npublic class SingletonService {\n\n    // Business logic that requires a fresh PrototypeCommand on every invocation\n    public void processTransaction(String payload) {\n        PrototypeCommand command = getPrototypeCommand();\n        command.execute(payload);\n    }\n\n    // Spring will override this method at runtime via a CGLIB proxy\n    @Lookup\n    protected PrototypeCommand getPrototypeCommand() {\n        // The return value here is immaterial; Spring's method interceptor overrides it.\n        return null;\n    }\n}\n\n@Component\n@Scope(\"prototype\")\npublic class PrototypeCommand {\n    private final String id = UUID.randomUUID().toString();\n\n    public void execute(String payload) {\n        System.out.println(\"Executing command \" + id + \" with payload: \" + payload);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production trap when using @Lookup is forgetting that the target Singleton bean must be proxied or subclassable by CGLIB. If your singleton is declared as final, or if the lookup method is marked private or final, Spring will fail to generate the runtime override, resulting in runtime NullPointerExceptions or returning the exact same trapped prototype instance. Always ensure your lookup-enabled beans and their lookup methods allow extension."
+    }
+  ],
+  "num": 793,
+  "title": "How do you inject a Prototype bean into a Singleton bean? (Explain @Lookup)",
+  "category": "REST APIs, WebFlux & Microservices"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java architecture, we need caching primarily because the von Neumann bottleneck dictates that main memory (RAM) access is orders of magnitude faster than disk input/output, and network calls over TCP/IP to databases or microservices are exponentially slower still. When a Java application executes repetitive read-heavy operations, hitting the primary data store for every single request introduces catastrophic latency, thread pool starvation, and premature database saturation. Caching acts as an ultra-fast, in-memory transient data store residing close to the execution context (such as the JVM heap via Caffeine, or distributed grids like Redis), bypassing expensive secondary storage tiers.\n\nFrom a foundational standpoint, caching solves the impedance mismatch between data retrieval frequency and data mutation frequency. If a reference dataset—such as geographic lookups, user permission roles, or product catalogs—changes infrequently but is queried concurrently by thousands of virtual threads, fetching it from disk or remote networks is a massive waste of CPU cycles and I/O bandwidth. By memoizing the results of deterministic computations or remote fetches into high-speed data structures like ConcurrentHashMap with eviction policies, we drastically reduce system response times (p99 latency) and maximize throughput. However, introducing a cache immediately brings up the classic distributed systems challenge: cache invalidation and data consistency, requiring careful orchestration of time-to-live (TTL), write-through, or write-behind strategies to prevent stale reads."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Execution Tier",
+        "Typical Latency",
+        "Primary Bottleneck"
+      ],
+      "rows": [
+        [
+          "CPU L1/L2/L3 Cache",
+          "0.5 - 10 nanoseconds",
+          "Cache line size, hardware contention"
+        ],
+        [
+          "JVM Heap Memory",
+          "1 - 100 nanoseconds",
+          "Garbage collection pauses, reference traversal"
+        ],
+        [
+          "Distributed Cache (Redis)",
+          "1 - 5 milliseconds",
+          "Network serialization, TCP round-trip"
+        ],
+        [
+          "Relational Database (Disk)",
+          "10 - 50+ milliseconds",
+          "Disk seek time, index traversal, lock contention"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Memory Footprint and Garbage Collection Pressure: In-memory caching within the JVM heap stores actual object references, increasing the live data set size. This forces the Garbage Collector (e.g., G1 or ZGC) to scan larger regions during mark-and-sweep phases, potentially triggering stop-the-world pauses if caches are unbounded.",
+        "Eviction Algorithms: High-performance caches utilize approximations of Least Recently Used (LRU) or Least Frequently Used (LFU) using TinyLFU and Window TinyLFU designs to maintain high hit rates with bounded memory consumption.",
+        "Consistency Models: Caching introduces a dual-write problem. When a database row is updated, the cache must either be explicitly invalidated (cache-aside) or synchronously updated to prevent dirty reads across clustered JVM instances."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import com.github.benmanes.caffeine.cache.Cache;\nimport com.github.benmanes.caffeine.cache.Caffeine;\nimport java.util.concurrent.TimeUnit;\n\npublic class ProductCatalogService {\n    private final Cache<String, Product> productCache = Caffeine.maximumSize(10_000)\n        .expireAfterWrite(10, TimeUnit.MINUTES)\n        .recordStats()\n        .build();\n\n    public Product getProduct(String sku) {\n        return productCache.get(sku, this::fetchProductFromDatabase);\n    }\n\n    private Product fetchProductFromDatabase(String sku) {\n        // Expensive SQL query or remote network call\n        return databaseClient.queryBySku(sku);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap when implementing caches in Java is the 'cache stampede' (or thundering herd problem). When a hot cache entry expires under heavy load, hundreds of concurrent threads simultaneously miss the cache and hammer the underlying database, causing cascading failures. Always use locking mechanisms, request coalescing (like Caffeine's compute/get synchronization), or asynchronous early recomputation to protect your primary data stores."
+    }
+  ],
+  "num": 901,
+  "title": "Why do we need Caching?",
+  "category": "Core Java & Fundamentals"
+}

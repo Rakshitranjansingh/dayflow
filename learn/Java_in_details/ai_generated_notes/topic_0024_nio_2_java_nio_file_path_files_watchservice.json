@@ -1,0 +1,69 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Prior to Java 7, file I/O in Java relied on the legacy java.io.File class. This abstraction suffered from severe architectural limitations: it did not throw descriptive exceptions (often returning simple booleans on failure), lacked support for symbolic links, failed to scale when listing massive directories, and offered no way to query complex file attributes (such as POSIX permissions or ACLs) efficiently. Furthermore, operations were strictly blocking, and there was no native mechanism to monitor file system changes. NIO.2 (introduced in JSR 203) completely overhauled Java's I/O subsystem by introducing the java.nio.file package, built around three core abstractions: Path, Files, and WatchService. This modern API provides a highly extensible, platform-independent framework that interfaces directly with native operating system kernels."
+    },
+    {
+      "type": "prose",
+      "content": "The Path interface represents a hierarchical, system-dependent path to a file or directory. Unlike java.io.File, which represents both the path and the physical file, Path is a pure representation of the coordinate itself. It is immutable, thread-safe, and decoupled from the physical storage layer. Actual operations on the file system are delegated to the Files utility class, which acts as the operational engine of NIO.2. Files leverages modern OS features such as copy-on-write, atomic moves, and bulk metadata retrieval. To bridge the gap between static operations and reactive systems, WatchService allows applications to register directories with the underlying operating system's event notification system (such as inotify on Linux, ReadDirectoryChangesW on Windows, or kqueue on macOS), enabling highly efficient, non-polling file monitoring."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Metric",
+        "Legacy java.io.File",
+        "NIO.2 (java.nio.file)"
+      ],
+      "rows": [
+        [
+          "Error Handling",
+          "Returns false or null on failure; hides root causes (e.g., permission denied vs. file not found).",
+          "Throws rich, specific exceptions (NoSuchFileException, AccessDeniedException, DirectoryNotEmptyException)."
+        ],
+        [
+          "Metadata & Attributes",
+          "Requires separate, expensive system calls for each attribute (exists, canRead, canWrite, length).",
+          "Retrieves bulk attributes in a single system call via FileAttributeView (Basic, Posix, Dos, Acl)."
+        ],
+        [
+          "Symbolic Link Support",
+          "No native support; silently follows links, making loop detection and link manipulation impossible.",
+          "First-class support; allows creation of symlinks, detection of loops, and control over link-following behavior."
+        ],
+        [
+          "Directory Traversal",
+          "File.list() loads all file names into memory at once, causing OutOfMemoryErrors on large directories.",
+          "Files.walk() and Files.newDirectoryStream() lazily stream paths, keeping memory footprint constant."
+        ],
+        [
+          "Extensibility",
+          "Hardcoded to the default local operating system's physical file system.",
+          "Pluggable FileSystemProvider SPI; allows virtual file systems (e.g., zip/jar files, in-memory, cloud buckets)."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "FileSystemProvider SPI: Under the hood, Path instances are bound to a FileSystem, which is managed by a FileSystemProvider. This Service Provider Interface (SPI) allows you to treat a ZIP archive, a remote SFTP server, or an in-memory database as a standard file system using the exact same Path and Files code.",
+        "WatchService Native Kernel Binding: When you instantiate a WatchService, the JVM attempts to bind to the OS kernel's native event queue (e.g., inotify on Linux). If the OS or the underlying mount (like an NFS share) does not support native notifications, the JVM falls back to a PollingWatchService, which periodically scans the directory, significantly increasing CPU and disk overhead.",
+        "Atomic Operations and CopyOptions: Files.move() allows developers to specify StandardCopyOption.ATOMIC_MOVE. This translates directly to a native OS system call (like rename(2) on POSIX). If the destination is on a different physical partition, preventing an atomic move, the JVM immediately throws an AtomicMoveNotSupportedException, ensuring transactional integrity.",
+        "Stream Resource Management: Methods like Files.walk(), Files.find(), and Files.lines() return a java.util.stream.Stream. Unlike standard collections-backed streams, these streams hold open operating system file descriptors or directory streams. They must be managed inside a try-with-resources block to prevent resource exhaustion leaks.",
+        "Path Normalization and Resolution: Path.resolve() acts as a path joiner, while Path.relativize() computes the sibling path between two coordinates. Path.normalize() resolves redundant elements like '.' and '..' without hitting the disk, whereas Path.toRealPath() resolves symbolic links and validates the path's actual existence against the physical disk."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.io.IOException;\nimport java.nio.file.*;\nimport java.util.stream.Stream;\nimport static java.nio.file.StandardWatchEventKinds.*;\n\npublic class NioDirectoryMonitor {\n\n    // 1. Efficiently walk a directory tree and filter files\n    public void processLogFiles(Path startDir) throws IOException {\n        // Files.walk returns a Stream that holds an open directory resource; must use try-with-resources\n        try (Stream<Path> stream = Files.walk(startDir, 5)) {\n            stream.filter(Files::isRegularFile)\n                  .filter(path -> path.toString().endsWith(\".log\"))\n                  .forEach(path -> System.out.println(\"Found log: \" + path.toAbsolutePath()));\n        }\n    }\n\n    // 2. Set up a native WatchService loop to monitor directory changes\n    public void monitorDirectory(Path dirToWatch) throws IOException, InterruptedException {\n        FileSystem fs = dirToWatch.getFileSystem();\n        \n        try (WatchService watchService = fs.newWatchService()) {\n            // Register the directory for creation, modification, and deletion events\n            dirToWatch.register(watchService, ENTRY_CREATE, ENTRY_MODIFY, ENTRY_DELETE);\n            System.out.println(\"Monitoring directory: \" + dirToWatch);\n\n            boolean keepRunning = true;\n            while (keepRunning) {\n                // Block until an event is queued by the OS kernel\n                WatchKey key = watchService.take();\n                \n                for (WatchEvent<?> event : key.pollEvents()) {\n                    WatchEvent.Kind<?> kind = event.kind();\n                    \n                    if (kind == OVERFLOW) {\n                        System.err.println(\"Events lost or discarded due to buffer overflow!\");\n                        continue;\n                    }\n\n                    // The context of a directory watch event is always a relative Path\n                    @SuppressWarnings(\"unchecked\")\n                    WatchEvent<Path> ev = (WatchEvent<Path>) event;\n                    Path filename = ev.context();\n                    Path resolvedPath = dirToWatch.resolve(filename);\n\n                    System.out.printf(\"Event: %s | File: %s%n\", kind.name(), resolvedPath);\n                }\n\n                // CRITICAL: Reset the key to receive further events. \n                // If reset() returns false, the directory is no longer accessible.\n                boolean valid = key.reset();\n                if (!valid) {\n                    System.out.println(\"Watch key is invalid. Stopping monitor.\");\n                    keepRunning = false;\n                }\n            }\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "In high-throughput production environments, WatchService has two major pitfalls. First, it is not recursive by default; registering a parent directory does not monitor its subdirectories. You must manually walk the tree and register every single subdirectory, and dynamically register new ones as they are created. Second, WatchService can fire duplicate or incomplete events. For instance, when a large file is written, the OS may trigger multiple ENTRY_MODIFY events as chunks are flushed to disk. Reading the file on the first event will result in a partial read or a sharing violation. To handle this safely, implement a debouncing mechanism (e.g., delaying processing until no new events occur for a file for 500ms) or attempt to acquire an exclusive FileChannel lock before processing."
+    }
+  ],
+  "num": 25,
+  "title": "NIO.2 (java.nio.file) — Path, Files, WatchService",
+  "category": "Exception Handling & I/O / NIO"
+}

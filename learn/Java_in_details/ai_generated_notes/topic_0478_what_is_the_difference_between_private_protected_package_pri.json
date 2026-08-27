@@ -1,0 +1,68 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Access modifiers in Java—namely private, protected, package-private (default), and public—form the foundational bedrock of encapsulation and software architecture. They dictate the visibility boundaries of classes, methods, and fields, enforcing clear API boundaries and separating internal implementation details from public contracts. The private modifier restricts access strictly to the enclosing class, making it the highest level of encapsulation for hidden states or helper logic. Package-private, applied when no explicit access modifier is written, opens visibility to all classes within the same Java package, making it ideal for package-level modularity and friend-like relationships without exposing internals globally. The protected modifier extends package-private visibility by additionally allowing subclass access, even if those subclasses reside in entirely different packages, bridging internal modularity with inheritance hierarchies. Finally, public removes all access restrictions, broadcasting an API contract to the entire application classpath.\n\nIn real-world enterprise applications, properly choosing among these modifiers prevents tight coupling, guards against unauthorized state mutation, and minimizes the public attack surface of libraries and microservices. Relying too heavily on public or package-private visibility across extensive codebases often leads to spaghetti architectures where any class can mutate the internal state of another, bypassing invariants and breaking encapsulation guarantees."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Modifier",
+        "Same Class",
+        "Same Package",
+        "Subclass (Diff Package)",
+        "Global / World"
+      ],
+      "rows": [
+        [
+          "private",
+          "Yes",
+          "No",
+          "No",
+          "No"
+        ],
+        [
+          "package-private (default)",
+          "Yes",
+          "Yes",
+          "No",
+          "No"
+        ],
+        [
+          "protected",
+          "Yes",
+          "Yes",
+          "Yes (via inheritance)",
+          "No"
+        ],
+        [
+          "public",
+          "Yes",
+          "Yes",
+          "Yes",
+          "Yes"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Package-private visibility operates strictly on package boundaries defined by the ClassLoader, meaning classes in a sub-package (e.g., com.example.foo and com.example.foo.bar) are treated as completely separate packages regarding access rules.",
+        "Protected access introduces a subtle inheritance rule: a subclass in another package can access a protected instance member via inheritance, but it cannot access that same protected member on another instance of the superclass if it is not accessed through its own inherited reference.",
+        "At the JVM bytecode level, access modifiers are represented by flags in the access_flags field of the class file structure (e.g., ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED). However, package-private has no explicit bytecode flag; the absence of all three visibility flags implicitly denotes it."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.core;\n\npublic class Account {\n    private String accountNumber;\n    double balance; // package-private\n    protected String ownerName;\n    public boolean isActive;\n\n    private void auditLog() {\n        // Accessible only inside Account\n    }\n}\n\npackage com.example.sub;\nimport com.example.core.Account;\n\npublic class SavingsAccount extends Account {\n    public void printDetails() {\n        // System.out.println(balance); // Compile Error: package-private not visible here\n        System.out.println(ownerName);  // Valid: protected accessible via inheritance\n        System.out.println(isActive);   // Valid: public is universally accessible\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha involves exposing mutable fields or collections as public or package-private. Doing so breaks encapsulation because external callers can mutate internal object states directly, bypassing validation logic. Always return unmodifiable wrappers or defensive copies, and default to the strictest access modifier possible (private first, loosen only when required by design patterns or framework constraints like reflection)."
+    }
+  ],
+  "num": 479,
+  "title": "What is the difference between private, protected, package-private, and public?",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Advanced SQL capabilities move beyond basic row retrieval, providing the mathematical and relational operators required to transform, aggregate, and traverse complex datasets directly within the relational database management system (RDBMS). Joins form the relational bedrock, allowing the engine to combine columns from multiple tables using inner, outer, cross, or anti-join strategies optimized by cost-based query planners. When data needs to be filtered or aggregated sequentially, subqueries—both correlated and non-correlated—allow dynamic evaluation per row or across the entire set. However, deeply nested subqueries often degrade readability and optimizer efficiency, which is where Common Table Expressions (CTEs) come in. CTEs allow developers to define named temporary result sets scoped to the execution of a single statement, effectively modularizing complex SQL code.\n\nBuilding upon standard CTEs, recursive CTEs introduce iterative execution paths that are critical for traversing hierarchical structures such as organizational charts, bill-of-materials, or graph networks. A recursive CTE consists of a non-recursive anchor member combined via UNION ALL with a recursive member that references the CTE itself, executing iteratively until a termination condition is met. Finally, window functions revolutionize analytical querying by performing calculations across sets of rows related to the current row—known as the window frame—without collapsing the underlying rows into a single group summary like traditional GROUP BY clauses. Mastery of joins, subqueries, window functions, CTEs, and recursive CTEs is essential for writing high-performance, maintainable data pipelines and backend reporting services."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Construct",
+        "Execution Scope",
+        "Primary Use Case",
+        "State Retention"
+      ],
+      "rows": [
+        [
+          "Subquery",
+          "Inline / Row-level",
+          "Dynamic filtering or scalar computation",
+          "Evaluated per execution context"
+        ],
+        [
+          "CTE",
+          "Statement-level",
+          "Query modularity and readability",
+          "Cached or materialized per query execution"
+        ],
+        [
+          "Recursive CTE",
+          "Iterative loop",
+          "Graph traversal and hierarchical trees",
+          "Maintains working memory table per iteration"
+        ],
+        [
+          "Window Function",
+          "Partition-level",
+          "Running totals, rankings, moving averages",
+          "Calculated over sorted partition frames"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Joins require the query optimizer to choose between Nested Loop Joins (efficient for small datasets with indexes), Hash Joins (ideal for large unindexed joins by building an in-memory hash table), and Merge Joins (fast when both inputs are pre-sorted).",
+        "Window functions execute after the FROM, WHERE, GROUP BY, and HAVING clauses, but before ORDER BY and LIMIT. This execution order means you cannot filter directly on a window function alias in the WHERE clause without wrapping the query in a derived table or CTE.",
+        "Recursive CTEs operate via an anchor member that establishes the seed dataset, followed by a recursive step executed iteratively against the working table. Infinite loops are prevented by strict database engine recursion limits or explicit cycle detection clauses.",
+        "CTEs can sometimes act as optimization fences depending on the database engine (e.g., PostgreSQL historically materialized CTEs, preventing predicate pushdown, though modern versions optimize them inline)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "sql",
+      "content": "WITH RECURSive OrgHierarchy AS (\n    -- Anchor member: top-level managers\n    SELECT employee_id, manager_id, name, 1 AS depth\n    FROM employees\n    WHERE manager_id IS NULL\n    \n    UNION ALL\n    \n    -- Recursive member: reports to the previous level\n    SELECT e.employee_id, e.manager_id, e.name, oh.depth + 1\n    FROM employees e\n    JOIN OrgHierarchy oh ON e.manager_id = oh.employee_id\n),\nRankedSalaries AS (\n    -- Window function applied over the hierarchical dataset\n    SELECT employee_id, name, depth,\n           ROW_NUMBER() OVER (PARTITION BY depth ORDER BY salary DESC) as salary_rank\n    FROM employees\n)\nSELECT oh.employee_id, oh.name, oh.depth, rs.salary_rank\nFROM OrgHierarchy oh\nJOIN RankedSalaries rs ON oh.employee_id = rs.employee_id;\n"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap with recursive CTEs is failing to handle cyclic data graphs (e.g., Employee A manages Employee B, who accidentally manages Employee A). This causes an infinite loop resulting in out-of-memory errors or query timeouts. Always use cycle detection features (like 'CYCLE employee_id SET is_cycle USING path') supported by modern database engines when traversing untrusted relational graphs."
+    }
+  ],
+  "num": 354,
+  "title": "Advanced SQL — joins, subqueries, window functions, CTEs, recursive CTEs",
+  "category": "Exception Handling & I/O / NIO"
+}

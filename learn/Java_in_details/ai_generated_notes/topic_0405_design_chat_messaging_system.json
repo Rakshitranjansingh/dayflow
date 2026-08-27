@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a chat or messaging system requires balancing low-latency delivery with high-throughput persistence. At its core, the system must handle two distinct communication patterns: real-time ephemeral messaging and persistent message history. The architecture typically relies on a WebSocket-based gateway to maintain persistent TCP connections between clients and the server, allowing for full-duplex communication. Unlike traditional HTTP request-response cycles, WebSockets minimize overhead by avoiding repeated handshakes, which is critical for sub-millisecond message propagation. The system must also address the 'fan-out' problem, where a single message sent to a large group or channel must be distributed to all active subscribers efficiently, often utilizing a Pub/Sub mechanism like Redis or Kafka to decouple the ingestion service from the delivery service."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Component",
+        "Responsibility",
+        "Technology Choice"
+      ],
+      "rows": [
+        [
+          "Connection Manager",
+          "Maintains WebSocket state",
+          "Netty / Spring WebFlux"
+        ],
+        [
+          "Message Broker",
+          "Pub/Sub for real-time routing",
+          "Redis Pub/Sub / Apache Kafka"
+        ],
+        [
+          "Persistence Layer",
+          "Long-term message storage",
+          "Cassandra / ScyllaDB"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Connection State Management: Each WebSocket connection consumes memory on the JVM heap. Use non-blocking I/O (NIO) via Netty to handle thousands of concurrent connections with a small thread pool, preventing thread exhaustion.",
+        "Message Ordering and Sequencing: Use a distributed ID generator (e.g., Twitter Snowflake) to ensure messages are globally ordered, which is essential for client-side UI consistency and chronological thread reconstruction.",
+        "Backpressure Handling: Implement reactive streams to ensure that if a client's network is slow, the server buffers appropriately or drops non-critical updates rather than crashing the JVM due to OOM (Out of Memory) errors.",
+        "Presence Detection: Utilize a heartbeat mechanism (ping/pong) to track user online status, storing the 'last seen' timestamp in a high-performance cache like Redis to avoid hitting the primary database."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Component\npublic class ChatWebSocketHandler extends TextWebSocketHandler {\n    private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();\n\n    @Override\n    protected void handleTextMessage(WebSocketSession session, TextMessage message) {\n        // Parse payload and route to target via Redis Pub/Sub\n        String targetUserId = parseTarget(message.getPayload());\n        redisTemplate.convertAndSend(\"chat-channel\", message.getPayload());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is storing chat history in a relational database like PostgreSQL without proper partitioning. As the message table grows into the billions, index fragmentation will kill your write throughput. Always use a wide-column store like Cassandra with a partition key based on 'conversation_id' and a clustering key based on 'message_timestamp' to ensure linear scalability and efficient range queries."
+    }
+  ],
+  "num": 406,
+  "title": "Design Chat / Messaging System",
+  "category": "Core Java & Fundamentals"
+}

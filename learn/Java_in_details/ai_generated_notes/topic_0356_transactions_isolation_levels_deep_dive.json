@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Database transactions form the bedrock of data integrity in enterprise applications, ensuring that complex state changes adhere strictly to the ACID properties (Atomicity, Consistency, Isolation, and Durability). When multiple concurrent transactions execute against a shared relational database, trade-offs emerge between data correctness and raw throughput. This is where isolation levels come into play, dictating how aggressively the database engine isolates concurrent modifications from one another. Understanding these levels requires a deep dive into the concurrency anomalies they are designed to prevent: dirty reads, non-repeatable reads, phantom reads, and serialization anomalies.\n\nAt the storage engine level, isolation is achieved through a combination of pessimistic locking (such as shared and exclusive row locks managed by a lock manager) and optimistic concurrency control mechanisms (such as Multi-Version Concurrency Control, or MVCC). In an MVCC-based engine like PostgreSQL or InnoDB in MySQL, writers do not block readers, and readers do not block writers. Instead, the database maintains historical snapshots of tuple versions, allowing read operations to traverse undo logs or rollback segments to construct a consistent point-in-time view of the data. However, as isolation levels become stricter, the database must introduce more rigorous locking constraints or epoch validation checks, increasing the potential for lock contention, deadlocks, and transaction rollbacks."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Isolation Level",
+        "Dirty Read",
+        "Non-Repeatable Read",
+        "Phantom Read"
+      ],
+      "rows": [
+        [
+          "Read Uncommitted",
+          "Possible",
+          "Possible",
+          "Possible"
+        ],
+        [
+          "Read Committed",
+          "Prevented",
+          "Possible",
+          "Possible"
+        ],
+        [
+          "Repeatable Read",
+          "Prevented",
+          "Prevented",
+          "Possible (Prevented in InnoDB via Gap Locks)"
+        ],
+        [
+          "Serializable",
+          "Prevented",
+          "Prevented",
+          "Prevented"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Read Uncommitted allows a transaction to read uncommitted modifications made by other concurrent transactions, making it vulnerable to dirty reads if the modifying transaction eventually rolls back.",
+        "Read Committed guarantees that any data read has been committed at the moment the read operation begins, preventing dirty reads but allowing non-repeatable reads if another transaction updates and commits a row between reads.",
+        "Repeatable Read ensures that any data read once cannot be changed by other transactions until the current transaction completes, typically implemented via MVCC snapshots taken at the start of the transaction.",
+        "Serializable enforces absolute isolation by ensuring that concurrent execution yields the exact same state as if the transactions were executed serially, often relying on range-locking or Serializable Snapshot Isolation (SSI)."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Transactional(propagation = Propagation.REQUIRED, isolation = Isolation.REPEATABLE_READ, timeout = 30, rollbackFor = {DataAccessException.class, BusinessException.class})\npublic void executeCriticalLedgerTransfer(Long sourceAccountId, Long targetAccountId, BigDecimal amount) {\n    Account sourceAccount = accountRepository.findByIdForUpdate(sourceAccountId)\n        .orElseThrow(() -> new AccountNotFoundException(sourceAccountId));\n    \n    if (sourceAccount.getBalance().compareTo(amount) < 0) {\n        throw new InsufficientFundsException(\"Insufficient balance for account: \" + sourceAccountId);\n    }\n    \n    accountRepository.debit(sourceAccountId, amount);\n    accountRepository.credit(targetAccountId, amount);\n    auditLogRepository.recordTransfer(sourceAccountId, targetAccountId, amount);\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in Spring applications involves mixing @Transactional isolation levels with default database configurations. For instance, MySQL InnoDB's default isolation level is REPEATABLE READ, which inherently prevents phantom reads using next-key locks (combining record locks and gap locks). However, if you explicitly downgrade isolation to READ COMMITTED for performance gains, queries utilizing range scans or missing proper indexes can trigger massive deadlocks under heavy concurrent write loads because gap locks are disabled, allowing concurrent inserts into un-indexed ranges."
+    }
+  ],
+  "num": 357,
+  "title": "Transactions & Isolation levels deep dive",
+  "category": "Exception Handling & I/O / NIO"
+}

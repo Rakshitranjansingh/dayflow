@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a simplified Key-Value Store from scratch forces us to confront fundamental systems engineering trade-offs regarding memory management, concurrency control, and disk persistence. At its core, a Key-Value Store provides an associative array or dictionary abstraction where unique keys map to arbitrary byte values, exposing basic operations like put(key, value), get(key), and delete(key). When building this in Java, we must carefully balance the JVM heap constraints with raw throughput, addressing cache locality, lock contention, and garbage collection overhead that inevitably comes with managing millions of objects.\n\nTo make our key-value store production-grade, we rely on core data structures such as ConcurrentSkipListMap for ordered range queries or ConcurrentHashMap for O(1) point lookups, paired with a Log-Structured Storage engine pattern to ensure crash recovery. In-memory maps alone are volatile; thus, appending mutations sequentially to a Write-Ahead Log (WAL) on disk guarantees durability (the 'D' in ACID). We must handle concurrency using fine-grained locking or lock-free atomic references (like AtomicReference or VarHandle) to prevent thread bottlenecks during high-throughput writes, while simultaneously implementing background compaction routines to prune tombstoned delete records and reclaim storage space."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Design Dimension",
+        "In-Memory Map (ConcurrentHashMap)",
+        "Log-Structured / Disk-Backed Store"
+      ],
+      "rows": [
+        [
+          "Data Volatility",
+          "Volatile (lost on JVM crash or exit)",
+          "Persistent (survives restarts via WAL/SSTables)"
+        ],
+        [
+          "Write Throughput",
+          "Extremely high, bound by CPU cache and memory bus",
+          "High, depends on sequential disk I/O and flush frequency"
+        ],
+        [
+          "Memory Footprint",
+          "Limited entirely by available heap (subject to GC pressure)",
+          "Bounded by active memtable; scales beyond RAM using disk files"
+        ],
+        [
+          "Recovery Time",
+          "Instantaneous (empty on restart)",
+          "Proportional to WAL replay or index rebuilding duration"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Concurrent mutations are intercepted by a thread-safe MemTable (in-memory buffer) while concurrently appending the raw binary payload to an immutable Write-Ahead Log (WAL) file using FileChannel and ByteBuffer for zero-copy efficiency.",
+        "To avoid unbounded heap growth, the engine implements a threshold-based flushing mechanism: once the MemTable reaches capacity, it becomes immutable, a new active MemTable is spawned, and a background worker flushes the immutable data to disk sorted by key.",
+        "Deletions do not immediately purge records; instead, they append a special 'tombstone' marker, which is physically stripped out only during the background compaction and merge-sorting phase of underlying disk segments."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class SimpleKeyValueStore {\n    private final ConcurrentMap<String, byte[]> store = new ConcurrentHashMap<>();\n    private final Path walPath;\n    private FileChannel walChannel;\n\n    public SimpleKeyValueStore(Path walPath) throws IOException {\n        this.walPath = walPath;\n        this.walChannel = FileChannel.open(walPath, StandardOpenOption.CREATE,\n            StandardOpenOption.WRITE, StandardOpenOption.APPEND);\n    }\n\n    public void put(String key, byte[] value) throws IOException {\n        byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);\n        ByteBuffer buf = ByteBuffer.allocate(4 + keyBytes.length + 4 + value.length);\n        buf.putInt(keyBytes.length);\n        buf.put(keyBytes);\n        buf.putInt(value.length);\n        buf.put(value);\n        buf.flip();\n        \n        synchronized (this) {\n            walChannel.write(buf);\n            walChannel.force(false); // Ensure durability\n        }\n        store.put(key, value);\n    }\n\n    public byte[] get(String key) {\n        return store.get(key);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in Java-based key-value stores is relying heavily on standard byte[] values inside a ConcurrentHashMap. Millions of small byte arrays will rapidly fragment the JVM heap and trigger frequent Stop-The-World (STW) garbage collection pauses due to object header overhead (16 bytes per object). For high-performance stores, consider pooling DirectByteBuffers or utilizing off-heap memory via Unsafe or Foreign Function & Memory API (Project Panama) to bypass the garbage collector entirely."
+    }
+  ],
+  "num": 211,
+  "title": "Designing Key-Value Store (simplified)",
+  "category": "Core Java & Fundamentals"
+}

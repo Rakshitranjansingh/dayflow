@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern Java data processing, the Stream API transforms declarative collection manipulation, while the `Collectors` utility class provides the terminal operations required to reduce streams into meaningful data structures. Understanding the mechanics of `groupingBy`, `partitioningBy`, `toMap`, and `collectingAndThen` is essential for writing efficient, idiomatic, and memory-safe stream pipelines. Each of these collectors addresses a specific reduction pattern: `groupingBy` categorizes elements into multiple buckets based on a classifier function; `partitioningBy` is a specialized, high-performance binary splitter that segregates elements into true/false boolean predicates; `toMap` aggregates stream elements directly into a standard Map structure with customizable collision policies; and `collectingAndThen` wraps an existing collector to perform a post-processing finishing step on the final result.\n\nFrom a performance perspective, improper use of these collectors—particularly `toMap` without a merge function during key collisions or `groupingBy` with unconstrained downstream accumulators—can lead to severe memory inflation, `IllegalStateException` crashes, or unexpected thread contention. Mastering their inner workings involves understanding how mutable reduction works under the hood through suppliers, accumulators, combiners, and finishers, ensuring that parallel streams execute safely and efficiently without violating functional purity."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Collector",
+        "Classifier / Key Type",
+        "Result Structure",
+        "Collision / Edge Case Handling"
+      ],
+      "rows": [
+        [
+          "groupingBy",
+          "Function<T, K>",
+          "Map<K, List<T>>",
+          "Managed via downstream collectors (e.g., counting, mapping)"
+        ],
+        [
+          "partitioningBy",
+          "Predicate<T>",
+          "Map<Boolean, List<T>>",
+          "Always contains both true and false keys guaranteed"
+        ],
+        [
+          "toMap",
+          "Function<T, K>, Function<T, V>",
+          "Map<K, V>",
+          "Throws IllegalStateException on duplicate keys unless merge function provided"
+        ],
+        [
+          "collectingAndThen",
+          "Collector<T, A, R>, Function<R, RR>",
+          "RR (Target type of finisher)",
+          "Delegates downstream and applies transformation on final result"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "toMap requires explicit handling of duplicate keys. If two elements map to the same key and no BinaryOperator merge function is supplied, the collector throws an IllegalStateException during execution rather than silently overwriting data.",
+        "partitioningBy optimizes memory layout and predicate evaluation by always returning a map with exactly two keys (Boolean.TRUE and Boolean.FALSE), allowing internal array-based allocations rather than dynamic hash buckets.",
+        "collectingAndThen operates by composing a finisher function on top of an existing collector. This is particularly useful for making immutable collections via Collectors.collectingAndThen(Collectors.toList(), Collections::unmodifiableList).",
+        "groupingBy supports concurrent execution via Collectors.groupingByConcurrent, which leverages ConcurrentMap implementations and concurrent-friendly downstream accumulation to minimize synchronization overhead across worker threads in parallel streams."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.*;\nimport java.util.stream.Collectors;\n\npublic class CollectorDemonstration {\n    public record Transaction(String category, double amount, String currency) {}\n\n    public static void main(String[] args) {\n        List<Transaction> txs = List.of(\n            new Transaction(\"Food\", 15.50, \"USD\"),\n            new Transaction(\"Food\", 12.00, \"USD\"),\n            new Transaction(\n                \"Tech\", 1200.00, \"USD\"),\n            new Transaction(\"Tech\", 45.00, \"USD\")\n        );\n\n        // 1. groupingBy with downstream summing\n        Map<String, Double> totalsByCategory = txs.stream()\n            .collect(Collectors.groupingBy(\n                Transaction::category,\n                Collectors.summingDouble(Transaction::amount)\n            ));\n\n        // 2. partitioningBy into high-value vs low-value\n        Map<Boolean, List<Transaction>> partitioned = txs.stream()\n            .collect(Collectors.partitioningBy(tx -> tx.amount() > 100.0));\n\n        // 3. toMap with collision resolution\n        Map<String, Double> maxAmountByCategory = txs.stream()\n            .collect(Collectors.toMap(\n                Transaction::category,\n                Transaction::amount,\n                Double::max\n            ));\n\n        // 4. collectingAndThen for unmodifiable result\n        List<String> expensiveCategories = txs.stream()\n            .filter(tx -> tx.amount() > 50.0)\n            .map(Transaction::category)\n            .collect(Collectors.collectingAndThen(\n                Collectors.toSet(),\n                Set::copyOf\n            ));\n\n        System.out.println(\"Totals: \" + totalsByCategory);\n        System.out.println(\"Expensive Categories: \" + expensiveCategories);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "When using Collectors.toMap in production services processing external payloads, never omit the merge function (BinaryOperator) unless you have an absolute database-enforced uniqueness guarantee on the key mapping. Relying on default behavior will cause intermittent production outages with IllegalStateException: Duplicate key whenever data anomalies occur. Furthermore, be cautious with groupingBy downstream collectors like toList(); if your stream is large and unconstrained, collecting everything into lists per key can quickly trigger OutOfMemoryError exceptions on the JVM heap."
+    }
+  ],
+  "num": 84,
+  "title": "Collectors — groupingBy, partitioningBy, toMap, collectingAndThen",
+  "category": "Exception Handling & I/O / NIO"
+}

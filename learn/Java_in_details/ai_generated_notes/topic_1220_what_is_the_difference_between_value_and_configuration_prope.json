@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When configuring modern Spring Boot applications, developers frequently need to inject externalized configuration values into Spring-managed beans. Two primary mechanisms exist for this purpose: the `@Value` annotation and `@ConfigurationProperties`. Understanding the differences between these two approaches is critical for building maintainable, type-safe, and robust enterprise applications.\n\n`@Value` is a field- or constructor-level annotation derived from the core Spring Framework (specifically `org.springframework.beans.factory.annotation.Value`). It is designed for injecting single scalar properties, expressions via Spring Expression Language (SpEL), or environment variables into managed beans. It uses standard property placeholder resolution (${property.name:defaultValue}) and evaluates values eagerly during bean creation. However, `@Value` lacks hierarchical structure awareness, does not natively support JSR-303/JSR-380 bean validation out of the box without manual validation post-processors, and becomes verbose and unmanageable when dealing with large, nested, or relational configuration blocks.\n\nOn the other hand, `@ConfigurationProperties` is a powerful type-safe binder introduced by Spring Boot. Instead of injecting individual properties one by one, `@ConfigurationProperties` maps an entire hierarchical prefix of configuration properties directly onto a strongly-typed Plain Old Java Object (POJO). It supports complex nesting, collections, maps, custom converters, loose binding rules (allowing properties to be written in kebab-case, camelCase, or snake_case interchangeably), and robust validation using standard validation annotations like `@NotNull`, `@Min`, or custom constraint validators. This makes configuration errors apparent immediately at startup rather than failing late when a specific unconfigured code path executes."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "@Value",
+        "@ConfigurationProperties"
+      ],
+      "rows": [
+        [
+          "Binding Type",
+          "Scalar / Individual fields",
+          "Hierarchical / Strongly-typed POJO"
+        ],
+        [
+          "Validation Support",
+          "Requires manual setup or explicit validation logic",
+          "Native JSR-303/380 validation (@Validated)"
+        ],
+        [
+          "Loose Binding",
+          "Strict matching required",
+          "Supports camelCase, kebab-case, snake_case"
+        ],
+        [
+          "SpEL Support",
+          "Supported (#{...})",
+          "Not supported (pure configuration binding)"
+        ],
+        [
+          "Best Used For",
+          "Single expressions, system properties, feature flags",
+          "Complex subsystem settings, connection pools, API clients"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Loose binding mechanics in @ConfigurationProperties allow a property named app.thread-pool-size to bind seamlessly to a Java field named threadPoolSize, whereas @Value requires exact or closely mapped placeholder syntax.",
+        "Type conversion during binding is handled by Spring Boot's ConversionService infrastructure, automatically converting string properties to Duration, DataSize, Charset, or custom domain objects.",
+        "Validation execution occurs container-wide during the application context refresh lifecycle when the bean annotated with @ConfigurationProperties is also marked with @Validated.",
+        "@Value evaluates SpEL expressions at runtime, which introduces a slight performance overhead during bean instantiation compared to direct POJO property mapping."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.springframework.boot.context.properties.ConfigurationProperties;\nimport org.springframework.validation.annotation.Validated;\nimport jakarta.validation.constraints.Max;\nimport jakarta.validation.constraints.Min;\nimport jakarta.validation.constraints.NotBlank;\n\n@Validated\n@ConfigurationProperties(prefix = \"app.client\")\npublic class AppClientProperties {\n\n    @NotBlank\n    private String host;\n\n    @Min(1000)\n    @Max(30000)\n    private int timeoutMs = 5000;\n\n    // Getters and Setters required for binding\n    public String getHost() { return host; }\n    public void setHost(String host) { this.host = host; }\n    public int getTimeoutMs() { return timeoutMs; }\n    public void setTimeoutMs(int timeoutMs) { this.timeoutMs = timeoutMs; }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior production gotcha: Never use @Value for groups of related properties or validation-heavy configurations. If a configuration property is missing or malformed, @Value will inject a null or trigger a BeanCreationException late when the bean initializes. By combining @ConfigurationProperties with @Validated, you shift-left your validation errors, crashing the application context immediately on startup with descriptive constraint violation messages rather than failing deep inside an asynchronous task or HTTP request thread."
+    }
+  ],
+  "num": 1221,
+  "title": "What is the difference between @Value and configuration properties?",
+  "category": "Exception Handling & I/O / NIO"
+}

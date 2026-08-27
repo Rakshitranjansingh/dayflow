@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A HashMap is a high-performance, non-thread-safe implementation of the Map interface that provides O(1) average time complexity for basic operations like get and put. Internally, it manages a bucket array (Node<K,V>[] table) where each index is determined by the hash of the key. When you insert a key-value pair, the map calculates the hash using a supplemental hash function to mitigate poor quality hash codes, then applies a bitwise AND with (n-1) to map the hash to a specific bucket index. If multiple keys hash to the same bucket—a collision—the map stores them in a linked list. However, once a bucket exceeds a specific threshold (TREEIFY_THRESHOLD = 8), the HashMap performs 'treeification', converting the linked list into a balanced Red-Black Tree. This transition is critical because it shifts the worst-case search complexity from O(n) to O(log n), preventing performance degradation during hash flooding attacks or high-collision scenarios."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "State",
+        "Data Structure",
+        "Search Complexity"
+      ],
+      "rows": [
+        [
+          "Low Collision",
+          "Singly Linked List",
+          "O(n)"
+        ],
+        [
+          "High Collision",
+          "Red-Black Tree",
+          "O(log n)"
+        ],
+        [
+          "Average Case",
+          "Bucket Array",
+          "O(1)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The hash function uses (h = key.hashCode()) ^ (h >>> 16) to ensure that the higher bits of the hash code influence the bucket index, which is vital when the table size is small.",
+        "The load factor defaults to 0.75; once the number of entries exceeds (capacity * loadFactor), the map triggers a resize, doubling the capacity and re-hashing all existing nodes.",
+        "Treeification is reversed back to a linked list (untreeify) if the number of nodes in a bin drops below UNTREEIFY_THRESHOLD (6) during a removal operation.",
+        "The use of Red-Black Trees ensures that even if an attacker forces collisions, the map maintains logarithmic performance rather than linear, protecting against DoS via hash collisions."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {\n    Node<K,V>[] tab; Node<K,V> p; int n, i;\n    if ((tab = table) == null || (n = tab.length) == 0)\n        n = (tab = resize()).length;\n    if ((p = tab[i = (n - 1) & hash]) == null)\n        tab[i] = newNode(hash, key, value, null);\n    else {\n        // Collision logic: check for tree node or linked list node\n        if (p instanceof TreeNode)\n            ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);\n        else {\n            // Traverse linked list and potentially treeify\n            for (int binCount = 0; ; ++binCount) {\n                if (binCount >= TREEIFY_THRESHOLD - 1)\n                    treeifyBin(tab, hash);\n            }\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is using mutable objects as keys in a HashMap. If the object's hash code changes after it is inserted, the map will be unable to find the entry again because it looks in the wrong bucket. Always use immutable objects (like Strings or custom records) as keys to prevent silent data loss and memory leaks."
+    }
+  ],
+  "num": 446,
+  "title": "How does HashMap work internally? (full explanation with treeification)",
+  "category": "Collections Framework & Internals"
+}

@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java development, the Spring Framework's IoC container often needs to make runtime decisions about whether to instantiate a specific bean based on environment variables, system properties, the presence of specific classes on the classpath, or even the existence of other beans. This dynamic configuration capability is driven by conditional bean registration mechanisms. At the core of this subsystem is the @Conditional meta-annotation, which accepts an array of Condition implementations evaluated during the configuration parsing phase. Building on top of this extensible SPI, Spring Boot introduces a rich family of @ConditionalOn* annotations—such as @ConditionalOnClass, @ConditionalOnBean, @ConditionalOnProperty, and @ConditionalOnExpression—that drastically simplify auto-configuration development by declarative inspection of the runtime environment.\n\nWhile Conditional beans are heavily utilized in Spring Boot starters to provide zero-friction auto-configurations, understanding their underlying mechanics requires looking at how the Spring IoC container processes Configuration classes. During the bean definition loading phase, the ConfigurationClassParser evaluates these conditions before invoking BeanMethod factories. If a condition evaluates to false, the corresponding bean definition is completely skipped, preventing its instantiation and avoiding ClassNotFound exceptions or conflicting bean definitions in disparate runtime contexts. This dynamic wiring solves the classic problem of monolithic configuration classes that fail when optional infrastructure components, such as specific database drivers or caching providers, are absent from the deployment artifact."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Annotation",
+        "Evaluation Trigger",
+        "Common Use Case"
+      ],
+      "rows": [
+        [
+          "@ConditionalOnClass",
+          "Presence of target class name(s) on the system ClassLoader",
+          "Registering integration beans only when libraries like Jackson or Hibernate are on the path."
+        ],
+        [
+          "@ConditionalOnBean",
+          "Presence of specific bean type or name in the BeanFactory",
+          "Adding fallback interceptors or security filters only if a primary datasource or security manager exists."
+        ],
+        [
+          "@ConditionalOnProperty",
+          "Value of an environment property matching expected patterns",
+          "Toggling specific features (e.g., metrics exporters, schedulers) via application.properties."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Condition evaluation order is strictly managed by Spring's ConfigurationClassParser, which evaluates @Conditional annotations after processing @Configuration class parsing but before bean registration occurs.",
+        "Custom conditions implement the Condition interface, overriding the matches(ConditionContext context, AnnotatedTypeMetadata metadata) method, granting access to the Environment, BeanFactory, and ResourceLoader.",
+        "When using @ConditionalOnBean, execution order matters significantly; if a conditional bean is evaluated before the target bean is registered, the condition fails, making explicit use of @AutoConfigureAfter or @AutoConfigureBefore mandatory in complex auto-configuration scenarios."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\n@ConditionalOnProperty(name = \"features.nio-cache.enabled\", havingValue = \"true\", matchIfMissing = false)\npublic class NioCacheAutoConfiguration {\n\n    @Bean\n    @ConditionalOnClass(name = \"java.nio.channels.AsynchronousFileChannel\")\n    public NioDataBufferFactory nioDataBufferFactory() {\n        return new NioDataBufferFactory();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when writing custom @ConditionalOn* configurations is injecting the Environment or BeanFactory prematurely inside the Condition's matches method without accounting for property source ordering. Always check property sources explicitly via context.getEnvironment() rather than relying on static utility classes to ensure your conditions accurately reflect dynamic Spring Cloud or externalized configurations."
+    }
+  ],
+  "num": 223,
+  "title": "Conditional beans — @Conditional, @ConditionalOn*",
+  "category": "Exception Handling & I/O / NIO"
+}

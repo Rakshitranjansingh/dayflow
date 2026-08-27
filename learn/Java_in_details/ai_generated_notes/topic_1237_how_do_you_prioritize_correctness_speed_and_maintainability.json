@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of Java Exception Handling and NIO (New I/O), the triangle of correctness, speed, and maintainability is a constant negotiation. Correctness is non-negotiable; in NIO, this means strictly adhering to the state machine of Selectors and Channels. If you fail to handle a Partial Write—where a SocketChannel doesn't consume the entire ByteBuffer—you introduce silent data corruption. Speed, specifically in NIO, is gained by minimizing context switches and memory copies. By utilizing Direct ByteBuffers, we move data off-heap, allowing the OS to perform DMA (Direct Memory Access) transfers directly to the NIC, bypassing the JVM heap. However, this introduces complexity in memory management, as Direct Buffers are not subject to standard GC pressure and can lead to native memory leaks if not manually cleaned or pooled.\n\nMaintainability suffers when we optimize for speed too early. A highly performant, non-blocking reactor pattern using custom thread pools and ByteBuffers is notoriously difficult to debug compared to traditional blocking I/O. To balance these, we prioritize correctness through defensive programming—ensuring every exception, from ClosedChannelException to IOException, is caught and the channel state is reset. We achieve speed by using asynchronous patterns (AsynchronousSocketChannel) only where the I/O bottleneck is proven, and we maintain maintainability by abstracting the complexity of NIO selectors behind well-defined interfaces, ensuring that the business logic remains decoupled from the low-level buffer management."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Priority",
+        "NIO Implementation Strategy",
+        "Trade-off"
+      ],
+      "rows": [
+        [
+          "Correctness",
+          "Strict state machine validation",
+          "Increased boilerplate code"
+        ],
+        [
+          "Speed",
+          "Direct ByteBuffers & Zero-copy",
+          "Risk of native memory leaks"
+        ],
+        [
+          "Maintainability",
+          "Abstraction layers/Wrappers",
+          "Minor latency overhead"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Correctness in NIO requires handling the 'incomplete write' scenario: always check the return value of channel.write(buffer) and loop until buffer.hasRemaining() is false.",
+        "Speed is maximized by reusing ByteBuffers in a pool to avoid the high cost of allocation and the subsequent pressure on the JVM's native memory cleanup via Cleaner/PhantomReference.",
+        "Maintainability is preserved by wrapping raw Selectors in a dedicated I/O thread, preventing the leakage of low-level concurrency primitives into the service layer."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void writeData(SocketChannel channel, ByteBuffer buffer) throws IOException {\n    // Correctness: Handle partial writes\n    while (buffer.hasRemaining()) {\n        int bytesWritten = channel.write(buffer);\n        if (bytesWritten == 0) {\n            // Speed: Register for OP_WRITE to avoid busy-waiting\n            selector.wakeup();\n            break;\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Never use ByteBuffer.allocateDirect() inside a high-frequency loop. Because Direct Buffers are cleaned by the GC via PhantomReferences, rapid allocation can lead to an 'OutOfMemoryError: Direct buffer memory' before the GC has a chance to trigger a full collection. Always use a Buffer Pool (like Netty's PooledByteBufAllocator) to maintain performance without crashing the JVM."
+    }
+  ],
+  "num": 1238,
+  "title": "How do you prioritize correctness, speed, and maintainability?",
+  "category": "Exception Handling & I/O / NIO"
+}

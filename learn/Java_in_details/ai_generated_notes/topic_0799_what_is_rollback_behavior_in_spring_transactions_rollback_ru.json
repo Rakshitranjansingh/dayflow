@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Framework, rollback behavior defines the declarative mechanism by which a transaction is marked for termination and state reversal when an unexpected condition occurs. By default, Spring's TransactionInterceptor triggers a rollback only for unchecked exceptions (RuntimeException and Error). This design choice stems from the assumption that checked exceptions are often recoverable business conditions, whereas unchecked exceptions represent catastrophic failures that invalidate the current unit of work. Rollback rule configuration allows developers to override this default behavior using the @Transactional annotation's rollbackFor and noRollbackFor attributes. This is critical in enterprise systems where you must ensure atomicity; for instance, if a service method throws a checked 'InsufficientFundsException', you might explicitly configure it to trigger a rollback to prevent partial state updates in a database, ensuring the system remains in a consistent state."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Exception Type",
+        "Default Spring Behavior",
+        "Configuration Requirement"
+      ],
+      "rows": [
+        [
+          "RuntimeException",
+          "Rollback",
+          "None required"
+        ],
+        [
+          "Error",
+          "Rollback",
+          "None required"
+        ],
+        [
+          "Checked Exception",
+          "Commit",
+          "Must use rollbackFor"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring uses AOP proxies to wrap transactional methods. When an exception propagates out of the proxy, the TransactionInterceptor catches it and calls transactionManager.rollback(status) if the exception matches the rollback rules.",
+        "The rollbackFor attribute accepts an array of Class objects, allowing you to specify exactly which exception types should trigger a rollback, including checked exceptions.",
+        "The noRollbackFor attribute is used to suppress the default rollback behavior for specific unchecked exceptions, which is useful when you want to log an error but still commit the transaction progress.",
+        "Rollback rules are hierarchical; if you specify a base exception class, all subclasses are automatically included in the rule."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Transactional(rollbackFor = {IOException.class, SQLException.class}, noRollbackFor = {DataValidationException.class})\npublic void processOrder(Order order) throws IOException {\n    repository.save(order);\n    externalService.notify(order); // Might throw IOException\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is catching an exception inside the transactional method without rethrowing it. If you catch an exception and handle it silently, the TransactionInterceptor never sees it, and the transaction will attempt to commit regardless of your rollback rules. Always rethrow the exception or use TransactionAspectSupport.currentTransactionStatus().setRollbackOnly() if you must swallow the exception."
+    }
+  ],
+  "num": 800,
+  "title": "What is rollback behavior in Spring transactions? Rollback rule configuration?",
+  "category": "Exception Handling & I/O / NIO"
+}

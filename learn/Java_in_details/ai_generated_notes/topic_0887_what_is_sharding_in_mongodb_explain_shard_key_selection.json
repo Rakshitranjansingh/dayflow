@@ -1,0 +1,49 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Sharding in MongoDB is the architectural strategy of partitioning data across multiple physical instances, known as shards, to achieve horizontal scalability. As a dataset grows beyond the storage capacity or IOPS limits of a single primary node, sharding distributes the workload by splitting the collection into smaller chunks based on a specific Shard Key. This allows MongoDB to handle massive write throughput and storage requirements by delegating operations to the specific shard responsible for a given range or hash of the key. Without sharding, you are limited by the vertical scaling ceiling of a single replica set, which eventually leads to resource contention and performance degradation under heavy load.\n\nShard Key selection is arguably the most critical decision in a MongoDB deployment, as it dictates the efficiency of data distribution and query routing. A poor choice leads to 'jumbo chunks' or 'hot shards,' where one node bears the brunt of the traffic while others remain idle. The selection process involves balancing cardinality, write distribution, and query isolation. A high-cardinality key ensures that data is granularly distributed, while a monotonically increasing key (like an ObjectId or timestamp) often leads to write hotspots, as all new inserts are funneled to the shard holding the highest range of values."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Pros",
+        "Cons"
+      ],
+      "rows": [
+        [
+          "Ranged Sharding",
+          "Efficient for range-based queries and sorting.",
+          "Prone to write hotspots on the highest range."
+        ],
+        [
+          "Hashed Sharding",
+          "Ensures uniform data distribution and prevents hotspots.",
+          "Inefficient for range queries; requires scatter-gather."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The mongos router acts as the interface for client applications, using the cluster metadata cached from the config servers to determine which shard owns a specific document based on the shard key.",
+        "Chunk splitting occurs automatically when a chunk exceeds the configured size (default 64MB), while the balancer process migrates chunks between shards to maintain an even distribution.",
+        "Compound Shard Keys allow for more complex distribution patterns, often combining a high-cardinality field with a field that provides query isolation to avoid broadcast operations.",
+        "Immutability of Shard Keys: Once a collection is sharded, the shard key value for a document cannot be updated, necessitating a delete-and-reinsert pattern if the key needs to change."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "javascript",
+      "content": "sh.shardCollection(\"production_db.user_activity\", { \"user_id\": \"hashed\", \"timestamp\": 1 });"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is using a low-cardinality field (like 'status' or 'country') as a shard key. This creates 'jumbo chunks' that the balancer cannot split, effectively pinning all data for that category to a single shard. Always favor a high-cardinality field or a hashed index to ensure your write load is evenly distributed across the cluster topology."
+    }
+  ],
+  "num": 888,
+  "title": "What is Sharding in MongoDB? Explain Shard Key selection.",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

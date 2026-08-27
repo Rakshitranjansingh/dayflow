@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Spring Boot integration testing, managing the boundaries of your application context often requires replacing or wrapping real collaborators with mock implementations. This is where @MockBean and @SpyBean come into play. While standard Mockito annotations like @Mock and @Spy create standalone mock objects devoid of Spring awareness, @MockBean and @SpyBean integrate directly with the Spring TestContext framework. \n\n@MockBean is used to add mock objects to the Spring ApplicationContext. When you annotate a field with @MockBean, Spring looks for an existing bean of that type in the context. If it finds one, it replaces that bean with a Mockito mock. If no bean exists, a new mock is automatically defined and registered. This allows developers to isolate the component under test by stubbing out external services, database repositories, or messaging clients without spinning up real infrastructure. \n\nConversely, @SpyBean wraps an existing real Spring bean in a Mockito spy rather than replacing it entirely. By default, calling methods on a @SpyBean invokes the real implementation inside the Spring container, allowing state to mutate and actual business logic to run. However, you retain the ability to selectively stub specific methods using Mockito.when(...).then() or doReturn(...).when(...), making it indispensable for legacy codebases or partial integration tests where most of a service should run natively while a specific external dependency or side effect is intercepted."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "@MockBean",
+        "@SpyBean"
+      ],
+      "rows": [
+        [
+          "Default Behavior",
+          "Replaces the bean with a pure Mockito mock (returns null/defaults).",
+          "Wraps the real Spring bean; executes real methods by default."
+        ],
+        [
+          "Application Context Interaction",
+          "Adds or replaces a mock definition in the container.",
+          "Wraps the existing bean instance currently loaded in the container."
+        ],
+        [
+          "Use Case",
+          "Isolating a component completely from external dependencies.",
+          "Testing partial logic where most real business logic must execute."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring Caching Mechanics: Both @MockBean and @SpyBean force the Spring TestContext framework to modify or create a new ApplicationContext. Because Spring caches application contexts across tests to optimize execution speed, introducing a mock bean with unique configurations can invalidate the context cache, triggering expensive context reloads.",
+        "Partial Mocking Gotchas with @SpyBean: When calling real methods on a @SpyBean using Mockito.when(spy.method()).thenReturn(val), Mockito actually evaluates the real method first before applying the stub. If the real method has side effects, throws an uninitialized NullPointerException, or queries an unmocked database, it will fail. Always use doReturn(val).when(spy).method() syntax with spies to avoid premature execution.",
+        "Name vs. Type Resolution: If multiple beans of the same type exist in the ApplicationContext, both annotations will throw an AmbiguousBeanDefinitionException unless you explicitly narrow down the target using the name or qualifier attributes provided by the annotation."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@SpringBootTest\nclass OrderServiceIntegrationTest {\n\n    @Autowired\n    private OrderService orderService;\n\n    @MockBean\n    private PaymentGatewayClient paymentGatewayClient;\n\n    @SpyBean\n    private InventoryService inventoryService;\n\n    @Test\n    void shouldProcessOrderSuccessfully() {\n        // Stubbing the purely mocked external dependency\n        Mockito.when(paymentGatewayClient.charge(Mockito.any()))\n               .thenReturn(new PaymentResult(true, \"TXN-123\"));\n\n        // Using doReturn to prevent real execution on a specific spy method\n        Mockito.doReturn(true)\n               .when(inventoryService)\n               .isItemInStock(Mockito.anyString());\n\n        OrderResponse response = orderService.placeOrder(new OrderRequest(\"item-1\", 2));\n        \n        assertNotNull(response);\n        assertTrue(response.isSuccess());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production trap in large test suites is the over-reliance on @MockBean, which leads to 'test pollution' and bloated context caches. Every unique combination of @MockBean declarations forces Spring to spin up a brand new ApplicationContext. If you have 50 test classes each declaring a slightly different set of mock beans, Spring might boot up 50 separate contexts, causing your test suite execution time to skyrocket. Prefer unit tests with pure Mockito (@ExtendWith(MockitoExtension.class)) for isolated logic, and reserve @MockBean and @SpyBean strictly for true integration boundaries."
+    }
+  ],
+  "num": 385,
+  "title": "@MockBean, @SpyBean",
+  "category": "Core Java & Fundamentals"
+}

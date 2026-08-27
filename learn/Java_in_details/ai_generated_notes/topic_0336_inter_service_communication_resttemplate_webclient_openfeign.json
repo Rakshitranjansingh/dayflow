@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In a distributed microservices architecture, Inter-service communication forms the nervous system that binds isolated service instances together. Historically, Java enterprise applications relied heavily on Spring's RestTemplate for synchronous HTTP calls. However, RestTemplate is a synchronous, thread-per-request blocking client whose underlying implementation uses the old java.net.HttpURLConnection. Under heavy concurrent load, this blocking behavior rapidly exhausts container thread pools like Apache Tomcat's maxThreads, leading to cascading failures, thread contention, and severe latency inflation.\n\nTo resolve these bottlenecks, the Java ecosystem evolved toward two distinct paradigms: WebClient and OpenFeign. WebClient, introduced with Spring WebFlux, provides a non-blocking, reactive, functional HTTP client operating on Project Reactor's Publisher/Subscriber model. It runs natively on Netty, decoupling thread allocation from concurrent network requests and making it ideal for high-throughput, streaming, or low-latency systems. Conversely, OpenFeign (part of Spring Cloud) embraces a declarative approach. Instead of writing imperative request-building boilerplate, developers define annotated Java interfaces. OpenFeign dynamically generates proxy implementations at runtime, integrating seamlessly with Spring Cloud LoadBalancer and Resilience4j for declarative service discovery, circuit breaking, and load distribution without sacrificing the familiar synchronous programming model."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "RestTemplate (Legacy)",
+        "WebClient (Reactive)",
+        "OpenFeign (Declarative)"
+      ],
+      "rows": [
+        [
+          "Concurrency Model",
+          "Thread-per-request (Blocking)",
+          "Event-loop, Non-blocking (Reactive)",
+          "Thread-per-request (Blocking by default)"
+        ],
+        [
+          "Underlying Engine",
+          "java.net.HttpURLConnection",
+          "Reactor Netty",
+          "JDK HttpClient / Apache HttpClient / OkHttp"
+        ],
+        [
+          "Code Paradigm",
+          "Imperative, Procedural",
+          "Functional, Declarative (Mono/Flux)",
+          "Declarative Interface-based"
+        ],
+        [
+          "Spring Ecosystem Status",
+          "In maintenance mode (Deprecated eventually)",
+          "Recommended for WebFlux / Reactive",
+          "Standard choice for Spring Cloud blocking apps"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "RestTemplate initializes a new TCP connection or grabs one from a legacy connection pool per thread block, heavily taxing OS file descriptors under peak concurrency.",
+        "WebClient leverages Reactor Netty, utilizing a fixed pool of selector threads (typically tied to CPU core counts) that handle thousands of concurrent read/write streams asynchronously via non-blocking NIO channels.",
+        "OpenFeign uses dynamic JDK proxies or bytebuddy to intercept interface method calls, translating method parameters and annotations into HTTP requests executed via pluggable client engines.",
+        "Integrating resilience patterns differs fundamentally: WebClient uses reactive operators like .retryWhen() and .timeout(), whereas OpenFeign relies on integration wrappers like Resilience4j decorators and Spring Cloud CircuitBreaker."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@FeignClient(name = \"inventory-service\", url = \"http://localhost:8081\")\npublic interface InventoryClient {\n\n    @GetMapping(\"/api/inventory/{sku}\")\n    InventoryResponse checkStock(@PathVariable(\"sku\") String sku);\n}\n\n@Service\npublic class OrderService {\n\n    private final InventoryClient inventoryClient;\n\n    public OrderService(InventoryClient inventoryClient) {\n        this.inventoryClient = inventoryClient;\n    }\n\n    public void placeOrder(OrderRequest request) {\n        // Declarative call abstracting HTTP overhead\n        InventoryResponse stock = inventoryClient.checkStock(request.getSku());\n        if (!stock.isAvailable()) {\n            throw new OutOfStockException(\"Item unavailable\");\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern is wrapping OpenFeign calls inside Project Reactor's Mono.fromCallable() to use it inside a reactive WebFlux pipeline. Because OpenFeign is intrinsically blocking and thread-bound, doing this without shifting execution to a dedicated unbounded scheduler (Schedulers.boundedElastic()) will starve the Netty event loop threads, instantly bringing down your reactive gateway or microservice."
+    }
+  ],
+  "num": 337,
+  "title": "Inter-service communication — RestTemplate → WebClient / OpenFeign",
+  "category": "REST APIs, WebFlux & Microservices"
+}

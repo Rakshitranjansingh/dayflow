@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Reviewing someone else's backend code is a critical engineering discipline that goes far beyond checking for syntax errors or enforcing corporate style guides. It is an act of risk mitigation, architectural stewardship, and mentorship designed to protect the system's availability, data integrity, and scalability. When conducting a thorough backend code review, an engineer must systematically evaluate concurrency models, database interaction boundaries, resource management, and security posture. In distributed Java and enterprise systems, a poorly structured transactional boundary or an unchecked collection allocation can degrade garbage collection efficiency, exhaust connection pools, or trigger cascading database locks in production.\n\nTo execute an effective review, one must balance macro-level architectural alignment with micro-level code correctness. At the macro level, ensure that the proposed changes respect domain boundaries, avoid circular dependencies, and adhere to clean architecture principles (such as separating domain models from persistence entities and web DTOs). At the micro level, look closely at thread safety, immutability, proper exception translation, and null-safety. Every line of backend code added represents an ongoing maintenance burden and a potential vector for failure under high concurrency."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Review Dimension",
+        "What to Look For",
+        "Common Pitfall / Red Flag"
+      ],
+      "rows": [
+        [
+          "Concurrency & Thread Safety",
+          "Safe sharing of mutable state, proper synchronization primitives, thread-local cleanups.",
+          "Using HashMap instead of ConcurrentHashMap, or mutating shared request-scoped state."
+        ],
+        [
+          "Database & Transactions",
+          "Explicit transaction boundaries, avoidance of N+1 queries, correct isolation levels.",
+          "Running complex business logic inside a long-lived database transaction or missing fetch joins."
+        ],
+        [
+          "Resource Management",
+          "Try-with-resources for I/O streams, connection pooling discipline, memory leaks.",
+          "Leaking JDBC statements, open sockets, or holding large objects in static collections."
+        ],
+        [
+          "Error Handling",
+          "Meaningful exception types, global exception handlers, preserving root cause stack traces.",
+          "Catching generic Exception or Throwable and swallowing errors or returning generic 500s."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Examine the transaction boundary (@Transactional placement): Ensure transactions are kept as short as possible to minimize row-level database locking and prevent connection pool starvation. Verify that read-only operations explicitly set readOnly = true for potential performance optimizations.",
+        "Scrutinize data fetching strategies: Check for the dreaded N+1 query problem by inspecting loops containing repository calls. Ensure pagination is enforced on unbounded collections and that eager loading is not accidentally pulling entire entity graphs into memory.",
+        "Verify defensive validation and sanitization: Ensure external inputs are validated at the controller boundary using Bean Validation (JSR-380) and that SQL injection, path traversal, or insecure deserialization vectors are systematically closed.",
+        "Check asynchronous and reactive flows: If the backend leverages CompletableFuture or reactive streams (Project Reactor), verify that custom thread pools or schedulers are explicitly defined to avoid exhausting the common ForkJoinPool."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/v1/orders\")\n@Validated\npublic class OrderController {\n\n    private final OrderService orderService;\n\n    public OrderController(OrderService orderService) {\n        this.orderService = orderService;\n    }\n\n    @PostMapping\n    public ResponseEntity<OrderResponseDto> createOrder(@Valid @RequestBody OrderCreateRequestDto request) {\n        // Review check: Controller delegates immediately to Service; no business logic here.\n        OrderDto order = orderService.processNewOrder(request);\n        return ResponseEntity.status(HttpStatus.CREATED).body(new OrderResponseDto(order));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Pitfall: Never approve a pull request that introduces database queries inside a loop without an explicit warning or optimization plan. Another insidious trap is the silent failure of @Transactional when called internally on the same class (self-invocation), bypassing Spring's proxy mechanism entirely. Always ensure transactional methods are invoked across bean boundaries."
+    }
+  ],
+  "num": 1237,
+  "title": "How do you review someone else's backend code?",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,52 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java development, particularly within Spring's declarative transaction management infrastructure powered by AOP proxies, transaction demarcation dictates the atomicity and consistency of business operations. By default, Spring's declarative transaction management follows a strict idiom inherited from Enterprise JavaBeans (EJB): runtime exceptions (subclasses of java.lang.RuntimeException) trigger an automatic transaction rollback, whereas checked exceptions (direct subclasses of java.lang.Exception excluding RuntimeException) do not trigger a rollback and instead commit the transaction. This behavior often conflicts with rich domain models where checked exceptions represent explicit business failures that must invalidate database state. To override and fine-tune this default error handling policy, Spring provides two critical attributes on the @Transactional annotation: rollbackFor and noRollbackFor.\n\nThe rollbackFor attribute forces the transaction interceptor to roll back the current transaction when specified exceptions—including checked exceptions—are thrown from the transactional boundary. Conversely, the noRollbackFor attribute suppresses the default rollback behavior for designated unchecked exceptions (or specific checked exceptions that were otherwise included via a broader rule). Mastering these parameters prevents silent data corruption, ensures that business rule violations cleanly discard partial persistence states, and guarantees deterministic transactional boundaries across complex service layers without resorting to programmatic TransactionAspectSupport.currentTransactionStatus().setRollbackOnly()."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Attribute",
+        "Default Behavior",
+        "Target Exception Type",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "rollbackFor",
+          "Only rolls back on RuntimeException and Error",
+          "Checked or Unchecked Exceptions",
+          "Forcing rollbacks on domain-specific checked exceptions (e.g., InsufficientFundsException)."
+        ],
+        [
+          "noRollbackFor",
+          "Rolls back on all RuntimeExceptions",
+          "Checked or Unchecked Exceptions",
+          "Preventing rollbacks when specific runtime exceptions occur (e.g., DataRetrievalFailureException or custom benign errors)."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring's TransactionAspectSupport evaluates exception types hierarchically using Class.isAssignableFrom() against the configured rollback rules.",
+        "If multiple exception classes match the thrown exception during a stack unwinding, Spring prioritizes the rule that matches the closest superclass or exact type in the exception hierarchy.",
+        "Checked exceptions must be explicitly declared in the rollbackFor attribute because the compiler forces handling, but the runtime proxy will only trigger a rollback if the thrown instance matches the specified Class array.",
+        "Programmatic rollbacks via TransactionAspectSupport.setRollbackOnly() always take precedence over declarative annotations if executed within the same transaction scope."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class BankAccountService {\n\n    @Autowired\n    private AccountRepository accountRepository;\n\n    @Transactional(\n        rollbackFor = { InsufficientFundsException.class, SQLException.class },\n        noRollbackFor = { AuditLogFailedException.class }\n    )\n    public void transferFunds(Long sourceId, Long targetId, BigDecimal amount) throws InsufficientFundsException {\n        Account source = accountRepository.findById(sourceId).orElseThrow();\n        Account target = accountRepository.findById(targetId).orElseThrow();\n\n        source.withdraw(amount);\n        target.deposit(amount);\n\n        accountRepository.save(source);\n        accountRepository.save(target);\n\n        try {\n            // Non-critical audit logging that must not kill the money transfer if it fails\n            auditService.logTransfer(sourceId, targetId, amount);\n        } catch (AuditLogFailedException e) {\n            // Suppressed by noRollbackFor configuration\n            throw e;\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap occurs when wrapping a transactional method inside a try-catch block within the same class. Because Spring's declarative transactions are implemented via dynamic proxies (JDK or CGLIB), internal self-invocation (this.method()) bypasses the proxy entirely, rendering @Transactional, rollbackFor, and noRollbackFor completely non-functional. Furthermore, catching an exception inside the transactional method without rethrowing it or explicitly marking the transaction rollback-only will result in the transaction committing successfully despite the error."
+    }
+  ],
+  "num": 235,
+  "title": "Rollback rules — rollbackFor, noRollbackFor",
+  "category": "Core Java & Fundamentals"
+}

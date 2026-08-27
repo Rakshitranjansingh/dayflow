@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Maintaining readability in a scaling Java codebase is less about aesthetic preferences and more about managing cognitive load and entropy. As a system grows, the primary enemy is 'accidental complexity'—the overhead introduced by poor abstractions, tight coupling, and inconsistent patterns. To keep a codebase readable, you must enforce strict modularity through package-private visibility, leverage strong typing to make intent explicit, and prioritize immutability to reduce the surface area for side effects. When code is immutable, you eliminate the need to track object state across complex call stacks, which is the single biggest contributor to 'spaghetti' debugging sessions in large-scale JVM applications."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Impact on Readability",
+        "Maintenance Cost"
+      ],
+      "rows": [
+        [
+          "Interface Segregation",
+          "High: Decouples implementation from contract",
+          "Low: Requires upfront design"
+        ],
+        [
+          "Domain-Driven Design",
+          "High: Aligns code with business language",
+          "Medium: Requires domain expertise"
+        ],
+        [
+          "Deep Inheritance",
+          "Low: Obscures execution flow",
+          "High: Fragile base class problem"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Enforce strict encapsulation: Use package-private visibility by default to limit the API surface area, exposing only what is necessary for cross-module interaction.",
+        "Favor composition over inheritance: Deep class hierarchies create 'fragile base class' issues where a change in a parent class ripples unpredictably through the heap, making the code impossible to reason about in isolation.",
+        "Adopt 'Self-Documenting' naming conventions: Replace comments that explain 'what' with code that explains 'why'. If a method requires a three-paragraph Javadoc to explain its logic, the method is doing too much and should be decomposed.",
+        "Standardize error handling: Use custom exceptions or Result-style wrappers to avoid 'exception swallowing' or deep nested try-catch blocks that hide the happy path of your business logic."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public record UserProfile(String id, String email) {\n    public UserProfile {\n        Objects.requireNonNull(id, \"ID cannot be null\");\n        if (!email.contains(\"@\")) throw new IllegalArgumentException(\"Invalid email\");\n    }\n}\n\n// Use functional interfaces to keep logic declarative\npublic List<String> getActiveUserEmails(List<UserProfile> users) {\n    return users.stream()\n                .map(UserProfile::email)\n                .filter(email -> email.endsWith(\".com\"))\n                .toList();\n}"
+    },
+    {
+      "type": "note",
+      "content": "The biggest trap in growing codebases is the 'God Object'—a class that accumulates dependencies over time. If you find yourself injecting more than 5-7 services into a single constructor, you have violated the Single Responsibility Principle. This is a red flag that your class is doing too much, and it will eventually become a bottleneck for both compile times and developer productivity."
+    }
+  ],
+  "num": 1236,
+  "title": "How do you keep a codebase readable as it grows?",
+  "category": "Core Java & Fundamentals"
+}

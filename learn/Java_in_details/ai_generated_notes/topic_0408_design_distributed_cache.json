@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a distributed cache from scratch requires harmonizing core Java concurrency constructs with distributed systems fundamentals like partition tolerance, network topologies, and consistency models. In high-throughput Java applications, relying solely on local memory caches like Guava or Caffeine quickly falls short due to memory footprint limits, garbage collection pause overheads from massive heaps, and cache invalidation staleness across multiple microservice instances. A distributed cache abstracts a horizontally scalable, out-of-process in-memory data store.\n\nTo build a robust distributed cache in Java, you must coordinate several foundational subsystems: consistent hashing for ring-based key distribution, non-blocking asynchronous networking via Java NIO or Netty for node-to-node communication, a fine-grained thread-safe eviction framework (such as LRU or LFU backed by ConcurrentHashMaps), and replication protocols to handle split-brain and node churn. We avoid global synchronization locks by leveraging lock-free ring buffers, concurrent skip-lists, and partition-level locks, ensuring linearizability for read-through and write-through patterns while maximizing CPU cache locality."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Consistent Hashing Ring: Maps both cache keys and physical node instances onto a 32-bit or 64-bit integer space using cryptographic or non-cryptographic hash functions like MurmurHash3, mitigating massive reshuffling when scaling nodes by introducing virtual nodes (vnodes).",
+        "Eviction and Memory Management: Combines ConcurrentHashMap for O(1) lookups with a secondary doubly-linked list or sampling-based approximation (similar to Caffeine's Window TinyLFU) to evict cold entries without holding global mutexes.",
+        "Replication and Consensus: Employs Gossip protocols for decentralized cluster membership discovery and Raft or primary-backup replication for guaranteeing consistency across master-replica node boundaries."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.textbook.cache;\n\nimport java.util.SortedMap;\nimport java.util.TreeMap;\nimport java.security.MessageDigest;\nimport java.security.NoSuchAlgorithmException;\nimport java.nio.charset.StandardCharsets;\n\npublic class ConsistentHashRing<T> {\n    private final int numberOfReplicas;\n    private final SortedMap<Long, T> ring = new TreeMap<>();\n\n    public ConsistentHashRing(int numberOfReplicas, Iterable<T> nodes) {\n        this.numberOfReplicas = numberOfReplicas;\n        for (T node : nodes) {\n            addNode(node);\n        }\n    }\n\n    public void addNode(T node) {\n        for (int i = 0; i < numberOfReplicas; i++) {\n            long hash = hash(node.toString() + \"-\" + i);\n            ring.put(hash, node);\n        }\n    }\n\n    public void removeNode(T node) {\n        for (int i = 0; i < numberOfReplicas; i++) {\n            long hash = hash(node.toString() + \"-\" + i);\n            ring.remove(hash);\n        }\n    }\n\n    public T getNode(String key) {\n        if (ring.isEmpty()) return null;\n        long hash = hash(key);\n        if (!ring.containsKey(hash)) {\n            SortedMap<Long, T> tailMap = ring.tailMap(hash);\n            hash = tailMap.isEmpty() ? ring.firstKey() : tailMap.firstKey();\n        }\n        return ring.get(hash);\n    }\n\n    private long hash(String key) {\n        try {\n            MessageDigest md = MessageDigest.getInstance(\"MD5\");\n            byte[] digest = md.digest(key.getBytes(StandardCharsets.UTF_8));\n            return ((long) (digest[3] & 0xFF) << 24) |\n                   ((long) (digest[2] & 0xFF) << 16) |\n                   ((long) (digest[1] & 0xFF) << 8)  |\n                   ((long) (digest[0] & 0xFF));\n        } catch (NoSuchAlgorithmException e) {\n            throw new RuntimeException(e);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern when building distributed caches in Java is the 'Thundering Herd' problem or cache stampede. When a highly popular hot key expires, hundreds of concurrent threads simultaneously observe a cache miss and hit the underlying database. To mitigate this, implement a distributed locking mechanism (such as Redis Redlock or ZooKeeper ephemeral sequential nodes) or use probabilistic early expiration algorithms (like XFetch) to asynchronously refresh cache entries before their strict TTL expires."
+    }
+  ],
+  "num": 409,
+  "title": "Design Distributed Cache",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Performing a database schema alteration on a massive table—such as a 50GB dataset—in a high-throughput production environment presents a formidable engineering challenge. A naive ALTER TABLE command (like adding a column with a default value or changing a data type) will typically acquire an exclusive metadata lock (MDX) or an explicit table lock, blocking all concurrent read and write operations until the operation completes. For a multi-gigabyte table, this translates to extended downtime, connection pool exhaustion, and SLA breaches. To achieve zero-downtime schema evolution, engineers must leverage advanced online schema change (OSC) patterns combined with robust exception handling and asynchronous non-blocking I/O (NIO) pipelines that stream transaction logs.\n\nThe core strategy relies on decoupled shadow table patterns. Instead of mutating the original table in place, tools like pt-online-schema-change or GitHub's gh-ost create an identical empty shadow table, apply the desired schema modification to it, and then synchronize data from the original table using database triggers or binary log (binlog) streaming. This approach heavily utilizes low-level I/O subsystems, non-blocking network sockets for binlog tailing, and meticulous exception handling to gracefully recover from network partitions, deadlocks, or replication lag spikes without corrupting the operational state."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Shadow Table Initialization: A new table is created with the target schema (e.g., _table_name_new). Triggers are established on the original table for INSERT, UPDATE, and DELETE operations to mirror incoming writes to the shadow table in real-time.",
+        "Chunked Data Copying: Historical data is copied from the original table to the shadow table in small, indexed chunks (e.g., 1000 rows per batch) to avoid long-running transactions that bloat the undo/redo logs and starve concurrent queries of buffer pool memory.",
+        "Binlog Tailing via NIO: Advanced tools bypass database triggers by tailing the replication binary log asynchronously using NIO channels, drastically reducing the locking overhead and trigger execution penalties on the production write path.",
+        "Atomic Atomic Table Swap: Once data replication catches up and lag drops to zero, an exclusive metadata lock is acquired for a fraction of a millisecond to atomically rename the original table and the shadow table, finalizing the migration seamlessly."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.io.IOException;\nimport java.nio.ByteBuffer;\nimport java.nio.channels.AsynchronousFileChannel;\nimport java.nio.file.Path;\nimport java.nio.file.StandardOpenOption;\nimport java.sql.Connection;\nimport java.sql.SQLException;\nimport java.sql.Statement;\nimport java.util.concurrent.Future;\n\npublic class OnlineSchemaMigrationManager {\n\n    public void executeChunkedMigration(Connection conn, String originalTable, String shadowTable, long chunkSize) {\n        String chunkSql = String.format(\n            \"INSERT INTO %s SELECT * FROM %s WHERE id >= ? AND id < ? LIMIT %d\",\n            shadowTable, originalTable, chunkSize\n        );\n        \n        try (Statement stmt = conn.createStatement()) {\n            conn.setAutoCommit(false);\n            // In a real-world scenario, loop through primary key ranges using non-blocking NIO logging\n            stmt.executeUpdate(chunkSql);\n            conn.commit();\n        } catch (SQLException e) {\n            try {\n                conn.rollback();\n                handleMigrationException(e);\n            } catch (SQLException rollbackEx) {\n                // Log critical rollback failure\n            }\n        }\n    }\n\n    private void handleMigrationException(SQLException e) {\n        // Handle lock timeouts, deadlocks (Error 1213), or out-of-disk exceptions gracefully\n        System.err.println(\"Migration chunk failed: \" + e.getErrorCode() + \" - \" + e.getMessage());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap during large table alterations is replication lag explosion on replicas. Because shadow table alterations generate massive binary log events, read replicas struggle to apply these events concurrently, causing read queries on replicas to serve stale data. Always throttle the migration tool dynamically by monitoring replica lag thresholds (e.g., Seconds_Behind_Master) via asynchronous JDBC or NIO health checks before committing the next data chunk."
+    }
+  ],
+  "num": 1251,
+  "title": "Scenario: How do you perform a database schema alteration on a 50GB table in production without downtime?",
+  "category": "Exception Handling & I/O / NIO"
+}

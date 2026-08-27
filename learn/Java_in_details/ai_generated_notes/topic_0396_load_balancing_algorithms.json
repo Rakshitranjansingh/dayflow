@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In distributed systems and high-throughput enterprise Java architectures, load balancing algorithms are the foundational mechanisms that dictate how incoming network traffic, RPC calls, or HTTP requests are distributed across a cluster of backend servers. Without an intelligent distribution strategy, monolithic or microservice environments suffer from uneven resource utilization, cascading failures, and severe latency degradation. At its core, a load balancing algorithm acts as the traffic controller, intercepting client requests at the edge or within service discovery clients (such as Netflix Eureka or gRPC name resolvers) and routing them according to predetermined heuristics. These algorithms can be broadly categorized into static policies, which ignore the current load state of the destination nodes, and dynamic policies, which continuously inspect CPU utilization, active connection pools, or latency metrics to route traffic optimally. Designing a robust load balancer in Java requires a deep understanding of thread synchronization, atomic variables, and lock-free data structures to prevent the load balancing layer itself from becoming a catastrophic performance bottleneck."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Algorithm Type",
+        "State Awareness",
+        "Primary Use Case",
+        "Failure Mode"
+      ],
+      "rows": [
+        [
+          "Round Robin",
+          "Stateless",
+          "Uniform hardware clusters with identical stateless services",
+          "Can overwhelm slow nodes if request durations vary wildly"
+        ],
+        [
+          "Least Connections",
+          "Stateful",
+          "Long-lived connections (e.g., WebSockets, database connection pools)",
+          "Requires tracking active connection states across the cluster"
+        ],
+        [
+          "Weighted Response Time",
+          "Stateful & Dynamic",
+          "Heterogeneous hardware environments with fluctuating database latency",
+          "Prone to flapping if metrics are sampled too frequently"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Round Robin implementations utilize thread-safe atomic counters (like Java's AtomicInteger) combined with modulo arithmetic to cycle through a node registry array without incurring lock contention.",
+        "Weighted distribution variants scale the selection frequency by assigning capacity scores, often implemented via smooth weighted round-robin algorithms that prevent traffic bursts on newly recovered nodes.",
+        "Dynamic Least Connections rely on concurrent maps or thread-safe gauges to track active inflight requests per server instance, instantly dropping traffic to nodes experiencing thread pool exhaustion.",
+        "Consistent Hashing maps both servers and request keys onto a virtual ring using cryptographic or non-cryptographic hash functions (e.g., MurmurHash3), ensuring optimal cache locality and minimal key redistribution during cluster resizing."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.List;\nimport java.util.concurrent.atomic.AtomicInteger;\n\npublic class ThreadSafeRoundRobinBalancer<T> {\n    private final List<T> nodes;\n    private final AtomicInteger index = new AtomicInteger(0);\n\n    public ThreadSafeRoundRobinBalancer(List<T> nodes) {\n        if (nodes == null || nodes.isEmpty()) {\n            throw new IllegalArgumentException(\"Node list cannot be null or empty\");\n        },\n        this.nodes = List.copyOf(nodes);\n    }\n\n    public T getNextNode() {\n        int current;\n        int next;\n        do {\n            current = index.get();\n            next = (current + 1) % nodes.size();\n        } while (!index.compareAndSet(current, next));\n        return nodes.get(next);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern in Java-based client-side load balancing is failing to handle stale service discovery registries. If a backend instance crashes, a naive round-robin implementation holding an un-updated node list will throw connection refused exceptions until the heartbeat ticker refreshes. Always couple your load balancing algorithms with an active health-checking circuit breaker (such as Resilience4j) to dynamically evict unhealthy nodes from the active rotation pool instantly."
+    }
+  ],
+  "num": 397,
+  "title": "Load balancing algorithms",
+  "category": "Core Java & Fundamentals"
+}

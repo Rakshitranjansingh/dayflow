@@ -1,0 +1,29 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When a Java multithreaded application experiences a high number of database deadlocks, it indicates a critical clash between application-level concurrency control and relational database management system (RDBMS) transaction scheduling. A deadlock occurs when two or more concurrent transactions hold locks on mutually exclusive database resources—such as rows, gap locks, or index keys—while attempting to acquire locks held by the other. Because neither transaction can proceed, the database engine's deadlock detector must intervene, arbitrarily rolling back one of the transactions and throwing a SQLException or DataAccessException (such as SQLServerException or PersistenceException with underlying SQL state 40001). \n\nResolving this requires a systematic approach that bridges the gap between Java thread management and database transaction isolation semantics. First, you must identify the conflicting query execution plans and transaction boundaries. In a Java application leveraging frameworks like Spring and Hibernate, deadlocks frequently manifest when multiple threads acquire locks in inconsistent orders across different tables or execute long-running transactions that needlessly inflate the window of vulnerability. By standardizing access patterns, shortening transaction scopes, leveraging optimistic locking where appropriate, and tuning database isolation levels, you can eliminate structural contention and restore system throughput."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Consistent Resource Ordering: Enforce a strict, global application-wide ordering for processing entities and executing updates. If Transaction A and Transaction B always update Table X before Table Y, circular wait conditions become impossible.",
+        "Reduction of Transaction Scope: Keep database transactions as short as possible. Remove external HTTP calls, slow file I/O, or heavy computational logic from inside the @Transactional boundary to minimize the duration that row and gap locks are held.",
+        "Optimistic Locking Implementation: Use @Version annotations in JPA/Hibernate entities to replace pessimistic write locks (SELECT ... FOR UPDATE) with optimistic checks, avoiding database-level locking entirely until the final commit phase.",
+        "Isolation Level Tuning: Evaluate moving from Repeatable Read down to Read Committed where business logic permits, reducing the footprint of shared read locks and minimizing gap locking on range queries in engines like InnoDB."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class AccountTransferService {\n\n    private final AccountRepository accountRepository;\n\n    public AccountTransferService(AccountRepository accountRepository) {\n        this.accountRepository = accountRepository;\n    }\n\n    @Transactional(isolation = Isolation.READ_COMMITTED, timeout = 5)\n    public void transferFunds(Long senderId, Long receiverId, BigDecimal amount) {\n        // Enforce consistent locking order by ID to prevent database deadlocks\n        Long firstId = senderId < receiverId ? senderId : receiverId;\n        Long secondId = senderId < receiverId ? receiverId : senderId;\n\n        Account firstAccount = accountRepository.findByIdForUpdate(firstId)\n            .orElseThrow(() -> new EntityNotFoundException(\"Account not found\"));\n        Account secondAccount = accountRepository.findByIdForUpdate(secondId)\n            .orElseThrow(() -> new EntityNotFoundException(\"Account not found\"));\n\n        Account sender = (senderId.equals(firstId)) ? firstAccount : secondAccount;\n        Account receiver = (senderId.equals(firstId)) ? secondAccount : firstAccount;\n\n        sender.setBalance(sender.getBalance().subtract(amount));\n        receiver.setBalance(receiver.getBalance().add(amount));\n        \n        accountRepository.save(sender);\n        accountRepository.save(receiver);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Production Gotcha: Simply catching the deadlock exception and calling Thread.sleep() followed by a recursive retry loop can cause thread pool starvation under high load. If 200 concurrent HTTP threads hit the retry logic simultaneously, you risk creating a thundering herd problem that overwhelms the database connection pool. Always pair transaction retries with randomized exponential backoff and ensure your connection pool (e.g., HikariCP) has a timeout threshold that properly accounts for retry overhead."
+    }
+  ],
+  "num": 1255,
+  "title": "Scenario: The database is experiencing high number of deadlocks. How do you resolve this?",
+  "category": "Multithreading & Java Concurrency"
+}

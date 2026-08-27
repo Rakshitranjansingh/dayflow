@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When architecting data-intensive enterprise applications, choosing between SQL and NoSQL databases dictates everything from how your Java application manages connection pools to transaction boundaries and eventual consistency. SQL databases, formally known as Relational Database Management Systems (RDBMS), organize data into strictly typed tables with rows and columns, enforcing ACID (Atomicity, Consistency, Isolation, Durability) properties through rigorous normalization and foreign key constraints. They excel at managing highly interconnected data models where integrity is paramount.\n\nConversely, NoSQL (Not Only SQL) databases abandon the rigid relational paradigm to scale horizontally across distributed clusters. They encompass various data models including Document stores, Key-Value pairs, Wide-Column stores, and Graph databases. NoSQL architectures prioritize high write throughput, massive horizontal scalability, and flexible schemas. Understanding when to choose which requires balancing domain constraints, transactional requirements, CAP theorem trade-offs, and query access patterns against your application layer's ORM or data access frameworks."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "SQL (Relational)",
+        "NoSQL (Non-Relational)"
+      ],
+      "rows": [
+        [
+          "Data Model",
+          "Normalized tables, rows, foreign key constraints, fixed schemas",
+          "Flexible documents, key-values, wide-columns, graphs, dynamic schemas"
+        ],
+        [
+          "Scaling Strategy",
+          "Vertical scaling (scale-up via larger instances, expensive hardware)",
+          "Horizontal scaling (scale-out via sharding across commodity clusters)"
+        ],
+        [
+          "Transaction Management",
+          "Strict ACID compliance, multi-table transactions (two-phase commit)",
+          "BASE semantics, eventual consistency, document-level atomicity"
+        ],
+        [
+          "Ideal Workload",
+          "Complex queries, financial ledgers, ERP systems, relational data",
+          "Real-time analytics, catalogs, user profiles, high-velocity ingestion"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Choose SQL when your domain logic requires complex multi-table joins, aggregations, and strict ACID guarantees where financial accuracy or absolute data consistency is non-negotiable.",
+        "Choose NoSQL when your access patterns are strictly key-based or document-based, your data model evolves rapidly without downtime, and you must scale write and read throughput across distributed nodes via sharding.",
+        "Evaluate the CAP Theorem trade-offs: SQL systems typically favor Consistency and Partition tolerance (CP), while many NoSQL implementations favor Availability and Partition tolerance (AP) with eventual consistency models.",
+        "Consider integration complexity: Java applications leveraging JPA/Hibernate map naturally to SQL, whereas NoSQL requires explicit mapping drivers, Spring Data repositories, or native document client APIs."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Repository\npublic class OrderProcessingService {\n    \n    private final JdbcTemplate jdbcTemplate;\n    private final MongoTemplate mongoTemplate;\n\n    public OrderProcessingService(JdbcTemplate jdbcTemplate, MongoTemplate mongoTemplate) {\n        this.jdbcTemplate = jdbcTemplate;\n        this.mongoTemplate = mongoTemplate;\n    }\n\n    @Transactional\n    public void processSqlOrder(Long orderId, BigDecimal amount) {\n        // SQL enforces ACID invariants across relational tables\n        String sql = \"UPDATE accounts SET balance = balance - ? WHERE id = ?\";\n        jdbcTemplate.update(sql, amount, 1L);\n    }\n\n    public void saveNoSqlLog(AuditLogDocument log) {\n        // NoSQL document store optimizes for high-speed append and flexible schema\n        mongoTemplate.save(log, \"audit_logs\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is choosing NoSQL simply because data volume is high, only to realize later that the application requires complex ad-hoc querying and aggregations. Rewriting a NoSQL aggregation pipeline into application-level joins in Java often causes severe memory pressure and N+1 performance bottlenecks. Conversely, forcing unstructured logs or rapidly evolving telemetry data into a rigid SQL schema leads to explosive table bloat with nullable columns and complex migration overhead."
+    }
+  ],
+  "num": 879,
+  "title": "SQL vs NoSQL. When to choose which?",
+  "category": "Core Java & Fundamentals"
+}

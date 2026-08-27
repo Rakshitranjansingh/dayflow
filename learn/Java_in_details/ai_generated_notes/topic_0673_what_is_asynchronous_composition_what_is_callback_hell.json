@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Asynchronous composition is the architectural practice of orchestrating non-blocking operations so that the completion of one task triggers the next, without halting the calling thread. In the context of Java NIO and high-throughput systems, this allows a single thread to manage thousands of concurrent I/O streams by offloading blocking waits to the kernel or an event loop. Instead of waiting for a socket read to complete, the application registers a handler and moves on. Composition allows us to chain these operations—transforming, filtering, or aggregating results—into a cohesive pipeline that remains responsive under heavy load.\n\nCallback hell, conversely, is the structural anti-pattern that emerges when asynchronous operations are nested within one another. As the complexity of the business logic grows, you find yourself writing deeply indented code where each subsequent operation is passed as an anonymous inner class or lambda into the previous one. This 'pyramid of doom' makes the code nearly impossible to read, debug, or maintain, as stack traces become fragmented across different threads and exception propagation becomes non-deterministic. It effectively destroys the linear flow of logic, turning simple sequential requirements into a tangled web of event-driven dependencies."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Callback-based (Legacy)",
+        "Composition-based (Modern)"
+      ],
+      "rows": [
+        [
+          "Readability",
+          "Pyramid of Doom (Nested)",
+          "Linear/Fluent Pipeline"
+        ],
+        [
+          "Error Handling",
+          "Manual per-callback",
+          "Centralized/Monadic (e.g., .exceptionally)"
+        ],
+        [
+          "Stack Traces",
+          "Fragmented/Lost",
+          "Preserved via CompletableFuture"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Asynchronous composition typically relies on the Monad pattern, where the result of an operation is wrapped in a container (like CompletableFuture or Flux) that provides methods like thenApply or flatMap to chain logic.",
+        "In NIO, callback hell often manifests when using the low-level AsynchronousSocketChannel, where every read/write requires a CompletionHandler, forcing developers to manually pass state between nested anonymous classes.",
+        "Modern composition uses declarative pipelines that allow the JVM to optimize execution paths and provide better visibility into the lifecycle of an asynchronous task compared to imperative callback registration."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Modern Composition using CompletableFuture\npublic CompletableFuture<String> processRequest(String input) {\n    return fetchFromDatabase(input)\n        .thenApply(this::transformData)\n        .thenCompose(this::callExternalService)\n        .exceptionally(ex -> \"Fallback Value\");\n}\n\n// Callback Hell (The Anti-Pattern)\npublic void processRequestLegacy(String input, Callback cb) {\n    db.fetch(input, result -> {\n        transform(result, transformed -> {\n            service.call(transformed, finalResult -> {\n                cb.onSuccess(finalResult);\n            }, err -> cb.onError(err));\n        }, err -> cb.onError(err));\n    }, err -> cb.onError(err));\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is 'blocking the event loop' within a composition chain. Even if you use CompletableFuture, if you perform a synchronous, blocking I/O operation (like a legacy JDBC call) inside a .thenApply() block, you will starve the underlying ForkJoinPool. Always offload blocking legacy code to a custom, dedicated ExecutorService to keep your NIO event loops responsive."
+    }
+  ],
+  "num": 674,
+  "title": "What is asynchronous composition? What is callback hell?",
+  "category": "Exception Handling & I/O / NIO"
+}

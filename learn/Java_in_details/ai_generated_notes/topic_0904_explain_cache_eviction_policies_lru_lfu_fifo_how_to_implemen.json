@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java applications, memory is a finite and precious resource. When designing high-throughput caching layers, unbounded growth leads directly to OutOfMemoryError (OOM) exceptions and cascading system failures. Cache eviction policies provide the algorithmic mechanism to prune stale, redundant, or infrequently requested entries when a cache reaches its maximum capacity. The core strategies governing this lifecycle are FIFO (First-In, First-Out), LFU (Least Frequently Used), and LRU (Least Recently Used). FIFO evicts the oldest inserted entry regardless of access patterns, treating the cache like a queue. LFU tracks access frequency via hit counters, purging items that are requested the fewest times over their lifetime, which makes it resilient against sudden shifts in temporal locality. LRU, conversely, operates on the assumption that data utilized recently will likely be accessed again soon, evicting the item that has gone untouched for the longest duration.\n\nImplementing LRU efficiently in Java is exceptionally straightforward when leveraging the standard library's LinkedHashMap. Under the hood, LinkedHashMap extends HashMap and maintains a doubly-linked list running through all of its entries. By overriding the protected removeEldestEntry method, developers can turn a standard collection into a bounded, self-cleaning LRU cache without writing custom node pointer logic from scratch."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Eviction Policy",
+        "Primary Metric",
+        "Time Complexity",
+        "Common Weakness"
+      ],
+      "rows": [
+        [
+          "FIFO",
+          "Insertion Timestamp",
+          "O(1)",
+          "Evicts heavily-used hot data if it was loaded first."
+        ],
+        [
+          "LRU",
+          "Recency of Access",
+          "O(1)",
+          "Vulnerable to cache pollution during sequential scans of cold data."
+        ],
+        [
+          "LFU",
+          "Frequency of Access",
+          "O(1) with proper frequency buckets",
+          "Retains historically popular items that are no longer relevant."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "LinkedHashMap achieves O(1) operations by coupling a hash table bucket array with a doubly-linked list that maintains the exact insertion or access order of elements.",
+        "When access-order mode is enabled via the LinkedHashMap constructor boolean flag, every invocation of get() or put() structurally alters the doubly-linked list, shifting the accessed node to the tail.",
+        "The removeEldestEntry(Map.Entry) callback is evaluated immediately after a new mapping is inserted via put or putAll, giving the application deterministic veto power over the oldest entry at the head of the list."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.LinkedHashMap;\nimport java.util.Map;\n\npublic class LruCache<K, V> extends LinkedHashMap<K, V> {\n    private final int capacity;\n\n    public LruCache(int capacity) {\n        // Initial capacity, load factor 0.75f, and true for access-order (instead of insertion-order)\n        super(capacity, 0.75f, true);\n        this.capacity = capacity;\n    }\n\n    @Override\n    protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {\n        // Automatically evict the eldest entry when size exceeds capacity\n        return size() > capacity;\n    }\n\n    public static void main(String[] args) {\n        Map<String, String> cache = new LruCache<>(2);\n        cache.put(\"A\", \"1\");\n        cache.put(\"B\", \"2\");\n        cache.get(\"A\"); // Access \"A\", making \"B\" the eldest\n        cache.put(\"C\", \"3\"); // Triggers eviction of \"B\"\n        \n        System.out.println(cache.keySet()); // Prints [A, C]\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "When using LinkedHashMap for an LRU cache in a multi-threaded environment, remember that standard LinkedHashMap operations are structurally non-thread-safe. Wrapping it with Collections.synchronizedMap() provides external synchronization, but introduces thread contention on a single global monitor lock. For high-concurrency production systems, prefer modern concurrent caching primitives like Caffeine, which implements a high-performance variant of Window TinyLFU utilizing ring buffers and concurrent read/write optimizations."
+    }
+  ],
+  "num": 905,
+  "title": "Explain Cache Eviction Policies (LRU, LFU, FIFO). How to implement LRU in Java? (LinkedHashMap)",
+  "category": "Collections Framework & Internals"
+}

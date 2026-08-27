@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Introduced in Java 7 as part of JSR 203 (NIO.2), the java.nio.file.Path and java.nio.file.Files APIs were engineered to replace the archaic, legacy java.io.File class. The legacy File API suffered from catastrophic design flaws: methods failed silently returning false instead of throwing explicit exceptions, it lacked robust support for symbolic links, metadata manipulation was primitive, and navigating file trees required cumbersome recursion. Path and Files solve these engineering challenges by providing a modern, immutable, thread-safe abstraction for file system locators and a powerful, comprehensive utility class for static file operations.\n\nA Path represents a hierarchical sequence of directory and file names identifier within a FileSystem, decoupled from the actual underlying disk operations. It is strictly a syntax construct until bound to I/O routines. Conversely, the Files class is a stateless utility repository housing static methods that accept Path instances. Together, they leverage modern operating system features, provide granular Checked Exceptions (such as NoSuchFileException and AccessDeniedException), support lazy evaluation of directory streams via Stream<Path>, and offer atomic move and copy primitives essential for production-grade enterprise data pipelines."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature / Behavior",
+        "Legacy java.io.File",
+        "Modern java.nio.file.Path & Files"
+      ],
+      "rows": [
+        [
+          "Error Handling",
+          "Returns boolean (false/null) on failure",
+          "Throws specific checked/unchecked exceptions (IOException)"
+        ],
+        [
+          "Symbolic Links",
+          "Minimal support; often follows links unpredictably",
+          "First-class support with LinkOption controls"
+        ],
+        [
+          "Performance & Streams",
+          "Blocking list() returning String[] arrays",
+          "Lazy Stream<Path> iteration via Files.list()"
+        ],
+        [
+          "Thread Safety",
+          "Mutable state in some implementations",
+          "Immutable and thread-safe design"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Path Immutability and Normalization: Path instances are immutable value objects. Operations like resolve(), normalize(), and relativize() do not mutate the current instance; instead, they allocate and return a brand-new Path, ensuring absolute thread-safety across multi-threaded applications.",
+        "Resource Leak Prevention with Try-With-Resources: Methods like Files.lines(), Files.list(), and Files.walk() return specialized Stream instances backed by underlying system resources (such as DirectoryStream). These must be managed within a try-with-resources block to prevent operating system file descriptor leaks.",
+        "Atomic Operations and Copy Options: Files.move() and Files.copy() accept CopyOption varargs. Using StandardCopyOption.ATOMIC_MOVE guarantees that a file replacement is atomic at the OS kernel level, preventing race conditions where downstream consumers read partially written files."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.io.IOException;\nimport java.nio.file.*;\nimport java.util.stream.Stream;\n\npublic class FileProcessingService {\n    public void processSecurely(Path sourceDir, Path targetDir) throws IOException {\n        Path resolvedTarget = targetDir.resolve(\"processed_data.csv\");\n        \n        // Ensure target directory exists atomically\n        Files.createDirectories(targetDir);\n\n        // Copy with atomic replacement and attribute preservation\n        Path tempFile = Files.copy(sourceDir.resolve(\"input.csv\"), resolvedTarget,\n            StandardCopyOption.REPLACE_EXISTING,\n            StandardCopyOption.ATOMIC_MOVE);\n\n        // Process lines with lazy stream evaluation, safely closed via try-with-resources\n        try (Stream<String> lines = Files.lines(tempFile)) {\n            long validRecords = lines.filter(line -> !line.startsWith(\"#\")).count();\n            System.out.println(\"Processed valid records: \" + validRecords);\n        } catch (IOException e) {\n            System.err.println(\"Failed to parse file stream: \" + e.getMessage());\n            throw e;\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap when using Files.walk() or Files.list() is failing to consume or close the returned Stream. Because these streams wrap native DirectoryStream handles, failing to invoke close() (or wrap them in a try-with-resources block) will exhaust the JVM's open file descriptor limit, eventually crashing the entire application with a fatal IOException ('Too many open files'). Always treat NIO stream operations with the same resource discipline as JDBC ResultSets."
+    }
+  ],
+  "num": 599,
+  "title": "What is Path and Files in modern Java I/O?",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In enterprise Java applications, architectural boundaries are critical for long-term maintainability, security, and performance. One of the most foundational architectural patterns is the strict decoupling of Entities from Data Transfer Objects (DTOs). An Entity represents a domain model bound to a persistent data store, typically managed by an ORM framework like Hibernate or JPA, featuring state, identity, database annotations, and complex relationship graphs. Conversely, a DTO is a flat, behaviorless container designed exclusively to shuttle data across application layers—such as from a persistence tier to a RESTful controller or between microservices.\n\nFailing to separate DTOs from Entities introduces severe coupling issues. Exposing Entities directly to external clients leaks database schemas, creates unintentional over-fetching risks via lazy-loading proxies, and exposes sensitive internal attributes like password hashes, audit timestamps, or internal status flags. Furthermore, tightly coupling the database schema to the API contract means that renaming a column or altering a table normalization structure will instantly break downstream API consumers. By introducing DTOs, developers establish a protective anti-corruption layer, allowing the internal domain model to evolve independently of the external presentation contract."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Entities",
+        "DTOs"
+      ],
+      "rows": [
+        [
+          "Primary Purpose",
+          "Represent domain data and business logic state mapped to a database table.",
+          "Transport flattened data payloads across boundaries and layers."
+        ],
+        [
+          "Lifecycle & State",
+          "Managed by an ORM Persistence Context (EntityManager), tracking dirty states.",
+          "Transient, immutable, or mutable simple POJOs with no lifecycle tracking."
+        ],
+        [
+          "API Exposure",
+          "Dangerous; leaks database structure and risks infinite JSON serialization loops.",
+          "Safe and targeted; explicitly designed to fulfill specific API payload contracts."
+        ],
+        [
+          "Validation Rules",
+          "Domain invariants (e.g., must satisfy business rules across multiple tables).",
+          "Payload validation (e.g., JSR-380 annotations for incoming HTTP requests)."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Lazy Initialization Exceptions: Returning an Entity directly through a JSON serializer forces Jackson or Gson to traverse uninitialized Hibernate proxies (`LazyInitializationException`), often triggering the N+1 query problem or serializing entire database graphs unintentionally.",
+        "Security and Mass Assignment Vulnerabilities: Accepting Entities directly in controller methods (`@RequestBody UserEntity`) opens the door to over-posting attacks, where malicious clients inject unauthorized fields like `isAdmin = true` or `balance` into the payload.",
+        "Schema Independence: Decoupling allows database normalization refactoring without breaking client contracts, enabling fields to be split or merged internally while keeping the DTO signature intact via mapping layers like MapStruct."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Entity\n@Table(name = \"users\")\npublic class UserEntity {\n    @Id\n    @GeneratedValue(strategy = GenerationType.IDENTITY)\n    private Long id;\n    private String username;\n    private String passwordHash;\n    @OneToMany(mappedBy = \"user\", fetch = FetchType.LAZY)\n    private List<OrderEntity> orders;\n}\n\npublic record UserResponseDTO(\n    Long id,\n    String username,\n    int totalOrders\n) {}\n\n@Service\npublic class UserService {\n    private final UserRepository userRepository;\n    \n    public UserService(UserRepository userRepository) {\n        this.userRepository = userRepository;\n    }\n\n    public UserResponseDTO getUserProfile(Long id) {\n        UserEntity entity = userRepository.findById(id)\n            .orElseThrow(() -> new EntityNotFoundException(\"User not found\"));\n        return new UserResponseDTO(entity.getId(), entity.getUsername(), entity.getOrders().size());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern is using the Entity as a DTO just because 'it saves boilerplate mapping code.' This inevitably leads to developers adding JSON annotations (`@JsonIgnore`, `@JsonManagedReference`) directly onto domain entities. Over time, these annotations conflict across different API use cases (e.g., a field needed in the admin view must be hidden in the public view), polluting the domain model with presentation concerns."
+    }
+  ],
+  "num": 1229,
+  "title": "Why should DTOs (Data Transfer Objects) be separated from Entities?",
+  "category": "Core Java & Fundamentals"
+}

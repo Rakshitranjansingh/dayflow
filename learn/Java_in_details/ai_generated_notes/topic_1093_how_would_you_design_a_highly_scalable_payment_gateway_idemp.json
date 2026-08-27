@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a payment gateway requires balancing strict financial consistency with massive throughput. Idempotency is the cornerstone of this architecture; it ensures that retried requests—caused by network timeouts or client-side glitches—do not result in duplicate charges. We achieve this by enforcing a unique idempotency key at the API gateway layer, which acts as a guard against redundant processing. ACID properties (Atomicity, Consistency, Isolation, Durability) are non-negotiable here; every transaction must be treated as an atomic unit of work where the state transition from 'PENDING' to 'COMPLETED' or 'FAILED' is persisted durably before acknowledging the client. While traditional 2-Phase Commit (2PC) offers strong consistency across distributed databases, it is often avoided in modern high-scale gateways due to its blocking nature and susceptibility to performance bottlenecks. Instead, we favor the Saga pattern, utilizing event-driven orchestration or choreography to manage distributed transactions across microservices, ensuring eventual consistency without holding long-lived distributed locks that would otherwise cripple our throughput."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Consistency Level",
+        "Performance Impact"
+      ],
+      "rows": [
+        [
+          "2-Phase Commit (2PC)",
+          "Strong (Synchronous)",
+          "High (Blocking/Latency)"
+        ],
+        [
+          "Saga Pattern",
+          "Eventual (Asynchronous)",
+          "Low (Non-blocking)"
+        ],
+        [
+          "Idempotency Keys",
+          "Logical Consistency",
+          "Negligible"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Idempotency implementation: Use a 'distributed lock' or a 'unique constraint' on an idempotency_key column in your database. Before processing, attempt an atomic insert into an 'idempotency_records' table; if it fails due to a unique constraint violation, return the cached result of the previous operation.",
+        "ACID enforcement: Utilize database-level transactions for local state changes. For cross-service operations, rely on the Outbox Pattern to ensure that state changes and event publishing occur atomically, preventing the 'dual write' problem.",
+        "2PC vs Saga: 2PC requires a transaction coordinator and forces all participants to hold locks until the global commit/rollback. In a high-scale gateway, this causes 'lock contention' and 'cascading failures'. Sagas break the transaction into local steps, using compensating transactions to undo previous steps if a later step fails."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Transactional\npublic PaymentResponse processPayment(PaymentRequest req) {\n    // Atomic check for idempotency\n    if (idempotencyRepo.existsById(req.getIdempotencyKey())) {\n        return idempotencyRepo.findById(req.getIdempotencyKey()).getResponse();\n    }\n    \n    // Local ACID transaction\n    Payment p = paymentRepo.save(new Payment(req, Status.PENDING));\n    outboxRepo.save(new OutboxEvent(\"PAYMENT_CREATED\", p));\n    \n    return new PaymentResponse(p.getId(), \"PENDING\");\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never rely on client-generated UUIDs for idempotency without validation. Always verify the request payload hash against the stored idempotency key. If a client sends the same key with a different amount, you must reject it with a 400 Bad Request rather than returning the cached result of the first request, or you risk a severe security vulnerability."
+    }
+  ],
+  "num": 1094,
+  "title": "How would you design a highly scalable Payment Gateway? (Idempotency, 2-phase commit, ACID)",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

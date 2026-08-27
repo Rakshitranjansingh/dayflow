@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "High I/O wait time is a state where the CPU is idle, waiting for the storage subsystem to complete read or write operations. In a database context, this is the primary bottleneck for throughput. When a query requires data not present in the Buffer Pool (the memory cache), the database engine must issue a physical I/O request to the disk. If the disk controller or the underlying storage fabric is saturated, the thread enters an 'I/O wait' state. This is distinct from CPU-bound tasks like complex joins or sorting; it is a latency issue between the compute layer and the persistence layer. Troubleshooting begins by identifying whether the latency is caused by excessive paging, inefficient query plans leading to full table scans, or hardware-level saturation like disk queue depth exhaustion."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Metric",
+        "Significance",
+        "Troubleshooting Tool"
+      ],
+      "rows": [
+        [
+          "iostat -x",
+          "Measures %util and await (average wait time per I/O)",
+          "Linux Sysstat"
+        ],
+        [
+          "Buffer Cache Hit Ratio",
+          "Indicates if data is served from RAM or disk",
+          "DB Engine Views"
+        ],
+        [
+          "Disk Queue Depth",
+          "Number of pending I/O requests waiting for processing",
+          "iostat / sar"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Check for 'Missing Indexes': A full table scan on a multi-gigabyte table forces the storage engine to read every block from disk, causing massive I/O spikes.",
+        "Analyze Buffer Pool sizing: If the database working set is larger than the allocated memory, the system will constantly evict and reload pages, leading to 'thrashing'.",
+        "Examine Checkpoint frequency: Frequent database checkpoints force dirty pages to disk, which can cause intermittent latency spikes if the write-ahead log (WAL) or data files are on slow storage.",
+        "Monitor Swap usage: If the OS starts swapping memory pages to disk, the I/O subsystem becomes overwhelmed by virtual memory management, competing with actual database queries."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "bash",
+      "content": "# Monitor disk utilization and wait times in real-time\niostat -xz 1\n\n# Identify processes causing high I/O wait\niotop -o\n\n# Check for slow queries in Postgres (example)\nSELECT query, calls, total_exec_time, blk_read_time \nFROM pg_stat_statements \nORDER BY blk_read_time DESC LIMIT 10;"
+    },
+    {
+      "type": "note",
+      "content": "A common 'senior' trap is assuming high I/O wait is always a hardware issue. Often, it is a symptom of a 'N+1' query pattern in the application layer. If your Java application executes thousands of small, unindexed queries in a loop, the cumulative I/O wait time will skyrocket even if the total data volume is low. Always check the application's query execution patterns before requesting more IOPS from your infrastructure team."
+    }
+  ],
+  "num": 898,
+  "title": "How do you troubleshoot high I/O wait times on a database server?",
+  "category": "Core Java & Fundamentals"
+}

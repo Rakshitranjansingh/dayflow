@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Aspect-Oriented Programming (AOP) in the Spring Framework provides a way to modularize cross-cutting concerns—functionality like logging, transaction management, security, and caching that spans multiple layers of an application. To achieve this, Spring AOP relies on five core conceptual pillars: Aspect, Advice, Pointcut, Join Point, and Weaving. Understanding how these elements orchestrate at runtime is essential for building maintainable, enterprise-grade applications without polluting core business logic with infrastructure concerns.\n\nAt its core, a Join Point represents a point during the execution of a program, such as the execution of a method or the handling of an exception. In Spring AOP, join points are always method execution points due to the framework's proxy-based runtime architecture. A Pointcut is a predicate or expression that matches these join points, determining precisely which method executions will trigger our cross-cutting behavior. Advice is the actual action or payload executed at a particular join point, manifesting as before, after, or around advice. An Aspect is the modular encapsulation of a concern that cuts across multiple classes, combining both pointcuts and advice into a cohesive unit. Finally, Weaving is the process of linking these aspects with target application objects or types to create an advised object, which in Spring AOP typically happens dynamically at runtime using JDK dynamic proxies or CGLIB subclasses."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "AOP Term",
+        "Definition",
+        "Spring Framework Implementation"
+      ],
+      "rows": [
+        [
+          "Join Point",
+          "A point in application execution (e.g., method execution).",
+          "Restricted strictly to public method executions on Spring beans."
+        ],
+        [
+          "Pointcut",
+          "A regular expression or AspectJ expression matching join points.",
+          "Evaluated using AspectJ pointcut expression language (e.g., execution(* com.example.service.*.*(..)))"
+        ],
+        [
+          "Advice",
+          "The behavioral code executed when a pointcut matches a join point.",
+          "Implemented via annotations like @Before, @AfterReturning, @Around."
+        ],
+        [
+          "Aspect",
+          "The modular unit containing pointcuts, advice, and inter-type declarations.",
+          "A regular Java class annotated with the @Aspect stereotype."
+        ],
+        [
+          "Weaving",
+          "The process of injecting aspects into target object structures.",
+          "Runtime weaving utilizing Spring AOP proxies (JDK dynamic or CGLIB)."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring AOP is entirely runtime-based, meaning it does not modify the bytecode like AspectJ; instead, it wraps target beans in proxy objects that intercept method calls.",
+        "JDK dynamic proxies are utilized when the target class implements at least one interface, proxying all interface methods declared by the target.",
+        "CGLIB proxies are automatically utilized when the target class implements no interfaces, generating a runtime subclass that overrides non-final methods using bytecode generation libraries.",
+        "Around advice (@Around) is the most powerful advice type, receiving a ProceedingJoinPoint handle that allows the developer to explicitly control whether, when, and how the underlying target method executes."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Aspect\n@Component\npublic class ExecutionTimeLoggingAspect {\n\n    private static final Logger log = LoggerFactory.getLogger(ExecutionTimeLoggingAspect.class);\n\n    @Pointcut(\"execution(* com.example.service.*.*(..))\")\n    public void serviceLayerExecution() {}\n\n    @Around(\"serviceLayerExecution()\")\n    JvmTarget logExecutionTime(ProceedingJoinPoint joinPoint) throws Throwable {\n        long start = System.currentTimeMillis();\n        try {\n            return joinPoint.proceed();\n        } finally {\n            long duration = System.currentTimeMillis() - start;\n            log.info(\"Method [{}] executed in {} ms\", joinPoint.getSignature().toShortString(), duration);\n        }\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production pitfall in Spring AOP occurs due to self-invocation. If a transactional or secured method calls another method within the same target class directly (using 'this.methodName()'), the call bypasses the Spring AOP proxy entirely, rendering your Advice, Pointcut, and Join Point triggers completely ineffective. To fix this, either refactor the methods into separate Spring beans or programmatically obtain the current proxy via AopContext.currentProxy()."
+    }
+  ],
+  "num": 227,
+  "title": "Aspect, Advice, Pointcut, Join Point, Weaving",
+  "category": "Spring Boot & Spring Framework"
+}

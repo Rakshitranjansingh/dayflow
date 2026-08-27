@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In Java concurrency, interruption is a cooperative mechanism used to signal to a thread that it should stop what it is doing and terminate or transition to a different state. Unlike the deprecated Thread.stop() method, which forcibly kills a thread—risking corrupted object states and inconsistent locks—interruption acts as an advisory flag. When you call thread.interrupt(), the JVM sets an internal boolean status on the target thread. If the thread is currently blocked in a method like Object.wait(), Thread.sleep(), or BlockingQueue.put(), the JVM clears the interrupt status and throws an InterruptedException. This design forces the developer to acknowledge the request, ensuring that cleanup logic, such as closing file handles or releasing database connections, can execute safely before the thread exits.\n\nHandling InterruptedException properly is a critical skill for building robust, responsive systems. The exception exists precisely because the thread was blocked while waiting for a resource; swallowing this exception by simply logging it or ignoring it is a common anti-pattern that leads to 'zombie' threads that cannot be shut down by thread pools or application lifecycle managers. Proper handling requires either propagating the exception up the call stack to a level that knows how to handle the termination, or restoring the interrupted status so that higher-level code can detect that an interruption occurred."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "When to use",
+        "Risk"
+      ],
+      "rows": [
+        [
+          "Propagate",
+          "When the method signature allows throwing InterruptedException",
+          "None; preferred approach"
+        ],
+        [
+          "Restore Status",
+          "When you must catch the exception inside a Runnable or lambda",
+          "Requires careful loop condition checks"
+        ],
+        [
+          "Swallow",
+          "Almost never",
+          "High; thread becomes unresponsive to shutdown signals"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The JVM's interrupt status is a volatile boolean flag; calling Thread.interrupted() clears this flag, while Thread.currentThread().isInterrupted() checks it without side effects.",
+        "Blocking I/O operations in java.io are generally not interruptible. If a thread is blocked on a socket read, it will remain blocked until the I/O completes or the socket is closed, even if interrupted.",
+        "NIO (java.nio) provides InterruptibleChannel, which allows threads blocked on I/O to be interrupted by closing the channel, triggering an AsynchronousCloseException.",
+        "When catching InterruptedException, the interrupt flag is cleared automatically by the JVM; if you don't re-interrupt, the information that an interrupt was requested is lost to the rest of the call stack."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public void runTask() {\n    try {\n        while (!Thread.currentThread().isInterrupted()) {\n            // Perform work\n            Thread.sleep(1000);\n        }\n    } catch (InterruptedException e) {\n        // Restore the interrupted status so callers know it happened\n        Thread.currentThread().interrupt();\n        // Perform cleanup here\n        System.err.println(\"Task interrupted, cleaning up...\");\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: The most dangerous mistake is catching InterruptedException and doing nothing. If you are using an ExecutorService, the pool relies on interruption to shut down worker threads. If you swallow the exception, the thread pool will hang indefinitely during shutdown, causing a memory leak or preventing the JVM from exiting. Always re-interrupt the thread if you cannot propagate the exception."
+    }
+  ],
+  "num": 664,
+  "title": "What is interruption? How do you handle InterruptedException properly?",
+  "category": "Exception Handling & I/O / NIO"
+}

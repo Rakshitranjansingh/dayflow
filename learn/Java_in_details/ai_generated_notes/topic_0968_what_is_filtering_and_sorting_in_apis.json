@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern RESTful architectures, filtering and sorting are foundational mechanisms for querying large datasets efficiently across HTTP boundaries. Filtering allows clients to narrow down resource collections using conditional criteria (such as status equals active or price less than 100), while sorting dictates the sequential arrangement of those results based on one or more attributes in ascending or descending order. Without these capabilities, APIs quickly become impractical due to payload bloat, severe network latency, and database performance degradation caused by fetching unindexed, unbounded collections. Implementing these patterns correctly requires careful translation from HTTP query parameters into database query building blocks, such as JPA Criteria API predicates or SQL WHERE clauses, while defending against common vulnerabilities like SQL injection and Denial of Service attacks driven by unconstrained sort depth."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Filtering",
+        "Sorting"
+      ],
+      "rows": [
+        [
+          "Primary Goal",
+          "Reduce dataset cardinality based on predicates",
+          "Order dataset deterministically by attributes"
+        ],
+        [
+          "HTTP Syntax Example",
+          "GET /api/users?status=ACTIVE&age[gte]=21",
+          "GET /api/users?sort=lastName,asc&sort=createdAt,desc"
+        ],
+        [
+          "Database Impact",
+          "Utilizes indexes on filtered columns to reduce rows scanned",
+          "Requires index sorting or temporary files for large sort buffers"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Filtering requires careful handling of operator mapping (e.g., eq, ne, gt, lte, in) to avoid deeply nested and unmaintainable conditional logic in service layers.",
+        "Sorting introduces memory pressure on the database when sorting large result sets that cannot be satisfied by an existing B-Tree index, often spilling over to disk-based temporary storage if sort_buffer_size is exceeded.",
+        "API design must incorporate strict white-listing of filterable and sortable fields to prevent information disclosure and performance degradation via unindexed ad-hoc queries."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/products\")\npublic class ProductController {\n\n    private final ProductRepository productRepository;\n\n    public ProductController(ProductRepository productRepository) {\n        this.productRepository = productRepository;\n    }\n\n    @GetMapping\n    public ResponseEntity<List<Product>> getProducts(\n            @RequestParam(required = false) String category,\n            @RequestParam(required = false) BigDecimal maxPrice,\n            Pageable pageable) {\n        \n        Specification<Product> spec = Specification.where(null);\n        \n        if (category != null) {\n            spec = spec.and((root, query, cb) -> cb.equal(root.get(\"category\"), category));\n        }\n        if (maxPrice != null) {\n            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get(\"price\"), maxPrice));\n        }\n        \n        Page<Product> page = productRepository.findAll(spec, pageable);\n        return ResponseEntity.ok(page.getContent());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production anti-pattern is allowing clients to pass arbitrary property names directly into Spring Data's Sort object without validation. Malicious or naive callers can request sorting on unindexed, high-cardinality text columns, triggering filesort operations that exhaust database CPU and memory, ultimately causing a cascading failure of the entire backend service."
+    }
+  ],
+  "num": 969,
+  "title": "What is filtering and sorting in APIs?",
+  "category": "Core Java & Fundamentals"
+}

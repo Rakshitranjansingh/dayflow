@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "An API Gateway acts as the unified entry point for a microservices architecture, decoupling the client-facing interface from the underlying service topology. In a distributed system, clients rarely interact with individual services directly; instead, the Gateway handles cross-cutting concerns, ensuring that internal service complexity remains abstracted. Routing is the primary function, where the gateway maps incoming HTTP requests to specific downstream service instances based on path, headers, or predicates. Rate Limiting protects these downstream services from resource exhaustion by enforcing traffic quotas—often using the Token Bucket algorithm—to prevent a single noisy neighbor from degrading system-wide performance. Authentication serves as the security perimeter, where the gateway validates JWTs or session tokens, offloading the burden of credential verification from individual microservices and ensuring that only authorized traffic enters the internal network.\n\nSpring Cloud Gateway is the industry-standard implementation within the Spring ecosystem, built on top of Project Reactor and Netty. Unlike traditional blocking gateways, it is non-blocking and reactive, allowing it to handle high concurrency with a minimal memory footprint. It leverages the Gateway Handler Mapping to match requests against defined routes, which are then processed through a chain of filters. These filters are the engine of the gateway, allowing developers to modify requests and responses, inject security headers, or perform circuit breaking using Resilience4j integration."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Responsibility",
+        "Mechanism",
+        "Benefit"
+      ],
+      "rows": [
+        [
+          "Routing",
+          "Predicate-based matching",
+          "Service abstraction"
+        ],
+        [
+          "Rate Limiting",
+          "Redis-backed Token Bucket",
+          "System stability"
+        ],
+        [
+          "Authentication",
+          "JWT/OAuth2 validation",
+          "Centralized security"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring Cloud Gateway utilizes the WebFlux framework, meaning the entire request-response cycle is handled by non-blocking event loops, preventing thread starvation during high-latency downstream calls.",
+        "Routing logic is defined via RouteDefinitionLocators, which can be configured statically in YAML or dynamically via a database or discovery service like Eureka.",
+        "Global Filters execute on every request, while Gateway Filters are scoped to specific routes, providing granular control over request transformation and security enforcement.",
+        "Rate limiting is typically implemented using the RequestRateLimiter filter, which requires a Redis store to maintain state across multiple gateway instances in a clustered environment."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "spring:\n  cloud:\n    gateway:\n      routes:\n        - id: user-service-route\n          uri: lb://user-service\n          predicates:\n            - Path=/users/**\n          filters:\n            - name: RequestRateLimiter\n              args:\n                redis-rate-limiter.replenishRate: 10\n                redis-rate-limiter.burstCapacity: 20\n            - TokenRelay"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is treating the API Gateway as a business logic layer. Avoid implementing complex domain logic here; keep it strictly for infrastructure concerns. Also, be wary of the 'Gateway Bottleneck'—if your gateway performs heavy synchronous processing or lacks proper timeout configurations, it becomes a single point of failure that can take down your entire ecosystem. Always configure circuit breakers for every downstream route."
+    }
+  ],
+  "num": 1038,
+  "title": "What is an API Gateway? What are its responsibilities? (Routing, Rate Limiting, Authentication). Spring Cloud Gateway?",
+  "category": "Spring Security & Web Security"
+}

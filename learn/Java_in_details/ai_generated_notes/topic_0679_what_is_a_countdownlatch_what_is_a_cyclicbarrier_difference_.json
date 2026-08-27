@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java Concurrency API, both CountDownLatch and CyclicBarrier are synchronization primitives used to coordinate threads, but they serve fundamentally different architectural purposes. A CountDownLatch is a one-shot synchronization aid that allows one or more threads to wait until a set of operations being performed in other threads completes. It functions like a countdown timer: you initialize it with a count, and threads call countDown() to decrement that value. Once the count reaches zero, the waiting threads are released. Because the latch is not resettable, it is ideal for scenarios like 'wait for all services to initialize' or 'wait for a specific number of worker threads to finish a task batch.'\n\nConversely, a CyclicBarrier is designed for scenarios where a fixed number of threads must wait for each other to reach a common execution point, known as a barrier point. Unlike the latch, it is 'cyclic' because it can be reused after the waiting threads are released. When the last thread calls await(), the barrier trips, and an optional barrier action (a Runnable) can be executed before all threads are released to continue their work. This is the standard tool for parallel iterative algorithms, such as matrix multiplication or parallel sorting, where threads must synchronize state at the end of every computation phase."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "CountDownLatch",
+        "CyclicBarrier"
+      ],
+      "rows": [
+        [
+          "Reusability",
+          "Single-use (cannot be reset)",
+          "Reusable (resets after tripping)"
+        ],
+        [
+          "Primary Use Case",
+          "Waiting for external events/tasks",
+          "Threads waiting for each other"
+        ],
+        [
+          "Wait Mechanism",
+          "Main thread waits for workers",
+          "Workers wait for each other"
+        ],
+        [
+          "Barrier Action",
+          "Not supported",
+          "Supported (optional Runnable)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "CountDownLatch internal state is managed by a private static inner class extending AbstractQueuedSynchronizer (AQS). The 'count' is stored as the AQS state, and countDown() performs a releaseShared operation, while await() performs an acquireSharedInterruptibly.",
+        "CyclicBarrier uses a ReentrantLock and a Condition object internally. When a thread calls await(), it acquires the lock, decrements the count, and waits on the Condition. The last thread to arrive triggers the signalAll() on the condition, effectively waking all blocked threads.",
+        "The 'broken' state in CyclicBarrier is a critical safety mechanism. If any thread waiting at the barrier is interrupted or times out, the barrier is considered 'broken,' and all other waiting threads will receive a BrokenBarrierException, preventing deadlocks in partially completed parallel tasks."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// CountDownLatch: Main thread waits for 3 workers\nCountDownLatch latch = new CountDownLatch(3);\n// Worker: latch.countDown();\n\n// CyclicBarrier: 3 threads waiting for each other\nCyclicBarrier barrier = new CyclicBarrier(3, () -> System.out.println(\"Phase complete\"));\n// Worker: barrier.await();"
+    },
+    {
+      "type": "note",
+      "content": "Senior Engineer Insight: Never use a CountDownLatch when you need to repeat a synchronization point inside a loop; you will be forced to instantiate a new latch object every iteration, causing unnecessary GC pressure. Use CyclicBarrier for iterative synchronization. Also, watch out for the 'barrier action' in CyclicBarrier—it executes in the thread that trips the barrier, meaning if your barrier action is heavy, it will block the final worker from proceeding until the action completes."
+    }
+  ],
+  "num": 680,
+  "title": "What is a CountDownLatch? What is a CyclicBarrier? Difference between them?",
+  "category": "Multithreading & Java Concurrency"
+}

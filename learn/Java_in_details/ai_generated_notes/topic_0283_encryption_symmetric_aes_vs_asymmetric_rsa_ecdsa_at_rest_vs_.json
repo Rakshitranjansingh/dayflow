@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern distributed microservices architectures, securing data both at rest and in transit is an absolute requirement, especially when exposing sensitive endpoints over reactive REST APIs built on WebFlux. Data at rest refers to static information persisted in relational databases, document stores, object storage, or cached inside distributed grids like Redis. Securing this typically leverages symmetric encryption, specifically the Advanced Encryption Standard (AES), due to its immense throughput and low CPU overhead. AES operates on fixed 128-bit blocks using cipher block chaining or Galois/Counter Mode (GCM), requiring a secret key shared exclusively between authorized internal components. Conversely, data in transit refers to information moving across networks—such as client-to-gateway TLS handshakes or inter-service HTTP/2 calls. While transport layer security secures the wire, application-layer payloads often demand end-to-end cryptographic guarantees, bringing asymmetric cryptography into play.\n\nAsymmetric cryptography relies on mathematically linked key pairs: a public key for encryption or signature verification, and a private key for decryption or signing. Two foundational asymmetric algorithms dominate enterprise ecosystems: RSA (Rivest-Shamir-Adleman), which relies on the computational difficulty of factoring large prime numbers, and ECDSA (Elliptic Curve Digital Signature Algorithm), which provides equivalent security to much larger RSA keys using the algebraic structure of elliptic curves over finite fields. In high-throughput reactive microservices, asymmetric algorithms are prohibitively expensive for bulk data payloads. Instead, architectures employ hybrid encryption schemes: asymmetric algorithms securely exchange ephemeral symmetric keys, and AES handles the high-volume payload encryption both in transit and at rest."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Cryptographic Dimension",
+        "Symmetric Encryption (AES)",
+        "Asymmetric Encryption (RSA / ECDSA)"
+      ],
+      "rows": [
+        [
+          "Key Architecture",
+          "Single shared secret key used for both encryption and decryption.",
+          "Mathematical key pair: Public key for encryption/verify, Private key for decryption/sign."
+        ],
+        [
+          "Computational Overhead",
+          "Extremely low; highly optimized via hardware instructions (AES-NI).",
+          "High; requires intensive modular exponentiation or scalar multiplication."
+        ],
+        [
+          "Primary Domain",
+          "Bulk data protection, database column encryption, file storage (at rest).",
+          "Digital signatures, identity verification, initial key exchange (in transit/handshakes)."
+        ],
+        [
+          "Key Distribution Risk",
+          "High risk; secure channel required to share the secret key prior to use.",
+          "Low risk; public keys can be distributed openly without compromising security."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "AES-GCM (Galois/Counter Mode) provides authenticated encryption with associated data (AEAD), ensuring both confidentiality and integrity by producing an authentication tag that detects tampering.",
+        "In reactive WebFlux pipelines, blocking cryptographic operations (like synchronous java.security.Signature calls or large RSA decryptions) on the event-loop threads will cause severe latency spikes; offload crypto processing to bounded elastic schedulers using Mono.fromCallable().",
+        "ECDSA offers significantly smaller key sizes than RSA (e.g., a 256-bit ECDSA key offers comparable security to a 3072-bit RSA key), translating to reduced memory footprints, faster handshakes, and smaller TLS certificate chains.",
+        "Data at rest encryption keys must be managed via a robust key management service (KMS) or envelope encryption pattern, where a Master Key encrypts a Data Encryption Key (DEK), mitigating the blast radius of a key compromise."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.enterprise.security;\n\nimport javax.crypto.Cipher;\nimport javax.crypto.KeyGenerator;\nimport javax.crypto.SecretKey;\nimport javax.crypto.spec.GCMParameterSpec;\nimport java.nio.ByteBuffer;\nimport java.security.SecureRandom;\nimport reactor.core.publisher.Mono;\nimport reactor.core.scheduler.Schedulers;\n\npublic class ReactiveAesService {\n    private static final String ALGORITHM = \"AES/GCM/NoPadding\";\n    private static final int TAG_LENGTH_BIT = 128;\n    private static final int IV_LENGTH_BYTE = 12;\n\n    public Mono<byte[]> encrypt(byte[] plaintext, SecretKey secretKey) {\n        return Mono.fromCallable(() -> {\n            byte[] iv = new byte[IV_LENGTH_BYTE];\n            new SecureRandom().nextBytes(iv);\n            \n            Cipher cipher = Cipher.getInstance(ALGORITHM);\n            GCMParameterSpec parameterSpec = new GCMParameterSpec(TAG_LENGTH_BIT, iv);\n            cipher.init(Cipher.ENCRYPT_MODE, secretKey, parameterSpec);\n            \n            byte[] ciphertext = cipher.doFinal(plaintext);\n            \n            ByteBuffer byteBuffer = ByteBuffer.allocate(iv.length + ciphertext.length);\n            byteBuffer.put(iv);\n            byteBuffer.put(ciphertext);\n            return byteBuffer.array();\n        }).subscribeOn(Schedulers.boundedElastic());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production pitfall in WebFlux applications is reusing the same Initialization Vector (IV) or nonce with AES-GCM. Reusing an IV with the same secret key completely breaks the confidentiality guarantees of GCM, allowing attackers to recover plaintexts or forge authentication tags. Always generate a cryptographically secure, randomized 12-byte IV for every single encryption operation and prepend it to the ciphertext payload."
+    }
+  ],
+  "num": 284,
+  "title": "Encryption — symmetric (AES) vs asymmetric (RSA/ECDSA), at rest vs in transit",
+  "category": "REST APIs, WebFlux & Microservices"
+}

@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Master-Slave architecture is a foundational design pattern in distributed systems and database scaling where a single designated node, known as the master, is granted exclusive authority to handle write operations, state mutations, and coordination. The master node then asynchronously or synchronously propagates these state changes to one or more slave nodes, alternatively known as replicas or read-replicas. In high-performance enterprise Java applications, handling read-heavy systems requires leveraging this pattern to horizontally scale throughput by diverting intensive query traffic away from the primary bottleneck—the master—and distributing it evenly across the slave fleet.\n\nWhen scaling a read-heavy system, the primary challenge is maintaining data consistency without sacrificing the low latency required by high-throughput backend services. Since the master processes all INSERT, UPDATE, and DELETE queries, replication lag becomes an inherent operational concern. If a client executes a write operation on the master and immediately attempts to read that data from a slave before replication has completed, the system encounters read-your-writes consistency failures. To mitigate this in a Java-centric architecture, modern persistence layers implement sophisticated routing strategies using frameworks like Spring Data JPA with dynamic AbstractRoutingDataSource beans, routing write-bound transactions to the primary data source and read-only transactions to replica pools using round-robin or least-connection algorithms."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Master Node",
+        "Slave Node"
+      ],
+      "rows": [
+        [
+          "Write Capability",
+          "Full Read/Write authority",
+          "Read-only (writes rejected or ignored)"
+        ],
+        [
+          "Failure Handling",
+          "Triggers automated failover (e.g., Raft/ZooKeeper election)",
+          "Removed from pool or automatically reprovisioned"
+        ],
+        [
+          "Data Consistency",
+          "Source of truth (Strong consistency)",
+          "Eventually consistent (subject to replication lag)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Replication Topologies: Masters propagate changes via statement-based, row-based, or mixed-format binlogs (in relational databases like MySQL) or via replication logs (like PostgreSQL WAL streaming), which slaves tail and apply locally.",
+        "Routing Persistence Contexts: In Java, Hibernate and JPA second-level caches and session factories must be carefully configured alongside routing data sources to prevent stale cache entries from serving outdated reads from slave nodes.",
+        "Read-After-Write Consistency Patterns: Implementing sticky sessions, caching recently written IDs in a fast distributed cache like Redis, or forcing reads to the master for a short TTL after a write operation guarantees data freshness for critical user journeys."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class MasterSlaveRoutingDataSource extends AbstractRoutingDataSource {\n    @Override\n    protected Object determineCurrentLookupKey() {\n        // TransactionSynchronizationManager determines if the current transaction is read-only\n        return TransactionSynchronizationManager.isCurrentTransactionReadOnly() \n            ? TargetDataSource.SLAVE \n            : TargetDataSource.MASTER;\n    }\n}\n\n// Configuration usage in Spring\n@Configuration\npublic class DataSourceConfig {\n    @Bean\n    @Primary\n    public DataSource dataSource(\n            @Qualifier(\"masterDataSource\") DataSource master,\n            @Qualifier(\"slaveDataSource\") DataSource slave) {\n        Map<Object, Object> targetDataSources = new HashMap<>();\n        targetDataSources.put(TargetDataSource.MASTER, master);\n        targetDataSources.put(TargetDataSource.SLAVE, slave);\n        \n        MasterSlaveRoutingDataSource routingDataSource = new MasterSlaveRoutingDataSource();\n        routingDataSource.setTargetDataSources(targetDataSources);\n        routingDataSource.setDefaultTargetDataSource(master);\n        return routingDataSource;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic 7+ YOE production gotcha in Master-Slave setups involves unannotated transactional methods. If a developer forgets to mark a service method as `@Transactional(readOnly = true)`, Spring routes the entire execution to the Master node by default. Under peak read-heavy traffic, this silent misconfiguration can saturate your primary database's connection pool, bypassing your slave replicas entirely and causing cascading outages."
+    }
+  ],
+  "num": 895,
+  "title": "Explain Master-Slave architecture. How do you handle read-heavy systems?",
+  "category": "Core Java & Fundamentals"
+}

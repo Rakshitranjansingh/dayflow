@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing robust error responses is a critical discipline in modern software engineering, bridging the gap between client-side consumption and server-side failure handling. When an enterprise system encounters an exceptional state—whether due to an invalid payload, an exhausted database connection pool, or unauthorized access—simply throwing a raw stack trace or returning an unstructured HTTP 500 status code compromises client stability and security. A well-designed error response contract ensures that consumers can programmatically interpret failures, parse validation constraints per field, and display meaningful diagnostics without exposing internal implementation details like database schemas or underlying class paths.\n\nAt the core of professional API design lies the adoption of standardized specifications such as RFC 7807 (Problem Details for HTTP APIs). By standardizing error payloads around consistent keys—such as type, title, status, detail, and instance—teams eliminate ad-hoc JSON structures across microservices. In Java ecosystems, this involves intercepting exceptions globally via centralized exception handlers, mapping domain-specific errors to appropriate HTTP status codes, and serializing deterministic payloads. This approach eliminates ambiguity, streamlines frontend exception parsing, and drastically reduces integration friction between disparate services."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Design Strategy",
+        "Pros",
+        "Cons"
+      ],
+      "rows": [
+        [
+          "Ad-hoc Custom JSON",
+          "Easy to implement initially; highly flexible for ad-hoc needs.",
+          "No standardization; forces clients to write brittle, endpoint-specific parsing logic."
+        ],
+        [
+          "RFC 7807 Problem Details",
+          "Industry standard; highly predictable structure; native framework support.",
+          "Can feel overly verbose for extremely simple CRUD applications."
+        ],
+        [
+          "Plain Text / HTML Stack Trace",
+          "Requires zero configuration.",
+          "Severe security risk; completely machine-unreadable; breaks API clients."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Map domain-specific exceptions to accurate HTTP status codes (e.g., ResourceNotFoundException to 404, InsufficientStockException to 422 Unprocessable Entity).",
+        "Include a machine-readable error code alongside human-readable text to allow client-side localization and conditional business logic branching.",
+        "Aggregate multiple field-level validation errors into a centralized list inside the error envelope rather than failing fast on the first invalid property.",
+        "Sanitize exception messages in production environments to prevent sensitive internal telemetry, SQL strings, or system paths from leaking to external callers."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public record ApiErrorResponse(\n    String timestamp,\n    int status,\n    String error,\n    String errorCode,\n    String message,\n    String path,\n    List<ValidationError> validationErrors\n) {\n    public record ValidationError(String field, String rejectedValue, String message) {}\n}\n\n@RestControllerAdvice\npublic class GlobalExceptionHandler extends ResponseEntityExceptionHandler {\n\n    @ExceptionHandler(ResourceNotFoundException.class)\n    public ResponseEntity<ApiErrorResponse> handleNotFound(ResourceNotFoundException ex, WebRequest request) {\n        ApiErrorResponse response = new ApiErrorResponse(\n            Instant.now().toString(),\n            HttpStatus.NOT_FOUND.value(),\n            HttpStatus.NOT_FOUND.getReasonPhrase(),\n            \"ERR_RESOURCE_NOT_FOUND\",\n            ex.getMessage(),\n            request.getDescription(false).replace(\"uri=\", \"\"),\n            null\n        );\n        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha is including the full Java stack trace in the error response body during a NullPointerException or IllegalStateException. Not only does this bloat payload sizes and log volumes, but it also leaks internal library versions and package hierarchies to malicious actors. Always restrict stack trace exposure to secure server-side log aggregators while returning a unique tracking correlation ID to the client for support tracing."
+    }
+  ],
+  "num": 1215,
+  "title": "What is the best way to design error responses?",
+  "category": "Core Java & Fundamentals"
+}

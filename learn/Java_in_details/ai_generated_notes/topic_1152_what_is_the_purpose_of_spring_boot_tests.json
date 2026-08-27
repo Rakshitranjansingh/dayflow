@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Spring Boot tests exist to validate the end-to-end integration, slice configuration, and deterministic behavior of modern cloud-native Java applications without requiring manual, brittle deployments. In a standard enterprise architecture, verifying that decoupled Spring components wire correctly via Inversion of Control (IoC), that custom starters configure their auto-configurations properly, and that transactional database interactions execute against real persistence layers can quickly become an engineering bottleneck. Spring Boot tests solve this by providing specialized testing slices and annotations that bootstrap only the necessary layers of the ApplicationContext, striking a precise balance between rapid execution speed and high-fidelity runtime confidence.\n\nAt the core of Spring Boot testing is the `@SpringBootTest` annotation, which loads the complete ApplicationContext to simulate a production-like environment, alongside slice annotations such as `@WebMvcTest`, `@DataJpaTest`, and `@JsonTest` that optimize feedback loops by loading isolated architectural boundaries. By leveraging property overriding, randomized or embedded test ports, and mock bean environments, Spring Boot tests empower developers to catch wiring errors, configuration drift, and query regressions before code ever reaches a continuous integration pipeline."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Test Annotation",
+        "Target Layer Loaded",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "@SpringBootTest",
+          "Full ApplicationContext",
+          "End-to-end integration testing, validating full bean wiring and server startup."
+        ],
+        [
+          "@WebMvcTest",
+          "Web Layer (Controllers, Filters, MockMvc)",
+          "Testing HTTP endpoints, serialization, and security rules without a running servlet container."
+        ],
+        [
+          "@DataJpaTest",
+          "Persistence Layer (Repositories, DataSource, EntityManager)",
+          "Testing Spring Data JPA repositories, executing schema validation, and running transactional SQL queries."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Slice testing minimizes memory footprints and reduces execution time by selectively loading only auto-configuration classes pertinent to the specified slice, ignoring irrelevant services or web servers.",
+        "The TestRestTemplate and WebTestClient utilities provide non-blocking and blocking abstractions to execute HTTP assertions against randomized local ports during full integration tests.",
+        "@MockBean and @SpyBean dynamically manipulate the live ApplicationContext, allowing developers to replace actual Spring beans with Mockito mocks or spies for targeted isolation without rebooting the container."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@DataJpaTest\n@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)\npublic class UserRepositoryIntegrationTest {\n\n    @Autowired\n    private TestEntityManager entityManager;\n\n    @Autowired\n    private UserRepository userRepository;\n\n    @Test\n    public void whenFindByName_thenReturnEmployee() {\n        // given\n        User alex = new User(\"Alex\");\n        entityManager.persist(alex);\n        entityManager.flush();\n\n        // when\n        User found = userRepository.findByName(alex.getName());\n\n        // then\n        assertThat(found.getName()).isEqualTo(alex.getName());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent production trap when writing Spring Boot tests is the inadvertent pollution of the ApplicationContext. Because Spring caches loaded contexts across test methods based on the configuration (such as defined @MockBean instances or unique property overrides), introducing a new mock in a single test class forces Spring to spin up a completely new context, exponentially increasing build times in large enterprise suites. Always group tests with identical context configurations together, and be wary of heavy state pollution in shared static contexts."
+    }
+  ],
+  "num": 1153,
+  "title": "What is the purpose of Spring Boot tests?",
+  "category": "Spring Boot & Spring Framework"
+}

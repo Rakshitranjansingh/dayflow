@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A sticky session (also known as session affinity) is a load-balancing strategy where a reverse proxy or load balancer routes all requests from a specific client IP or session cookie to the exact same backend server instance throughout the lifecycle of that user's interaction. In traditional stateless web architectures, any backend server should be able to handle any request by pulling state from a centralized store like Redis or a database. However, legacy systems, monolithic applications, or performance-critical services often cache user state—such as authentication tokens, shopping cart items, or workflow progress—directly in the local JVM heap or servlet session container of a single application node. Sticky sessions solve the distributed state problem temporarily by forcing state locality, ensuring that subsequent requests land where the cached state already resides.\n\nDespite its convenience for avoiding distributed caching overhead, sticky session introduces severe architectural risks. The primary danger is asymmetric load distribution, commonly known as the hot-spotting problem. If a single user or a small group of heavy users generate massive traffic, their designated backend node will saturate its CPU and memory, completely bypassing the horizontal scalability benefits of the wider cluster. Furthermore, sticky sessions destroy system resilience and fault tolerance. When a backend server crashes, undergoes a rolling deployment, or is scaled down by an autoscaler, all associated client sessions stored in that node's memory are abruptly lost. Users find themselves suddenly logged out, mid-transaction states are corrupted, and fallback mechanisms often cascade failure across the remaining nodes as they absorb the orphaned traffic."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Sticky Session (Affinity)",
+        "Stateless / Distributed Session"
+      ],
+      "rows": [
+        [
+          "State Storage Location",
+          "Local JVM heap / Servlet container memory of a single backend node",
+          "Externalized datastore (e.g., Redis, Hazelcast, Database)"
+        ],
+        [
+          "Load Balancer Complexity",
+          "Requires cookie inspection, IP hashing, or routing table state maintenance",
+          "Simple round-robin, least-connections, or random distribution"
+        ],
+        [
+          "Failure Blast Radius",
+          "Node crash instantly terminates and logs out all attached user sessions",
+          "Node crash is completely transparent; session persists in distributed cache"
+        ],
+        [
+          "Horizontal Scalability",
+          "Prone to traffic hotspots and uneven resource utilization across instances",
+          "Near-linear scalability with seamless dynamic node addition/removal"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Session Cookie Injection: The load balancer typically injects a custom routing cookie (e.g., AWSALB, JSESSIONID with a route suffix) during the initial HTTP handshake to permanently map subsequent requests to the target container.",
+        "Garbage Collection Pressure: Local session caching inside the JVM heap causes erratic Garbage Collection pauses, as long-lived session objects prematurely promote to the Old Generation and suffer from fragmentation.",
+        "Rolling Deployment Failures: During zero-downtime deployments, terminating an instance immediately drops sticky connections, requiring graceful connection draining and sticky failover configuration on the proxy.",
+        "Security and IP Spoofing: IP-based sticky sessions break completely behind corporate proxies, NAT gateways, or mobile networks where millions of distinct users share a single outward-facing IP address."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class SessionConfiguration {\n    // In modern cloud-native architectures, we avoid sticky sessions entirely\n    // by externalizing session state into a distributed Redis cluster using Spring Session.\n    \n    @Bean\n    public ConfigureRedisHttpSession redisHttpSessionConfig() {\n        // Configures HttpSession to transparently serialize attributes to Redis,\n        // rendering backend nodes completely stateless and immune to sticky session risks.\n        return new ConfigureRedisHttpSession();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Production Gotcha: Never rely solely on application container sticky sessions for WebSocket or persistent NIO connections. If an infrastructure autoscaler scales in an underutilized node, an active WebSocket connection multiplexed over a sticky session will be brutally severed without application-level awareness, resulting in missed heartbeats and corrupted client states. Always implement application-level reconnection logic and externalize pub/sub state via Redis or Kafka rather than trusting layer-7 load balancer affinity."
+    }
+  ],
+  "num": 1083,
+  "title": "What is sticky session, and why is it risky?",
+  "category": "Exception Handling & I/O / NIO"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Java Message Service (JMS) is a Java Message Oriented Middleware (MOM) API that facilitates the enterprise-grade sending and receiving of messages between distributed applications. JMS basics encompass the core architecture required for asynchronous, loosely coupled communication, decoupling the message producer from the consumer via a common messaging broker. In high-throughput backend systems, synchronous HTTP or RPC calls can lead to cascading failures if a downstream service goes down. JMS solves this by introducing a durable message broker that buffers payloads, ensuring reliable delivery, load balancing across worker pools, and fault tolerance even during temporary network partitions or service outages."
+    },
+    {
+      "type": "prose",
+      "content": "At the heart of the JMS programming model are two primary messaging domains: Point-to-Point (Queues) and Publish-Subscribe (Topics). In the Point-to-Point domain, a message is addressed to a specific queue, and only one consumer from a pool of workers will successfully process that message, ensuring competing-consumer load balancing. Conversely, the Publish-Subscribe domain broadcasts messages to a topic, where multiple independent subscribers can register interest and receive their own independent copy of every published message, enabling event-driven architectures. Understanding these abstractions requires mastering administrative objects like ConnectionFactory, Destination, Connection, Session, MessageProducer, and MessageConsumer."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "JMS Concept",
+        "Point-to-Point (Queue)",
+        "Publish-Subscribe (Topic)"
+      ],
+      "rows": [
+        [
+          "Delivery Model",
+          "One-to-One (Competing Consumers)",
+          "One-to-Many (Broadcasting)"
+        ],
+        [
+          "Message Persistence",
+          "Typically retained until consumed by a single worker",
+          "Retained for active subscribers or durable subscriptions"
+        ],
+        [
+          "Typical Use Case",
+          "Work queue distribution, asynchronous task processing",
+          "Event notification, real-time broadcasting, pub-sub architectures"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "ConnectionFactory represents the configuration context used by a client to establish a socket-level connection to the JMS broker, handling credential negotiation and TCP pooling settings.",
+        "Session is a single-threaded context used for producing and consuming messages. It manages transactions, acknowledgments (CLIENT_ACKNOWLEDGE, AUTO_ACKNOWLEDGE, DUPS_OK_ACKNOWLEDGE), and local message factories.",
+        "Destinations encapsulate physical message stores on the broker: Queues for point-to-point routing and Topics for hierarchical or broadcast pub-sub message distribution.",
+        "Message lifecycle involves creation via session factories, setting optional headers (JMSCorrelationID, JMSExpiration, JMSPriority), and dispatching via producers."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import javax.jms.*;\nimport org.apache.activemq.ActiveMQConnectionFactory;\n\npublic class JmsProducerExample {\n    public static void main(String[] args) throws JMSException {\n        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory(\"tcp://localhost:61616\");\n        Connection connection = connectionFactory.createConnection();\n        connection.start();\n\n        Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);\n        Destination destination = session.createQueue(\"PAYMENT.PROCESSING.QUEUE\");\n\n        MessageProducer producer = session.createProducer(destination);\n        TextMessage message = session.createTextMessage(\"Payload: Order #10849\");\n        \n        producer.send(message);\n        System.out.println(\"Successfully sent message to JMS broker.\");\n\n        producer.close();\n        session.close();\n        connection.close();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap in JMS is forgetting that Sessions are strictly single-threaded. Sharing a Session instance across multiple concurrent application threads will cause internal state corruption and undefined execution behaviors. Always instantiate a dedicated Session per thread or rely on connection/session pools provided by enterprise application servers or frameworks like Spring's DefaultJmsListenerContainer."
+    }
+  ],
+  "num": 352,
+  "title": "JMS basics",
+  "category": "Core Java & Fundamentals"
+}

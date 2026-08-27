@@ -1,0 +1,62 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "For over two decades, Java's collections framework suffered from an awkward structural asymmetry: while linear collections like List, Deque, and LinkedHashSet maintained a defined encounter order, accessing their first or last elements required wildly inconsistent, boilerplate-heavy idioms. Retrieving the first element of a List meant list.get(0), whereas a Deque required peekFirst(), and a SortedSet needed first(). Modifying or reversing these views was similarly fractured. Java 21 introduces the Sequenced Collections interface to solve this exact architectural pain point by inserting three new unified interfaces—SequencedCollection, SequencedSet, and SequencedMap—into the core java.util hierarchy. These interfaces establish uniform APIs for accessing, adding, and removing elements at both ends of a collection, as well as providing a built-in mechanism for obtaining a reversed-order view without copying underlying data structures."
+    },
+    {
+      "type": "prose",
+      "content": "Under the hood, SequencedCollection extends Collection and introduces methods like getFirst(), getLast(), addFirst(E), addLast(E), removeFirst(), and removeLast(). SequencedSet extends SequencedCollection and Set, guaranteeing unique elements while inheriting uniform encounter-order manipulation, and overrides reversed() to return a SequencedSet. SequencedMap covers key-value pairs, filling a massive gap left by SortedMap by offering methods like putFirst(K, V), putLast(K, V), pollFirstEntry(), pollLastEntry(), and descendingMap() equivalents natively across linked maps like LinkedHashMap. Because these are interface additions implemented by existing classes like ArrayList, LinkedList, LinkedHashSet, and LinkedHashMap, developers instantly gain interoperability without rewriting custom data structures."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Operation",
+        "Legacy Collection Approach",
+        "Java 21 Sequenced Collections Approach"
+      ],
+      "rows": [
+        [
+          "Get First Element",
+          "list.get(0) vs deque.peekFirst() vs set.iterator().next()",
+          "collection.getFirst()"
+        ],
+        [
+          "Get Last Element",
+          "list.get(list.size() - 1) vs deque.peekLast()",
+          "collection.getLast()"
+        ],
+        [
+          "Add at Head",
+          "list.add(0, e) vs deque.addFirst(e)",
+          "collection.addFirst(e)"
+        ],
+        [
+          "Reversed View",
+          "Collections.reverse(new ArrayList<>(list)) (Copy)",
+          "collection.reversed() (Zero-copy view)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The reversed() method does not clone or mutate the underlying collection; instead, it returns a lightweight, read-write view backed by the original instance. Any structural modification or element mutation made through the reversed view immediately reflects in the forward collection and vice versa.",
+        "LinkedHashMap implements SequencedMap, meaning it now natively supports access-order and insertion-order manipulation from both ends, making LRU cache implementations vastly cleaner and less error-prone.",
+        "Default method implementations in the interfaces provide backward compatibility, allowing legacy third-party or custom collection implementations to adopt SequencedCollection gradually without breaking binary compatibility."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.LinkedHashSet;\nimport java.util.SequencedSet;\n\npublic class SequencedDemo {\n    public static void main(String[] args) {\n        SequencedSet<String> languages = new LinkedHashSet<>();\n        \n        languages.add(\"Java\");\n        languages.add(\"Python\");\n        languages.add(\"Rust\");\n        \n        // Uniform access regardless of concrete type\n        System.out.println(\"First: \" + languages.getFirst()); // Java\n        System.out.println(\"Last: \" + languages.getLast());   // Rust\n        \n        // Add to the front of the set\n        languages.addFirst(\"TypeScript\");\n        \n        // Zero-copy reverse view iteration\n        SequencedSet<String> reversed = languages.reversed();\n        System.out.println(\"Reversed: \" + reversed);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Watch out for performance traps when calling getFirst() or getLast() on collections that do not support $O(1)$ random access, such as standard LinkedList. While LinkedList provides $O(1)$ head/tail operations due to its doubly-linked pointer structure, calling methods on arbitrary SequencedCollection implementations like custom wrappers may unintentionally trigger $O(n)$ traversals if not backed by proper data structures."
+    }
+  ],
+  "num": 1293,
+  "title": "(Java 21) Sequenced Collections interface.",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

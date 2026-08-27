@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Switch expressions and the yield keyword, which graduated to permanent status in Java 14 via JEP 361, represent a major evolution in how Java handles conditional branching. Historically, Java inherited the statement-based, fall-through switch construct directly from C and C++. This legacy design led to verbose code, accidental fall-through bugs requiring explicit break statements, and an inability to use switch logic on the right-hand side of assignments or within functional pipelines. By transforming switch from a control flow statement into an expression that evaluates to a single value, and introducing the yield keyword to return values from complex multi-statement switch blocks, Java bridged a critical syntax gap with modern functional languages.\n\nAt its core, a switch expression evaluates to a single result, removing the need for mutable local variables modified inside individual case blocks. The introduction of arrow syntax (->) for single-expression case branches eliminated the notorious fall-through behavior, executing only the targeted right-hand side without requiring a break. However, when a case branch requires complex logic involving local variable declarations, loops, or multiple statements, the arrow syntax falls short. This is where yield comes in. The yield statement explicitly transfers control and a computed value out of a block-scoped switch branch, acting effectively as a return statement specifically scoped to the switch block."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Traditional Switch Statement",
+        "Switch Expression (Java 14+)"
+      ],
+      "rows": [
+        [
+          "Nature",
+          "Control flow statement (cannot be assigned to variables directly unless mutating outer state)",
+          "Expression that evaluates to a value and can be assigned directly"
+        ],
+        [
+          "Fall-through",
+          "Default behavior; requires explicit 'break' to prevent falling into subsequent cases",
+          "Eliminated in arrow syntax (->); block syntax requires explicit 'yield' or 'break'"
+        ],
+        [
+          "Exhaustiveness",
+          "Not required by the compiler for primitive or enum types",
+          "Must be exhaustive; all possible values must be covered or a 'default' branch must be provided"
+        ],
+        [
+          "Multiple Constants",
+          "Requires stacked case statements (case A: case B:)",
+          "Supported natively via comma separation (case A, B ->)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Compiler Exhaustiveness Analysis: For switch expressions over enums, sealed classes, or pattern matching types, the Java compiler enforces exhaustiveness. If a developer misses a possible domain value and no default branch exists, compilation fails, preventing runtime MatchException bugs.",
+        "Syntactic Disambiguation of Yield: The keyword yield is a restricted identifier, meaning it is only treated as a keyword in the context of a switch expression. Existing legacy codebases using 'yield' as a variable or method name continue to compile without modification.",
+        "Scope Isolation: Each case block in a switch expression possesses its own local scope. Variables declared inside one case block do not leak into adjacent case blocks, eliminating variable shadowing and pollution bugs common in legacy switch statements."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class SwitchExpressionDemo {\n    public enum Day { MONDAY, TUESDAY, FRIDAY, SATURDAY }\n\n    public static int calculateWorkHours(Day day, boolean isRemote) {\n        // Combining arrow syntax, multiple constants, and yield blocks\n        return switch (day) {\n            case MONDAY, TUESDAY, FRIDAY -> 8;\n            case SATURDAY -> 0;\n            default -> {\n                System.out.println(\"Calculating complex schedule for mid-week...\");\n                int baseHours = isRemote ? 6 : 8;\n                // yield returns the value from this block-scoped case branch\n                yield baseHours + 2;\n            }\n        };\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha when transitioning to switch expressions is confusing break and yield. In legacy statements, break exits the switch entirely. In a block-scoped switch expression, using break actually exits the enclosing loop, not the switch, and yields no value—which will cause a compilation error. Always use yield to return a value from a block-scoped case, and remember that switch expressions require either handling every possible value or providing a default clause."
+    }
+  ],
+  "num": 93,
+  "title": "Switch expressions & yield (Java 14)",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

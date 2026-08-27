@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Local-Variable Type Inference, introduced via JEP 286 in Java 10, introduces the reserved type name `var` to allow developers to omit manifest types for local variables with initializers. This feature aims to reduce boilerplate code associated with redundant type declarations—such as `Map<String, List<Integer>> complexMap = new HashMap<>();`—while preserving Java's core commitment to static type safety. Contrary to dynamic typing languages like JavaScript or Python, Java's `var` is not dynamic; the compiler uses the static type of the initializing expression to infer the exact type at compile time, cementing it into the bytecode. Every variable declared with `var` remains strongly and statically typed.\n\nHowever, the constraints on where `var` cannot be used are strict and absolute, rooted in how the Java compiler resolves types during the compilation phases. Because `var` relies entirely on a local initializer expression to determine the data type, it cannot be used anywhere an explicit declaration is needed without a local right-hand-side initializer. Specifically, `var` is prohibited for method parameters, constructor parameters, method return types, catch blocks, field declarations in classes (instance or static variables), and uninitialized local variables. Allowing `var` for fields would create catastrophic circularity and complexity issues in dependency resolution across compilation units, while missing initializers would leave the compiler with no mechanism to deduce the underlying type."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Context / Declaration Site",
+        "Can use `var`?",
+        "Reasoning / Mechanism"
+      ],
+      "rows": [
+        [
+          "Local variables with initializer",
+          "Yes",
+          "The compiler resolves the static type directly from the right-hand-side expression."
+        ],
+        [
+          "Class fields (Instance / Static)",
+          "No",
+          "Fields require global compilation awareness; type inference would break modular compilation cycles."
+        ],
+        [
+          "Method parameters / Return types",
+          "No",
+          "Signatures form a contract. Consumers of the API need explicit types, not inferred ones."
+        ],
+        [
+          "Catch blocks (Exception handlers)",
+          "No",
+          "Exception parameters are governed by multi-catch and specific runtime throwable semantics."
+        ],
+        [
+          "Uninitialized local variables",
+          "No",
+          "Without an initial expression, the compiler lacks any context to infer the type."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Bytecode Generation: At the JVM level, `var` completely vanishes. The compiler replaces the `var` keyword in the Abstract Syntax Tree (AST) with the exact inferred type before emitting the `.class` bytecode instructions.",
+        "Denotable Types: `var` can infer types that are non-denotable (types that cannot be written explicitly in source code, such as intersection types or anonymous inner class types), greatly enhancing what can be handled gracefully inside local scopes.",
+        "Readability Trade-offs: While reducing visual clutter, overuse of `var` on complex method chains (e.g., streams with flatMaps and complex collectors) can degrade code readability by obscuring the true types from developers reading the code without an IDE."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class VarDemo {\n\n    // COMPILE-ERROR: Cannot use 'var' for fields\n    // private var globalField = 42;\n\n    public void processItems() {\n        // VALID: Inferred as List<String>\n        var names = List.of(\"Alice\", \"Bob\", \"Charlie\");\n\n        // VALID: Inferred as enhanced-for loop variable\n        for (var name : names) {\n            System.out.println(name);\n        }\n\n        // VALID: Inferred as primitive int\n        var counter = 100;\n\n        // COMPILE-ERROR: Cannot use 'var' without an initializer\n        // var uninitialized;\n\n        // COMPILE-ERROR: Cannot assign null directly to 'var'\n        // var nothing = null;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A notorious trap when using `var` is initializing it with `null` (e.g., `var data = null;`). This fails to compile because the compiler cannot infer a concrete type from the `null` literal alone. Furthermore, be careful when inferring numeric literals; `var id = 123;` defaults to an `int`, which can cause subtle bugs if you intended for it to be a `long` or a `short`, forcing you to rely on explicit suffixes like `123L`."
+    }
+  ],
+  "num": 625,
+  "title": "(Java 10) What is Local-Variable Type Inference (var)? Where can it NOT be used?",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

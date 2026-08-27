@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When a production Redis cache node dies unexpectedly, the immediate architectural consequence is a massive, sudden surge of incoming queries directly hitting your primary relational database, commonly referred to as a cache stampede or thundering herd problem. Because the cache layer that was previously absorbing 95% to 99% of read and write traffic is suddenly gone, concurrent threads and incoming requests bypass the cache layer entirely and execute expensive queries against the persistence layer. This sudden spike in connection pools, CPU utilization, and disk I/O can easily exhaust database connection limits, lock tables, cascade failures across downstream microservices, and ultimately trigger a total outage of your core application infrastructure.\n\nTo mitigate this single point of failure and maintain high availability, distributed caching topologies rely on two distinct architectural patterns: Redis Sentinel and Redis Cluster. Redis Sentinel provides high availability and automatic failover for non-sharded master-replica setups, monitoring node health via quorum-based heartbeats and promoting a designated replica to master when the primary fails. Redis Cluster, on the other hand, provides both high availability and horizontal scalability through data sharding across multiple master nodes, utilizing an asynchronous master-replica topology combined with a Gossip protocol to dynamically detect node failures, redistribute hash slots, and reroute traffic without requiring client-side recompilation."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Redis Sentinel",
+        "Redis Cluster"
+      ],
+      "rows": [
+        [
+          "Data Scaling",
+          "Single master node (all data must fit in one RAM instance)",
+          "Sharded across multiple master nodes via 16,838 hash slots"
+        ],
+        [
+          "Failover Mechanism",
+          "External sentinel processes vote on master failure and promote replica",
+          "Internal gossip protocol among nodes detects failure and elects new master"
+        ],
+        [
+          "Client Integration",
+          "Clients query Sentinel for master address, then connect directly",
+          "Smart clients maintain slot-to-node mapping and route commands directly"
+        ],
+        [
+          "Database Impact Profile",
+          "High risk of thundering herd during failover window if cold cache",
+          "Localized impact restricted to the specific failed shard's hash slots"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Redis Sentinel utilizes an external consensus mechanism running out-of-band. Sentinels continuously ping master and replica instances. When a master fails to respond within 'down-after-milliseconds', it is marked Subjectively Down (SDOWN). Once a quorum of Sentinel instances agree, it is promoted to Objectively Down (ODOWN), triggering an automated leader election to promote a healthy replica.",
+        "Redis Cluster bypasses external monitors by embedding cluster management directly into the data nodes using a decentralized Gossip protocol. Nodes exchange ping/pong packets containing cluster state metadata. If more than 'cluster-node-timeout' elapses without a heartbeat, nodes mark the unresponsive peer as failing, and surviving master nodes vote to promote one of the dead master's replicas.",
+        "During the failover window in either architecture, any queries targeting the missing keys bypass the cache and assault the database. To prevent database collapse, production systems must implement proactive defenses such as distributed locking (e.g., Redlock), probabilistic early expiration (XFetch algorithm), or request coalescing queues at the application layer."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import redis.clients.jedis.HostAndPort;\nimport redis.clients.jedis.JedisCluster;\nimport java.util.HashSet;\nimport java.util.Set;\n\npublic class ResilientRedisClientFactory {\n    public static JedisCluster createClusterClient() {\n        Set<HostAndPort> clusterNodes = new HashSet<>();\n        clusterNodes.add(new HostAndPort(\"redis-node-1.internal\", 6379));\n        clusterNodes.add(new HostAndPort(\"redis-node-2.internal\", 6379));\n        clusterNodes.add(new HostAndPort(\"redis-node-3.internal\", 6379));\n        \n        // JedisCluster automatically handles node failure, MOVED/ASK redirections,\n        // and topology refreshing when a master node dies and a replica is promoted.\n        return new JedisCluster(clusterNodes);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic senior-level failure mode occurs when a Redis master dies, a replica is successfully promoted via Sentinel/Cluster, but the application experiences a complete DB outage anyway because of 'Cache Stampede'. Because the new replica is completely empty (a cold cache), millions of concurrent database reads occur simultaneously. Always implement Mutual Exclusion locks (mutex) or probabilistic early recomputation inside your cache-aside patterns to ensure only a single thread rebuilds a missing cache key while others wait or return stale data."
+    }
+  ],
+  "num": 1281,
+  "title": "Your Redis cache node dies. What is the impact on the DB, and how does Sentinel/Cluster handle it?",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

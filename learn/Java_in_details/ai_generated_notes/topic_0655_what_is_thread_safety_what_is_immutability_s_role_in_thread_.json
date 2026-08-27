@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Thread safety is the property of a code block, object, or method that ensures it behaves correctly when accessed by multiple threads simultaneously, without requiring additional synchronization from the calling code. In the JVM, this means preventing race conditions, memory visibility issues, and atomicity violations. When multiple threads mutate shared state, the lack of thread safety leads to non-deterministic behavior, such as lost updates or inconsistent object states. Immutability is the most powerful strategy for achieving thread safety because it eliminates the possibility of state mutation entirely. An immutable object, once constructed, cannot have its internal state altered. Because the state is fixed, it is inherently thread-safe; multiple threads can read the object's fields without locks, volatile keywords, or atomic wrappers, as there is no risk of a 'dirty read' or a partial state update. By adopting immutability, you shift the burden of concurrency from runtime synchronization—which is expensive and error-prone—to design-time constraints."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "Mutable State",
+        "Immutable State"
+      ],
+      "rows": [
+        [
+          "Synchronization",
+          "Required (Locks/CAS)",
+          "Not Required"
+        ],
+        [
+          "Visibility",
+          "Requires volatile/locks",
+          "Guaranteed by final fields"
+        ],
+        [
+          "Performance",
+          "Contention overhead",
+          "Zero contention"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The Java Memory Model (JMM) guarantees that 'final' fields are visible to all threads after the constructor completes, provided the reference to the object is not leaked during construction.",
+        "Immutability allows for safe publication; you can share references across threads without defensive copying, significantly reducing heap pressure and GC overhead.",
+        "Thread safety in mutable objects relies on 'happens-before' relationships established by synchronized blocks, ReentrantLocks, or volatile variables, which introduce memory barriers that flush CPU caches to main memory.",
+        "Attempting to make a mutable object thread-safe often leads to 'lock contention,' where threads spend more time waiting for monitor access than executing business logic."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public final class ImmutableUser {\n    private final String username;\n    private final List<String> roles;\n\n    public ImmutableUser(String username, List<String> roles) {\n        this.username = username;\n        // Defensive copy to ensure internal state remains immutable\n        this.roles = List.copyOf(roles);\n    }\n\n    public String getUsername() { return username; }\n    public List<String> getRoles() { return roles; }\n}"
+    },
+    {
+      "type": "note",
+      "content": "The 'leaked reference' trap: Even if a class is marked final, it is NOT immutable if you expose a mutable field (like an ArrayList) via a getter. Always perform defensive copies or use unmodifiable wrappers. Furthermore, if you leak 'this' inside a constructor, other threads might see an incompletely initialized object, violating the thread-safety guarantees of immutability."
+    }
+  ],
+  "num": 656,
+  "title": "What is thread safety? What is immutability's role in thread safety?",
+  "category": "Multithreading & Java Concurrency"
+}

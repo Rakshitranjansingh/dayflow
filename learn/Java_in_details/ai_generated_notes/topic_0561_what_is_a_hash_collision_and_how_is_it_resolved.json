@@ -1,0 +1,48 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "A hash collision occurs when two distinct input keys produce the identical hash code value, effectively mapping to the same bucket index within a hash-based data structure like HashMap or HashSet. Because the underlying array has a finite size, the pigeonhole principle dictates that collisions are mathematically inevitable as the number of entries grows. In the JVM, this is particularly critical because the performance of map operations degrades from O(1) to O(n) if collisions are not managed effectively. When a collision happens, the data structure must employ a resolution strategy to maintain data integrity, ensuring that both keys can coexist and be retrieved accurately without overwriting each other."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Resolution Strategy",
+        "Mechanism",
+        "Performance Impact"
+      ],
+      "rows": [
+        [
+          "Chaining",
+          "Linked list/Tree at bucket",
+          "O(n) worst case, O(log n) with trees"
+        ],
+        [
+          "Open Addressing",
+          "Probing for next empty slot",
+          "High cache locality, sensitive to load factor"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In Java 8+, HashMap handles collisions via 'Chaining with Treeification'. When a bucket exceeds the TREEIFY_THRESHOLD (default 8), the linked list is converted into a Red-Black Tree, reducing lookup complexity from O(n) to O(log n).",
+        "The hash code is computed via the object's hashCode() method, but the index is derived using a perturbation function: (h = key.hashCode()) ^ (h >>> 16). This spreads the bits to ensure that even if the hash distribution is poor, the index calculation remains uniform.",
+        "Equality is verified using the .equals() method. Even if two keys have the same hash, the map uses .equals() to distinguish between the two entries during retrieval, ensuring that 'collision' does not mean 'duplicate'."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public V put(K key, V value) {\n    int hash = hash(key);\n    Node<K,V>[] tab = table;\n    int i = (tab.length - 1) & hash;\n    // If collision occurs, traverse the list or tree\n    for (Node<K,V> e = tab[i]; e != null; e = e.next) {\n        if (e.hash == hash && (e.key == key || key.equals(e.key))) {\n            return e.value; // Found existing key, update value\n        }\n    }\n    addEntry(hash, key, value, i);\n    return null;\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production-grade pitfall is using a mutable object as a Map key. If the object's state changes after insertion, its hashCode() will change, effectively 'losing' the entry in the map because it will be looked for in the wrong bucket. Always prefer immutable objects (like String or custom final classes) for keys to prevent silent data corruption."
+    }
+  ],
+  "num": 562,
+  "title": "What is a hash collision and how is it resolved?",
+  "category": "Exception Handling & I/O / NIO"
+}

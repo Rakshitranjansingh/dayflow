@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Framework, the IoC container manages dependencies based on types. When you define multiple beans of the same class or interface, the container encounters an ambiguity during the dependency injection phase. Specifically, when using @Autowired, Spring attempts to resolve the dependency by type. If multiple candidates exist in the ApplicationContext, the container throws a NoUniqueBeanDefinitionException, effectively halting the startup process. This is a common scenario in production systems where you might have multiple implementations of a service interface, such as a 'PaymentProcessor' with 'StripePaymentProcessor' and 'PayPalPaymentProcessor' beans both registered in the context."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Resolution Strategy",
+        "Mechanism",
+        "Use Case"
+      ],
+      "rows": [
+        [
+          "@Primary",
+          "Marks one bean as the default choice",
+          "When one implementation is the standard fallback"
+        ],
+        [
+          "@Qualifier",
+          "Explicitly names the bean to inject",
+          "When specific logic requires a specific implementation"
+        ],
+        [
+          "List/Map Injection",
+          "Injects all beans of that type",
+          "When you need to iterate or select dynamically"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The @Primary annotation provides a global preference; if multiple beans are marked as @Primary, the container will throw an exception again, as the ambiguity persists.",
+        "The @Qualifier annotation acts as a metadata filter; it narrows down the candidate pool by matching the bean name or a custom qualifier value against the bean definition.",
+        "Injecting a Collection (e.g., List<Service>) allows the application to receive all registered beans of that type, which is powerful for strategy patterns where you need to process data through every available implementation.",
+        "Spring's bean resolution happens during the post-processing phase of the BeanFactory, meaning these checks are performed before the application is fully ready to serve traffic."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class PaymentService {\n    // Using @Qualifier to resolve ambiguity\n    @Autowired\n    public PaymentService(@Qualifier(\"stripeProcessor\") PaymentProcessor processor) {\n        this.processor = processor;\n    }\n\n    // Alternatively, inject all implementations\n    @Autowired\n    private List<PaymentProcessor> allProcessors;\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Tip: Avoid relying solely on @Primary for complex systems. As your codebase grows, 'Primary' beans often become 'Hidden Defaults' that cause unexpected side effects when a new developer adds a new implementation. Prefer @Qualifier for explicit dependency wiring, or better yet, use a Factory pattern if the choice of implementation depends on runtime data rather than static configuration."
+    }
+  ],
+  "num": 764,
+  "title": "What happens if there are multiple beans of the same type?",
+  "category": "Core Java & Fundamentals"
+}

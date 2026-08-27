@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a streaming service like Netflix requires solving the 'last mile' delivery problem at a massive scale. At the core, we rely on a Content Delivery Network (CDN) to push heavy binary blobs (video segments) to the network edge, minimizing latency by serving users from geographically proximate cache servers. Transcoding is the heavy-lift pre-processing phase where raw, high-bitrate mezzanine files are converted into multiple formats (H.264, HEVC, AV1) and resolutions (480p to 4K) to ensure compatibility across heterogeneous devices. Finally, Adaptive Bitrate (ABR) streaming acts as the intelligent client-side controller. It continuously monitors the user's available bandwidth and CPU buffer state, dynamically switching between these pre-transcoded segments to prevent rebuffering, ensuring a smooth playback experience even on unstable mobile networks."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Mechanism",
+        "Primary Goal",
+        "System Impact"
+      ],
+      "rows": [
+        [
+          "CDN",
+          "Latency Reduction",
+          "Reduces Origin Server Load"
+        ],
+        [
+          "Transcoding",
+          "Device Compatibility",
+          "Increases Storage Overhead"
+        ],
+        [
+          "ABR",
+          "Playback Stability",
+          "Requires Segmented Manifests"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Transcoding Pipelines: Typically implemented as a distributed DAG (Directed Acyclic Graph) using tools like FFmpeg, where a master job splits a video into chunks, processes them in parallel across a cluster, and stitches the manifest files (HLS/DASH) together.",
+        "CDN Edge Caching: Uses LRU (Least Recently Used) eviction policies. Popular content stays in RAM/SSD at the edge, while long-tail content is fetched from the origin or regional mid-tier caches.",
+        "ABR Logic: The client player maintains a sliding window of throughput estimates. If the buffer level drops below a threshold, the ABR algorithm requests a lower bitrate segment to avoid a stall, prioritizing continuity over visual fidelity.",
+        "Manifest Files: Clients download .m3u8 or .mpd files which act as pointers to specific byte-range segments, allowing the client to switch bitrates seamlessly between segments without re-initializing the video decoder."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "manifest:\n  version: 1.0\n  streams:\n    - resolution: 1920x1080\n      bitrate: 5000kbps\n      segments: /cdn/v1/movie_1080p/seg_{n}.ts\n    - resolution: 1280x720\n      bitrate: 2500kbps\n      segments: /cdn/v1/movie_720p/seg_{n}.ts\n  adaptive_policy: \"buffer_based_rate_adaptation\""
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is 'Manifest Bloat.' If your manifest files contain too many variants or segments, the initial handshake latency increases significantly. Always implement manifest caching at the CDN level and use 'delta updates' for live streams to avoid forcing the client to re-download the entire playlist every few seconds."
+    }
+  ],
+  "num": 1096,
+  "title": "How would you design a Streaming Service (Netflix/YouTube)? (CDN, transcoding, adaptive bitrate)",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Zero-downtime deployment is the architectural discipline of updating production services without interrupting user access. In a JVM-based ecosystem, this is critical because cold-starting a Spring Boot application involves significant overhead—class loading, bean instantiation, and JIT compilation—which would otherwise result in a 'stop-the-world' experience for the end user. Blue-Green deployment achieves this by maintaining two identical production environments. The 'Blue' environment hosts the current live version, while 'Green' hosts the new version. Once health checks pass on Green, traffic is cut over at the load balancer level. This provides an immediate rollback mechanism by simply pointing the load balancer back to Blue. Canary deployments take a more granular approach, shifting a small percentage of traffic (e.g., 5%) to the new version to monitor metrics like error rates or latency before a full rollout. This mitigates the 'blast radius' of potential bugs. Rolling updates, conversely, replace instances of the old version with the new version incrementally. In a Kubernetes context, this involves updating Pods one by one or in batches, ensuring that a minimum number of replicas remain available to serve traffic throughout the transition."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Rollback Speed",
+        "Infrastructure Cost"
+      ],
+      "rows": [
+        [
+          "Blue-Green",
+          "Instant",
+          "High (2x capacity)"
+        ],
+        [
+          "Canary",
+          "Fast",
+          "Moderate"
+        ],
+        [
+          "Rolling",
+          "Slow",
+          "Low"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Blue-Green deployments require strict database schema backward compatibility. Since two versions of the app share the same database, the schema must support both the old and new code simultaneously (e.g., adding nullable columns before making them mandatory).",
+        "Canary deployments rely heavily on observability. You must implement service mesh traffic splitting (like Istio) or weighted load balancing to ensure specific user segments are routed correctly based on headers or cookies.",
+        "Rolling updates in Java require careful management of the 'readinessProbe'. If the probe returns success before the Spring application context has fully warmed up its connection pools or caches, the instance will receive traffic while still in a degraded state.",
+        "Graceful shutdown is mandatory for all strategies. JVM applications must handle SIGTERM signals to finish processing in-flight requests and close database connections before the process is killed by the orchestrator."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: java-app\nspec:\n  replicas: 3\n  strategy:\n    type: RollingUpdate\n    rollingUpdate:\n      maxSurge: 1\n      maxUnavailable: 0\n  template:\n    spec:\n      containers:\n      - name: app\n        readinessProbe:\n          httpGet:\n            path: /actuator/health/readiness\n            port: 8080\n          initialDelaySeconds: 20"
+    },
+    {
+      "type": "note",
+      "content": "The most common production failure during zero-downtime deployments is the 'Database Lock' trap. If your new version introduces a migration that locks a table, and you are running a rolling update, the new pods will hang while waiting for the lock, while the old pods continue to fail because they cannot access the table. Always decouple database migrations from code deployments using a 'Expand and Contract' pattern."
+    }
+  ],
+  "num": 1066,
+  "title": "Describe zero-downtime deployment strategies (Blue-Green, Canary, Rolling updates).",
+  "category": "Core Java & Fundamentals"
+}

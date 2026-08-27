@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Transactions with JPA and the Open Session in View (OSIV) anti-pattern form a notoriously misunderstood nexus in enterprise Java development. At its core, the Open Session in View pattern attempts to solve a very common problem: keeping the Hibernate Session (and by extension, the persistence context) open throughout the entire lifecycle of an HTTP request, typically binding it to a Servlet Filter or Interceptor. This design lets web controllers and view rendering engines (like Thymeleaf, JSPs, or even Jackson serializing lazy-loading proxies into JSON) access uninitialized lazy collections without triggering a dreaded LazyInitializationException.\n\nHowever, in modern architectures, OSIV is widely considered an architectural anti-pattern. By stretching the persistence context boundary past the transactional service layer all the way to the web presentation layer, OSIV silently breaks database transactions, masks N+1 query performance disasters, and keeps database connections open for excessively long periods. Understanding how Transactions and the persistence context interact in JPA and Hibernate is critical to avoiding the silent resource starvation and consistency anomalies that OSIV introduces."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Dimension",
+        "Standard Transaction Boundary",
+        "Open Session in View (OSIV)"
+      ],
+      "rows": [
+        [
+          "Persistence Context Lifetime",
+          "Scoped strictly to the transactional service method.",
+          "Scoped to the entire HTTP request lifecycle."
+        ],
+        [
+          "Lazy Loading Behavior",
+          "Throws LazyInitializationException if accessed outside transaction.",
+          "Silently executes database queries during view rendering or JSON serialization."
+        ],
+        [
+          "Database Connection Usage",
+          "Acquired and released quickly within the service method.",
+          "Held open for the duration of the web request, limiting connection pool throughput."
+        ],
+        [
+          "Dirty Checking",
+          "Flushes changes upon transaction commit.",
+          "Flushes changes implicitly at request completion, risking unintended state persistence."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Spring Boot enables OSIV by default (spring.jpa.open-in-view=true) to make initial development frictionless for beginners, which frequently masks underlying architectural design flaws.",
+        "When OSIV is active, accessing a lazy association outside a transactional boundary executes a brand-new, unmanaged SQL query per access, converting what should be an eager or explicit join fetch into an accidental N+1 query storm.",
+        "Because the persistence context remains open during HTTP rendering, any modifications made to entities outside a transaction can still trigger unexpected dirty checking and accidental database writes during the final flush phase.",
+        "Database connection exhaustion occurs under high load because threads block waiting for connection pool leases while slow clients download payloads or while UI rendering takes place over sluggish network links."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@RestController\n@RequestMapping(\"/api/orders\")\npublic class OrderController {\n\n    private final OrderRepository orderRepository;\n\n    public OrderController(OrderRepository orderRepository) {\n        this.orderRepository = orderRepository;\n    }\n\n    // With OSIV enabled, this method executes fine even though it is NOT @Transactional.\n    // Jackson serialization will trigger lazy loading of order.getItems() over the wire.\n    @GetMapping(\"/{id}\")\n    public ResponseEntity<Order> getOrder(@PathVariable Long id) {\n        return orderRepository.findById(id)\n                .map(ResponseEntity::ok)\n                .orElse(ResponseEntity.notFound().build());\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Production Gotcha: Always explicitly set `spring.jpa.open-in-view=false` in your application.properties or application.yml. Relying on DTOs (Data Transfer Objects), explicit JOIN FETCH queries, or EntityGraphs inside your @Transactional service layer forces you to design intentional data payloads rather than accidentally letting your UI or serialization framework dictate your database access patterns."
+    }
+  ],
+  "num": 265,
+  "title": "Transactions with JPA — Open Session in View anti-pattern",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

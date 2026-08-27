@@ -1,0 +1,51 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Hashing forms the foundational backbone of high-performance algorithm design in Java, enabling $O(1)$ average time complexity for retrieval and mutation operations through the distribution of keys across a bucket array using a hash function. When scaling this concept to complex algorithmic problems like Group Anagrams and Top K Frequent Elements, hashing shifts from a simple key-value lookup mechanism into a structural signature generator and frequency aggregator. Group Anagrams requires organizing a collection of strings such that words composed of identical character sets—regardless of permutation—share a unified bucket. This is achieved by transforming each string into a frequency-based character count signature, which acts as the hash map's key. Conversely, Top K Frequent Elements leverages hash-based counting maps to aggregate item frequencies in linear time, followed by priority queues or bucket sorting to extract the most dominant entries. Understanding the interplay between Java's hashCode contract, bucket collision resolution, and memory overhead is critical for executing these patterns efficiently at scale."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Algorithm / Concept",
+        "Primary Hash Use Case",
+        "Time Complexity",
+        "Space Complexity"
+      ],
+      "rows": [
+        [
+          "Group Anagrams",
+          "Character count array or sorted string as map key to group permutation clusters",
+          "O(N * K log K) or O(N * K)",
+          "O(N * K)"
+        ],
+        [
+          "Top K Frequent Elements",
+          "Frequency counting map mapping element to its occurrence count",
+          "O(N log K) or O(N)",
+          "O(N)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "In Group Anagrams, generating a hash key requires converting a string into either a sorted char array or a fixed-size 26-element integer frequency array representation. Using a string builder to construct a delimiter-separated frequency signature avoids expensive character sorting steps, reducing time complexity from $O(N \\cdot K \\log K)$ to $O(N \\cdot K)$ where $N$ is the number of strings and $K$ is the maximum string length.",
+        "Top K Frequent Elements relies on a two-phase hashing strategy: first, a HashMap aggregates frequencies in $O(N)$ time by boxing primitive elements into objects, and second, a Min-Heap or Bucket Sort extracts the top elements. Note that boxing overhead in standard java.util.HashMap can trigger substantial garbage collection pressure if dealing with millions of primitive integers, making specialized collections libraries or primitive-backed maps worth considering in extreme performance tuning scenarios.",
+        "Java's Map implementation uses separate chaining with treeification (converting linked lists to red-black trees when bucket occupancy exceeds TREEIFY_THRESHOLD of 8) to mitigate worst-case $O(N)$ hash collision degradation down to $O(\\log N)$, preserving resilience against crafted hash-collision denial-of-service vectors."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.*;\n\npublic class AnagramAndTopKSolver {\n    \n    public List<List<String>> groupAnagrams(String[] strs) {\n        if (strs == null || strs.length == 0) return new ArrayList<>();\n        Map<String, List<String>> map = new HashMap<>();\n        \n        for (String s : strs) {\n            int[] count = new int[26];\n            for (char c : s.toCharArray()) {\n                count[c - 'a']++;\n            }\n            StringBuilder sb = new StringBuilder();\n            for (int i = 0; i < 26; i++) {\n                sb.append('#').append(count[i]);\n            }\n            String key = sb.toString();\n            map.computeIfAbsent(key, k -> new ArrayList<>()).add(s);\n        }\n        return new ArrayList<>(map.values());\n    }\n    \n    public int[] topKFrequent(int[] nums, int k) {\n        Map<Integer, Integer> freqMap = new HashMap<>();\n        for (int n : nums) {\n            freqMap.put(n, freqMap.getOrDefault(n, 0) + 1);\n        }\n        \n        PriorityQueue<Map.Entry<Integer, Integer>> minHeap = \n            new PriorityQueue<>(Comparator.comparingInt(Map.Entry::getValue));\n            \n        for (Map.Entry<Integer, Integer> entry : freqMap.entrySet()) {\n            minHeap.offer(entry);\n            if (minHeap.size() > k) {\n                minHeap.poll();\n            }\n        }\n        \n        int[] result = new int[k];\n        int i = 0;\n        while (!minHeap.isEmpty()) {\n            result[i++] = minHeap.poll().getKey();\n        }\n        return result;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production gotcha when designing custom hash keys for problems like Group Anagrams is object allocation churn. If you rely on new String(charArr) or heavy object concatenation inside the inner loop of a high-throughput microservice, you will flood the Young Generation with temporary byte/char arrays, triggering frequent Minor GCs. Always prefer primitive arrays converted via compact StringBuilders or custom hash structures when performance profiling highlights allocation hotspots."
+    }
+  ],
+  "num": 1191,
+  "title": "Hashing: Group Anagrams, Top K Frequent Elements.",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the context of Jakarta Persistence (JPA) and Hibernate, an Entity is a lightweight, persistent domain object that represents a row in a relational database table. Unlike a Data Transfer Object (DTO), an Entity is managed by the EntityManager, meaning Hibernate tracks its state changes and automatically synchronizes them with the database via dirty checking. The @Entity annotation is the primary marker that tells the JPA provider that a POJO is eligible for persistence. Without it, the class is treated as a simple object and ignored by the ORM lifecycle.\n\nTo uniquely identify these instances, the @Id annotation is mandatory; it maps a field to the primary key column of the database. Because manual ID management is error-prone and non-scalable, @GeneratedValue is used to delegate primary key generation to the database or an application-level sequence generator. Finally, while Hibernate defaults to using the class name as the table name, the @Table annotation allows for explicit mapping, enabling you to specify schema, catalog, and unique constraints that decouple your Java class naming conventions from legacy or complex database naming standards."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Annotation",
+        "Primary Responsibility",
+        "Scope"
+      ],
+      "rows": [
+        [
+          "@Entity",
+          "Marks class as a persistent entity",
+          "Class Level"
+        ],
+        [
+          "@Id",
+          "Defines the primary key identifier",
+          "Field/Property Level"
+        ],
+        [
+          "@GeneratedValue",
+          "Configures auto-increment strategies",
+          "Field/Property Level"
+        ],
+        [
+          "@Table",
+          "Maps entity to specific DB table/schema",
+          "Class Level"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The @Entity annotation requires a no-argument constructor (protected or public) so that the reflection-based Hibernate proxy can instantiate the object during result set mapping.",
+        "When using @GeneratedValue with GenerationType.IDENTITY, Hibernate must perform an immediate INSERT to retrieve the generated ID, which disables batching optimizations for that specific entity.",
+        "The @Table annotation is essential when your database schema uses reserved SQL keywords as table names, allowing you to quote them via the 'name' attribute.",
+        "Entities exist in one of four states: New (transient), Managed (persistent), Detached, or Removed. Only Managed entities are tracked by the Persistence Context."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Entity\n@Table(name = \"users\", schema = \"auth_system\")\npublic class User {\n    @Id\n    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = \"user_seq\")\n    @SequenceGenerator(name = \"user_seq\", sequenceName = \"users_id_seq\")\n    private Long id;\n\n    private String username;\n\n    protected User() {} // Required by JPA\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Never use @Data from Lombok on an @Entity. It generates a hashCode() and equals() implementation that uses all fields, including lazy-loaded associations. This can trigger unintended 'N+1' select queries or a LazyInitializationException when you access those fields outside of a transaction. Always implement equals/hashCode using only the business key or the ID field."
+    }
+  ],
+  "num": 818,
+  "title": "What is an Entity? Explain @Entity, @Id, @GeneratedValue, and @Table.",
+  "category": "Spring Data JPA & Hibernate ORM"
+}

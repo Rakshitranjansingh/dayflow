@@ -1,0 +1,54 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The java.lang.OutOfMemoryError: Java heap space is a JVM-level signal that the garbage collector (GC) has failed to reclaim sufficient memory to satisfy an object allocation request. Unlike other OOM variants, this specifically targets the Young and Old generations of the heap. It occurs when the application's live object set—objects reachable from GC roots like thread stacks, static fields, or JNI references—occupies the entire heap capacity defined by -Xmx. When the allocation rate exceeds the reclamation rate, the JVM triggers a 'Stop-the-World' Full GC. If, after this exhaustive cycle, the heap remains saturated, the JVM throws this error to prevent memory corruption or unpredictable behavior."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Cause",
+        "Mechanism",
+        "Typical Symptom"
+      ],
+      "rows": [
+        [
+          "Memory Leak",
+          "References held in static collections or long-lived caches",
+          "Heap usage grows monotonically after GC"
+        ],
+        [
+          "Allocation Pressure",
+          "Rapid creation of short-lived objects exceeding GC throughput",
+          "High CPU usage due to constant GC cycles"
+        ],
+        [
+          "Heap Misconfiguration",
+          "Insufficient -Xmx for the application's workload",
+          "Immediate crash upon startup or load spike"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "GC Roots: The JVM identifies live objects by tracing references from roots. If a thread-local variable or a static Map keeps a reference to a large object graph, the GC cannot reclaim that memory, leading to a leak.",
+        "Allocation Failure: When an object is too large for the current Eden space or the Old generation, the JVM attempts a GC. If the requested size exceeds the available free space post-GC, the allocation fails.",
+        "Finalizers and Cleaners: Objects with finalize() methods are not reclaimed in a single GC cycle; they are queued for a finalizer thread, which can cause 'floating garbage' that artificially inflates heap usage.",
+        "Direct Memory vs Heap: Note that this error is strictly for the Heap. If you are using java.nio.ByteBuffer.allocateDirect(), you will encounter a different error (java.lang.OutOfMemoryError: Direct buffer memory) if you exceed your limit."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Common culprit: Static collections acting as hidden memory leaks\npublic class CacheManager {\n    // Static fields are GC roots; objects added here will never be garbage collected\n    private static final Map<String, LargeObject> CACHE = new ConcurrentHashMap<>();\n\n    public void addToCache(String key, LargeObject obj) {\n        CACHE.put(key, obj); // If this map grows indefinitely, OOM is inevitable\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior Insight: Never just increase -Xmx when you see this error. If you have a memory leak, increasing the heap only delays the inevitable crash while making the eventual 'Stop-the-World' pause significantly longer and more destructive to latency. Always capture a heap dump using -XX:+HeapDumpOnOutOfMemoryError and analyze it with Eclipse MAT or VisualVM to identify the 'Dominator Tree'—the objects holding the most memory—before adjusting JVM flags."
+    }
+  ],
+  "num": 722,
+  "title": "What causes java.lang.OutOfMemoryError: Java heap space?",
+  "category": "Core Java & Fundamentals"
+}

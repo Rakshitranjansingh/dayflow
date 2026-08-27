@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When Redis memory fills up and reaches the threshold defined by its maxmemory configuration directive, the engine cannot blindly accept incoming write operations that allocate new keys. Left unmanaged, an out-of-memory condition would crash the entire Redis process or trigger the operating system's Out-Of-Memory (OOM) killer. To prevent this catastrophic failure, Redis evaluates its maxmemory-policy. This critical setting dictates the eviction algorithm the single-threaded event loop must execute to liberate enough RAM for incoming commands before processing them.\n\nUnderstanding maxmemory-policy requires looking at how different eviction algorithms balance recency, frequency, and time-to-live expiration. Redis does not run a true, perfectly accurate LRU (Least Recently Used) or LFU (Least Frequently Used) algorithm because maintaining exact global ordering for every key would introduce unacceptable CPU overhead and memory waste. Instead, Redis approximates these behaviors by randomly sampling a small pool of keys and evicting the best candidate within that sample set. Choosing the correct eviction policy is paramount in distributed caching architectures to prevent cache stampedes, protect hot keys, and ensure steady-state throughput."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Eviction Policy",
+        "Eviction Algorithm Basis",
+        "Primary Use Case"
+      ],
+      "rows": [
+        [
+          "noeviction",
+          "None (Returns OOM error on writes)",
+          "Strict systems where data loss is unacceptable and writes must fail safely."
+        ],
+        [
+          "allkeys-lru",
+          "Approximated LRU across all keys",
+          "General-purpose caching where all keys are equally candidates for eviction."
+        ],
+        [
+          "volatile-lru",
+          "Approximated LRU among keys with a TTL set",
+          "Mixed databases where permanent reference data and temporary cache share an instance."
+        ],
+        [
+          "allkeys-lfu",
+          "Approximated LFU across all keys",
+          "Heavy read-heavy workloads where access frequency matters more than recency."
+        ],
+        [
+          "volatile-ttl",
+          "Evicts keys with the shortest remaining TTL",
+          "Time-sensitive caching tiers where soonest-to-expire data goes first."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "When a write command arrives and Redis detects memory usage above maxmemory, it triggers the eviction loop inside the main event processing thread, which can temporarily spike command latency (latency spikes).",
+        "The approximated LRU algorithm samples a configurable number of keys (controlled by maxmemory-samples, default is 5) and selects the best candidate from that subset to add to the eviction pool.",
+        "Under volatile policies (volatile-lru, volatile-lfu, volatile-ttl), if no keys have a TTL set, Redis behaves effectively like noeviction and rejects write operations.",
+        "The LFU implementation uses a logarithmic access counter coupled with a decay period to prevent old, historically popular keys from lingering forever in memory."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "# redis.conf configuration for production memory management\nmaxmemory 2gb\nmaxmemory-policy allkeys-lru\nmaxmemory-samples 10"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap is mixing permanent configuration data and transient cache items in the same Redis instance while using an 'allkeys-*' policy, which will accidentally evict your critical metadata. Conversely, using 'noeviction' without proper cluster monitoring can silently break application mutations when the cache peaks."
+    }
+  ],
+  "num": 923,
+  "title": "Redis memory is full. What happens? (Explain maxmemory-policy)",
+  "category": "Distributed Systems & Event-Driven Architecture"
+}

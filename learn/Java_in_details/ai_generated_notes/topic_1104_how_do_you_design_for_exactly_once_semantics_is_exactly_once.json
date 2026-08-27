@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing for exactly-once semantics and determining whether it is truly possible end-to-end represents one of the most intellectually rigorous challenges in distributed systems engineering. To unpack this, we must deconstruct the core concepts: exactly-once semantics (EOS), the theoretical boundaries of distributed consensus, and end-to-end pipelines. Exactly-once semantics guarantee that every record produced, transmitted, and processed results in a single, observable state change within the target system, even in the presence of node failures, network partitions, or duplicate message deliveries. In practice, pure end-to-end exactly-once processing is an engineering illusion. The Fallacies of Distributed Computing—specifically the unreliability of networks and independent system failures—dictate that message transport layers can only guarantee at-least-once delivery (retrying until an acknowledgment is received) or at-most-once delivery (fire and forget). Therefore, true end-to-end EOS is not a property of a single messaging broker; rather, it is an architectural illusion achieved through idempotent processing and transactional boundaries spanning the data producer, the streaming engine (such as Apache Kafka or Apache Flink), and the downstream datastore."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Semantic Level",
+        "Delivery Guarantee",
+        "State Impact",
+        "Failure Mode"
+      ],
+      "rows": [
+        [
+          "At-Most-Once",
+          "0 to 1 deliveries",
+          "May be lost; never duplicated",
+          "Network drops, crashes without ack"
+        ],
+        [
+          "At-Least-Once",
+          "1 or more deliveries",
+          "Never lost; may be duplicated",
+          "Retries cause duplicate writes"
+        ],
+        [
+          "Exactly-Once",
+          "Effective 1 delivery",
+          "State reflects single processing",
+          "Requires idempotency or distributed transactions"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "At the transport layer, streaming engines like Kafka achieve 'exactly-once' processing by coupling idempotent producers (using sequence numbers and producer IDs) with transactional coordinators that write both the consumed offsets and output states atomically to a transaction log.",
+        "Downstream persistence breaks the illusion if the target database lacks native support for conditional writes, upserts, or distributed two-phase commit (2PC) protocols, forcing reliance on business-level idempotency keys.",
+        "Stateful stream processors like Flink utilize the Chandy-Lamport distributed snapshot algorithm (asynchronous barrier snapshotting) to checkpoint operator states alongside input stream offsets, enabling deterministic recovery to a precise logical time."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class IdempotentOrderProcessor {\n    private final JdbcTemplate jdbcTemplate;\n\n    public IdempotentOrderProcessor(JdbcTemplate jdbcTemplate) {\n        this.jdbcTemplate = jdbcTemplate;\n    }\n\n    @Transactional\n    public void processOrder(String transactionId, OrderPayload order) {\n        String checkSql = \"SELECT COUNT(1) FROM processed_transactions WHERE transaction_id = ?\";\n        Integer count = jdbcTemplate.queryForObject(checkSql, Integer.class, transactionId);\n\n        if (count != null && count > 0) {\n            return;\n        }\n\n        String insertOrder = \"INSERT INTO orders (order_id, item, amount) VALUES (?, ?, ?)\";\n        jdbcTemplate.update(insertOrder, order.getId(), order.getItem(), order.getAmount());\n\n        String recordTx = \"INSERT INTO processed_transactions (transaction_id) VALUES (?)\";\n        jdbcTemplate.update(recordTx, transactionId);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Senior architectural warning: Never trust framework marketing claims of 'end-to-end exactly-once.' While stream processors can guarantee exactly-once processing *within their own internal state boundaries*, the moment a side effect occurs—such as calling an external third-party payment gateway API, sending an email, or writing to a non-transactional datastore—the guarantee is immediately broken. True EOS requires that every external interaction be inherently idempotent or wrapped in an outbox pattern with compensation logic."
+    }
+  ],
+  "num": 1105,
+  "title": "How do you design for exactly-once semantics? Is exactly-once really possible end to end?",
+  "category": "Core Java & Fundamentals"
+}

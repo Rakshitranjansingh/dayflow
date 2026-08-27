@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In modern distributed enterprise architectures, stateless authentication relies heavily on JSON Web Tokens (JWT). However, verifying these tokens securely requires knowing the cryptographic keys used to sign them, without tightly coupling resource servers to an authorization server's internal state. This is where a JWKS (JSON Web Key Set) becomes indispensable. A JWKS is a standardized JSON object that contains a set of JSON Web Keys (JWK), which are cryptographic keys publically exposing the parameters necessary to verify the digital signatures of tokens issued by an identity provider (like Keycloak, Okta, or Auth0). Instead of forcing every downstream resource server to maintain an out-of-band shared secret or continuously query the auth server for every single incoming HTTP request, the resource server fetches the public key set once—or caches it—and cryptographically validates the token locally in memory.\n\nWhen a resource server validates a token from an auth server using a JWKS, it executes a rigorous, multi-step cryptographic pipeline. First, the resource server extracts the incoming JWT from the Authorization header and decodes its JOSE header without validation. The header contains a 'kid' (Key ID) parameter, which uniquely identifies which specific public key out of the key set was used to sign this token. Next, the resource server inspects its local in-memory cache for a JWK matching that 'kid'. If a cache miss occurs, or if the key is unknown, the resource server makes an outbound HTTP GET request to the auth server's well-known JWKS URI (typically located at /.well-known/jwks.json) to retrieve the latest array of public keys. Once the correct public key is isolated, the resource server reconstructs the public-facing cryptographic algorithm (such as RS256 or ES256) and evaluates the mathematical signature across the token's header and payload. If the signature checks out, the resource server then evaluates standard claims, verifying that the token has not expired ('exp'), is not active prematurely ('nbf'), and matches the expected issuer ('iss') and audience ('aud')."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Key Rotation and KIDs: JWKS natively supports zero-downtime key rotation by allowing multiple active keys in the set simultaneously. An auth server can sign new tokens with a new private key while old tokens remain verifiable using the older public key identified by its distinct 'kid'.",
+        "Caching and Cache Stampedes: To prevent distributed denial-of-service against the auth server via high-throughput token validation, resource servers must cache the JWKS payload. Production systems must implement asynchronous background refresh strategies and cache-control header awareness to handle expired keys gracefully without blocking worker threads.",
+        "Algorithm Confusion Attacks: Resource servers must explicitly pin or restrict the allowed signing algorithms (e.g., rejecting 'none' or asymmetric-to-symmetric HMAC downgrades) when parsing the JWKS to prevent critical signature bypass vulnerabilities."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import org.springframework.security.oauth2.jwt.JwtDecoder;\nimport org.springframework.security.oauth2.jwt.NimbusJwtDecoder;\nimport org.springframework.context.annotation.Bean;\nimport org.springframework.context.annotation.Configuration;\n\n@Configuration\npublic class ResourceServerConfig {\n\n    @Bean\n    public JwtDecoder jwtDecoder() {\n        // The NimbusJwtDecoder automatically fetches, caches, and rotates keys from the JWKS URI\n        String jwksUri = \"https://auth-server.internal/.well-known/jwks.json\";\n        return NimbusJwtDecoder.withJwkSetUri(jwksUri).build();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production outage trap involving JWKS is the 'Unknown KID' storm during key rotation. If your auth server rotates its signing keys and purges the old public key from the JWKS endpoint before all issued JWTs naturally expire, every resource server with an outdated local cache will experience a cache miss, fail to find the new 'kid', hammer the auth server simultaneously for the new JWKS, and ultimately reject valid user sessions. Always ensure your cache eviction policies respect maximum token TTLs and implement exponential backoff on JWKS fetch failures."
+    }
+  ],
+  "num": 1029,
+  "title": "What is a JWKS (JSON Web Key Set)? How does a resource server validate a token from an auth server?",
+  "category": "Core Java & Fundamentals"
+}

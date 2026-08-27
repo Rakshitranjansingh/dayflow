@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Introduced in Java 8, java.util.Optional is a container object designed to explicitly model the absence of a value, rescuing developers from the perennial NullPointerException (NPE) and explicitly documenting API boundaries where a return value is not guaranteed. However, the introduction of Optional brought about severe antipatterns, the most egregious of which is calling get() blindly on an empty instance, directly defeating its semantic intent. Proper usage requires understanding the functional combinators like flatMap for monadic composition, and mastering the subtle performance and behavioral differences between eager evaluation via orElse and lazy evaluation via orElseGet.\n\nTo use Optional correctly, one must treat it as a stream of zero or one element. When dealing with nested optionals—such as when an extraction operation itself returns an Optional—calling map() results in an Optional<Optional<T>>, which creates unnecessary container wrapping. This is precisely where flatMap steps in, flattening the nested structure into a clean Optional<T>. Furthermore, selecting between default-value strategies requires careful evaluation: orElse executes its argument unconditionally regardless of presence, whereas orElseGet accepts a Supplier, deferring computation or allocation until the primary value is confirmed absent."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Method",
+        "Evaluation Strategy",
+        "Execution Condition",
+        "Common Performance Trap"
+      ],
+      "rows": [
+        [
+          "orElse(T other)",
+          "Eager",
+          "Always evaluated, even if the Optional is present",
+          "Executing expensive methods or database queries as default arguments"
+        ],
+        [
+          "orElseGet(Supplier<? extends T> supplier)",
+          "Lazy",
+          "Evaluated only if the Optional is empty",
+          "Passing stateful or thread-unsafe suppliers that side-effect"
+        ],
+        [
+          "get()",
+          "Eager",
+          "Throws NoSuchElementException if empty",
+          "Bypassing safety checks entirely, resulting in runtime crashes"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "The get() method acts as a direct analogue to legacy null checks, throwing a NoSuchElementException if the internal value is null. Relying on it forces callers to guess or crash, rendering the type system safety guarantees completely moot.",
+        "orElse always instantiates its argument. If you pass a method call like orElse(expensiveService.getDefault()), that method runs every single time the line is executed, regardless of whether the target Optional holds a value.",
+        "orElseGet accepts a functional interface (Supplier<T>). The lambda body is wrapped into an invocation that only executes when the value is absent, making it ideal for default database lookups or object instantiations.",
+        "flatMap is the monadic bind operation. If applied to an Optional<A> with a mapper function returning Optional<B>, it collapses the resulting Optional<Optional<B>> into a single flat Optional<B>."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public class OptionalBestPractices {\n\n    public record User(String name, Address address) {}\n    public record Address(String city) {}\n\n    // Correct usage of flatMap, orElseGet, and avoiding get()\n    public String getCityOrDefault(Optional<User> userOpt, String defaultCity) {\n        return userOpt\n            .flatMap(User::address)\n            .map(Address::city)\n            .orElseGet(() -> {\n                // Lazy execution: only runs if city is missing\n                return fetchFallbackCityFromDatabase(defaultCity);\n            });\n    }\n\n    private String fetchFallbackCityFromDatabase(String fallback) {\n        return fallback;\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "Never use Optional as a field type in entities, DTOs, or domain models because Optional is explicitly not Serializable, which will immediately break JPA, Hibernate, and Jackson serialization pipelines. Reserve Optional strictly for return types on query methods where value absence is a normal domain outcome."
+    }
+  ],
+  "num": 85,
+  "title": "Optional — correct usage, orElse vs orElseGet, flatMap, avoid get()",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

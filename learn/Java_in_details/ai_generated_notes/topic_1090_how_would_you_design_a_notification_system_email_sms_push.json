@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Designing a resilient, enterprise-grade Notification System handling multi-channel dispatch across Email, SMS, and Push requires mastering asynchronous event-driven architecture, robust exception handling, and non-blocking I/O (NIO). In modern cloud architectures, a notification is rarely a synchronous blocking call; instead, it starts as a high-throughput domain event published to a message broker. Downstream consumers pull these events, map them to specific provider payloads (such as SendGrid for Email, Twilio for SMS, and Firebase Cloud Messaging for Push), and dispatch them over network sockets. Because third-party communication APIs are notoriously unreliable, subject to rate-limiting, network partitions, and transient HTTP 5xx errors, the system must employ sophisticated backpressure, circuit breakers, and non-blocking socket operations via Java NIO selectors or reactive programming models like Project Reactor to avoid thread starvation.\n\nThe architecture relies heavily on decoupling the trigger source from the delivery mechanism. When a service requests a notification, the request is immediately acknowledged and queued in a durable message bus (e.g., Apache Kafka or RabbitMQ). Worker nodes poll these queues, utilizing non-blocking I/O channels to execute concurrent outbound network requests without tying up precious JVM platform threads per waiting connection. Exception handling becomes the linchpin of this design: transient network failures must trigger exponential backoff with jitter and be redirected to a Dead Letter Queue (DLQ) after a fixed threshold, whereas permanent failures (such as an invalid email format or a deactivated push token) must immediately short-circuit retries to protect downstream provider reputations and prevent resource exhaustion."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Notification Channel",
+        "Primary Protocol",
+        "Typical Payload Format",
+        "Failure Handling Strategy"
+      ],
+      "rows": [
+        [
+          "Email",
+          "SMTP / HTTPS REST",
+          "MIME / JSON",
+          "Retry transient SMTP 4xx; DLQ on permanent 5xx/Bounce"
+        ],
+        [
+          "SMS",
+          "HTTPS REST",
+          "JSON (To, Body, Sender ID)",
+          "Handle rate limits (HTTP 429) with exponential backoff"
+        ],
+        [
+          "Push",
+          "HTTP/2 (APNs/FCM)",
+          "Binary/JSON (Device Token, Payload)",
+          "Purge invalid tokens immediately; retry dropped TCP frames"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Non-blocking I/O (NIO) Integration: By leveraging Java's java.nio.channels and selectors, or reactive Netty engines, the worker pool can manage thousands of concurrent HTTP/S and SMTP socket connections with a minimal thread footprint, eliminating thread-per-request latency bottlenecks during external provider slowdowns.",
+        "Idempotency and Deduplication: Network timeouts often cause upstream clients or message brokers to deliver duplicate events. The worker layer must enforce idempotency by utilizing distributed locks (e.g., Redis) or database unique constraints keyed on a deterministic message hash.",
+        "Rate Limiting and Throttling: Third-party SMS and Email gateways enforce strict rate limits. Implementing a token bucket algorithm via Redis prevents HTTP 429 Too Many Requests responses and optimizes throughput."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Service\npublic class NotificationDispatcherService {\n\n    private final HttpClient httpClient = HttpClient.newBuilder()\n        .connectTimeout(Duration.ofSeconds(3))\n        .executor(Executors.newVirtualThreadPerTaskExecutor())\n        .build();\n\n    private final RetryRegistry retryRegistry;\n\n    public NotificationDispatcherService(RetryRegistry retryRegistry) {\n        this.retryRegistry = retryRegistry;\n    }\n\n    public CompletableFuture<Void> dispatchAsync(NotificationEvent event) {\n        Retry retry = retryRegistry.retry(\"notificationService\");\n        Supplier<CompletableFuture<HttpResponse<String>>> supplier = Retry.decorateSupplier(\n            retry,\n            () -> httpClient.sendAsync(\n                buildHttpRequest(event),\n                HttpResponse.BodyHandlers.ofString()\n            )\n        );\n\n        return CompletableFuture.supplyAsync(supplier)\n            .thenCompose(Function.identity())\n            .handle((response, throwable) -> {\n                if (throwable != null) {\n                    handlePermanentFailure(event, throwable);\n                } else if (response.statusCode() >= 400) {\n                    handleHttpError(event, response.statusCode());\n                }\n                return null;\n            });\n    }\n\n    private HttpRequest buildHttpRequest(NotificationEvent event) {\n        return HttpRequest.newBuilder()\n            .uri(URI.create(event.getProviderEndpoint()))\n            .header(\"Content-Type\", \"application/json\")\n            .POST(HttpRequest.BodyPublishers.ofString(event.getPayload()))\n            .build();\n    }\n\n    private void handlePermanentFailure(NotificationEvent event, Throwable t) {\n        // Route to Dead Letter Queue (DLQ) and alert monitoring systems\n    }\n\n    private void handleHttpError(NotificationEvent event, int statusCode) {\n        // Handle rate limiting or trigger manual recovery flows\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A critical production gotcha when designing high-volume notification systems is failing to handle slow-consumer propagation over shared connection pools. If your SMS provider experiences latency spikes and your HTTP client connection pool fills up waiting on socket reads, it will block threads across the entire application if you aren't using asynchronous NIO channels or Java 21 virtual threads. Always isolate your notification dispatch thread pools or reactive web clients from your core business logic thread pools using bulkhead patterns."
+    }
+  ],
+  "num": 1091,
+  "title": "How would you design a Notification System? (Email, SMS, Push)",
+  "category": "Exception Handling & I/O / NIO"
+}

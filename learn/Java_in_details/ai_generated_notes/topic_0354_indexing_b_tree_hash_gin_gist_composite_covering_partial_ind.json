@@ -1,0 +1,82 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Database performance optimization relies heavily on choosing the correct indexing strategy to minimize disk I/O and avoid full table scans. In high-throughput Java applications utilizing relational databases, understanding index internals is paramount. A B-tree (Balanced Tree) index is the default workhorse for range queries and equality checks, organizing data in a self-balancing tree structure where all leaf nodes reside at the same depth. This allows $O(\\log N)$ lookups, insertions, and deletions.\n\nHash indexes provide $O(1)$ equality lookups by computing a hash value of the indexed column, though they are traditionally non-WAL-logged in some engines and cannot handle range queries like greater-than or less-than. For semi-structured or complex data types, Generalized Inverted Indexes (GIN) and Generalized Search Trees (GiST) offer specialized capabilities. GIN indexes are designed for data containing elements like arrays, JSONB, or full-text search documents, where an index entry points to multiple rows containing a specific key. GiST indexes are balanced tree structures that allow customized access methods, making them indispensable for geometric, spatial data, and range types.\n\nTo optimize multi-column queries, composite indexes order columns sequentially to satisfy queries matching the leftmost prefix rule. Covering indexes optimize reads by including non-key columns via the INCLUDE clause, enabling index-only scans that eliminate heap fetches entirely. Finally, partial indexes restrict the index footprint to a subset of rows using a WHERE clause, drastically reducing index size, update overhead, and memory consumption for skewed data distributions."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Index Type",
+        "Optimal Use Case",
+        "Query Capabilities",
+        "Key Limitation"
+      ],
+      "rows": [
+        [
+          "B-tree",
+          "Primary keys, range queries, ordering",
+          "Equality, Range (<, >, BETWEEN)",
+          "Ineffective for suffix/infix text searches"
+        ],
+        [
+          "Hash",
+          "High-concurrency exact-match lookups",
+          "Equality (=) only",
+          "No range support, historically unsafe for replication"
+        ],
+        [
+          "GIN",
+          "Arrays, JSONB documents, Full-Text Search",
+          "Containment, Overlap, Text matching",
+          "Slower write performance due to entry expansion"
+        ],
+        [
+          "GiST",
+          "Spatial (PostGIS), ranges, nearest-neighbor",
+          "Geometric overlaps, Nearest neighbor",
+          "Higher CPU overhead during construction and updates"
+        ],
+        [
+          "Composite",
+          "Multi-column filters (WHERE a = 1 AND b = 2)",
+          "Leftmost prefix combinations",
+          "Bloat if column order does not match query patterns"
+        ],
+        [
+          "Covering",
+          "Queries selecting only specific non-key columns",
+          "Index-only scans",
+          "Increases write overhead and index footprint"
+        ],
+        [
+          "Partial",
+          "Filtering hot-spots (e.g., WHERE status = 'PENDING')",
+          "Queries matching the partial predicate",
+          "Query optimizer must match the exact WHERE clause"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "B-tree balancing relies on page splits and merges. When a leaf page fills up during an INSERT, half the keys migrate to a new sibling page, and a new key is pushed up to the parent node, maintaining logarithmic depth at the cost of write amplification.",
+        "Composite index efficiency depends entirely on the cardinality and sorting order of the leading columns. Placing a low-cardinality boolean column as the leftmost prefix ruins the filtering capacity for subsequent high-cardinality columns.",
+        "GIN indexes accelerate JSONB containment queries by deconstructing nested documents into discrete key-value pairs stored in the posting tree, pointing back to the physical heap tuples containing them.",
+        "Covering indexes prevent 'table random lookups' by appending payload columns to the leaf nodes via the INCLUDE keyword, allowing the database engine to satisfy the SELECT clause directly from the index structure without visiting the table heap."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "sql",
+      "content": "-- Creating a Composite, Covering, and Partial Index in PostgreSQL\nCREATE INDEX CONCURRENTLY idx_orders_customer_status_covering\nON orders (customer_id, order_date DESC)\nINCLUDE (total_amount, shipping_address)\nWHERE status = 'PENDING';"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap in enterprise Java applications (e.g., using Spring Data JPA) is assuming the database will automatically utilize individual single-column indexes when a query filters on multiple columns simultaneously. The database query planner will often pick only one index or fall back to a sequential scan unless a composite index matching the exact query predicate order is established. Furthermore, avoid indexing columns with low cardinality (like booleans or low-count status enums) in isolation unless combined in a partial index."
+    }
+  ],
+  "num": 355,
+  "title": "Indexing — B-tree, Hash, GIN, GiST, composite, covering, partial indexes",
+  "category": "Core Java & Fundamentals"
+}

@@ -1,0 +1,57 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "When a Java backend is tasked with generating massive data exports—such as a 1 million row CSV—the naive approach of fetching the entire result set into application memory using a standard JPA repository or JDBC `Statement.executeQuery()` will inevitably result in a catastrophic `java.lang.OutOfMemoryError: Java heap space`. This occurs because objects materialized from a database result set consume substantial heap overhead, easily dwarfing the raw payload size due to JVM object headers, character encodings, and collection wrapper overheads. To prevent this, enterprise systems rely on streaming cursors and keyset/cursor-based pagination to process data in bounded, constant-memory windows.\n\nStreaming cursors leverage database-level mechanisms (such as PostgreSQL's server-side cursors or MySQL's unbuffered result sets via `Integer.MIN_VALUE` fetch size) to keep a network connection open while fetching records lazily row-by-row. Combined with Java's modern streaming primitives (like Java Streams, `Spliterator`, and reactive constructs), this allows bytes to be piped directly out to an HTTP response stream using chunked transfer encoding. However, server-side cursors hold transaction locks and database resources open for extended durations, which can degrade overall database throughput. Therefore, high-concurrency systems often prefer keyset pagination (sometimes called seek pagination), which leverages indexed columns to fetch sequential chunks without the stateful overhead of database cursors."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Strategy",
+        "Memory Footprint",
+        "Database Impact",
+        "Use Case"
+      ],
+      "rows": [
+        [
+          "Offset/Limit Pagination",
+          "Low (per page)",
+          "Catastrophic ($O(N^2)$ scan time on deep offsets)",
+          "Small datasets, UI pagination"
+        ],
+        [
+          "Keyset (Seek) Pagination",
+          "Low (constant)",
+          "Optimal (Index scans using WHERE id > last_seen)",
+          "Batch processing, large exports"
+        ],
+        [
+          "Server-Side Streaming Cursors",
+          "Constant ($O(1)$ heap)",
+          "Moderate (Holds connection and transaction open)",
+          "True streaming exports of arbitrary tables"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "JDBC fetch size configuration: To stream large datasets in JDBC, you must set `Statement.setFetchSize(int)` to a low value (e.g., 500) and ensure `setAutoCommit(false)` is invoked. Otherwise, drivers like MySQL will still pull the entire result set into client memory by default.",
+        "Reactive Streams and Backpressure: Using Project Reactor or Java 19+ Virtual Threads (`Thread.ofVirtual().start()`) allows blocking I/O streaming operations to scale efficiently without exhausting OS threads or JVM heap pools.",
+        "Buffer management: Wrap output streams in buffered writers and explicitly flush periodically to prevent memory accumulation in intermediate network socket buffers."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Transactional(readOnly = true)\npublic void streamLargeCsvExport(HttpServletResponse response) throws IOException {\n    response.setContentType(\"text/csv\");\n    response.setHeader(\"Content-Disposition\", \"attachment; filename=export.csv\");\n\n    try (PrintWriter writer = response.getWriter();\n         Stream<UserEntity> userStream = userRepository.streamAllActiveUsers()) {\n        \n        writer.println(\"id,username,email\");\n        \n        userStream.forEach(user -> {\n            writer.print(user.getId());\n            writer.print(',');\n            writer.print(user.getUsername());\n            writer.print(',');\n            writer.println(user.getEmail());\n            \n            // Optional: flush periodically for long streams\n        });\n        writer.flush();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production failure mode when streaming database exports is the 'LazyInitializationException' or connection timeout. Because the database connection must remain open for the duration of the stream, running this inside a standard web request thread can easily saturate your connection pool if clients download slowly (the 'slow consumer' problem). Always ensure your streaming operations run asynchronously, consider decoupling export generation via a message broker to temporary file storage (S3/local disk), and let users download the static file rather than streaming it synchronously over an HTTP connection."
+    }
+  ],
+  "num": 1231,
+  "title": "How to manage large data exports (e.g., generating a 1M row CSV) without OOM? (Streaming cursors, pagination)",
+  "category": "Modern Java Features (Java 8 - 21+)"
+}

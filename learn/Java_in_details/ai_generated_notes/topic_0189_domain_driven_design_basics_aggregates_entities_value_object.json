@@ -1,0 +1,64 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Domain-Driven Design (DDD) addresses extreme complexity in enterprise software by tightly coupling the implementation to an evolving model of the core business domain. When building large-scale systems in Java, developers often fall into the trap of anemic domain models—where entities are mere data bags loaded with getters and setters, pushed through procedural service layers. DDD breaks this anti-pattern by establishing explicit tactical and strategic building blocks. At the heart of tactical design are Aggregates, Entities, and Value Objects. An Entity is a mutable object defined primarily by its unique identity rather than its attributes, persisting across time and state changes. Conversely, a Value Object is an immutable descriptor of domain characteristics with no conceptual identity; if two Value Objects have the same attributes, they are completely interchangeable. To safeguard invariants, Entities and Value Objects are clustered into Aggregates. An Aggregate acts as a consistency boundary enforced by an Aggregate Root, ensuring external objects can only hold references to the root and never modify inner components directly.\n\nAt a strategic level, large business domains cannot be modeled by a single unified graph without collapsing under cognitive load and tight coupling. This is solved by Bounded Contexts, which explicitly define the applicability of a specific domain model, drawing hard logical boundaries around subsystems so that terms can mean different things in different contexts (e.g., a 'Customer' in Sales means something entirely different from a 'Customer' in Shipping). To bridge the gap between technical teams and domain experts within these boundaries, teams must forge a Ubiquitous Language. This is a rigorous, shared vocabulary embedded directly into the codebase—reflected in class names, method signatures, package structures, and daily human discourse—eliminating the destructive translation layer between business requirements and technical implementation."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Building Block",
+        "Identity & Mutability",
+        "Primary Purpose",
+        "Lifecycle & Ownership"
+      ],
+      "rows": [
+        [
+          "Entity",
+          "Has unique ID; Mutable state",
+          "Tracks business objects through continuous time",
+          "Managed by Repository; persists independently"
+        ],
+        [
+          "Value Object",
+          "No ID; Strictly Immutable",
+          "Describes domain characteristics and attributes",
+          "Created on demand; lifecycle bound to owner"
+        ],
+        [
+          "Aggregate",
+          "Root has ID; encapsulates boundary",
+          "Enforces transactional invariants and consistency",
+          "Loaded and saved atomically as a single unit"
+        ],
+        [
+          "Bounded Context",
+          "N/A (Strategic boundary)",
+          "Isolates domain models to prevent language drift",
+          "Governs microservices, teams, and schemas"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Aggregate Roots must manage all internal state mutations, exposing intent-revealing methods (e.g., `order.complete()` rather than `order.setStatus(Status.COMPLETED)`) to guarantee business invariants are never bypassed.",
+        "Value Objects should be implemented as Java records (introduced in Java 14) or deep final classes where all fields are final, copying defensive state on read/write to guarantee thread-safe immutability.",
+        "Bounded Contexts decouple schemas, allowing the same database concept to be mapped differently in disparate services without creating monolithic, brittle shared-database antipatterns.",
+        "Ubiquitous Language requires purging technical jargon (like DTO, Manager, DAO) from the domain layer, replacing them with precise business terminology agreed upon with domain experts."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "public record Money(BigDecimal amount, Currency currency) {\n    public Money {\n        Objects.requireNonNull(amount);\n        Objects.requireNonNull(currency);\n        if (amount.signum() < 0) {\n            throw new IllegalArgumentException(\"Money amount cannot be negative\");\n        }\n    }\n\n    public Money add(Money other) {\n        if (!this.currency.equals(other.currency)) {\n            throw new IllegalArgumentException(\"Currency mismatch\");\n        }\n        return new Money(this.amount.add(other.amount), this.currency);\n    }\n}\n\npublic class OrderId {\n    private final UUID id;\n    public OrderId(UUID id) { this.id = Objects.requireNonNull(id); }\n    // equals and hashCode implementation based strictly on id\n}\n\npublic class Order {\n    private final OrderId id;\n    private OrderStatus status;\n    private final List<OrderItem> items = new ArrayList<>();\n\n    public void addLineItem(Product product, int quantity, Money price) {\n        if (this.status != OrderStatus.DRAFT) {\n            throw new IllegalStateException(\n                \"Cannot modify an order that has already been submitted.\"\n            );\n        }\n        this.items.add(new OrderItem(product, quantity, price));\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A frequent senior-level pitfall in ORMs like Hibernate/JPA is attempting to map DDD Aggregates directly to database foreign keys without respecting boundary rules. If you lazy-load an entity deep inside an Aggregate graph outside of a transactional boundary, you will inevitably hit the dreaded LazyInitializationException. Furthermore, never expose mutable collections directly from an Aggregate Root; always return `Collections.unmodifiableList()` or a stream to protect internal encapsulation."
+    }
+  ],
+  "num": 190,
+  "title": "Domain-Driven Design basics — Aggregates, Entities, Value Objects, Bounded Contexts, Ubiquitous Language",
+  "category": "Core Java & Fundamentals"
+}

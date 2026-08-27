@@ -1,0 +1,63 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Java Collections Framework, choosing the right Map implementation directly impacts application throughput, latency, and memory overhead. HashMap, LinkedHashMap, and TreeMap all implement the java.util.Map interface, but they rely on entirely different data structures under the hood. A standard HashMap provides O(1) constant time performance for basic operations like get and put, backed by a hash table of buckets that dynamically treeify into red-black trees when collision thresholds are breached, though it offers zero iteration order guarantees. LinkedHashMap extends HashMap, preserving the same fast hash-table lookups while maintaining a doubly-linked list running through all of its entries. This linked list can be configured to maintain either insertion-order or access-order, making it the ideal building block for LRU (Least Recently Used) caches. TreeMap, conversely, abandons hashing completely in favor of a Red-Black tree structure. It guarantees O(log n) time complexity for insertion, deletion, and lookup while keeping keys sorted according to their natural ordering or a custom Comparator."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "HashMap",
+        "LinkedHashMap",
+        "TreeMap"
+      ],
+      "rows": [
+        [
+          "Underlying Data Structure",
+          "Array of Buckets (Hash Table + TreeBins)",
+          "Hash Table + Doubly-Linked List",
+          "Red-Black Tree"
+        ],
+        [
+          "Time Complexity (get/put/remove)",
+          "O(1) expected",
+          "O(1) expected",
+          "O(log n) guaranteed"
+        ],
+        [
+          "Iteration Order",
+          "None (Randomized across JVM runs)",
+          "Insertion-order or Access-order",
+          "Sorted (Natural or Comparator)"
+        ],
+        [
+          "Null Keys/Values",
+          "One null key, multiple null values",
+          "One null key, multiple null values",
+          "No null keys if using natural ordering; null values allowed"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "HashMap internally allocates an array of Node objects (called the table). When hash collisions occur within the same bucket index (calculated via hashcode modulo table length), entries form a linked list. If a single bucket exceeds TREEIFY_THRESHOLD (default 8) and the table capacity is at least 64, that bucket transforms into a TreeNode structure (a Red-Black tree) to degrade worst-case lookup performance from O(n) to O(log n).",
+        "LinkedHashMap maintains a separate doubly-linked list overlaying the hash buckets. Every time an entry is inserted or accessed (if access-order mode is enabled via the boolean constructor flag), pointers are updated to reposition the node at the tail of the list. Subclasses can easily override removeEldestEntry to implement custom cache eviction policies without external locking or complex housekeeping.",
+        "TreeMap implements NavigableMap and is backed by a self-balancing binary search tree. Every node contains pointers to its left child, right child, and parent, along with a boolean color bit used during tree rotations to maintain balance invariants. Because elements are continuously sorted, range-view operations like subMap, headMap, and tailMap execute efficiently by navigating the tree structure directly rather than scanning a full collection."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "import java.util.*;\n\npublic class MapDemonstration {\n    public static void main(String[] args) {\n        // 1. HashMap: O(1) ops, unordered\n        Map<String, Integer> hashMap = new HashMap<>();\n        hashMap.put(\"Zebra\", 1);\n        hashMap.put(\"Apple\", 2);\n        \n        // 2. LinkedHashMap: O(1) ops, insertion or access ordered\n        Map<String, Integer> lruCache = new LinkedHashMap<String, Integer>(16, 0.75f, true) {\n            @Override\n            protected boolean removeEldestEntry(Map.Entry<String, Integer> eldest) {\n                return size() > 100; // Evict eldest when capacity exceeds 100\n            }\n        };\n        \n        // 3. TreeMap: O(log n) ops, sorted by key\n        Map<String, Integer> treeMap = new TreeMap<>();\n        treeMap.put(\"Zebra\", 1);\n        treeMap.put(\"Apple\", 2);\n        System.out.println(treeMap); // Prints {Apple=2, Zebra=1}\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production trap when using TreeMap is inserting keys that do not implement Comparable and failing to provide a custom Comparator, resulting in a ClassCastException at runtime. Furthermore, remember that none of these standard map implementations are thread-safe. Wrapping them via Collections.synchronizedMap() or utilizing ConcurrentHashMap (for hash-based maps) is mandatory in multi-threaded environments, though ConcurrentHashMap does not have a native sorted counterpart like TreeMap—for concurrent sorted maps, ConcurrentSkipListMap must be used instead."
+    }
+  ],
+  "num": 537,
+  "title": "What is the difference between HashMap, LinkedHashMap, and TreeMap?",
+  "category": "Collections Framework & Internals"
+}

@@ -1,0 +1,58 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Mutual TLS (mTLS) is an architectural extension of standard Transport Layer Security that enforces bidirectional cryptographic identity verification. In traditional TLS, a client validates the authenticity of a server via its X.509 certificate, while the server remains blind to the client's cryptographically verified identity. mTLS closes this trust gap by requiring the client to present its own digital certificate to the server during the TLS handshake, establishing a mutually trusted, encrypted tunnel. This mechanism is foundational to Zero Trust network architecture, ensuring that both endpoints prove who they are before a single application-layer byte is exchanged.\n\nWithin a modern microservices architecture, mTLS is predominantly operationalized via a Service Mesh—such as Istio, Linkerd, or Consul Connect. In a service mesh topology, application containers are decoupled from network security responsibilities by injecting sidecar proxies (typically Envoy) adjacent to each service instance. These sidecars intercept all inbound and outbound traffic, transparently managing the complex operational lifecycle of mTLS without requiring manual code modifications in Java or other backend runtimes. The mesh's control plane automatically provisions short-lived X.509 certificates, handles root-of-trust rotation, and enforces strict authorization policies based on the cryptographically validated SPIFFE (Secure Production Identity Framework for Everyone) IDs embedded within the peer certificates."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Architectural Dimension",
+        "Standard TLS",
+        "Mutual TLS (mTLS in Service Mesh)"
+      ],
+      "rows": [
+        [
+          "Authentication Scope",
+          "Client authenticates Server only",
+          "Bidirectional: Client and Server authenticate each other"
+        ],
+        [
+          "Trust Establishment",
+          "Public CAs (e.g., Let's Encrypt) via browser trust stores",
+          "Internal PKI managed by Service Mesh Control Plane (SPIFFE/SPIRE)"
+        ],
+        [
+          "Application Code Impact",
+          "Handled implicitly by HTTP client libraries",
+          "Transparently offloaded to sidecar proxies (zero application code changes)"
+        ],
+        [
+          "Authorization Model",
+          "Typically relies on network perimeter (firewalls/VPC) or API keys",
+          "Fine-grained cryptographic workload identity verification (Service A to Service B)"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "During the mTLS handshake in a service mesh, the Envoy sidecar intercepts the TCP stream and negotiates a mutual validation using TLS 1.3, presenting a certificate containing a SPIFFE URI SAN (Subject Alternative Name) like spiffe://cluster.local/ns/production/sa/payment-service-account.",
+        "The control plane acts as a Certificate Authority (CA), continuously issuing short-lived X.509 certificates (often lasting less than 24 hours) to eliminate the risk of long-lived credential compromise and bypass traditional, manual certificate renewal processes.",
+        "Layer 7 Authorization Policies are enforced dynamically by evaluating the peer's verified SPIFFE ID against mesh-wide access control lists, allowing operators to restrict traffic down to specific namespaces, service accounts, and HTTP methods without writing custom firewall rules."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "apiVersion: security.istio.io/v1beta1\nkind: PeerAuthentication\nmetadata:\n  name: default\n  namespace: production\nspec:\n  mtls:\n    mode: STRICT\n---\napiVersion: security.istio.io/v1beta1\nkind: AuthorizationPolicy\nmetadata:\n  name: order-to-payment-policy\n  namespace: production\nspec:\n  selector:\n    matchLabels:\n      app: payment-service\n  action: ALLOW\n  rules:\n  - from:\n    - source:\n        principals: [\"cluster.local/ns/production/sa/order-service-account\"]"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall when adopting mTLS in a service mesh is forgetting to transition your Java application's internal health check probes. If your Kubernetes liveness and readiness probes hit an endpoint protected by STRICT mTLS mode via HTTP without going through the sidecar, or if they hit the application directly on a loopback port bypassing Envoy, the connection will fail, causing cascading pod restarts. Always configure probes to route through the sidecar's administrative port or exempt health check paths via mesh configurations."
+    }
+  ],
+  "num": 1027,
+  "title": "What is Mutual TLS (mTLS)? How is it used in a Service Mesh?",
+  "category": "Core Java & Fundamentals"
+}

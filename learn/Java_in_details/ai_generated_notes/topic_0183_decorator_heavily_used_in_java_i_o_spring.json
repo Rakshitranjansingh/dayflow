@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "The Decorator design pattern is a structural pattern that allows behavior to be added to individual objects, dynamically, without affecting the behavior of other objects from the same class. In enterprise Java ecosystems, this pattern is foundational to solving the explosive class-hierarchy growth problem that occurs when combining orthogonal features. Instead of relying on deep inheritance trees—which rapidly lead to class explosion and tight coupling—the Decorator pattern relies on composition. A decorator wraps a core component, implementing the same interface while delegating core operations to the wrapped instance and adding state or behavioral pre- or post-processing.\n\nIn Java I/O, the Decorator pattern is visible everywhere. The java.io package uses it to compose stream capabilities dynamically. For instance, reading a file efficiently while buffering bytes and decrypting them on the fly does not require a monolithic FileInputStreamSubclassWithBufferingAndDecryption. Instead, a base InputStream is wrapped by a BufferedInputStream, which is further wrapped by a CipherInputStream. Each decorator transparently intercepts method calls like read(), alters or enhances the stream data, and forwards the execution to the underlying stream.\n\nIn the Spring Framework, the Decorator pattern underpins core enterprise features, particularly through proxy-based architectures like Spring AOP and transactional management. When Spring applies @Transactional, @Secured, or caching semantics to a bean, it intercepts method calls via dynamic proxies or CGLIB-generated subclasses. These proxies act as runtime decorators around the target bean. They manage cross-cutting concerns—such as opening a database transaction, acquiring a lock, or checking security credentials—before delegating the actual execution to the target business service bean. This separation of concerns ensures that business logic remains completely agnostic of infrastructure plumbing."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Dimension",
+        "Java I/O Decorators",
+        "Spring Proxies (Decorators)"
+      ],
+      "rows": [
+        [
+          "Primary Intent",
+          "Add streaming capabilities (buffering, compression, encryption)",
+          "Inject cross-cutting concerns (transactions, security, caching)"
+        ],
+        [
+          "Implementation Mechanism",
+          "Explicit manual wrapping via constructors",
+          "Automated bytecode generation (JDK Dynamic Proxies / CGLIB)"
+        ],
+        [
+          "Lifecycle Management",
+          "Managed locally by developer code",
+          "Managed globally by the Spring IoC ApplicationContext"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Component Transparency: Because decorators implement the exact same interface as the objects they wrap, client code remains entirely unaware that it is interacting with a decorated instance.",
+        "Order Dependency in I/O: The sequence in which decorators are nested matters critically. Wrapping a GZIPInputStream inside a BufferedInputStream behaves differently than buffering the raw stream before decompression.",
+        "Spring Auto-Proxying Mechanics: Spring inspects bean definitions post-instantiation and wraps target instances with dynamic proxies if pointcuts match, effectively injecting decorator logic into the method invocation chain."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "// Classic Java I/O Decorator Chain Example\nimport java.io.*;\n\npublic class DecoratorDemo {\n    public static void main(String[] args) throws IOException {\n        // Base component stream reading raw bytes from a file\n        InputStream fileStream = new FileInputStream(\"data.bin\");\n        \n        // First decorator: adds internal memory buffering for performance\n        InputStream bufferedStream = new BufferedInputStream(fileStream);\n        \n        // Second decorator: adds data decompression capabilities\n        InputStream compressedStream = new java.util.zip.GZIPInputStream(bufferedStream);\n        \n        // Client interacts uniformly through the base InputStream interface\n        int data = compressedStream.read();\n        compressedStream.close();\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production gotcha with Spring's decorator proxies occurs when invoking a decorated method internally within the same class (self-invocation). Because the internal call bypasses the Spring proxy instance and hits the 'this' reference directly, cross-cutting concerns like @Transactional or @Cacheable will silently fail to execute. Always rely on injecting the proxy bean circularly or use AspectJ weaving if self-invocation interception is strictly required."
+    }
+  ],
+  "num": 184,
+  "title": "Decorator (heavily used in Java I/O & Spring)",
+  "category": "OOPs & Design Patterns"
+}

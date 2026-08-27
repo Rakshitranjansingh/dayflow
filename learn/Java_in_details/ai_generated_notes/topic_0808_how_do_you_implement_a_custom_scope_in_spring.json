@@ -1,0 +1,28 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "In the Spring Framework, bean scopes dictate the lifecycle, visibility, and instantiation frequency of managed components. While standard scopes like singleton and prototype cover the majority of enterprise use cases, complex architectural patterns occasionally demand custom scopes—such as conversational scopes, request-thread hybrids, multi-tenant session bindings, or websocket-aware state management. Implementing a custom scope in Spring requires a deep understanding of the BeanFactory container mechanics, specifically the org.springframework.beans.factory.config.Scope interface. By providing an explicit implementation of this contract, you tell the IoC container exactly how to resolve, store, destroy, and register bean instances outside of standard JVM heap or Servlet request bounds.\n\nTo build a custom scope, you must implement five core methods on the Scope interface: get(String name, ObjectFactory<?> objectFactory), remove(String name), registerDestructionCallback(String name, Runnable callback), resolveContextualObject(String key), and getConversationId(). The get method acts as the critical gatekeeper; when a bean within your custom scope is requested, the container checks your scope's backing map (often backed by a ThreadLocal, a clustered cache, or an HTTP session). If the bean does not exist for the current context, your custom scope must execute the ObjectFactory to instantiate, wire, and initialize the bean before caching it. Furthermore, you are entirely responsible for handling destruction callbacks when the scope terminates, ensuring that disposable beans run their @PreDestroy hooks cleanly to prevent resource leaks."
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Thread-Safety and Context Isolation: Custom scopes often rely on ThreadLocal storage or distributed session stores. Because multiple threads might interact with the application context simultaneously, your internal data structures (like ConcurrentHashMap within a ThreadLocal wrapper) must be strictly thread-safe.",
+        "Bean Destruction Lifecycles: Unlike singletons managed directly by the DefaultListableBeanFactory, scoped beans require manual registration of destruction callbacks. If you fail to execute the Runnable passed to registerDestructionCallback when the scope resets, beans containing stateful resources (such as open database connections or file handles) will leak memory.",
+        "Container Registration: Merging a custom scope into Spring requires registering it with the ConfigurableBeanFactory via registerScope(String scopeName, Scope scope), or exposing a CustomScopeConfigurer bean in your application context configuration."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "package com.example.scope;\n\nimport org.springframework.beans.factory.config.Scope;\nimport org.springframework.lang.NonNull;\nimport java.util.Map;\nimport java.util.concurrent.ConcurrentHashMap;\n\npublic class ThreadLocalScope implements Scope {\n\n    private final ThreadLocal<Map<String, Object>> threadLocalScope = \n        ThreadLocal.withInitial(ConcurrentHashMap::new);\n\n    private final ThreadLocal<Map<String, Runnable>> destructionCallbacks = \n        ThreadLocal.withInitial(ConcurrentHashMap::new);\n\n    @Override\n    @NonNull\n    public Object get(@NonNull String name, @NonNull java.util.function.ObjectFactory<?> objectFactory) {\n        Map<String, Object> scope = threadLocalScope.get();\n        return scope.computeIfAbsent(name, k -> objectFactory.getObject());\n    }\n\n    @Override\n    public Object remove(@NonNull String name) {\n        Map<String, Runnable> callbacks = destructionCallbacks.get();\n        if (callbacks.containsKey(name)) {\n            callbacks.get(name).run();\n            callbacks.remove(name);\n        }\n        return threadLocalScope.get().remove(name);\n    }\n\n    @Override\n    public void registerDestructionCallback(@NonNull String name, @NonNull Runnable callback) {\n        destructionCallbacks.get().put(name, callback);\n    }\n\n    @Override\n    public Object resolveContextualObject(@NonNull String key) {\n        return null;\n    }\n\n    @Override\n    public String getConversationId() {\n        return Thread.currentThread().getId() + \"\";\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "When injecting a custom-scoped bean into a standard singleton bean, you MUST use a scoped proxy (via @Scope(value = \"threadLocal\", proxyMode = ScopedProxyMode.TARGET_CLASS)). Without a proxy, the singleton bean would capture the scoped bean instance exactly once during its own creation phase, effectively turning your custom-scoped bean into an accidental singleton. Furthermore, always clean up your ThreadLocal scopes in a ServletFilter or interceptor using threadLocalScope.remove() to avoid severe memory leaks in thread-pooled application servers like Apache Tomcat."
+    }
+  ],
+  "num": 809,
+  "title": "How do you implement a Custom Scope in Spring?",
+  "category": "Core Java & Fundamentals"
+}

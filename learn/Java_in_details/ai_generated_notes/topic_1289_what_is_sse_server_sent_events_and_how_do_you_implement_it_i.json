@@ -1,0 +1,59 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Server-Sent Events (SSE) is a standard allowing servers to push real-time data updates to web clients over a persistent, unidirectional HTTP connection. Unlike WebSockets, which provide a full-duplex, bidirectional communication channel, SSE is strictly server-to-client. It operates over standard HTTP, making it firewall-friendly and significantly simpler to implement. The protocol relies on the 'text/event-stream' Content-Type, where the server keeps the connection open and streams data chunks as they become available. In the Spring Boot ecosystem, SSE is seamlessly integrated via the SseEmitter class or by returning a Flux<ServerSentEvent> in a Reactive (WebFlux) stack. It is the ideal choice for scenarios like live stock tickers, notification feeds, or progress bars where the client only needs to consume updates without needing to send frequent messages back to the server."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Feature",
+        "SSE (Server-Sent Events)",
+        "WebSockets"
+      ],
+      "rows": [
+        [
+          "Directionality",
+          "Unidirectional (Server to Client)",
+          "Bidirectional (Full-duplex)"
+        ],
+        [
+          "Protocol",
+          "Standard HTTP",
+          "Custom Handshake (Upgrade)"
+        ],
+        [
+          "Complexity",
+          "Low (Built-in browser support)",
+          "High (Requires state management)"
+        ],
+        [
+          "Reconnection",
+          "Automatic",
+          "Manual implementation required"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "SseEmitter lifecycle: When a client connects, the SseEmitter is held by the server. The server must manage the thread pool carefully, as each emitter consumes a connection slot and a thread (or non-blocking resource).",
+        "Event structure: SSE messages are text-based and follow a specific format: 'data: <payload>\n\n'. Spring's SseEmitter handles this serialization automatically when you pass objects to the send() method.",
+        "Reactive Integration: In Spring WebFlux, using Flux<ServerSentEvent<T>> is preferred over SseEmitter. It leverages Project Reactor's non-blocking backpressure, allowing the server to handle thousands of concurrent streams with minimal memory overhead.",
+        "Timeouts: Always configure a timeout for your SseEmitter. If the client disconnects abruptly, the server must be able to clean up the emitter to prevent memory leaks in the heap."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@GetMapping(\"/stream-updates\")\npublic SseEmitter streamUpdates() {\n    SseEmitter emitter = new SseEmitter(60_000L); // 60s timeout\n    ExecutorService executor = Executors.newSingleThreadExecutor();\n    executor.execute(() -> {\n        try {\n            for (int i = 0; i < 5; i++) {\n                emitter.send(SseEmitter.event().name(\"update\").data(\"Payload \" + i));\n                Thread.sleep(1000);\n            }\n            emitter.complete();\n        } catch (Exception e) {\n            emitter.completeWithError(e);\n        }\n    });\n    return emitter;\n}"
+    },
+    {
+      "type": "note",
+      "content": "A common production pitfall is the 'Too Many Open Files' or 'Connection Pool Exhaustion' error. Because SSE keeps connections open indefinitely, ensure your load balancer (like Nginx) is configured to handle long-lived connections and that you are not blocking the main request-handling threads. If using standard Spring MVC, you must use an asynchronous controller to avoid thread starvation."
+    }
+  ],
+  "num": 1290,
+  "title": "What is SSE (Server-Sent Events) and how do you implement it in Spring Boot?",
+  "category": "Spring Boot & Spring Framework"
+}

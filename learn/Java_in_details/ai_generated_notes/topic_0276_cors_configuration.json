@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "CORS configuration within the context of enterprise Java applications—particularly those dealing with reactive or blocking I/O and asynchronous exception handling—serves as the gatekeeper bridging browser-enforced security boundaries and server-side resource endpoints. Cross-Origin Resource Sharing (CORS) is an HTTP-header-based mechanism that allows a server to indicate any origins other than its own from which a browser should permit loading resources. When handling requests in modern reactive stacks (like Spring WebFlux built on Project Reactor and Netty) or traditional thread-per-request servlet containers, CORS preflight requests (OPTIONS method) and actual payload requests must bypass restrictive security filters without swallowing domain exceptions. If an exception occurs during a cross-origin interaction, the exception handling infrastructure must still serialize the error response with the correct Access-Control-Allow-Origin headers intact; otherwise, the client-side JavaScript engine masks the actual application fault behind a generic network error."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Integration Layer",
+        "Servlet API (Spring MVC)",
+        "Reactive I/O (Spring WebFlux)"
+      ],
+      "rows": [
+        [
+          "Underlying Model",
+          "Thread-per-request (HttpServletRequest)",
+          "Non-blocking event loop (ServerWebExchange)"
+        ],
+        [
+          "Filter Execution",
+          "CorsFilter placed early in FilterChain",
+          "CorsWebFilter intercepting Publisher flows"
+        ],
+        [
+          "Exception Interaction",
+          "HandlerExceptionResolver catches post-filter errors",
+          "WebExceptionHandler processes downstream signals"
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "Preflight caching: Browsers issue an HTTP OPTIONS request before actual mutations to verify permissions; proper CORS configuration specifies Access-Control-Max-Age to cache this preflight response, drastically reducing round-trip overhead on high-throughput NIO servers.",
+        "Credentials handling: When allowCredentials is set to true, the Access-Control-Allow-Origin header cannot contain a wildcard (*), requiring dynamic origin validation against a whitelist.",
+        "Exception propagation: If a security or business exception is thrown inside a controller, the reactive or servlet container must append CORS headers to the error response entity so client runtimes can read the custom application error payload rather than failing on a missing header."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "@Configuration\npublic class WebFluxCorsConfiguration {\n\n    @Bean\n    public CorsWebFilter corsWebFilter() {\n        CorsConfiguration corsConfig = new CorsConfiguration();\n        corsConfig.setAllowedOrigins(Arrays.asList(\"https://app.enterprise.internal\"));\n        corsConfig.setMaxAge(3600L);\n        corsConfig.setAllowedMethods(Arrays.asList(\"GET\", \"POST\", \"PUT\", \"DELETE\"));\n        corsConfig.setAllowedHeaders(Arrays.asList(\"Authorization\", \"Content-Type\"));\n        corsConfig.setAllowCredentials(true);\n\n        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();\n        source.registerCorsConfiguration(\"/api/**\", corsConfig);\n        \n        return new CorsWebFilter(source);\n    }\n}"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap in reactive Netty environments involves placing the CORS filter after the global exception handler in the functional router or security chain. If a custom WebExceptionHandler or ErrorWebExceptionHandler writes to the HTTP response buffer directly without ensuring CORS headers are propagated, the client SPA will encounter obscure CORS policy blocks instead of seeing the intended HTTP 400 or 500 error body returned by the server."
+    }
+  ],
+  "num": 277,
+  "title": "CORS configuration",
+  "category": "Exception Handling & I/O / NIO"
+}

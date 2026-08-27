@@ -1,0 +1,53 @@
+{
+  "parsed_answer": [
+    {
+      "type": "prose",
+      "content": "Running Java applications on Kubernetes requires a deep understanding of how the JVM interacts with Linux cgroups and container orchestrators. Historically, the JVM was notoriously blind to container resource boundaries, often sizing its heap based on the host node's total RAM rather than the container's cgroup limits. This mismatch led to frequent Out-Of-Memory (OOM) kills by the Linux kernel when the JVM's total memory footprint—encompassing the heap, metaspace, thread stacks, direct byte buffers, and code cache—exceeded the Kubernetes pod's memory limits. To safely orchestrate Java apps on K8s, developers must synchronize container memory limits with modern JVM ergonomics flags like UseContainerSupport, configure explicit memory ceilings, and implement carefully tuned startup, liveness, and readiness probes.\n\nMemory management in a containerized JVM is further complicated by the fact that the JVM heap is only a fraction of the total process memory. If a Kubernetes pod is provisioned with a 2GB limit, allocating a 2GB heap via -Xmx2g is a recipe for disaster; the non-heap memory regions will inevitably push the process past the 2GB threshold, invoking the kernel OOM killer. Effective mitigation requires calculating an appropriate headroom. Furthermore, configuring Kubernetes probes (liveness, readiness, and startup) demands architectural awareness of JVM startup latency, safepoint pauses, and garbage collection overhead. Misconfigured probes can trigger cascading failures, where a stop-the-world Full GC temporarily freezes the application, causing the liveness probe to fail, resulting in a container restart loop."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Probe Type",
+        "Primary Purpose",
+        "JVM Tuning Consideration"
+      ],
+      "rows": [
+        [
+          "Startup Probe",
+          "Delays liveness/readiness checks until slow-starting JVMs complete initialization.",
+          "Must accommodate class loading, JIT compilation, and framework bootstrapping time (e.g., Spring Boot)."
+        ],
+        [
+          "Liveness Probe",
+          "Determines if the container needs to be restarted due to unrecoverable internal states.",
+          "Must NOT be overly aggressive; prolonged GC pauses or lock contention can cause false positives and restart loops."
+        ],
+        [
+          "Readiness Probe",
+          "Decides if the pod can accept incoming network traffic from services.",
+          "Should check database connectivity and internal thread pool health rather than just basic HTTP endpoints."
+        ]
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "items": [
+        "UseContainerSupport: Enabled by default in Java 10+ and backported to Java 8u191+, this flag forces the JVM to read container memory and CPU limits from the Linux cgroup filesystem (/sys/fs/cgroup) instead of querying the host OS hardware directly.",
+        "Non-Heap Memory Footprint: The total container memory footprint is the sum of Heap (-Xmx), Metaspace (class metadata), Compressed Class Space, Thread Stacks (-Xss multiplied by thread count), Code Cache (JIT-compiled native code), and Direct Byte Buffers (NIO off-heap memory).",
+        "Probe Dynamics: Kubernetes liveness and readiness probes execute HTTP GETs, TCP socket checks, or custom exec commands. If a JVM is executing a major Garbage Collection cycle with concurrent mark-sweep or G1 Stop-The-World phases, probe response times can spike drastically."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "yaml",
+      "content": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: java-enterprise-app\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: java-enterprise-app\n  template:\n    metadata:\n      labels:\n        app: java-enterprise-app\n    spec: \n      containers:\n      - name: app\n        image: my-company/java-app:1.1.0\n        resources:\n          limits:\n            memory: \"2Gi\"\n            cpu: \"2000m\"\n          requests:\n            memory: \"2Gi\"\n            cpu: \"1000m\"\n        env:\n        - name: JAVA_TOOL_OPTIONS\n          value: \"-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/var/log/java/heapdump.hprof\"\n        startupProbe:\n          httpGet:\n            path: /actuator/health/probes/startup\n            port: 8080\n          initialDelaySeconds: 10\n          periodSeconds: 5\n          failureThreshold: 30\n        livenessProbe:\n          httpGet:\n            path: /actuator/health/probes/liveness\n            port: 8080\n          periodSeconds: 10\n          failureThreshold: 3\n        readinessProbe:\n          httpGet:\n            path: /actuator/health/probes/readiness\n            port: 8080\n          periodSeconds: 5\n          successThreshold: 1\n          failureThreshold: 3"
+    },
+    {
+      "type": "note",
+      "content": "A classic production trap is combining Kubernetes memory limits with older JVM versions or failing to leave headroom for non-heap memory. If you set a Kubernetes memory limit to 1GB and configure -Xmx1g, your container will exceed 1GB almost immediately due to JVM internal allocations (threads, code cache, metaspace), causing the Linux kernel to instantly send a SIGKILL (Exit Code 137). Always use percentage-based flags like -XX:MaxRAMPercentage=70 or explicitly compute -Xmx to ensure total container memory stays comfortably below the Kubernetes limit."
+    }
+  ],
+  "num": 431,
+  "title": "Java apps on K8s — memory limits, probes, JVM flags in containers",
+  "category": "JVM Architecture & Memory Tuning"
+}
