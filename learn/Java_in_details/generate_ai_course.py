@@ -7,7 +7,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import google.generativeai as genai
 from google.api_core.exceptions import ResourceExhausted
 
-API_KEYS = [k for k in [os.environ.get("GEMINI_API_KEY")] if k] or ["YOUR_GEMINI_API_KEY_HERE"]
+API_KEYS = [
+    'dummy'
+]
 current_key_idx = 0
 key_lock = threading.Lock()
 
