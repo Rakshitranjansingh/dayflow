@@ -130,7 +130,7 @@ function syncLearnState() {
           if (!state.learning.enrollments) state.learning.enrollments = {};
           
           const existing = state.learning.enrollments.Java_in_details || {};
-          const pct = Math.round((doneArr.length / 1272) * 100);
+          const pct = Math.round((doneArr.length / 1270) * 100);
           state.learning.enrollments.Java_in_details = {
             enrolled: true,
             enrolledDate: existing.enrolledDate || new Date().toISOString().split('T')[0],
@@ -200,7 +200,7 @@ function renderLearnContent() {
 
   // Retrieve state or fallback (filtered by active courses)
   const enrollments = state.learning?.enrollments || {};
-  const activeCourseIds = ['blind75', 'java_at_a_glance', 'High_level_design', 'Interview_prep_full_stack'];
+  const activeCourseIds = ['blind75', 'java_at_a_glance', 'High_level_design', 'Interview_prep_full_stack', 'Java_in_details'];
   const activeEnrollments = activeCourseIds.map(id => enrollments[id]).filter(e => e && e.enrolled);
 
   const enrolled = activeEnrollments.length;
@@ -303,6 +303,54 @@ function renderLearnContent() {
     b75ProgressTextHtml = `<span class="learn-course-progress-text" id="learn-progress-text-blind75">${done}/75 problems · ${progressVal}%</span>`;
   }
 
+  // Interview_prep_full_stack Course State
+  const ifsEnrollment = enrollments.Interview_prep_full_stack;
+  let ifsBadgeHtml = '<span class="learn-course-badge learn-badge-new" id="learn-badge-Interview_prep_full_stack">New</span>';
+  let ifsBtnHtml = '<button class="learn-enroll-btn learn-btn-enroll" id="learn-btn-Interview_prep_full_stack" onclick="handleCourseAction(\'Interview_prep_full_stack\')">Enroll Free</button>';
+  let ifsProgressHtml = `
+    <div class="learn-course-progress" id="learn-progress-Interview_prep_full_stack" style="display:none">
+      <div class="learn-course-progress-fill" id="learn-progress-fill-Interview_prep_full_stack" style="width:0%"></div>
+    </div>
+  `;
+  let ifsProgressTextHtml = '<span class="learn-course-progress-text" id="learn-progress-text-Interview_prep_full_stack"></span>';
+
+  if (ifsEnrollment?.enrolled) {
+    const done = ifsEnrollment.completed?.length || 0;
+    const progressVal = ifsEnrollment.progress || 0;
+    ifsBadgeHtml = '<span class="learn-course-badge learn-badge-enrolled" id="learn-badge-Interview_prep_full_stack">✅ Enrolled</span>';
+    ifsBtnHtml = '<button class="learn-enroll-btn learn-btn-continue" id="learn-btn-Interview_prep_full_stack" onclick="handleCourseAction(\'Interview_prep_full_stack\')">Continue →</button>';
+    ifsProgressHtml = `
+      <div class="learn-course-progress" id="learn-progress-Interview_prep_full_stack" style="display:block">
+        <div class="learn-course-progress-fill" id="learn-progress-fill-Interview_prep_full_stack" style="width:${progressVal}%"></div>
+      </div>
+    `;
+    ifsProgressTextHtml = `<span class="learn-course-progress-text" id="learn-progress-text-Interview_prep_full_stack">${done}/241 questions · ${progressVal}%</span>`;
+  }
+
+  // Java_in_details Course State
+  const jdEnrollment = enrollments.Java_in_details;
+  let jdBadgeHtml = '<span class="learn-course-badge learn-badge-new" id="learn-badge-Java_in_details">New</span>';
+  let jdBtnHtml = '<button class="learn-enroll-btn learn-btn-enroll" id="learn-btn-Java_in_details" onclick="handleCourseAction(\'Java_in_details\')">Enroll Free</button>';
+  let jdProgressHtml = `
+    <div class="learn-course-progress" id="learn-progress-Java_in_details" style="display:none">
+      <div class="learn-course-progress-fill" id="learn-progress-fill-Java_in_details" style="width:0%"></div>
+    </div>
+  `;
+  let jdProgressTextHtml = '<span class="learn-course-progress-text" id="learn-progress-text-Java_in_details"></span>';
+
+  if (jdEnrollment?.enrolled) {
+    const done = jdEnrollment.completed?.length || 0;
+    const progressVal = jdEnrollment.progress || 0;
+    jdBadgeHtml = '<span class="learn-course-badge learn-badge-enrolled" id="learn-badge-Java_in_details">✅ Enrolled</span>';
+    jdBtnHtml = '<button class="learn-enroll-btn learn-btn-continue" id="learn-btn-Java_in_details" onclick="handleCourseAction(\'Java_in_details\')">Continue →</button>';
+    jdProgressHtml = `
+      <div class="learn-course-progress" id="learn-progress-Java_in_details" style="display:block">
+        <div class="learn-course-progress-fill" id="learn-progress-fill-Java_in_details" style="width:${progressVal}%"></div>
+      </div>
+    `;
+    jdProgressTextHtml = `<span class="learn-course-progress-text" id="learn-progress-text-Java_in_details">${done}/1270 topics · ${progressVal}%</span>`;
+  }
+
   contentWrap.innerHTML = `
     <!-- HERO -->
     <div class="learn-hero">
@@ -328,6 +376,28 @@ function renderLearnContent() {
     <!-- COURSES -->
     <div class="learn-section">
       <div class="learn-section-title">Available Courses</div>
+
+      <!-- Java_in_details (JDDR) -->
+      <div class="learn-course-card" id="learn-card-Java_in_details">
+        <div class="learn-course-banner" style="background: linear-gradient(135deg, #FF6B6B 0%, #6C63FF 100%); color: #fff;">☕</div>
+        <div class="learn-course-body">
+          <div class="learn-course-header">
+            <div class="learn-course-title" style="color: var(--orange);">Java Deep Dive Roadmap (JDDR)</div>
+            ${jdBadgeHtml}
+          </div>
+          <div class="learn-course-desc">Master 1,270 microtopics across 15 modular learning paths: Core Java, OOPs, Modern Java, Collections, Multithreading, JVM Performance, Spring Boot, Security, WebFlux & Microservices.</div>
+          <div class="learn-course-meta">
+            <span>☕ 1,270 microtopics</span>
+            <span>⚡ 15 Modules</span>
+            <span>🎯 Complete AI Notes</span>
+          </div>
+          ${jdProgressHtml}
+          <div class="learn-course-footer">
+            ${jdProgressTextHtml}
+            ${jdBtnHtml}
+          </div>
+        </div>
+      </div>
 
       <div class="learn-course-card" id="learn-card-High_level_design">
         <div class="learn-course-banner" style="background: linear-gradient(135deg, #6C63FF 0%, #00D4AA 100%); color: #fff;">🏗️</div>
@@ -371,7 +441,6 @@ function renderLearnContent() {
         </div>
       </div>
 
-      
       <div class="learn-course-card" id="learn-card-blind75">
         <div class="learn-course-banner" style="background: linear-gradient(135deg, #6C63FF 0%, #2D6BE4 100%); color: #fff;">🎯</div>
         <div class="learn-course-body">
@@ -393,58 +462,29 @@ function renderLearnContent() {
         </div>
       </div>
 
-      <!-- Interview_prep_full_stack Course State -->
-      ${(() => {
-        const ifsEnrollment = enrollments.Interview_prep_full_stack;
-        let ifsBadgeHtml = '<span class="learn-course-badge learn-badge-new" id="learn-badge-Interview_prep_full_stack">New</span>';
-        let ifsBtnHtml = '<button class="learn-enroll-btn learn-btn-enroll" id="learn-btn-Interview_prep_full_stack" onclick="handleCourseAction(\'Interview_prep_full_stack\')">Enroll Free</button>';
-        let ifsProgressHtml = `
-          <div class="learn-course-progress" id="learn-progress-Interview_prep_full_stack" style="display:none">
-            <div class="learn-course-progress-fill" id="learn-progress-fill-Interview_prep_full_stack" style="width:0%"></div>
+      <div class="learn-course-card" id="learn-card-Interview_prep_full_stack">
+        <div class="learn-course-banner" style="background: linear-gradient(135deg, #00D4AA 0%, #2D6BE4 100%); color: #fff;">💼</div>
+        <div class="learn-course-body">
+          <div class="learn-course-header">
+            <div class="learn-course-title" style="color: var(--accent);">Java Full Stack Interview Prep</div>
+            ${ifsBadgeHtml}
           </div>
-        `;
-        let ifsProgressTextHtml = '<span class="learn-course-progress-text" id="learn-progress-text-Interview_prep_full_stack"></span>';
-
-        if (ifsEnrollment?.enrolled) {
-          const done = ifsEnrollment.completed?.length || 0;
-          const progressVal = ifsEnrollment.progress || 0;
-          ifsBadgeHtml = '<span class="learn-course-badge learn-badge-enrolled" id="learn-badge-Interview_prep_full_stack">✅ Enrolled</span>';
-          ifsBtnHtml = '<button class="learn-enroll-btn learn-btn-continue" id="learn-btn-Interview_prep_full_stack" onclick="handleCourseAction(\'Interview_prep_full_stack\')">Continue →</button>';
-          ifsProgressHtml = `
-            <div class="learn-course-progress" id="learn-progress-Interview_prep_full_stack" style="display:block">
-              <div class="learn-course-progress-fill" id="learn-progress-fill-Interview_prep_full_stack" style="width:${progressVal}%"></div>
-            </div>
-          `;
-          ifsProgressTextHtml = `<span class="learn-course-progress-text" id="learn-progress-text-Interview_prep_full_stack">${done}/241 questions · ${progressVal}%</span>`;
-        }
-
-        return `
-          <div class="learn-course-card" id="learn-card-Interview_prep_full_stack">
-            <div class="learn-course-banner" style="background: linear-gradient(135deg, #00D4AA 0%, #2D6BE4 100%); color: #fff;">💼</div>
-            <div class="learn-course-body">
-              <div class="learn-course-header">
-                <div class="learn-course-title" style="color: var(--accent);">Java Full Stack Interview Prep</div>
-                ${ifsBadgeHtml}
-              </div>
-              <div class="learn-course-desc">Master 241 module-wise interview questions across 5 core modules: Spring Boot, Core Java, Database, Backend Microservices & Angular.</div>
-              <div class="learn-course-meta">
-                <span>💼 241 Q&As</span>
-                <span>☕ Full Stack Java</span>
-                <span>🎯 5 Modules</span>
-              </div>
-              ${ifsProgressHtml}
-              <div class="learn-course-footer">
-                ${ifsProgressTextHtml}
-                ${ifsBtnHtml}
-              </div>
-            </div>
+          <div class="learn-course-desc">Master 241 module-wise interview questions across 5 core modules: Spring Boot, Core Java, Database, Backend Microservices & Angular.</div>
+          <div class="learn-course-meta">
+            <span>💼 241 Q&As</span>
+            <span>☕ Full Stack Java</span>
+            <span>🎯 5 Modules</span>
           </div>
-        `;
-      })()}
-
-      <!-- Java (Disabled for now) -->
+          ${ifsProgressHtml}
+          <div class="learn-course-footer">
+            ${ifsProgressTextHtml}
+            ${ifsBtnHtml}
+          </div>
+        </div>
       </div>
+
     </div>
+  </div>
   `;
 }
 
@@ -462,8 +502,10 @@ function handleCourseAction(courseId) {
       window.location.href = `learn/High_level_design/index.html`;
     } else if (courseId === 'Interview_prep_full_stack') {
       window.location.href = `learn/Interview_prep_full_stack/index.html`;
+    } else if (courseId === 'Java_in_details') {
+      window.location.href = `learn/Java_in_details/index.html`;
     } else {
-      window.location.href = `learn/Interview_prep_full_stack/index.html`;
+      window.location.href = `learn/Java_in_details/index.html`;
     }
   } else {
     // Launch enrollment overlay modal
@@ -481,6 +523,17 @@ function handleCourseAction(courseId) {
         modalStats.innerHTML = `
           <div class="learn-modal-stat"><div class="learn-modal-stat-val">18</div><div class="learn-modal-stat-lbl">Modules</div></div>
           <div class="learn-modal-stat"><div class="learn-modal-stat-val">18</div><div class="learn-modal-stat-lbl">Quizzes</div></div>
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">Free</div><div class="learn-modal-stat-lbl">Cost</div></div>
+        `;
+      }
+    } else if (courseId === 'Java_in_details') {
+      if (modalIcon) modalIcon.textContent = '☕';
+      if (modalTitle) modalTitle.textContent = 'Java Deep Dive Roadmap (JDDR)';
+      if (modalSub) modalSub.textContent = 'Master 1,270 microtopics across 15 modular learning paths with AI-generated notes, gotchas, and interview deep dives.';
+      if (modalStats) {
+        modalStats.innerHTML = `
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">1,270</div><div class="learn-modal-stat-lbl">Topics</div></div>
+          <div class="learn-modal-stat"><div class="learn-modal-stat-val">15</div><div class="learn-modal-stat-lbl">Modules</div></div>
           <div class="learn-modal-stat"><div class="learn-modal-stat-val">Free</div><div class="learn-modal-stat-lbl">Cost</div></div>
         `;
       }
@@ -568,12 +621,14 @@ function confirmLearnEnroll() {
 
   const isBlind75 = courseId === 'blind75';
   const isHLD = courseId === 'High_level_design';
+  const isIFS = courseId === 'Interview_prep_full_stack';
+  const isJavaDetails = courseId === 'Java_in_details';
   if (typeof showToast === 'function') {
-    showToast(`✅ Enrolled! Starting ${isHLD ? 'High-Level Design' : isBlind75 ? 'Blind 75' : 'Java'} journey...`);
+    showToast(`✅ Enrolled! Starting ${isJavaDetails ? 'Java Deep Dive Roadmap' : isHLD ? 'High-Level Design' : isBlind75 ? 'Blind 75' : 'Java'} journey...`);
   }
   
   setTimeout(() => {
-    window.location.href = isHLD ? `learn/High_level_design/index.html` : isBlind75 ? `learn/blind75/index.html` : `learn/java-at-a-glance/index.html`;
+    window.location.href = isJavaDetails ? `learn/Java_in_details/index.html` : isHLD ? `learn/High_level_design/index.html` : isBlind75 ? `learn/blind75/index.html` : isIFS ? `learn/Interview_prep_full_stack/index.html` : `learn/java-at-a-glance/index.html`;
   }, 1000);
 }
 
