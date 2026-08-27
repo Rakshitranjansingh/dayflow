@@ -117,6 +117,8 @@ function syncLearnState() {
         }
       }
     }
+  } catch(e) {}
+
   // Backup state sync directly from java_in_details_done_v1
   try {
     const javaDetailsDoneStr = localStorage.getItem('java_in_details_done_v1');
