@@ -393,6 +393,50 @@
     font-weight: 500;
   }
 
+  /* HERO STACK SLIDER (QUOTES & QUEST SWIPER) */
+  .hero-slider-wrap {
+    position: relative;
+    margin: 0 20px 14px;
+    border-radius: 14px;
+    overflow: hidden;
+    touch-action: pan-y;
+  }
+  .hero-slider-track {
+    display: flex;
+    width: 200%;
+    transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  .hero-slide {
+    width: 50%;
+    flex-shrink: 0;
+    box-sizing: border-box;
+  }
+  .hero-slider-dots {
+    position: absolute;
+    bottom: 6px;
+    right: 12px;
+    display: flex;
+    gap: 5px;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 3px 8px;
+    border-radius: 10px;
+    backdrop-filter: blur(4px);
+  }
+  .hero-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .hero-dot.active {
+    width: 16px;
+    border-radius: 3px;
+    background: #10B981;
+  }
+
   /* MANDATORY GOOGLE LOGIN OVERLAY */
   .mandatory-auth-modal {
     position: fixed;
@@ -597,16 +641,25 @@
     </div>
   </div>
 
-  <!-- Quotes -->
-  <div style="margin: 0 20px 12px">
-    <iframe id="quotes-frame" src="quotes.html" scrolling="no" frameborder="0" style="width:100%;border:none;border-radius:14px;height:85px"></iframe>
-  </div>
-
-  <!-- Daily Challenge Card (Homepage) -->
-  <div style="margin: 0 20px 16px">
-    <div class="home-challenge-card" onclick="openPanel('challenge')">
-      <div class="home-challenge-badge" id="home-challenge-badge">Day 000 · Phase</div>
-      <div class="home-challenge-text" id="home-challenge-text">Loading daily challenge...</div>
+  <!-- Quotes & Quest (Daily Challenge) Hero Swiper -->
+  <div class="hero-slider-wrap">
+    <div class="hero-slider-track" id="hero-slider-track">
+      <!-- Slide 1: Quotes -->
+      <div class="hero-slide">
+        <iframe id="quotes-frame" src="quotes.html" scrolling="no" frameborder="0" style="width:100%;border:none;border-radius:14px;height:85px;display:block;"></iframe>
+      </div>
+      <!-- Slide 2: Daily Quest Challenge Card -->
+      <div class="hero-slide">
+        <div class="home-challenge-card" onclick="openPanel('challenge')" style="margin:0;height:85px;display:flex;flex-direction:column;justify-content:center;box-sizing:border-box;">
+          <div class="home-challenge-badge" id="home-challenge-badge">Day 000 · Phase</div>
+          <div class="home-challenge-text" id="home-challenge-text">Loading daily challenge...</div>
+        </div>
+      </div>
+    </div>
+    <!-- Slider Indicator Dots -->
+    <div class="hero-slider-dots">
+      <div class="hero-dot active" onclick="setHeroSlide(0)"></div>
+      <div class="hero-dot" onclick="setHeroSlide(1)"></div>
     </div>
   </div>
 
@@ -634,7 +687,6 @@
     <div class="tool-btn" onclick="openPanel('log')"><div class="tool-icon">📖</div><div class="tool-name">Daily Log</div></div>
     <div class="tool-btn" onclick="openPanel('focus')"><div class="tool-icon">⏱️</div><div class="tool-name">Focus</div></div>
     <div class="tool-btn" onclick="openPanel('content')"><div class="tool-icon">🎬</div><div class="tool-name">Content</div></div>
-    <div class="tool-btn" onclick="openPanel('thoughts')"><div class="tool-icon">💭</div><div class="tool-name">Thoughts</div></div>
   </div>
 
   <!-- Grow Grid -->
@@ -1656,9 +1708,67 @@ function initApp() {
   if (typeof updateHomepageChallengeCard === 'function') {
     updateHomepageChallengeCard();
   }
+  initHeroSlider();
   if (state.driveConnected && driveAccessToken) {
     setTimeout(() => { backupToDrive(true); }, 2000);
   }
+}
+
+// ============================================================
+// HERO SLIDER (QUOTES & QUEST AUTO-SWAPPER)
+// ============================================================
+let currentHeroSlide = 0;
+let heroSlideTimer = null;
+
+function setHeroSlide(index) {
+  currentHeroSlide = index % 2;
+  const track = document.getElementById('hero-slider-track');
+  const dots = document.querySelectorAll('.hero-dot');
+  if (track) {
+    track.style.transform = `translateX(-${currentHeroSlide * 50}%)`;
+  }
+  dots.forEach((d, i) => {
+    d.classList.toggle('active', i === currentHeroSlide);
+  });
+  resetHeroSlideTimer();
+}
+
+function nextHeroSlide() {
+  setHeroSlide((currentHeroSlide + 1) % 2);
+}
+
+function resetHeroSlideTimer() {
+  if (heroSlideTimer) clearInterval(heroSlideTimer);
+  heroSlideTimer = setInterval(() => {
+    nextHeroSlide();
+  }, 10000);
+}
+
+function initHeroSlider() {
+  const wrap = document.querySelector('.hero-slider-wrap');
+  if (!wrap || wrap._sliderInited) return;
+  wrap._sliderInited = true;
+
+  let touchStartX = 0;
+  let touchEndX = 0;
+
+  wrap.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+  }, { passive: true });
+
+  wrap.addEventListener('touchend', (e) => {
+    touchEndX = e.changedTouches[0].screenX;
+    const diffX = touchStartX - touchEndX;
+    if (Math.abs(diffX) > 30) {
+      if (diffX > 0) {
+        nextHeroSlide();
+      } else {
+        setHeroSlide((currentHeroSlide - 1 + 2) % 2);
+      }
+    }
+  }, { passive: true });
+
+  resetHeroSlideTimer();
 }
 
 function updateLearnCard() {
