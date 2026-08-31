@@ -684,15 +684,35 @@
     ⚠️ <span id="alert-text"></span>
   </div>
 
-  <!-- Homepage Section Switcher (Tools vs Grow vs Utils) -->
+  <!-- Homepage Section Switcher (Featured vs Tools vs Grow vs Utils) -->
   <div class="homepage-tabs">
-    <button class="home-tab active" id="tab-btn-tools" onclick="switchHomeTab('tools')">Tools</button>
+    <button class="home-tab active" id="tab-btn-featured" onclick="switchHomeTab('featured')">⭐ Featured</button>
+    <button class="home-tab" id="tab-btn-tools" onclick="switchHomeTab('tools')">Tools</button>
     <button class="home-tab" id="tab-btn-grow" onclick="switchHomeTab('grow')">Grow</button>
     <button class="home-tab" id="tab-btn-utils" onclick="switchHomeTab('utils')">Utils</button>
   </div>
 
+  <!-- Featured Grid (Highlighting Top Apps Across Tools, Grow & Utils) -->
+  <div class="tool-grid" id="home-grid-featured" style="margin-bottom: 24px;">
+    <div class="tool-btn" onclick="openPanel('chat')"><div class="tool-icon">💬</div><div class="tool-name">Chat</div></div>
+    <div class="tool-btn" onclick="openLearnApp()">
+      <div class="tool-icon">🎓</div>
+      <div class="tool-name">Learn</div>
+      <div class="tool-badge" id="learn-badge-feat" style="display:none; background: var(--green);"></div>
+    </div>
+    <div class="tool-btn" onclick="openPanel('content')"><div class="tool-icon">🎬</div><div class="tool-name">Content</div></div>
+    <div class="tool-btn" onclick="openHuntApp()"><div class="tool-icon">🎯</div><div class="tool-name">Hunt</div></div>
+    <div class="tool-btn" onclick="openPanel('journal')"><div class="tool-icon">🎙️</div><div class="tool-name">Journal</div></div>
+    <div class="tool-btn" onclick="openPanel('todo')">
+      <div class="tool-icon">✅</div><div class="tool-name">To-Do</div>
+      <div class="tool-badge" id="todo-badge-feat" style="display:none"></div>
+    </div>
+    <div class="tool-btn" onclick="openSplitEasyApp()"><div class="tool-icon">₹</div><div class="tool-name">SplitEase</div></div>
+    <div class="tool-btn" onclick="openPanel('focus')"><div class="tool-icon">⏱️</div><div class="tool-name">Focus</div></div>
+  </div>
+
   <!-- Tools Grid -->
-  <div class="tool-grid" id="home-grid-tools">
+  <div class="tool-grid" id="home-grid-tools" style="display: none; margin-bottom: 24px;">
     <div class="tool-btn" onclick="openPanel('chat')"><div class="tool-icon">💬</div><div class="tool-name">Chat</div></div>
     <div class="tool-btn" onclick="openPanel('journal')"><div class="tool-icon">🎙️</div><div class="tool-name">Journal</div></div>
     <div class="tool-btn" onclick="openPanel('todo')">
@@ -1819,6 +1839,16 @@ function initHeroSlider() {
   resetHeroSlideTimer();
 }
 
+function switchHomeTab(tabName) {
+  const tabs = ['featured', 'tools', 'grow', 'utils'];
+  tabs.forEach(t => {
+    const btn = document.getElementById(`tab-btn-${t}`);
+    const grid = document.getElementById(`home-grid-${t}`);
+    if (btn) btn.classList.toggle('active', t === tabName);
+    if (grid) grid.style.display = (t === tabName) ? 'grid' : 'none';
+  });
+}
+
 function updateLearnCard() {
   const java = state.learning?.enrollments?.java;
   if (!java?.enrolled) return;
@@ -2543,23 +2573,24 @@ function renderSleep() {
   const history = logs.map(([date, s]) => `
     <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px">
       <span style="color:var(--text2)">${formatDateShort(date)}</span>
-      <span>🌅 ${s.wake||'—'} · 🌙 ${s.sleep||'—'}</span>
+      <span>🌙 ${s.sleep||'—'} → 🌅 ${s.wake||'—'}</span>
       <span style="color:var(--accent);font-weight:600">${s.wake&&s.sleep?calcSleepDur(s.wake,s.sleep):'—'}</span>
     </div>`).join('');
 
   return `
     <div class="sleep-display">
       <div class="sleep-duration">${dur}</div>
-      <div class="sleep-label">hours of sleep</div>
+      <div class="sleep-label">hours of sleep for ${formatDateShort(d)}</div>
+      <div style="font-size:11.5px;color:var(--text3);margin-top:4px">Slept last night & woke up this morning</div>
     </div>
     <div class="time-inputs">
       <div class="time-field">
-        <label>🌅 Wake Up</label>
-        <input type="time" id="wake-time" value="${sl.wake||''}" onchange="saveSleep()">
+        <label>🌙 Bed Time (Last Night)</label>
+        <input type="time" id="sleep-time" value="${sl.sleep||''}" onchange="saveSleep()">
       </div>
       <div class="time-field">
-        <label>🌙 Bed Time</label>
-        <input type="time" id="sleep-time" value="${sl.sleep||''}" onchange="saveSleep()">
+        <label>🌅 Wake Up (This Morning)</label>
+        <input type="time" id="wake-time" value="${sl.wake||''}" onchange="saveSleep()">
       </div>
     </div>
     <div class="divider"></div>
