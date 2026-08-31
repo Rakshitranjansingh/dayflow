@@ -13,12 +13,45 @@ var nativeCallDurationSecs = 0;
 var activeSoundscape = 'clear'; // 'clear', 'phone', 'cafe'
 var backgroundAudioObj = null;
 
+// ─── MOBILE AUDIO UNLOCK ─────────────────────────────────────────────────────
+// iOS Safari and Android Chrome block audio.play() called after async fetch.
+// We keep a single AudioContext that gets unlocked on the FIRST user tap,
+// then stays usable forever — even after async API calls.
+var _sharedAudioCtx = null;
+
+function getAudioContext() {
+  if (!_sharedAudioCtx) {
+    _sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return _sharedAudioCtx;
+}
+
+// Call this inside every user-tap handler (send button, mic button, etc.)
+// It is safe to call multiple times.
+function unlockAudioContext() {
+  try {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') ctx.resume();
+    // Play a zero-duration silent buffer to fully unlock on iOS
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch(e) {}
+}
+
+// Also unlock on any first touch/click anywhere on the page
+document.addEventListener('touchstart', unlockAudioContext, { once: true, passive: true });
+document.addEventListener('click',      unlockAudioContext, { once: true, passive: true });
+
 // Pre-load voices on browser ready
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
   window.speechSynthesis.onvoiceschanged = () => {
     try { window.speechSynthesis.getVoices(); } catch(e) {}
   };
 }
+
 
 function buildAppPersonalContext() {
   const d = state.selectedDate || (typeof todayStr === 'function' ? todayStr() : new Date().toISOString().slice(0, 10));
@@ -470,15 +503,19 @@ async function speakWithGeminiTTS(text, persona) {
   if (!b64) throw new Error('No audio data from Gemini TTS');
 
   // Gemini TTS returns raw PCM (LINEAR16, 24kHz, mono) — wrap in WAV header
-  const pcm = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-  const wavBuffer = pcmToWav(pcm, 24000, 1, 16);
-  const blob = new Blob([wavBuffer], { type: 'audio/wav' });
-  const url = URL.createObjectURL(blob);
+  const pcm = Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer;
 
-  return new Promise((resolve, reject) => {
-    const audio = new Audio(url);
-    audio.volume = 1.0;
-    currentPlayingAudio = audio;
+  // Use AudioContext to play — bypasses mobile autoplay restriction
+  // (AudioContext was already unlocked by the user tap via unlockAudioContext())
+  const ctx = getAudioContext();
+  if (ctx.state === 'suspended') await ctx.resume();
+
+  const audioBuf = await ctx.decodeAudioData(pcmToWav(new Uint8Array(pcm), 24000, 1, 16));
+
+  return new Promise((resolve) => {
+    const src = ctx.createBufferSource();
+    src.buffer = audioBuf;
+    src.connect(ctx.destination);
 
     const name = persona === 'sonu' ? 'Sonu' : 'Khushi';
     const equalizer = document.getElementById('chat-speech-equalizer');
@@ -486,9 +523,14 @@ async function speakWithGeminiTTS(text, persona) {
     if (equalizer) equalizer.style.display = 'flex';
     if (label) label.textContent = `🔊 ${name} Speaking...`;
 
-    audio.onended = () => { URL.revokeObjectURL(url); if (equalizer) equalizer.style.display = 'none'; resolve(); };
-    audio.onerror = (e) => { URL.revokeObjectURL(url); if (equalizer) equalizer.style.display = 'none'; reject(e); };
-    audio.play().catch(reject);
+    src.onended = () => {
+      if (equalizer) equalizer.style.display = 'none';
+      resolve();
+    };
+
+    src.start(0);
+    // Keep a reference so stopAISpeech() can kill it
+    currentPlayingAudio = src;
   });
 }
 
@@ -584,7 +626,11 @@ function speakHinglishWebSpeech(text, persona) {
 
 function stopAISpeech() {
   if (currentPlayingAudio) {
-    try { currentPlayingAudio.pause(); } catch(e) {}
+    try {
+      // AudioBufferSourceNode uses .stop(), HTMLAudioElement uses .pause()
+      if (typeof currentPlayingAudio.stop === 'function') currentPlayingAudio.stop();
+      else if (typeof currentPlayingAudio.pause === 'function') currentPlayingAudio.pause();
+    } catch(e) {}
     currentPlayingAudio = null;
   }
   activeAudioQueue = [];
@@ -606,6 +652,9 @@ function toggleChatVoiceInput() {
 }
 
 function startChatVoiceInput() {
+  // MOBILE FIX: unlock AudioContext on mic button tap
+  unlockAudioContext();
+
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
     if (typeof showToast === 'function') showToast('🎙️ Speech Recognition not supported in this browser. Type below.');
@@ -692,6 +741,10 @@ async function testChatConnection() {
 }
 
 async function sendChat() {
+  // MOBILE FIX: unlock AudioContext right inside the user gesture (tap/click)
+  // so async audio.play() works even after fetch() completes later
+  unlockAudioContext();
+
   const input = document.getElementById('chat-input');
   const text = input ? input.value.trim() : '';
   const activeKey = typeof getActiveApiKey === 'function' ? getActiveApiKey() : state.apiKey;
