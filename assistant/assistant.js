@@ -105,71 +105,19 @@ INSTRUCTIONS FOR ${personaName.toUpperCase()}:
 }
 
 function renderChat() {
-  const msgs = (state.chatHistory || []).map(m => `
-    <div class="chat-msg ${m.role === 'user' ? 'user' : 'ai'}">${m.content.replace(/\n/g,'<br>')}</div>
-  `).join('');
   const hasKey = typeof getActiveApiKey === 'function' ? getActiveApiKey() : state.apiKey;
   const apiStatus = hasKey
     ? `<span style="color:var(--green);font-size:11px">● API key active</span>`
     : `<span style="color:var(--red);font-size:11px">● No API key — <span style="cursor:pointer;text-decoration:underline" onclick="closePanel();openPanel('settings')">Add in Settings</span></span>`;
 
-  const activePersona = state.chatPersona || 'khushi';
-  const autoSpeakChecked = state.autoSpeak !== false ? 'checked' : '';
-
   return `
-    <div class="chat-mode-bar">
-      <div>
-        <label style="font-size:11.5px;font-weight:700;color:var(--text2);margin-right:6px">Persona:</label>
-        <select class="chat-persona-select" id="chat-persona-select" onchange="setChatPersona(this.value)">
-          <option value="khushi" ${activePersona==='khushi'?'selected':''}>👩 Khushi (Female)</option>
-          <option value="sonu" ${activePersona==='sonu'?'selected':''}>👨 Sonu (Male)</option>
-        </select>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <button class="btn btn-secondary btn-sm" style="padding:2px 8px;font-size:10.5px" onclick="testVoiceSynthesis()">🔊 Test Voice</button>
-        <label style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:4px;cursor:pointer">
-          <input type="checkbox" ${autoSpeakChecked} onchange="toggleAutoSpeak(this.checked)"> 🔊 Auto-Speak
-        </label>
-      </div>
-    </div>
-
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       ${apiStatus}
-      <button class="btn btn-secondary btn-sm" onclick="testChatConnection()">🔍 Test Connection</button>
+      <button class="btn btn-secondary btn-sm" onclick="testChatConnection()">🔍 Test Key</button>
     </div>
-
-    <div class="chat-messages" id="chat-msgs">${msgs || '<div class="empty-state"><div class="e-icon">🎙️</div><div class="e-text">Talk to Khushi or Sonu! Ask about your stats, tasks, habits, learning, or any web info.</div></div>'}</div>
-
-    <div id="chat-speech-equalizer" class="chat-equalizer" style="display:none;margin-bottom:6px">
-      <span id="chat-speech-label">🔊 AI Speaking...</span>
-      <div class="chat-voice-wave">
-        <div class="chat-wave-bar"></div>
-        <div class="chat-wave-bar"></div>
-        <div class="chat-wave-bar"></div>
-        <div class="chat-wave-bar"></div>
-        <div class="chat-wave-bar"></div>
-      </div>
-      <button class="btn btn-secondary btn-sm" style="padding:2px 8px;font-size:10px" onclick="stopAISpeech()">⏹️ Stop</button>
+    <div style="width:100%;height:calc(100vh - 130px);border-radius:14px;overflow:hidden;background:#111827;box-shadow:var(--shadow-lg);">
+      <iframe id="smart-chat-frame" src="smart_chat/dist/index.html" style="width:100%;height:100%;border:none;"></iframe>
     </div>
-
-    <div class="chat-voice-action-box">
-      <button class="chat-voice-btn" id="chat-voice-btn" onclick="toggleChatVoiceInput()">
-        🎙️ Speak to Assistant
-      </button>
-      <div id="chat-voice-wave" class="chat-voice-wave" style="display:none">
-        <div class="chat-wave-bar"></div>
-        <div class="chat-wave-bar"></div>
-        <div class="chat-wave-bar"></div>
-        <div class="chat-wave-bar"></div>
-        <div class="chat-wave-bar"></div>
-      </div>
-    </div>
-
-    <div class="chat-input-row" style="margin-top:10px">
-      <input class="input" id="chat-input" placeholder="Type or speak your query..." style="flex:1" onkeydown="if(event.key==='Enter')sendChat()">
-      <button class="btn btn-primary" onclick="sendChat()">→</button>
-    </div>
-    <div class="chat-insight-note">💡 Full live app awareness + Web knowledge · Key insights saved to journal</div>
   `;
 }
 
