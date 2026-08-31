@@ -104,8 +104,6 @@ INSTRUCTIONS FOR ${personaName.toUpperCase()}:
 4. Maintain a warm, friendly Indian Hinglish tone like a real personal assistant.]\n\n`;
 }
 
-let currentChatTabMode = 'assistant'; // 'assistant' or 'smart_chat'
-
 function switchChatTabMode(mode) {
   currentChatTabMode = mode;
   const panel = document.getElementById('panel-body');
@@ -129,25 +127,16 @@ function renderChat() {
   const tabsHeader = `
     <div style="display:flex;gap:6px;margin-bottom:10px;background:var(--card-bg);padding:4px;border-radius:10px;border:1px solid var(--border)">
       <button class="btn ${currentChatTabMode==='assistant'?'btn-primary':'btn-secondary'}" style="flex:1;font-size:11.5px;padding:6px 10px" onclick="switchChatTabMode('assistant')">
-        💬 Personal Assistant
+        💬 Chat Assistant
       </button>
-      <button class="btn ${currentChatTabMode==='smart_chat'?'btn-primary':'btn-secondary'}" style="flex:1;font-size:11.5px;padding:6px 10px" onclick="switchChatTabMode('smart_chat')">
-        🎙️ Smart Live Voice
+      <button class="btn ${currentChatTabMode==='smart_call'?'btn-primary':'btn-secondary'}" style="flex:1;font-size:11.5px;padding:6px 10px" onclick="switchChatTabMode('smart_call')">
+        📞 Voice Call Companion
       </button>
     </div>
   `;
 
-  if (currentChatTabMode === 'smart_chat') {
-    return `
-      ${tabsHeader}
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        ${apiStatus}
-        <button class="btn btn-secondary btn-sm" onclick="testChatConnection()">🔍 Test Key</button>
-      </div>
-      <div style="width:100%;height:calc(100vh - 180px);border-radius:14px;overflow:hidden;background:#111827;box-shadow:var(--shadow-lg);">
-        <iframe id="smart-chat-frame" src="smart_chat/build/index.html" style="width:100%;height:100%;border:none;"></iframe>
-      </div>
-    `;
+  if (currentChatTabMode === 'smart_call') {
+    return renderNativeCallView(apiStatus, activePersona);
   }
 
   return `
@@ -158,6 +147,7 @@ function renderChat() {
         <select class="chat-persona-select" id="chat-persona-select" onchange="setChatPersona(this.value)">
           <option value="khushi" ${activePersona==='khushi'?'selected':''}>👩 Khushi (Female)</option>
           <option value="sonu" ${activePersona==='sonu'?'selected':''}>👨 Sonu (Male)</option>
+          <option value="aanya" ${activePersona==='aanya'?'selected':''}>👩 Aanya Sharma (Cloud Kitchen)</option>
         </select>
       </div>
       <div style="display:flex;align-items:center;gap:10px">
@@ -170,7 +160,7 @@ function renderChat() {
 
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       ${apiStatus}
-      <button class="btn btn-secondary btn-sm" onclick="testChatConnection()">🔍 Test Connection</button>
+      <button class="btn btn-secondary btn-sm" onclick="testChatConnection()">🔍 Test Key</button>
     </div>
 
     <div class="chat-messages" id="chat-msgs">${msgs || '<div class="empty-state"><div class="e-icon">🎙️</div><div class="e-text">Talk to Khushi or Sonu! Ask about your stats, tasks, habits, learning, or any web info.</div></div>'}</div>
@@ -206,6 +196,137 @@ function renderChat() {
     </div>
     <div class="chat-insight-note">💡 Full live app awareness + Web knowledge · Key insights saved to journal</div>
   `;
+}
+
+function renderNativeCallView(apiStatus, activePersona) {
+  const name = activePersona === 'sonu' ? 'Sonu' : (activePersona === 'aanya' ? 'Aanya Sharma' : 'Khushi');
+  const role = activePersona === 'sonu' ? 'Daily Coach & Mentor' : (activePersona === 'aanya' ? 'Cloud Kitchen Dreamer • Thane' : 'AI Personal Voice Companion');
+  const avatar = activePersona === 'sonu' ? '👨' : (activePersona === 'aanya' ? '👩‍🍳' : '👩');
+
+  const formattedTimer = formatCallTimer(nativeCallDurationSecs);
+
+  return `
+    <div style="display:flex;gap:6px;margin-bottom:10px;background:var(--card-bg);padding:4px;border-radius:10px;border:1px solid var(--border)">
+      <button class="btn ${currentChatTabMode==='assistant'?'btn-primary':'btn-secondary'}" style="flex:1;font-size:11.5px;padding:6px 10px" onclick="switchChatTabMode('assistant')">
+        💬 Chat Assistant
+      </button>
+      <button class="btn ${currentChatTabMode==='smart_call'?'btn-primary':'btn-secondary'}" style="flex:1;font-size:11.5px;padding:6px 10px" onclick="switchChatTabMode('smart_call')">
+        📞 Voice Call Companion
+      </button>
+    </div>
+
+    <div class="chat-mode-bar" style="margin-bottom:8px">
+      <div>
+        <label style="font-size:11.5px;font-weight:700;color:var(--text2);margin-right:6px">Persona:</label>
+        <select class="chat-persona-select" id="chat-persona-select" onchange="setChatPersona(this.value)">
+          <option value="khushi" ${activePersona==='khushi'?'selected':''}>👩 Khushi (Female)</option>
+          <option value="sonu" ${activePersona==='sonu'?'selected':''}>👨 Sonu (Male)</option>
+          <option value="aanya" ${activePersona==='aanya'?'selected':''}>👩 Aanya Sharma (Cloud Kitchen)</option>
+        </select>
+      </div>
+      ${apiStatus}
+    </div>
+
+    <div class="assistant-call-card">
+      <div style="font-size:48px;line-height:1;margin-bottom:4px">${avatar}</div>
+      <div>
+        <h3 style="font-size:18px;font-weight:800;color:var(--text);margin:0">${name}</h3>
+        <p style="font-size:12px;color:var(--text2);margin:2px 0 0 0">${role}</p>
+      </div>
+
+      <div class="assistant-call-timer" id="call-timer-display">${isNativeCallActive ? formattedTimer : '00:00'}</div>
+
+      <div class="visualizer-orb ${isNativeCallActive ? 'speaking' : ''}" id="call-visualizer-orb">
+        <div style="font-size:24px">${isNativeCallActive ? '🎙️' : '💤'}</div>
+      </div>
+
+      <div style="font-size:12px;color:var(--text3);" id="call-status-label">
+        ${isNativeCallActive ? '🟢 Live Voice Conversation Active' : 'Tap Start Call to speak out loud'}
+      </div>
+
+      <div class="soundscape-pill-row">
+        <div class="soundscape-pill ${activeSoundscape==='clear'?'active':''}" onclick="setSoundscape('clear')">✨ Clear HD Voice</div>
+        <div class="soundscape-pill ${activeSoundscape==='phone'?'active':''}" onclick="setSoundscape('phone')">📞 Phone Call</div>
+        <div class="soundscape-pill ${activeSoundscape==='cafe'?'active':''}" onclick="setSoundscape('cafe')">☕ Cozy Cafe</div>
+      </div>
+
+      <div style="display:flex;gap:12px;width:100%;margin-top:8px">
+        ${!isNativeCallActive ? `
+          <button class="btn btn-primary" style="flex:1;padding:12px;font-size:14px;border-radius:12px;" onclick="startNativeVoiceCall()">
+            📞 Start Voice Call
+          </button>
+        ` : `
+          <button class="btn" style="flex:1;padding:12px;font-size:14px;border-radius:12px;background:var(--red);color:#fff" onclick="stopNativeVoiceCall()">
+            ⏹️ End Call
+          </button>
+        `}
+      </div>
+    </div>
+  `;
+}
+
+function formatCallTimer(secs) {
+  const m = Math.floor(secs / 60).toString().padStart(2, '0');
+  const s = (secs % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+function setSoundscape(val) {
+  activeSoundscape = val;
+  if (backgroundAudioObj) {
+    backgroundAudioObj.pause();
+    backgroundAudioObj = null;
+  }
+  if (val === 'cafe') {
+    backgroundAudioObj = new Audio('https://cdn.pixabay.com/download/audio/2022/04/18/audio_097a610557.mp3?filename=ambience-of-a-coffee-shop-10901.mp3');
+    backgroundAudioObj.loop = true;
+    backgroundAudioObj.volume = 0.15;
+    backgroundAudioObj.play().catch(() => {});
+  }
+  if (typeof showToast === 'function') showToast(`Soundscape set to ${val === 'cafe' ? 'Cozy Cafe' : (val === 'phone' ? 'Phone Call Filter' : 'Clear HD Voice')}`);
+  switchChatTabMode('smart_call');
+}
+
+function startNativeVoiceCall() {
+  isNativeCallActive = true;
+  nativeCallDurationSecs = 0;
+
+  if (nativeCallTimerInterval) clearInterval(nativeCallTimerInterval);
+  nativeCallTimerInterval = setInterval(() => {
+    nativeCallDurationSecs++;
+    const timerEl = document.getElementById('call-timer-display');
+    if (timerEl) timerEl.textContent = formatCallTimer(nativeCallDurationSecs);
+  }, 1000);
+
+  const persona = state.chatPersona || 'khushi';
+  const openingGreeting = persona === 'sonu'
+    ? "Namaste! Main Sonu hu. Aap bataiye, aaj mai aapki kaise help kar sakta hu?"
+    : (persona === 'aanya'
+      ? "Hey! Main Aanya hu. Cloud Kitchen updates discuss kare ya aapke daily goals check kare?"
+      : "Namaste! Main Khushi hu. Aapke saare stats, tasks aur habit reports ready hain. Bataiye kya check karna hai?");
+
+  speakAIResponse(openingGreeting);
+  setTimeout(() => {
+    if (isNativeCallActive) toggleChatVoiceInput();
+  }, 3500);
+
+  switchChatTabMode('smart_call');
+}
+
+function stopNativeVoiceCall() {
+  isNativeCallActive = false;
+  if (nativeCallTimerInterval) {
+    clearInterval(nativeCallTimerInterval);
+    nativeCallTimerInterval = null;
+  }
+  if (backgroundAudioObj) {
+    backgroundAudioObj.pause();
+    backgroundAudioObj = null;
+  }
+  stopAISpeech();
+  stopChatVoiceInput();
+  if (typeof showToast === 'function') showToast('Voice Call Ended');
+  switchChatTabMode('smart_call');
 }
 
 function renderChatMsgs() {
