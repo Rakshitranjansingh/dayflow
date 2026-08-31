@@ -606,12 +606,18 @@ async function sendChat() {
   speakInstantFiller();
 
   const personaName = (state.chatPersona === 'sonu') ? 'Sonu' : 'Khushi';
-  const loadEl = document.createElement('div');
-  loadEl.className = 'loading';
-  loadEl.innerHTML = `<div class="spinner"></div> ${personaName} is checking...`;
+  
+  // Create a placeholder for the live streaming response
   const msgsEl = document.getElementById('chat-msgs');
-  if (msgsEl) msgsEl.appendChild(loadEl);
-  if (typeof scrollChatToBottom === 'function') scrollChatToBottom();
+  const streamId = 'stream-' + Date.now();
+  if (msgsEl) {
+    const msgEl = document.createElement('div');
+    msgEl.className = 'chat-msg ai';
+    msgEl.id = streamId;
+    msgEl.innerHTML = `<div class="spinner" style="display:inline-block;width:12px;height:12px;border-width:2px;margin-right:6px"></div><span style="opacity:0.6">${personaName} is typing...</span>`;
+    msgsEl.appendChild(msgEl);
+    if (typeof scrollChatToBottom === 'function') scrollChatToBottom();
+  }
 
   try {
     const systemCtx = buildAppPersonalContext();
@@ -627,20 +633,36 @@ async function sendChat() {
       '\nTODOS: <comma-separated action items the user should do, or NONE>' +
       '\nOnly add a TODOS line when the conversation contains clear action items to do.]';
 
-    const raw = await callGemini(contents);
+    const onChunk = (partialText) => {
+      const lines = partialText.split('\\n');
+      const insightIdx = lines.findIndex(l => l.trim().startsWith('INSIGHT:'));
+      const todosIdx   = lines.findIndex(l => l.trim().startsWith('TODOS:'));
+      const markerIdx = [insightIdx, todosIdx].filter(i => i > -1).reduce((a, b) => Math.min(a, b), lines.length);
+      const displayResponse = lines.slice(0, markerIdx).join('\\n').trim();
+      
+      const el = document.getElementById(streamId);
+      if (el) {
+        el.innerHTML = displayResponse.replace(/\\n/g, '<br>') || '<span style="opacity:0.6">typing...</span>';
+        if (typeof scrollChatToBottom === 'function') scrollChatToBottom();
+      }
+    };
 
-    const lines = raw.split('\n');
+    const raw = await (typeof callGeminiStream === 'function' ? callGeminiStream(contents, onChunk) : callGemini(contents));
+
+    const lines = raw.split('\\n');
     const insightIdx = lines.findIndex(l => l.trim().startsWith('INSIGHT:'));
     const todosIdx   = lines.findIndex(l => l.trim().startsWith('TODOS:'));
 
     // Response is everything before the first marker line
     const markerIdx = [insightIdx, todosIdx].filter(i => i > -1).reduce((a, b) => Math.min(a, b), lines.length);
-    const response = lines.slice(0, markerIdx).join('\n').trim();
+    const response = lines.slice(0, markerIdx).join('\\n').trim();
 
     const insightLine = insightIdx > -1 ? lines[insightIdx].replace('INSIGHT:', '').trim() : null;
     const todosRaw    = todosIdx   > -1 ? lines[todosIdx].replace('TODOS:', '').trim()   : null;
 
-    if (loadEl.parentNode) loadEl.remove();
+    const el = document.getElementById(streamId);
+    if (el) el.innerHTML = response.replace(/\\n/g, '<br>');
+
     state.chatHistory.push({ role: 'assistant', content: response });
 
     // Save insight to journal
@@ -700,7 +722,8 @@ async function sendChat() {
     speakAIResponse(response);
 
   } catch(e) {
-    if (loadEl.parentNode) loadEl.remove();
+    const el = document.getElementById(streamId);
+    if (el) el.remove();
     state.chatHistory.pop();
     renderChatMsgs();
     console.error('Chat error full:', e);

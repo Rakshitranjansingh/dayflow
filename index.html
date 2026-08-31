@@ -26,7 +26,7 @@
 <link rel="stylesheet" href="thoughts/thoughts.css">
 <link rel="stylesheet" href="challenge/challenge.css">
 <link rel="stylesheet" href="splitease/splitease.css">
-<link rel="stylesheet" href="assistant/assistant.css?v=2.5.0">
+<link rel="stylesheet" href="assistant/assistant.css?v=2.6.0">
 <!-- Supabase JS Client & Google Identity Services -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -786,8 +786,7 @@
 
   <!-- Tools Grid -->
   <div class="tool-grid" id="home-grid-tools" style="margin-bottom: 24px;">
-    <div class="tool-btn" onclick="openPanel('chat')"><div class="tool-icon">💬</div><div class="tool-name">Chat</div></div>
-    <div class="tool-btn" onclick="openPanel('journal')"><div class="tool-icon">🎙️</div><div class="tool-name">Journal</div></div>
+    <div class="tool-btn" onclick="openPanel('chat')"><div class="tool-icon">👩</div><div class="tool-name">Khushi</div></div>
     <div class="tool-btn" onclick="openPanel('todo')">
       <div class="tool-icon">✅</div><div class="tool-name">To-Do</div>
       <div class="tool-badge" id="todo-badge" style="display:none"></div>
@@ -3480,6 +3479,78 @@ async function callGemini(messages, systemInstruction = '', modelIndex = 0) {
   return text;
 }
 
+async function callGeminiStream(messages, onChunk, systemInstruction = '', modelIndex = 0) {
+  const activeKey = getActiveApiKey();
+  if (!activeKey) throw new Error('No API key set');
+  const models = getModelList();
+  if (modelIndex >= models.length) throw new Error('All models rate limited. Try again in a moment.');
+
+  const model = models[modelIndex];
+
+  const contents = messages.map(m => ({
+    role: m.role === 'assistant' ? 'model' : (m.role || 'user'),
+    parts: m.parts ? m.parts : [{ text: m.content || '' }]
+  }));
+
+  if (contents.length > 0 && contents[0].role !== 'user') {
+    contents.unshift({ role: 'user', parts: [{ text: '.' }] });
+  }
+
+  const body = { contents, generationConfig: { maxOutputTokens: 8192, temperature: 0.7 } };
+  if (systemInstruction) {
+    body.systemInstruction = { parts: [{ text: systemInstruction }] };
+  }
+
+  let r;
+  try {
+    r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${activeKey}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    );
+  } catch(networkErr) {
+    throw new Error('NETWORK_ERROR: Cannot reach Gemini API. Check your internet connection.');
+  }
+
+  if (r.status === 429 && modelIndex + 1 < models.length) {
+    return callGeminiStream(messages, onChunk, systemInstruction, modelIndex + 1);
+  }
+  if (r.status >= 500 && modelIndex + 1 < models.length) {
+    return callGeminiStream(messages, onChunk, systemInstruction, modelIndex + 1);
+  }
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    if ((r.status === 404 || r.status === 400) && modelIndex + 1 < models.length) {
+      return callGeminiStream(messages, onChunk, systemInstruction, modelIndex + 1);
+    }
+    throw new Error(err?.error?.message || `HTTP ${r.status}`);
+  }
+
+  const reader = r.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let fullText = '';
+  
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    const lines = chunk.split('\\n');
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const dataStr = line.slice(6);
+        if (dataStr === '[DONE]') continue;
+        try {
+          const data = JSON.parse(dataStr);
+          const textPart = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          fullText += textPart;
+          onChunk(fullText);
+        } catch(e) {}
+      }
+    }
+  }
+  return fullText;
+}
+
+
 async function callGeminiVision(base64, mimeType, prompt, modelIndex = 0) {
   const activeKey = getActiveApiKey();
   if (!activeKey) throw new Error('No API key');
@@ -4302,7 +4373,7 @@ function closePublisherRequestModal() {
 <script src="splitease/debtSolver.js?v=1.0.29"></script>
 <script src="splitease/dbAdapter.js?v=1.0.29"></script>
 <script src="splitease/splitease.js?v=1.0.29"></script>
-<script src="assistant/assistant.js?v=2.5.0"></script>
+<script src="assistant/assistant.js?v=2.6.0"></script>
 
 <!-- PWA Service Worker & Install Handler -->
 <script>
