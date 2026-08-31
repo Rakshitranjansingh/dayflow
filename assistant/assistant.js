@@ -196,17 +196,15 @@ function toggleAutoSpeak(enabled) {
   if (typeof showToast === 'function') showToast(`Auto-speak ${enabled ? 'enabled' : 'disabled'}`);
 }
 
-function speakInstantFiller() {
-  if (!('speechSynthesis' in window) || state.autoSpeak === false) return;
+let activeAudioQueue = [];
+let currentPlayingAudio = null;
 
-  try {
-    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-    if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
-  } catch(e) {}
+function speakInstantFiller() {
+  if (state.autoSpeak === false) return;
+
+  stopAISpeech();
 
   const persona = state.chatPersona || 'khushi';
-  const name = persona === 'sonu' ? 'Sonu' : 'Khushi';
-
   const khushiFillers = [
     "Acha, let me check that for you.",
     "Sure, checking your details now.",
@@ -223,45 +221,13 @@ function speakInstantFiller() {
   const arr = persona === 'sonu' ? sonuFillers : khushiFillers;
   const fillerText = arr[Math.floor(Math.random() * arr.length)];
 
-  const utterance = new SpeechSynthesisUtterance(fillerText);
-  utterance.lang = 'en-IN';
-  utterance.volume = 1.0;
-  utterance.rate = 1.0;
-  utterance.pitch = persona === 'khushi' ? 1.15 : 0.9;
-
-  // Voice Selection
-  const voices = (window.speechSynthesis.getVoices() || []);
-  if (voices.length > 0) {
-    const indianVoices = voices.filter(v => v.lang && (v.lang.includes('en-IN') || v.lang.includes('hi-IN') || v.lang.includes('hi_IN')));
-    if (persona === 'khushi') {
-      const fVoice = indianVoices.find(v => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('neerja') || v.name.toLowerCase().includes('google hindi') || v.name.toLowerCase().includes('veena')) || indianVoices[0];
-      if (fVoice) utterance.voice = fVoice;
-    } else {
-      const mVoice = indianVoices.find(v => v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('prabhat') || v.name.toLowerCase().includes('ravi') || v.name.toLowerCase().includes('david')) || indianVoices[indianVoices.length - 1];
-      if (mVoice) utterance.voice = mVoice;
-    }
-  }
-
-  const equalizer = document.getElementById('chat-speech-equalizer');
-  const label = document.getElementById('chat-speech-label');
-  if (equalizer) equalizer.style.display = 'flex';
-  if (label) label.textContent = `🔊 ${name} is checking...`;
-
-  utterance.onend = () => { if (equalizer) equalizer.style.display = 'none'; };
-  utterance.onerror = () => { if (equalizer) equalizer.style.display = 'none'; };
-
-  window._activeSpeechUtterance = utterance;
-  setTimeout(() => {
-    try {
-      window.speechSynthesis.resume();
-      window.speechSynthesis.speak(utterance);
-    } catch(e) { console.warn(e); }
-  }, 30);
+  speakGoogleNeuralTTS(fillerText, persona).catch(() => {
+    speakWebSpeechFallback(fillerText, persona);
+  });
 }
 
 function testVoiceSynthesis() {
   const persona = state.chatPersona || 'khushi';
-  const name = persona === 'sonu' ? 'Sonu' : 'Khushi';
   const sample = persona === 'sonu'
     ? "Namaste! Main Sonu hu, aapka AI Personal Assistant."
     : "Namaste! Main Khushi hu, aapki AI Personal Assistant.";
@@ -269,12 +235,9 @@ function testVoiceSynthesis() {
 }
 
 function speakAIResponse(text) {
-  if (!('speechSynthesis' in window) || state.autoSpeak === false) return;
+  if (state.autoSpeak === false) return;
 
-  try {
-    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-    if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
-  } catch(e) {}
+  stopAISpeech();
 
   let cleanText = text
     .replace(/INSIGHT:.*$/gm, '')
@@ -286,12 +249,68 @@ function speakAIResponse(text) {
 
   if (!cleanText) return;
 
-  const utterance = new SpeechSynthesisUtterance(cleanText);
+  const persona = state.chatPersona || 'khushi';
+
+  speakGoogleNeuralTTS(cleanText, persona).catch(() => {
+    speakWebSpeechFallback(cleanText, persona);
+  });
+}
+
+function speakGoogleNeuralTTS(text, persona) {
+  return new Promise((resolve, reject) => {
+    const lang = persona === 'khushi' ? 'hi' : 'en';
+    const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+
+    activeAudioQueue = sentences.slice(0, 4).map(s => {
+      const encoded = encodeURIComponent(s.trim().slice(0, 190));
+      return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=${lang}&client=tw-ob`;
+    });
+
+    if (activeAudioQueue.length === 0) return reject('Empty text');
+
+    const name = persona === 'sonu' ? 'Sonu' : 'Khushi';
+    const equalizer = document.getElementById('chat-speech-equalizer');
+    const label = document.getElementById('chat-speech-label');
+    if (equalizer) equalizer.style.display = 'flex';
+    if (label) label.textContent = `🔊 ${name} Speaking (Neural)...`;
+    if (typeof showToast === 'function') showToast(`🔊 ${name} speaking...`);
+
+    let index = 0;
+    function playNextSentence() {
+      if (index >= activeAudioQueue.length) {
+        if (equalizer) equalizer.style.display = 'none';
+        resolve();
+        return;
+      }
+      const audioUrl = activeAudioQueue[index++];
+      const audio = new Audio(audioUrl);
+      audio.volume = 1.0;
+      audio.playbackRate = persona === 'khushi' ? 1.05 : 0.98;
+      currentPlayingAudio = audio;
+      audio.onended = playNextSentence;
+      audio.onerror = (e) => {
+        if (equalizer) equalizer.style.display = 'none';
+        reject(e);
+      };
+      audio.play().catch(reject);
+    }
+
+    playNextSentence();
+  });
+}
+
+function speakWebSpeechFallback(text, persona) {
+  if (!('speechSynthesis' in window)) return;
+  const name = persona === 'sonu' ? 'Sonu' : 'Khushi';
+
+  try {
+    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+    if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
+  } catch(e) {}
+
+  const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'en-IN';
   utterance.volume = 1.0;
-
-  const persona = state.chatPersona || 'khushi';
-  const name = persona === 'sonu' ? 'Sonu' : 'Khushi';
 
   if (persona === 'khushi') {
     utterance.pitch = 1.15;
@@ -303,13 +322,18 @@ function speakAIResponse(text) {
 
   const voices = (window.speechSynthesis.getVoices() || []);
   if (voices.length > 0) {
-    const indianVoices = voices.filter(v => v.lang && (v.lang.includes('en-IN') || v.lang.includes('hi-IN') || v.lang.includes('hi_IN')));
-    if (persona === 'khushi') {
-      const fVoice = indianVoices.find(v => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('neerja') || v.name.toLowerCase().includes('google hindi') || v.name.toLowerCase().includes('veena')) || indianVoices[0];
-      if (fVoice) utterance.voice = fVoice;
+    const naturalVoice = voices.find(v => (v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Google')) && (v.lang.includes('IN') || v.lang.includes('hi')));
+    if (naturalVoice) {
+      utterance.voice = naturalVoice;
     } else {
-      const mVoice = indianVoices.find(v => v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('prabhat') || v.name.toLowerCase().includes('ravi') || v.name.toLowerCase().includes('david')) || indianVoices[indianVoices.length - 1];
-      if (mVoice) utterance.voice = mVoice;
+      const indianVoices = voices.filter(v => v.lang && (v.lang.includes('en-IN') || v.lang.includes('hi-IN') || v.lang.includes('hi_IN')));
+      if (persona === 'khushi') {
+        const fVoice = indianVoices.find(v => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('neerja') || v.name.toLowerCase().includes('heera') || v.name.toLowerCase().includes('veena')) || indianVoices[0];
+        if (fVoice) utterance.voice = fVoice;
+      } else {
+        const mVoice = indianVoices.find(v => v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('prabhat') || v.name.toLowerCase().includes('ravi') || v.name.toLowerCase().includes('david')) || indianVoices[indianVoices.length - 1];
+        if (mVoice) utterance.voice = mVoice;
+      }
     }
   }
 
@@ -318,29 +342,29 @@ function speakAIResponse(text) {
   if (equalizer) equalizer.style.display = 'flex';
   if (label) label.textContent = `🔊 ${name} Speaking...`;
 
-  utterance.onstart = () => {
-    if (typeof showToast === 'function') showToast(`🔊 ${name} is speaking...`);
-  };
-
   utterance.onend = () => { if (equalizer) equalizer.style.display = 'none'; };
-  utterance.onerror = (e) => {
-    console.warn('SpeechSynthesis error:', e);
-    if (equalizer) equalizer.style.display = 'none';
-  };
+  utterance.onerror = () => { if (equalizer) equalizer.style.display = 'none'; };
 
   window._activeSpeechUtterance = utterance;
   setTimeout(() => {
     try {
       window.speechSynthesis.resume();
       window.speechSynthesis.speak(utterance);
-    } catch(e) { console.warn(e); }
+    } catch(e) {}
   }, 50);
 }
 
 function stopAISpeech() {
+  if (currentPlayingAudio) {
+    try { currentPlayingAudio.pause(); } catch(e) {}
+    currentPlayingAudio = null;
+  }
+  activeAudioQueue = [];
+
   if ('speechSynthesis' in window) {
     try { window.speechSynthesis.cancel(); } catch(e) {}
   }
+
   const equalizer = document.getElementById('chat-speech-equalizer');
   if (equalizer) equalizer.style.display = 'none';
 }
