@@ -379,13 +379,10 @@ function speakAIResponse(text) {
 
   const persona = state.chatPersona || 'khushi';
 
-  // 1. Try Google Cloud Studio Wavenet HD Voice first (Studio Quality 48kHz)
-  speakGoogleCloudStudioHDVoice(cleanText, persona).catch(() => {
-    // 2. Fall back to Google Neural Audio stream
-    speakGoogleNeuralTTS(cleanText, persona).catch(() => {
-      // 3. Fall back to Browser Natural Speech Engine
-      speakWebSpeechFallback(cleanText, persona);
-    });
+  // Tier 1: Gemini TTS (uses same Gemini API key — no extra setup needed)
+  speakWithGeminiTTS(cleanText, persona).catch(() => {
+    // Tier 2: Segmented Hinglish browser WebSpeech (Hindi words in Hindi voice, English in English)
+    speakHinglishWebSpeech(cleanText, persona);
   });
 }
 
@@ -396,266 +393,194 @@ function speakInstantFiller() {
 
   const persona = state.chatPersona || 'khushi';
   const khushiFillers = [
-    "Acha, let me check that for you.",
-    "Sure, checking your details now.",
-    "Hmm, let me look into this for you.",
-    "One second, checking that for you."
+    "Acha, ek second.",
+    "Sure, checking now!",
+    "Hmm, let me look into this.",
+    "One sec, got you!"
   ];
   const sonuFillers = [
-    "Ha, ek sec check karta hu.",
-    "Sure, let me check that for you.",
-    "Hmm, give me a moment, checking this.",
-    "Right away, let me check."
+    "Ha bhai, ek sec.",
+    "Sure, dekh raha hoon.",
+    "Give me a moment.",
+    "Right away!"
   ];
 
   const arr = persona === 'sonu' ? sonuFillers : khushiFillers;
   const fillerText = arr[Math.floor(Math.random() * arr.length)];
 
-  speakGoogleCloudStudioHDVoice(fillerText, persona).catch(() => {
-    speakGoogleNeuralTTS(fillerText, persona).catch(() => {
-      speakWebSpeechFallback(fillerText, persona);
-    });
+  speakWithGeminiTTS(fillerText, persona).catch(() => {
+    speakHinglishWebSpeech(fillerText, persona);
   });
 }
 
-// Detect if a word is Hindi (Devanagari script)
+// ─── VOICE ENGINE ─────────────────────────────────────────────────────────────
+
+// Detect if text contains Devanagari (Hindi) script
 function isDevanagariWord(word) {
   return /[\u0900-\u097F]/.test(word);
 }
 
-// Build SSML markup that wraps Hindi words in hi-IN and English in en-IN
-function buildHinglishSSML(text, persona) {
-  const speakingRate = persona === 'khushi' ? '1.05' : '0.95';
-  const pitch = persona === 'khushi' ? '2st' : '-1st';
-  const enVoice = persona === 'khushi' ? 'en-IN-Wavenet-D' : 'en-IN-Wavenet-B';
-  const hiVoice = persona === 'khushi' ? 'hi-IN-Wavenet-D' : 'hi-IN-Wavenet-B';
-
-  // Split into tokens: words + punctuation
-  const tokens = text.split(/(\s+|[,।?!.]+)/g);
-  let ssml = `<speak><prosody rate="${speakingRate}" pitch="${pitch}">`;
-  let currentLang = null;
-
-  tokens.forEach(token => {
-    if (!token.trim()) {
-      ssml += token;
-      return;
+// Segment mixed Hinglish text into { lang: 'hi'|'en', text } chunks
+function segmentHinglish(text) {
+  const words = text.split(/(\s+)/g);
+  const segments = [];
+  let cur = { lang: null, text: '' };
+  words.forEach(w => {
+    if (!w.trim()) { cur.text += w; return; }
+    const lang = isDevanagariWord(w) ? 'hi' : 'en';
+    if (lang === cur.lang) { cur.text += w; }
+    else {
+      if (cur.text.trim()) segments.push({ ...cur });
+      cur = { lang, text: w };
     }
-    const isHindi = isDevanagariWord(token);
-    const lang = isHindi ? 'hi-IN' : 'en-IN';
-    const voice = isHindi ? hiVoice : enVoice;
-
-    if (lang !== currentLang) {
-      if (currentLang !== null) ssml += '</voice>';
-      ssml += `<voice name="${voice}">`;
-      currentLang = lang;
-    }
-    ssml += token;
   });
-
-  if (currentLang !== null) ssml += '</voice>';
-  ssml += '</prosody></speak>';
-  return ssml;
+  if (cur.text.trim()) segments.push({ ...cur });
+  return segments;
 }
 
-async function speakGoogleCloudStudioHDVoice(text, persona) {
+// ── TIER 1: Gemini TTS ──────────────────────────────────────────────────────
+// Uses the same Gemini API key the user already has.
+// Model: gemini-2.5-flash-preview-tts  |  Returns LINEAR16 PCM audio.
+async function speakWithGeminiTTS(text, persona) {
   const activeKey = typeof getActiveApiKey === 'function' ? getActiveApiKey() : state.apiKey;
   if (!activeKey) throw new Error('No API key');
 
-  // Use SSML for natural Hinglish — Hindi words spoken in Hindi, English in English
-  const hasDevanagari = isDevanagariWord(text);
-  const voiceName = persona === 'khushi' ? 'en-IN-Wavenet-D' : 'en-IN-Wavenet-B';
-  const langCode = 'en-IN';
+  // Khushi = warm Indian female voice; Sonu = natural Indian male voice
+  const voiceName = persona === 'khushi' ? 'Aoede' : 'Puck';
 
-  const requestBody = hasDevanagari
-    ? {
-        input: { ssml: buildHinglishSSML(text.slice(0, 500), persona) },
-        voice: { languageCode: langCode, name: voiceName },
-        audioConfig: { audioEncoding: 'MP3', speakingRate: 1.0, pitch: 0.0 }
+  const body = {
+    contents: [{ parts: [{ text: text.slice(0, 600) }] }],
+    generationConfig: {
+      responseModalities: ['AUDIO'],
+      speechConfig: {
+        voiceConfig: { prebuiltVoiceConfig: { voiceName } }
       }
-    : {
-        input: { text: text.slice(0, 500) },
-        voice: { languageCode: langCode, name: voiceName },
-        audioConfig: {
-          audioEncoding: 'MP3',
-          speakingRate: persona === 'khushi' ? 1.02 : 0.95,
-          pitch: persona === 'khushi' ? 1.0 : -1.0,
-          effectsProfileId: ['headphone-class-device']
-        }
-      };
+    }
+  };
 
-  const r = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${activeKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(requestBody)
-  });
+  const r = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${activeKey}`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+  );
 
-  if (!r.ok) {
-    const errBody = await r.text().catch(() => '');
-    throw new Error(`Cloud TTS ${r.status}: ${errBody.slice(0, 100)}`);
-  }
-
+  if (!r.ok) throw new Error(`Gemini TTS ${r.status}`);
   const data = await r.json();
-  if (!data.audioContent) throw new Error('No audioContent returned');
+
+  const b64 = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+  if (!b64) throw new Error('No audio data from Gemini TTS');
+
+  // Gemini TTS returns raw PCM (LINEAR16, 24kHz, mono) — wrap in WAV header
+  const pcm = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  const wavBuffer = pcmToWav(pcm, 24000, 1, 16);
+  const blob = new Blob([wavBuffer], { type: 'audio/wav' });
+  const url = URL.createObjectURL(blob);
 
   return new Promise((resolve, reject) => {
-    const audio = new Audio('data:audio/mp3;base64,' + data.audioContent);
+    const audio = new Audio(url);
     audio.volume = 1.0;
     currentPlayingAudio = audio;
 
     const name = persona === 'sonu' ? 'Sonu' : 'Khushi';
     const equalizer = document.getElementById('chat-speech-equalizer');
-    const label = document.getElementById('chat-speech-label');
+    const label   = document.getElementById('chat-speech-label');
     if (equalizer) equalizer.style.display = 'flex';
     if (label) label.textContent = `🔊 ${name} Speaking...`;
 
-    audio.onended = () => {
-      if (equalizer) equalizer.style.display = 'none';
-      resolve();
-    };
-    audio.onerror = (e) => {
-      if (equalizer) equalizer.style.display = 'none';
-      reject(e);
-    };
-
+    audio.onended = () => { URL.revokeObjectURL(url); if (equalizer) equalizer.style.display = 'none'; resolve(); };
+    audio.onerror = (e) => { URL.revokeObjectURL(url); if (equalizer) equalizer.style.display = 'none'; reject(e); };
     audio.play().catch(reject);
   });
 }
 
-function findKaraOrBestVoice(persona) {
-  const voices = (window.speechSynthesis.getVoices() || []);
-  if (voices.length === 0) return null;
+// Build a minimal WAV header around raw PCM bytes
+function pcmToWav(pcmData, sampleRate, numChannels, bitsPerSample) {
+  const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+  const blockAlign = numChannels * bitsPerSample / 8;
+  const dataSize = pcmData.length;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+  const write = (off, str) => { for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i)); };
+  write(0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  write(8, 'WAVE'); write(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+  write(36, 'data');
+  view.setUint32(40, dataSize, true);
+  new Uint8Array(buffer).set(pcmData, 44);
+  return buffer;
+}
 
+// ── TIER 2: Segmented Hinglish Web Speech ───────────────────────────────────
+// Speaks each language segment with the matching voice:
+//  • Hindi (Devanagari) segments → hi-IN voice
+//  • English / Roman Hinglish   → en-IN voice
+function findBestVoice(lang, persona) {
+  const voices = window.speechSynthesis.getVoices() || [];
+  if (lang === 'hi') {
+    return voices.find(v => v.lang && v.lang.startsWith('hi')) ||
+           voices.find(v => v.name.toLowerCase().includes('hindi') || v.name.toLowerCase().includes('neerja') || v.name.toLowerCase().includes('heera')) ||
+           null;
+  }
+  // English / Hinglish
   if (persona === 'khushi') {
-    // 1. Target Kara Voice explicitly
-    const karaVoice = voices.find(v => v.name.toLowerCase().includes('kara'));
-    if (karaVoice) return karaVoice;
-
-    // 2. High quality natural female voices (Microsoft Natural / Google UK / US Female)
-    const naturalFemale = voices.find(v => 
-      (v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Google') || v.name.includes('Online')) &&
-      (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('aria') || v.name.toLowerCase().includes('jenny') || v.name.toLowerCase().includes('neerja') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('samantha'))
-    );
-    if (naturalFemale) return naturalFemale;
-
-    // 3. Indian / English female fallback
-    const femaleVoice = voices.find(v => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('neerja') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('veena') || v.name.toLowerCase().includes('heera'));
-    if (femaleVoice) return femaleVoice;
-
-    return voices[0];
-  } else {
-    // Male Voice (Sonu) - Prabhat / Guy / Natural Male
-    const naturalMale = voices.find(v => 
-      (v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Google')) &&
-      (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('guy') || v.name.toLowerCase().includes('prabhat') || v.name.toLowerCase().includes('david') || v.name.toLowerCase().includes('ravi'))
-    );
-    if (naturalMale) return naturalMale;
-
-    const maleVoice = voices.find(v => v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('prabhat') || v.name.toLowerCase().includes('david') || v.name.toLowerCase().includes('ravi'));
-    if (maleVoice) return maleVoice;
-
-    return voices[voices.length - 1];
+    return voices.find(v => ['Neerja', 'Heera', 'Kara', 'Aria', 'Jenny', 'Samantha'].some(n => v.name.includes(n))) ||
+           voices.find(v => v.lang === 'en-IN' || v.lang === 'en-GB') ||
+           voices.find(v => v.lang && v.lang.startsWith('en')) ||
+           null;
   }
+  return voices.find(v => ['Prabhat', 'Ravi', 'Guy', 'David'].some(n => v.name.includes(n))) ||
+         voices.find(v => v.lang === 'en-IN') ||
+         voices.find(v => v.lang && v.lang.startsWith('en')) ||
+         null;
 }
 
-// Segment Hinglish text by language (Hindi script vs Roman/English)
-function segmentHinglishText(text) {
-  const words = text.split(/(\s+)/g);
-  const segments = [];
-  let current = { lang: null, text: '' };
-
-  words.forEach(word => {
-    if (!word.trim()) { current.text += word; return; }
-    const lang = isDevanagariWord(word) ? 'hi' : 'en';
-    if (lang === current.lang) {
-      current.text += word;
-    } else {
-      if (current.text.trim()) segments.push({ ...current });
-      current = { lang, text: word };
-    }
-  });
-  if (current.text.trim()) segments.push({ ...current });
-  return segments;
-}
-
-function speakGoogleNeuralTTS(text, persona) {
-  return new Promise((resolve, reject) => {
-    // Segment by language for natural Hinglish delivery
-    const segments = segmentHinglishText(text);
-
-    activeAudioQueue = segments.slice(0, 6).map(seg => {
-      const encoded = encodeURIComponent(seg.text.trim().slice(0, 190));
-      return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=${seg.lang}&client=tw-ob`;
-    });
-
-    if (activeAudioQueue.length === 0) return reject('Empty text');
-
-    const name = persona === 'sonu' ? 'Sonu' : 'Khushi';
-    const equalizer = document.getElementById('chat-speech-equalizer');
-    const label = document.getElementById('chat-speech-label');
-    if (equalizer) equalizer.style.display = 'flex';
-    if (label) label.textContent = `🔊 ${name} Speaking...`;
-
-    let index = 0;
-    function playNextSentence() {
-      if (index >= activeAudioQueue.length) {
-        if (equalizer) equalizer.style.display = 'none';
-        resolve();
-        return;
-      }
-      const audioUrl = activeAudioQueue[index++];
-      const audio = new Audio(audioUrl);
-      audio.volume = 1.0;
-      audio.playbackRate = persona === 'khushi' ? 1.02 : 0.96;
-      currentPlayingAudio = audio;
-      audio.onended = playNextSentence;
-      audio.onerror = () => {
-        // Skip failed segment, play next
-        playNextSentence();
-      };
-      audio.play().catch(() => playNextSentence());
-    }
-
-    playNextSentence();
-  });
-}
-
-function speakWebSpeechFallback(text, persona) {
+function speakHinglishWebSpeech(text, persona) {
   if (!('speechSynthesis' in window)) return;
-  const matchedVoice = findKaraOrBestVoice(persona);
-  const voiceName = matchedVoice ? matchedVoice.name : (persona === 'sonu' ? 'Sonu' : 'Khushi');
 
-  try {
-    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-    if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
-  } catch(e) {}
+  try { window.speechSynthesis.cancel(); } catch(e) {}
 
-  const utterance = new SpeechSynthesisUtterance(text);
-  if (matchedVoice) {
-    utterance.voice = matchedVoice;
-    utterance.lang = matchedVoice.lang || 'en-US';
-  } else {
-    utterance.lang = 'en-US';
-  }
-  utterance.volume = 1.0;
-  utterance.pitch = persona === 'khushi' ? 1.05 : 0.95;
-  utterance.rate = 1.0;
-
+  const segments = segmentHinglish(text);
   const equalizer = document.getElementById('chat-speech-equalizer');
   const label = document.getElementById('chat-speech-label');
+  const name = persona === 'sonu' ? 'Sonu' : 'Khushi';
   if (equalizer) equalizer.style.display = 'flex';
-  if (label) label.textContent = `🔊 ${persona === 'sonu' ? 'Sonu' : 'Khushi'} (${matchedVoice ? matchedVoice.name.split(' ')[0] : 'Kara'}) Speaking...`;
+  if (label) label.textContent = `🔊 ${name} Speaking...`;
 
-  utterance.onend = () => { if (equalizer) equalizer.style.display = 'none'; };
-  utterance.onerror = () => { if (equalizer) equalizer.style.display = 'none'; };
+  let idx = 0;
+  function speakNext() {
+    if (idx >= segments.length) {
+      if (equalizer) equalizer.style.display = 'none';
+      return;
+    }
+    const seg = segments[idx++];
+    if (!seg.text.trim()) { speakNext(); return; }
 
-  window._activeSpeechUtterance = utterance;
-  setTimeout(() => {
-    try {
-      window.speechSynthesis.resume();
-      window.speechSynthesis.speak(utterance);
-    } catch(e) {}
-  }, 50);
+    const utt = new SpeechSynthesisUtterance(seg.text);
+    const voice = findBestVoice(seg.lang, persona);
+    if (voice) { utt.voice = voice; utt.lang = voice.lang; }
+    else { utt.lang = seg.lang === 'hi' ? 'hi-IN' : 'en-IN'; }
+
+    utt.volume = 1.0;
+    utt.rate   = persona === 'khushi' ? 1.0  : 0.93;
+    utt.pitch  = persona === 'khushi' ? 1.05 : 0.92;
+
+    utt.onend   = speakNext;
+    utt.onerror = speakNext; // skip broken segment, keep going
+
+    window._activeSpeechUtterance = utt;
+    window.speechSynthesis.speak(utt);
+  }
+
+  setTimeout(speakNext, 50); // tiny delay fixes Safari voice-list race
 }
+
+// (dead TTS functions removed — replaced by speakWithGeminiTTS + speakHinglishWebSpeech above)
 
 function stopAISpeech() {
   if (currentPlayingAudio) {
