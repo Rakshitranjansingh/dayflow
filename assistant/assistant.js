@@ -199,6 +199,33 @@ function toggleAutoSpeak(enabled) {
 let activeAudioQueue = [];
 let currentPlayingAudio = null;
 
+function speakAIResponse(text) {
+  if (state.autoSpeak === false) return;
+
+  stopAISpeech();
+
+  let cleanText = text
+    .replace(/INSIGHT:.*$/gm, '')
+    .replace(/https?:\/\/\S+/g, 'link')
+    .replace(/[*#_~`>]/g, '')
+    .replace(/--+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!cleanText) return;
+
+  const persona = state.chatPersona || 'khushi';
+
+  // 1. Try Google Cloud Studio Wavenet HD Voice first (Studio Quality 48kHz)
+  speakGoogleCloudStudioHDVoice(cleanText, persona).catch(() => {
+    // 2. Fall back to Google Neural Audio stream
+    speakGoogleNeuralTTS(cleanText, persona).catch(() => {
+      // 3. Fall back to Browser Natural Speech Engine
+      speakWebSpeechFallback(cleanText, persona);
+    });
+  });
+}
+
 function speakInstantFiller() {
   if (state.autoSpeak === false) return;
 
@@ -221,38 +248,57 @@ function speakInstantFiller() {
   const arr = persona === 'sonu' ? sonuFillers : khushiFillers;
   const fillerText = arr[Math.floor(Math.random() * arr.length)];
 
-  speakGoogleNeuralTTS(fillerText, persona).catch(() => {
-    speakWebSpeechFallback(fillerText, persona);
+  speakGoogleCloudStudioHDVoice(fillerText, persona).catch(() => {
+    speakGoogleNeuralTTS(fillerText, persona).catch(() => {
+      speakWebSpeechFallback(fillerText, persona);
+    });
   });
 }
 
-function testVoiceSynthesis() {
-  const persona = state.chatPersona || 'khushi';
-  const sample = persona === 'sonu'
-    ? "Namaste! Main Sonu hu, aapka AI Personal Assistant."
-    : "Namaste! Main Khushi hu, aapki AI Personal Assistant.";
-  speakAIResponse(sample);
-}
+async function speakGoogleCloudStudioHDVoice(text, persona) {
+  const activeKey = typeof getActiveApiKey === 'function' ? getActiveApiKey() : state.apiKey;
+  if (!activeKey) throw new Error('No API key');
 
-function speakAIResponse(text) {
-  if (state.autoSpeak === false) return;
+  const voiceName = persona === 'khushi' ? 'en-IN-Wavenet-D' : 'en-IN-Wavenet-B';
+  const langCode = 'en-IN';
 
-  stopAISpeech();
+  const r = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${activeKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      input: { text: text.slice(0, 400) },
+      voice: { languageCode: langCode, name: voiceName },
+      audioConfig: { audioEncoding: 'MP3', speakingRate: persona === 'khushi' ? 1.05 : 0.98, pitch: persona === 'khushi' ? 1.2 : 0.0 }
+    })
+  });
 
-  let cleanText = text
-    .replace(/INSIGHT:.*$/gm, '')
-    .replace(/https?:\/\/\S+/g, 'link')
-    .replace(/[*#_~`>]/g, '')
-    .replace(/--+/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  if (!r.ok) throw new Error(`Cloud TTS status ${r.status}`);
 
-  if (!cleanText) return;
+  const data = await r.json();
+  if (!data.audioContent) throw new Error('No audioContent returned');
 
-  const persona = state.chatPersona || 'khushi';
+  return new Promise((resolve, reject) => {
+    const audio = new Audio('data:audio/mp3;base64,' + data.audioContent);
+    audio.volume = 1.0;
+    currentPlayingAudio = audio;
 
-  speakGoogleNeuralTTS(cleanText, persona).catch(() => {
-    speakWebSpeechFallback(cleanText, persona);
+    const name = persona === 'sonu' ? 'Sonu' : 'Khushi (Studio HD)';
+    const equalizer = document.getElementById('chat-speech-equalizer');
+    const label = document.getElementById('chat-speech-label');
+    if (equalizer) equalizer.style.display = 'flex';
+    if (label) label.textContent = `🔊 ${name} Speaking (HD)...`;
+    if (typeof showToast === 'function') showToast(`🔊 ${name} speaking (Studio HD)...`);
+
+    audio.onended = () => {
+      if (equalizer) equalizer.style.display = 'none';
+      resolve();
+    };
+    audio.onerror = (e) => {
+      if (equalizer) equalizer.style.display = 'none';
+      reject(e);
+    };
+
+    audio.play().catch(reject);
   });
 }
 
