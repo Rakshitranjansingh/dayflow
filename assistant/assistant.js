@@ -634,34 +634,34 @@ async function sendChat() {
       '\nOnly add a TODOS line when the conversation contains clear action items to do.]';
 
     const onChunk = (partialText) => {
-      const lines = partialText.split('\\n');
+      const lines = partialText.split('\n');
       const insightIdx = lines.findIndex(l => l.trim().startsWith('INSIGHT:'));
       const todosIdx   = lines.findIndex(l => l.trim().startsWith('TODOS:'));
       const markerIdx = [insightIdx, todosIdx].filter(i => i > -1).reduce((a, b) => Math.min(a, b), lines.length);
-      const displayResponse = lines.slice(0, markerIdx).join('\\n').trim();
+      const displayResponse = lines.slice(0, markerIdx).join('\n').trim();
       
       const el = document.getElementById(streamId);
       if (el) {
-        el.innerHTML = displayResponse.replace(/\\n/g, '<br>') || '<span style="opacity:0.6">typing...</span>';
+        el.innerHTML = displayResponse.replace(/\n/g, '<br>') || '<span style="opacity:0.6">typing...</span>';
         if (typeof scrollChatToBottom === 'function') scrollChatToBottom();
       }
     };
 
     const raw = await (typeof callGeminiStream === 'function' ? callGeminiStream(contents, onChunk) : callGemini(contents));
 
-    const lines = raw.split('\\n');
+    const lines = raw.split('\n');
     const insightIdx = lines.findIndex(l => l.trim().startsWith('INSIGHT:'));
     const todosIdx   = lines.findIndex(l => l.trim().startsWith('TODOS:'));
 
     // Response is everything before the first marker line
     const markerIdx = [insightIdx, todosIdx].filter(i => i > -1).reduce((a, b) => Math.min(a, b), lines.length);
-    const response = lines.slice(0, markerIdx).join('\\n').trim();
+    const response = lines.slice(0, markerIdx).join('\n').trim();
 
     const insightLine = insightIdx > -1 ? lines[insightIdx].replace('INSIGHT:', '').trim() : null;
     const todosRaw    = todosIdx   > -1 ? lines[todosIdx].replace('TODOS:', '').trim()   : null;
 
     const el = document.getElementById(streamId);
-    if (el) el.innerHTML = response.replace(/\\n/g, '<br>');
+    if (el) el.innerHTML = response.replace(/\n/g, '<br>');
 
     state.chatHistory.push({ role: 'assistant', content: response });
 
