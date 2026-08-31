@@ -409,16 +409,25 @@
     border-radius: 14px;
     overflow: hidden;
     touch-action: pan-y;
+    user-select: none;
+    cursor: grab;
+  }
+  .hero-slider-wrap:active {
+    cursor: grabbing;
   }
   .hero-slider-track {
     display: flex;
     width: 200%;
-    transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    will-change: transform;
+    transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .hero-slide {
     width: 50%;
     flex-shrink: 0;
     box-sizing: border-box;
+  }
+  .hero-slide iframe {
+    pointer-events: none;
   }
   .hero-slider-dots {
     position: absolute;
@@ -685,7 +694,6 @@
   <!-- Tools Grid -->
   <div class="tool-grid" id="home-grid-tools">
     <div class="tool-btn" onclick="openPanel('chat')"><div class="tool-icon">💬</div><div class="tool-name">Chat</div></div>
-    <div class="tool-btn" onclick="openPanel('formatter')"><div class="tool-icon">📝</div><div class="tool-name">Text Format</div></div>
     <div class="tool-btn" onclick="openPanel('journal')"><div class="tool-icon">🎙️</div><div class="tool-name">Journal</div></div>
     <div class="tool-btn" onclick="openPanel('todo')">
       <div class="tool-icon">✅</div><div class="tool-name">To-Do</div>
@@ -1721,16 +1729,17 @@ function initApp() {
 }
 
 // ============================================================
-// HERO SLIDER (QUOTES & QUEST AUTO-SWAPPER)
+// HERO SLIDER (QUOTES & QUEST ULTRA-FLUID SWAPPER)
 // ============================================================
 let currentHeroSlide = 0;
 let heroSlideTimer = null;
 
 function setHeroSlide(index) {
-  currentHeroSlide = index % 2;
+  currentHeroSlide = (index + 2) % 2;
   const track = document.getElementById('hero-slider-track');
   const dots = document.querySelectorAll('.hero-dot');
   if (track) {
+    track.style.transition = 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)';
     track.style.transform = `translateX(-${currentHeroSlide * 50}%)`;
   }
   dots.forEach((d, i) => {
@@ -1740,7 +1749,7 @@ function setHeroSlide(index) {
 }
 
 function nextHeroSlide() {
-  setHeroSlide((currentHeroSlide + 1) % 2);
+  setHeroSlide(currentHeroSlide + 1);
 }
 
 function resetHeroSlideTimer() {
@@ -1752,27 +1761,60 @@ function resetHeroSlideTimer() {
 
 function initHeroSlider() {
   const wrap = document.querySelector('.hero-slider-wrap');
-  if (!wrap || wrap._sliderInited) return;
+  const track = document.getElementById('hero-slider-track');
+  if (!wrap || !track || wrap._sliderInited) return;
   wrap._sliderInited = true;
 
-  let touchStartX = 0;
-  let touchEndX = 0;
+  let startX = 0;
+  let currentX = 0;
+  let isDragging = false;
+  let startTransform = 0;
 
-  wrap.addEventListener('touchstart', (e) => {
-    touchStartX = e.changedTouches[0].screenX;
-  }, { passive: true });
+  function onTouchStart(e) {
+    isDragging = true;
+    startX = e.touches ? e.touches[0].clientX : e.clientX;
+    currentX = startX;
+    startTransform = -currentHeroSlide * 50;
+    track.style.transition = 'none';
+    if (heroSlideTimer) clearInterval(heroSlideTimer);
+  }
 
-  wrap.addEventListener('touchend', (e) => {
-    touchEndX = e.changedTouches[0].screenX;
-    const diffX = touchStartX - touchEndX;
-    if (Math.abs(diffX) > 30) {
-      if (diffX > 0) {
-        nextHeroSlide();
+  function onTouchMove(e) {
+    if (!isDragging) return;
+    currentX = e.touches ? e.touches[0].clientX : e.clientX;
+    const diffX = currentX - startX;
+    const wrapWidth = wrap.offsetWidth || 300;
+    const percentDiff = (diffX / wrapWidth) * 50;
+    let newTranslate = startTransform + percentDiff;
+    if (newTranslate > 5) newTranslate = 5 + (newTranslate - 5) * 0.2;
+    if (newTranslate < -55) newTranslate = -55 + (newTranslate + 55) * 0.2;
+    track.style.transform = `translateX(${newTranslate}%)`;
+  }
+
+  function onTouchEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+    const diffX = currentX - startX;
+    if (startX !== 0 && currentX !== 0 && Math.abs(diffX) > 25) {
+      if (diffX < 0) {
+        setHeroSlide(1);
       } else {
-        setHeroSlide((currentHeroSlide - 1 + 2) % 2);
+        setHeroSlide(0);
       }
+    } else {
+      setHeroSlide(currentHeroSlide);
     }
-  }, { passive: true });
+    startX = 0;
+    currentX = 0;
+  }
+
+  wrap.addEventListener('touchstart', onTouchStart, { passive: true });
+  wrap.addEventListener('touchmove', onTouchMove, { passive: true });
+  wrap.addEventListener('touchend', onTouchEnd, { passive: true });
+
+  wrap.addEventListener('mousedown', onTouchStart);
+  window.addEventListener('mousemove', onTouchMove);
+  window.addEventListener('mouseup', onTouchEnd);
 
   resetHeroSlideTimer();
 }
