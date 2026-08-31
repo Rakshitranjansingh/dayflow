@@ -13,6 +13,9 @@ var currentChatTabMode = 'assistant';
 // We keep a single AudioContext that gets unlocked on the FIRST user tap,
 // then stays usable forever — even after async API calls.
 var _sharedAudioCtx = null;
+// Stores the resume() Promise kicked off during a user gesture, so we can
+// await it later in async code without needing a new gesture (iOS fix).
+var _audioUnlockPromise = null;
 
 function getAudioContext() {
   if (!_sharedAudioCtx) {
@@ -26,7 +29,11 @@ function getAudioContext() {
 function unlockAudioContext() {
   try {
     const ctx = getAudioContext();
-    if (ctx.state === 'suspended') ctx.resume();
+    if (ctx.state === 'suspended') {
+      // Store the promise — it resolves because it was triggered by a user gesture.
+      // We can then safely await it later in async code.
+      _audioUnlockPromise = ctx.resume();
+    }
     // Play a zero-duration silent buffer to fully unlock on iOS
     const buf = ctx.createBuffer(1, 1, 22050);
     const src = ctx.createBufferSource();
@@ -37,8 +44,8 @@ function unlockAudioContext() {
 }
 
 // Also unlock on any first touch/click anywhere on the page
-document.addEventListener('touchstart', unlockAudioContext, { once: true, passive: true });
-document.addEventListener('click',      unlockAudioContext, { once: true, passive: true });
+document.addEventListener('touchstart', unlockAudioContext, { passive: true });
+document.addEventListener('click',      unlockAudioContext, { passive: true });
 
 // Pre-load voices on browser ready
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -368,10 +375,17 @@ async function speakWithGeminiTTS(text, persona, signal) {
   // Gemini TTS returns raw PCM (LINEAR16, 24kHz, mono) — wrap in WAV header
   const pcm = Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer;
 
-  // Use AudioContext to play — bypasses mobile autoplay restriction
-  // (AudioContext was already unlocked by the user tap via unlockAudioContext())
+  // Use AudioContext to play — bypasses mobile autoplay restriction.
+  // Await the unlock promise that was stored during the user gesture tap.
+  // This is critical on iOS: ctx.resume() MUST be called during user gesture,
+  // but we can await the same promise later in async code.
   const ctx = getAudioContext();
-  if (ctx.state === 'suspended') await ctx.resume();
+  if (_audioUnlockPromise) { try { await _audioUnlockPromise; } catch(e) {} }
+  if (ctx.state === 'suspended') {
+    // Last-resort: try resume even if outside gesture (works on Android, hangs on iOS but we timeout)
+    const resumeTimeout = new Promise(resolve => setTimeout(resolve, 500));
+    await Promise.race([ctx.resume().catch(() => {}), resumeTimeout]);
+  }
 
   const audioBuf = await ctx.decodeAudioData(pcmToWav(new Uint8Array(pcm), 24000, 1, 16));
 
@@ -625,7 +639,8 @@ async function sendChat() {
   renderChatMsgs();
 
   // Instant spoken audio filler phrase to eliminate thinking silence
-  speakInstantFiller();
+  // (disabled — concurrent TTS call causes mobile audio conflicts)
+  // speakInstantFiller();
 
   const personaName = (state.chatPersona === 'sonu') ? 'Sonu' : 'Khushi';
   
