@@ -242,7 +242,14 @@ function toggleAutoSpeak(enabled) {
 let activeAudioQueue = [];
 let currentPlayingAudio = null;
 let activeTtsAbortController = null;  // aborts in-flight TTS fetch on stopAISpeech
-let activeChatTurnId = 0;             // increments each sendChat; stale TTS chunks self-cancel
+
+// Test the voice — called by the 🔊 Test button in the chat header
+function testVoiceSynthesis() {
+  const persona = state.chatPersona || 'khushi';
+  const name = persona === 'sonu' ? 'Sonu' : 'Khushi';
+  speakWithGeminiTTS(`Hi! I'm ${name}, your personal assistant. How can I help you today?`, persona)
+    .catch(() => speakHinglishWebSpeech(`Hi! I'm ${name}. Voice test!`, persona));
+}
 
 function speakAIResponse(text) {
   if (state.autoSpeak === false) return;
@@ -345,11 +352,18 @@ async function speakWithGeminiTTS(text, persona, signal) {
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal }
   );
 
-  if (!r.ok) throw new Error(`Gemini TTS ${r.status}`);
+  if (!r.ok) {
+    const errMsg = `Voice error (${r.status}). Check API key or try again.`;
+    if (typeof showToast === 'function') showToast('🔇 ' + errMsg);
+    throw new Error(`Gemini TTS ${r.status}`);
+  }
   const data = await r.json();
 
   const b64 = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-  if (!b64) throw new Error('No audio data from Gemini TTS');
+  if (!b64) {
+    if (typeof showToast === 'function') showToast('🔇 No audio received from Gemini TTS.');
+    throw new Error('No audio data from Gemini TTS');
+  }
 
   // Gemini TTS returns raw PCM (LINEAR16, 24kHz, mono) — wrap in WAV header
   const pcm = Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer;
@@ -641,54 +655,6 @@ async function sendChat() {
       '\nTODOS: <comma-separated action items the user should do, or NONE>' +
       '\nOnly add a TODOS line when the conversation contains clear action items to do.]';
 
-    // ── Sentence-first streaming TTS ────────────────────────────────────────
-    // Each time a sentence boundary is detected during streaming, we immediately
-    // fire a TTS request for it. Audio chunks are played in order via a queue.
-    const persona = state.chatPersona || 'khushi';
-    const turnId = ++activeChatTurnId;  // unique ID for this chat turn
-    let sentenceBuffer = '';            // accumulates partial text between boundaries
-    const spokenSentences = new Set();  // prevents double-speaking the same sentence
-    let ttsQueue = Promise.resolve();   // chain TTS calls to preserve order
-    let streamingTtsFailed = false;     // if Gemini TTS fails mid-stream, fall back at end
-
-    // Sentence boundary regex: ends with . ! ? followed by space or end-of-text
-    const SENTENCE_END = /([^.!?]*[.!?]+(?:\s|$))/g;
-
-    // Cleans text for TTS (strip markdown, URLs, INSIGHT lines)
-    function cleanForTTS(t) {
-      return t
-        .replace(/INSIGHT:.*$/gm, '')
-        .replace(/https?:\/\/\S+/g, 'link')
-        .replace(/[*#_~`>]/g, '')
-        .replace(/--+/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-    }
-
-    // Enqueue one sentence chunk for TTS – preserves order, self-cancels if stale
-    function enqueueSentenceTTS(sentence) {
-      if (state.autoSpeak === false) return;
-      const clean = cleanForTTS(sentence);
-      if (!clean || clean.length < 3) return;
-      if (spokenSentences.has(clean)) return;
-      spokenSentences.add(clean);
-
-      ttsQueue = ttsQueue.then(async () => {
-        if (activeChatTurnId !== turnId) return; // stale turn, skip
-        const ctl = new AbortController();
-        activeTtsAbortController = ctl;
-        try {
-          await speakWithGeminiTTS(clean, persona, ctl.signal);
-        } catch(e) {
-          if (e.name !== 'AbortError') {
-            streamingTtsFailed = true;
-          }
-        } finally {
-          if (activeTtsAbortController === ctl) activeTtsAbortController = null;
-        }
-      });
-    }
-
     const onChunk = (partialText) => {
       const lines = partialText.split('\n');
       const insightIdx = lines.findIndex(l => l.trim().startsWith('INSIGHT:'));
@@ -701,22 +667,6 @@ async function sendChat() {
         el.innerHTML = displayResponse.replace(/\n/g, '<br>') || '<span style="opacity:0.6">typing...</span>';
         if (typeof scrollChatToBottom === 'function') scrollChatToBottom();
       }
-
-      // Detect newly completed sentences and enqueue TTS immediately
-      // Only operate on the visible (non-marker) portion of the text
-      const newText = displayResponse.slice(sentenceBuffer.length);
-      sentenceBuffer = displayResponse;
-
-      let match;
-      SENTENCE_END.lastIndex = 0;
-      const sentencesFound = [];
-      let remaining = newText;
-      const re = /([^.!?]*[.!?]+(?:\s|$))/g;
-      let m;
-      while ((m = re.exec(newText)) !== null) {
-        sentencesFound.push(m[1].trim());
-      }
-      sentencesFound.forEach(s => enqueueSentenceTTS(s));
     };
 
     const raw = await (typeof callGeminiStream === 'function' ? callGeminiStream(contents, onChunk) : callGemini(contents));
@@ -790,20 +740,8 @@ async function sendChat() {
     renderChatMsgs();
     if (typeof scrollChatToBottom === 'function') scrollChatToBottom();
 
-    // Speak AI response:
-    // If sentence-first TTS already queued audio during streaming, we're done —
-    // just enqueue any leftover tail (short phrases / non-sentence endings).
-    // If streaming TTS failed entirely, fall back to the full response at once.
-    if (streamingTtsFailed || spokenSentences.size === 0) {
-      // Full-response fallback (non-streaming or TTS error)
-      speakAIResponse(response);
-    } else {
-      // Enqueue any tail text that didn't end with a sentence boundary
-      const tailText = response.slice(
-        [...spokenSentences].reduce((acc, s) => acc + s.length, 0)
-      ).trim();
-      if (tailText) enqueueSentenceTTS(tailText);
-    }
+    // Speak Khushi's response aloud
+    speakAIResponse(response);
 
   } catch(e) {
     const el = document.getElementById(streamId);
