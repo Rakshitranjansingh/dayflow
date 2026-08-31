@@ -24,27 +24,20 @@ function renderContentPanel() {
         <div style="font-size:10px;color:var(--text3);margin-top:4px">Enter a topic to generate a script, or paste your own script text to convert it to audio.</div>
       </div>
       
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn btn-primary" id="c-generate-btn" onclick="generateContentScript('standard')" style="flex:1;height:38px;font-weight:600;font-size:11px;padding:0 4px">
-          🎬 2-Min Script
-        </button>
-        <button class="btn btn-primary" id="c-dramatic-btn" onclick="generateContentScript('dramatic')" style="flex:1;height:38px;font-weight:600;font-size:11px;padding:0 4px;background:linear-gradient(135deg, #ff007f, #7f00ff);border:none;color:#ffffff">
-          🎭 Dramatic Script
-        </button>
+      <div style="margin-top:12px">
+        <label class="builder-label" style="display:block;margin-bottom:4px">Script Format / Generation Mode</label>
+        <select class="input" id="c-script-type-select" style="width:100%;height:38px;font-size:12px;font-weight:600;padding:0 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);margin-bottom:10px">
+          <option value="daily_blog">📖 Today's Daily Blog & Vlog Script</option>
+          <option value="standard">🎬 2-Min Trending News Script</option>
+          <option value="dramatic">🎭 Dramatic & Cinematic Script</option>
+          <option value="storytelling">✨ Storytelling & Hook Script</option>
+          <option value="own">✍️ Custom / Paste Own Script</option>
+        </select>
       </div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="btn btn-primary" id="c-story-btn" onclick="generateContentScript('storytelling')" style="flex:1;height:38px;font-weight:600;font-size:11px;padding:0 4px;background:linear-gradient(135deg, #6C63FF, #00D4AA);border:none;color:#ffffff" title="Generate script with hooks & storytelling format based on topic/instruction">
-          ✨ Get Script
-        </button>
-        <button class="btn btn-secondary" id="c-own-script-btn" onclick="addOwnScript()" style="flex:1;height:38px;font-weight:600;font-size:11px" title="Add or paste your own script directly">
-          ✍️ Add Own Script
-        </button>
-      </div>
-      <div style="margin-top:8px">
-        <button class="btn btn-primary" id="c-daily-blog-btn" onclick="generateDailyLogBlogScript()" style="width:100%;height:38px;font-weight:700;font-size:11px;background:linear-gradient(135deg, #10B981, #0EA5E9);border:none;color:#ffffff;border-radius:var(--radius-sm);box-shadow:0 2px 10px rgba(16,185,129,0.25)" title="Generate Today's Blog & Vlog script from your daily activity and synthesize audio">
-          📖 Generate Today's Blog Script
-        </button>
-      </div>
+
+      <button class="btn btn-primary" id="c-generate-btn" onclick="handleGenerateContentScript()" style="width:100%;height:42px;font-weight:700;font-size:13px;background:linear-gradient(135deg, #6C63FF, #00D4AA);border:none;color:#ffffff;border-radius:var(--radius-sm);box-shadow:0 3px 12px rgba(108,99,255,0.3)">
+        🚀 Generate Script
+      </button>
       
       <div id="c-loading" style="display:none;margin-top:20px;text-align:center;color:var(--text2)">
         <div class="spinner" style="margin:0 auto 10px"></div>
@@ -217,6 +210,19 @@ async function callGeminiWithSearch(prompt, modelIndex = 0) {
   }
 
   return response.json();
+}
+
+function handleGenerateContentScript() {
+  const select = document.getElementById('c-script-type-select');
+  const type = select ? select.value : 'daily_blog';
+
+  if (type === 'daily_blog') {
+    generateDailyLogBlogScript();
+  } else if (type === 'own') {
+    addOwnScript();
+  } else {
+    generateContentScript(type);
+  }
 }
 
 async function generateContentScript(style = 'standard') {
