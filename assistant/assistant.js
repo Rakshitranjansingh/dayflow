@@ -418,24 +418,81 @@ function speakInstantFiller() {
   });
 }
 
+// Detect if a word is Hindi (Devanagari script)
+function isDevanagariWord(word) {
+  return /[\u0900-\u097F]/.test(word);
+}
+
+// Build SSML markup that wraps Hindi words in hi-IN and English in en-IN
+function buildHinglishSSML(text, persona) {
+  const speakingRate = persona === 'khushi' ? '1.05' : '0.95';
+  const pitch = persona === 'khushi' ? '2st' : '-1st';
+  const enVoice = persona === 'khushi' ? 'en-IN-Wavenet-D' : 'en-IN-Wavenet-B';
+  const hiVoice = persona === 'khushi' ? 'hi-IN-Wavenet-D' : 'hi-IN-Wavenet-B';
+
+  // Split into tokens: words + punctuation
+  const tokens = text.split(/(\s+|[,।?!.]+)/g);
+  let ssml = `<speak><prosody rate="${speakingRate}" pitch="${pitch}">`;
+  let currentLang = null;
+
+  tokens.forEach(token => {
+    if (!token.trim()) {
+      ssml += token;
+      return;
+    }
+    const isHindi = isDevanagariWord(token);
+    const lang = isHindi ? 'hi-IN' : 'en-IN';
+    const voice = isHindi ? hiVoice : enVoice;
+
+    if (lang !== currentLang) {
+      if (currentLang !== null) ssml += '</voice>';
+      ssml += `<voice name="${voice}">`;
+      currentLang = lang;
+    }
+    ssml += token;
+  });
+
+  if (currentLang !== null) ssml += '</voice>';
+  ssml += '</prosody></speak>';
+  return ssml;
+}
+
 async function speakGoogleCloudStudioHDVoice(text, persona) {
   const activeKey = typeof getActiveApiKey === 'function' ? getActiveApiKey() : state.apiKey;
   if (!activeKey) throw new Error('No API key');
 
+  // Use SSML for natural Hinglish — Hindi words spoken in Hindi, English in English
+  const hasDevanagari = isDevanagariWord(text);
   const voiceName = persona === 'khushi' ? 'en-IN-Wavenet-D' : 'en-IN-Wavenet-B';
   const langCode = 'en-IN';
+
+  const requestBody = hasDevanagari
+    ? {
+        input: { ssml: buildHinglishSSML(text.slice(0, 500), persona) },
+        voice: { languageCode: langCode, name: voiceName },
+        audioConfig: { audioEncoding: 'MP3', speakingRate: 1.0, pitch: 0.0 }
+      }
+    : {
+        input: { text: text.slice(0, 500) },
+        voice: { languageCode: langCode, name: voiceName },
+        audioConfig: {
+          audioEncoding: 'MP3',
+          speakingRate: persona === 'khushi' ? 1.02 : 0.95,
+          pitch: persona === 'khushi' ? 1.0 : -1.0,
+          effectsProfileId: ['headphone-class-device']
+        }
+      };
 
   const r = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${activeKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      input: { text: text.slice(0, 400) },
-      voice: { languageCode: langCode, name: voiceName },
-      audioConfig: { audioEncoding: 'MP3', speakingRate: persona === 'khushi' ? 1.05 : 0.98, pitch: persona === 'khushi' ? 1.2 : 0.0 }
-    })
+    body: JSON.stringify(requestBody)
   });
 
-  if (!r.ok) throw new Error(`Cloud TTS status ${r.status}`);
+  if (!r.ok) {
+    const errBody = await r.text().catch(() => '');
+    throw new Error(`Cloud TTS ${r.status}: ${errBody.slice(0, 100)}`);
+  }
 
   const data = await r.json();
   if (!data.audioContent) throw new Error('No audioContent returned');
@@ -445,12 +502,11 @@ async function speakGoogleCloudStudioHDVoice(text, persona) {
     audio.volume = 1.0;
     currentPlayingAudio = audio;
 
-    const name = persona === 'sonu' ? 'Sonu' : 'Khushi (Studio HD)';
+    const name = persona === 'sonu' ? 'Sonu' : 'Khushi';
     const equalizer = document.getElementById('chat-speech-equalizer');
     const label = document.getElementById('chat-speech-label');
     if (equalizer) equalizer.style.display = 'flex';
-    if (label) label.textContent = `🔊 ${name} Speaking (HD)...`;
-    if (typeof showToast === 'function') showToast(`🔊 ${name} speaking (Studio HD)...`);
+    if (label) label.textContent = `🔊 ${name} Speaking...`;
 
     audio.onended = () => {
       if (equalizer) equalizer.style.display = 'none';
@@ -501,24 +557,43 @@ function findKaraOrBestVoice(persona) {
   }
 }
 
+// Segment Hinglish text by language (Hindi script vs Roman/English)
+function segmentHinglishText(text) {
+  const words = text.split(/(\s+)/g);
+  const segments = [];
+  let current = { lang: null, text: '' };
+
+  words.forEach(word => {
+    if (!word.trim()) { current.text += word; return; }
+    const lang = isDevanagariWord(word) ? 'hi' : 'en';
+    if (lang === current.lang) {
+      current.text += word;
+    } else {
+      if (current.text.trim()) segments.push({ ...current });
+      current = { lang, text: word };
+    }
+  });
+  if (current.text.trim()) segments.push({ ...current });
+  return segments;
+}
+
 function speakGoogleNeuralTTS(text, persona) {
   return new Promise((resolve, reject) => {
-    const lang = 'en'; // Smooth fluent English / Hinglish neural audio
-    const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+    // Segment by language for natural Hinglish delivery
+    const segments = segmentHinglishText(text);
 
-    activeAudioQueue = sentences.slice(0, 4).map(s => {
-      const encoded = encodeURIComponent(s.trim().slice(0, 190));
-      return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=${lang}&client=tw-ob`;
+    activeAudioQueue = segments.slice(0, 6).map(seg => {
+      const encoded = encodeURIComponent(seg.text.trim().slice(0, 190));
+      return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=${seg.lang}&client=tw-ob`;
     });
 
     if (activeAudioQueue.length === 0) return reject('Empty text');
 
-    const name = persona === 'sonu' ? 'Sonu' : 'Khushi (Kara)';
+    const name = persona === 'sonu' ? 'Sonu' : 'Khushi';
     const equalizer = document.getElementById('chat-speech-equalizer');
     const label = document.getElementById('chat-speech-label');
     if (equalizer) equalizer.style.display = 'flex';
     if (label) label.textContent = `🔊 ${name} Speaking...`;
-    if (typeof showToast === 'function') showToast(`🔊 ${name} speaking...`);
 
     let index = 0;
     function playNextSentence() {
@@ -530,14 +605,14 @@ function speakGoogleNeuralTTS(text, persona) {
       const audioUrl = activeAudioQueue[index++];
       const audio = new Audio(audioUrl);
       audio.volume = 1.0;
-      audio.playbackRate = persona === 'khushi' ? 1.02 : 0.98;
+      audio.playbackRate = persona === 'khushi' ? 1.02 : 0.96;
       currentPlayingAudio = audio;
       audio.onended = playNextSentence;
-      audio.onerror = (e) => {
-        if (equalizer) equalizer.style.display = 'none';
-        reject(e);
+      audio.onerror = () => {
+        // Skip failed segment, play next
+        playNextSentence();
       };
-      audio.play().catch(reject);
+      audio.play().catch(() => playNextSentence());
     }
 
     playNextSentence();
