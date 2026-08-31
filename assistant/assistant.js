@@ -256,9 +256,45 @@ function speakAIResponse(text) {
   });
 }
 
+function findKaraOrBestVoice(persona) {
+  const voices = (window.speechSynthesis.getVoices() || []);
+  if (voices.length === 0) return null;
+
+  if (persona === 'khushi') {
+    // 1. Target Kara Voice explicitly
+    const karaVoice = voices.find(v => v.name.toLowerCase().includes('kara'));
+    if (karaVoice) return karaVoice;
+
+    // 2. High quality natural female voices (Microsoft Natural / Google UK / US Female)
+    const naturalFemale = voices.find(v => 
+      (v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Google') || v.name.includes('Online')) &&
+      (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('aria') || v.name.toLowerCase().includes('jenny') || v.name.toLowerCase().includes('neerja') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('samantha'))
+    );
+    if (naturalFemale) return naturalFemale;
+
+    // 3. Indian / English female fallback
+    const femaleVoice = voices.find(v => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('neerja') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('veena') || v.name.toLowerCase().includes('heera'));
+    if (femaleVoice) return femaleVoice;
+
+    return voices[0];
+  } else {
+    // Male Voice (Sonu) - Prabhat / Guy / Natural Male
+    const naturalMale = voices.find(v => 
+      (v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Google')) &&
+      (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('guy') || v.name.toLowerCase().includes('prabhat') || v.name.toLowerCase().includes('david') || v.name.toLowerCase().includes('ravi'))
+    );
+    if (naturalMale) return naturalMale;
+
+    const maleVoice = voices.find(v => v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('prabhat') || v.name.toLowerCase().includes('david') || v.name.toLowerCase().includes('ravi'));
+    if (maleVoice) return maleVoice;
+
+    return voices[voices.length - 1];
+  }
+}
+
 function speakGoogleNeuralTTS(text, persona) {
   return new Promise((resolve, reject) => {
-    const lang = persona === 'khushi' ? 'hi' : 'en';
+    const lang = 'en'; // Smooth fluent English / Hinglish neural audio
     const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
 
     activeAudioQueue = sentences.slice(0, 4).map(s => {
@@ -268,11 +304,11 @@ function speakGoogleNeuralTTS(text, persona) {
 
     if (activeAudioQueue.length === 0) return reject('Empty text');
 
-    const name = persona === 'sonu' ? 'Sonu' : 'Khushi';
+    const name = persona === 'sonu' ? 'Sonu' : 'Khushi (Kara)';
     const equalizer = document.getElementById('chat-speech-equalizer');
     const label = document.getElementById('chat-speech-label');
     if (equalizer) equalizer.style.display = 'flex';
-    if (label) label.textContent = `🔊 ${name} Speaking (Neural)...`;
+    if (label) label.textContent = `🔊 ${name} Speaking...`;
     if (typeof showToast === 'function') showToast(`🔊 ${name} speaking...`);
 
     let index = 0;
@@ -285,7 +321,7 @@ function speakGoogleNeuralTTS(text, persona) {
       const audioUrl = activeAudioQueue[index++];
       const audio = new Audio(audioUrl);
       audio.volume = 1.0;
-      audio.playbackRate = persona === 'khushi' ? 1.05 : 0.98;
+      audio.playbackRate = persona === 'khushi' ? 1.02 : 0.98;
       currentPlayingAudio = audio;
       audio.onended = playNextSentence;
       audio.onerror = (e) => {
@@ -301,7 +337,8 @@ function speakGoogleNeuralTTS(text, persona) {
 
 function speakWebSpeechFallback(text, persona) {
   if (!('speechSynthesis' in window)) return;
-  const name = persona === 'sonu' ? 'Sonu' : 'Khushi';
+  const matchedVoice = findKaraOrBestVoice(persona);
+  const voiceName = matchedVoice ? matchedVoice.name : (persona === 'sonu' ? 'Sonu' : 'Khushi');
 
   try {
     if (window.speechSynthesis.paused) window.speechSynthesis.resume();
@@ -309,38 +346,20 @@ function speakWebSpeechFallback(text, persona) {
   } catch(e) {}
 
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'en-IN';
-  utterance.volume = 1.0;
-
-  if (persona === 'khushi') {
-    utterance.pitch = 1.15;
-    utterance.rate = 1.0;
+  if (matchedVoice) {
+    utterance.voice = matchedVoice;
+    utterance.lang = matchedVoice.lang || 'en-US';
   } else {
-    utterance.pitch = 0.9;
-    utterance.rate = 0.98;
+    utterance.lang = 'en-US';
   }
-
-  const voices = (window.speechSynthesis.getVoices() || []);
-  if (voices.length > 0) {
-    const naturalVoice = voices.find(v => (v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Google')) && (v.lang.includes('IN') || v.lang.includes('hi')));
-    if (naturalVoice) {
-      utterance.voice = naturalVoice;
-    } else {
-      const indianVoices = voices.filter(v => v.lang && (v.lang.includes('en-IN') || v.lang.includes('hi-IN') || v.lang.includes('hi_IN')));
-      if (persona === 'khushi') {
-        const fVoice = indianVoices.find(v => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('neerja') || v.name.toLowerCase().includes('heera') || v.name.toLowerCase().includes('veena')) || indianVoices[0];
-        if (fVoice) utterance.voice = fVoice;
-      } else {
-        const mVoice = indianVoices.find(v => v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('prabhat') || v.name.toLowerCase().includes('ravi') || v.name.toLowerCase().includes('david')) || indianVoices[indianVoices.length - 1];
-        if (mVoice) utterance.voice = mVoice;
-      }
-    }
-  }
+  utterance.volume = 1.0;
+  utterance.pitch = persona === 'khushi' ? 1.05 : 0.95;
+  utterance.rate = 1.0;
 
   const equalizer = document.getElementById('chat-speech-equalizer');
   const label = document.getElementById('chat-speech-label');
   if (equalizer) equalizer.style.display = 'flex';
-  if (label) label.textContent = `🔊 ${name} Speaking...`;
+  if (label) label.textContent = `🔊 ${persona === 'sonu' ? 'Sonu' : 'Khushi'} (${matchedVoice ? matchedVoice.name.split(' ')[0] : 'Kara'}) Speaking...`;
 
   utterance.onend = () => { if (equalizer) equalizer.style.display = 'none'; };
   utterance.onerror = () => { if (equalizer) equalizer.style.display = 'none'; };
