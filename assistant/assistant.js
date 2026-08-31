@@ -6,6 +6,13 @@ let chatSpeechRecognition = null;
 let chatIsListening = false;
 let currentUtterance = null;
 
+var currentChatTabMode = 'assistant'; // 'assistant' or 'smart_call'
+var isNativeCallActive = false;
+var nativeCallTimerInterval = null;
+var nativeCallDurationSecs = 0;
+var activeSoundscape = 'clear'; // 'clear', 'phone', 'cafe'
+var backgroundAudioObj = null;
+
 // Pre-load voices on browser ready
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
   window.speechSynthesis.onvoiceschanged = () => {
