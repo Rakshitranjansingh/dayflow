@@ -2996,91 +2996,16 @@ function renderBlogView(date, log) {
       <div class="blog-score-badge">⭐ ${log.score}/100</div>
       <div style="white-space:pre-wrap;font-size:14px;line-height:1.7;margin-bottom:16px">${log.blog}</div>
     </div>
-    <div class="divider"></div>
-    <div style="font-size:14px;font-weight:600;margin-bottom:12px">🎬 1-Min Vlog Script</div>
-    ${log.vlog ? `
-      <div class="vlog-script">${log.vlog}</div>
-      <div style="display:flex;gap:8px;margin-top:12px">
-        <button class="btn btn-secondary btn-sm" onclick="copyVlogScript()">📋 Copy Script</button>
-        <button class="btn btn-primary btn-sm" onclick="regenVlog('${date}')">🔄 Regenerate</button>
-      </div>
-    ` : `<button class="btn btn-primary btn-sm" onclick="generateVlogScript('${date}')">🎬 Generate Vlog Script</button>`}
-    <div id="vlog-gen"></div>
   `;
 }
 
-async function generateDailyLog() {
-  const activeKey = getActiveApiKey();
-  if (!activeKey) { showToast('Add API key in Settings'); return; }
-  const d = state.selectedDate;
-  const statusEl = document.getElementById('log-gen-status');
-  if (statusEl) statusEl.innerHTML = '<div class="loading"><div class="spinner"></div> Generating your daily blog...</div>';
-
-  const sl = state.sleep[d] || {};
-  const meals = state.nutrition[d] || [];
-  const exps = state.expenses[d] || [];
-  const todos = state.todos.filter(t => t.createdDate === d);
-  const journals = state.journal[d] || [];
-  const insights = (state.chatInsights || []).filter(i => i.date === d);
-  const thoughts = (state.thoughts || {})[d] || [];
-
-  let todayChallenge = null;
-  if (state.challenges && typeof CHALLENGE_ITEMS !== 'undefined') {
-    for (const day in state.challenges) {
-      const entry = state.challenges[day];
-      if (entry && entry.completed && entry.date === d) {
-        const item = CHALLENGE_ITEMS.find(i => i.day === parseInt(day));
-        if (item) {
-          todayChallenge = {
-            day: item.day,
-            phase: item.phaseName,
-            task: item.text,
-            notes: entry.note || ''
-          };
-        }
-        break;
-      }
+function generateDailyLog() {
+  openPanel('content');
+  setTimeout(() => {
+    if (typeof generateDailyLogBlogScript === 'function') {
+      generateDailyLogBlogScript();
     }
-  }
-
-  const data = {
-    date: d, sleep: sl, meals, expenses: exps, todos,
-    journals: journals.map(j=>j.text), insights: insights.map(i=>i.text),
-    thoughts: thoughts,
-    challenge: todayChallenge
-  };
-
-  const prompt = `You are generating a personal daily blog entry for a productivity app called BeCreator.
-Based on this data, write a warm, personal, first-person blog entry. Use the EXACT format below.
-Also return a day score out of 100 based on productivity, health, habits, and self-improvement challenge progress.
-
-Data: ${JSON.stringify(data)}
-
-Return ONLY valid JSON (no markdown):
-{
-  "blog": "Full blog with these sections separated by newlines:\\n🌅 MORNING\\n[sleep/wake info]\\n\\n🧠 WHAT I LEARNED TODAY\\n[insights from chat/journal/thoughts/daily challenges completed]\\n\\n✅ WHAT I DID\\n[todos, habits, daily self-improvement challenge completion details and logging notes]\\n\\n🍎 HOW I FUELLED\\n[nutrition summary]\\n\\n💸 MONEY\\n[expenses]\\n\\n🌙 REFLECTION\\n[journal/thought/challenge reflection summaries, mood]",
-  "score": 75,
-  "summary": "one line summary"
-}`;
-
-  try {
-    const result = await callGemini([{role:'user',parts:[{text:prompt}]}]);
-    const parsed = cleanAndParseJSON(result);
-    const todosCount = todos.filter(t=>t.done).length;
-    const cal = meals.reduce((s,m)=>s+(m.cal||0),0);
-    const exp = exps.reduce((s,e)=>s+e.amount,0);
-    const sleep = sl.wake&&sl.sleep ? calcSleepDur(sl.wake,sl.sleep) : '—';
-
-    state.dailyLogs[d] = { blog: parsed.blog, score: parsed.score, todosCount, cal, exp: exp.toFixed(0), sleep };
-    saveState();
-    window._viewingLog = [d, state.dailyLogs[d]];
-    openPanel('log');
-    showToast('✅ Daily blog generated! ⭐ ' + parsed.score + '/100');
-  } catch(e) {
-    if (statusEl) statusEl.innerHTML = '';
-    showToast('Error generating blog. Try again.');
-    console.error(e);
-  }
+  }, 100);
 }
 
 async function generateVlogScriptInternal(date) {

@@ -40,6 +40,11 @@ function renderContentPanel() {
           ✍️ Add Own Script
         </button>
       </div>
+      <div style="margin-top:8px">
+        <button class="btn btn-primary" id="c-daily-blog-btn" onclick="generateDailyLogBlogScript()" style="width:100%;height:38px;font-weight:700;font-size:11px;background:linear-gradient(135deg, #10B981, #0EA5E9);border:none;color:#ffffff;border-radius:var(--radius-sm);box-shadow:0 2px 10px rgba(16,185,129,0.25)" title="Generate Today's Blog & Vlog script from your daily activity and synthesize audio">
+          📖 Generate Today's Blog Script
+        </button>
+      </div>
       
       <div id="c-loading" style="display:none;margin-top:20px;text-align:center;color:var(--text2)">
         <div class="spinner" style="margin:0 auto 10px"></div>
@@ -395,44 +400,35 @@ function addOwnScript() {
 
   if (!text) {
     if (typeof showToast === 'function') {
-      showToast('⚠️ Please enter or paste your script first.');
-    } else {
-      alert('Please enter or paste your script first.');
+      showToast('⚠️ Please paste or type your script text in the topic box first.');
     }
     return;
   }
 
-  // Save channel name/motto to state so it persists
+  // Save channel info if set
   if (channelEl) {
     state.channelInfo = channelInfo;
     saveState();
   }
 
-  // Generate a snippet for the title/topic
-  const firstLine = text.split('\n')[0].trim();
-  const cleanFirstLine = firstLine.replace(/⏱️|\[[^\]]+\]|-/g, '').trim();
-  const topicSnippet = cleanFirstLine.slice(0, 30) || 'Custom Script';
-  const displayTopic = 'Custom: ' + topicSnippet + (text.length > 30 ? '...' : '');
-
+  const firstLine = text.split('\n')[0].substring(0, 40);
+  const displayTopic = `✍️ [Own Script] ${firstLine}${text.length > 40 ? '...' : ''}`;
   const newScript = {
     id: 'content_' + Date.now(),
     date: new Date().toLocaleString('en-IN'),
     topic: displayTopic,
     script: text,
-    read: true // Mark as read since the user authored it
+    read: false
   };
 
   state.contentScripts = state.contentScripts || [];
   state.contentScripts.unshift(newScript);
   if (state.contentScripts.length > 20) {
-    state.contentScripts = state.contentScripts.slice(0, 20); // Keep last 20
+    state.contentScripts = state.contentScripts.slice(0, 20);
   }
   
   saveState();
   triggerDriveSync();
-
-  // Clear the input area
-  if (textarea) textarea.value = '';
 
   // Render results
   openHistoryScript(newScript.id);
@@ -440,6 +436,165 @@ function addOwnScript() {
 
   if (typeof showToast === 'function') {
     showToast('✍️ Custom script added!');
+  }
+}
+
+async function generateDailyLogBlogScript() {
+  const apiKey = getActiveApiKey();
+  if (!apiKey) {
+    if (typeof showToast === 'function') {
+      showToast('⚠️ Please configure your Gemini API Key in Settings first.');
+    }
+    return;
+  }
+
+  const generateBtn = document.getElementById('c-generate-btn');
+  const dramaticBtn = document.getElementById('c-dramatic-btn');
+  const storyBtn = document.getElementById('c-story-btn');
+  const dailyBlogBtn = document.getElementById('c-daily-blog-btn');
+  const loadingDiv = document.getElementById('c-loading');
+  const loadingText = document.getElementById('c-loading-text');
+  const resultDiv = document.getElementById('c-result-container');
+
+  if (generateBtn) generateBtn.disabled = true;
+  if (dramaticBtn) dramaticBtn.disabled = true;
+  if (storyBtn) storyBtn.disabled = true;
+  if (dailyBlogBtn) dailyBlogBtn.disabled = true;
+  if (loadingDiv) loadingDiv.style.display = 'block';
+  if (resultDiv) resultDiv.style.display = 'none';
+  if (loadingText) loadingText.textContent = "Aggregating today's logs & crafting daily blog script...";
+
+  const channelEl = document.getElementById('c-channel-info');
+  const channelInfo = channelEl ? channelEl.value.trim() : '';
+
+  let brandingInstructions = '';
+  if (channelInfo) {
+    brandingInstructions = `- Seamlessly integrate the channel name or motto line "${channelInfo}" in the script's intro or outro.`;
+  }
+
+  const d = (typeof state !== 'undefined' && state.selectedDate) ? state.selectedDate : (new Date().toISOString().split('T')[0]);
+  const sl = (typeof state !== 'undefined' && state.sleep && state.sleep[d]) || {};
+  const meals = (typeof state !== 'undefined' && state.nutrition && state.nutrition[d]) || [];
+  const exps = (typeof state !== 'undefined' && state.expenses && state.expenses[d]) || [];
+  const todos = (typeof state !== 'undefined' && state.todos) ? state.todos.filter(t => t.createdDate === d) : [];
+  const journals = (typeof state !== 'undefined' && state.journal && state.journal[d]) || [];
+  const insights = (typeof state !== 'undefined' && state.chatInsights) ? state.chatInsights.filter(i => i.date === d) : [];
+  const thoughts = (typeof state !== 'undefined' && state.thoughts && state.thoughts[d]) || [];
+
+  let calcDur = 'Not logged';
+  if (sl.wake && sl.sleep && typeof calcSleepDur === 'function') {
+    calcDur = calcSleepDur(sl.wake, sl.sleep);
+  }
+
+  let todayChallenge = null;
+  if (typeof state !== 'undefined' && state.challenges && typeof CHALLENGE_ITEMS !== 'undefined') {
+    for (const day in state.challenges) {
+      const entry = state.challenges[day];
+      if (entry && entry.completed && entry.date === d) {
+        const item = CHALLENGE_ITEMS.find(i => i.day === parseInt(day));
+        if (item) {
+          todayChallenge = {
+            day: item.day,
+            phase: item.phaseName,
+            task: item.text
+          };
+        }
+        break;
+      }
+    }
+  }
+
+  const prompt = `Generate an engaging, authentic, and inspiring PERSONAL DAILY BLOG & VLOG SCRIPT based on the user's logged activity for today (${d}).
+
+LOGGED USER DATA FOR TODAY (${d}):
+- Sleep: ${sl.wake ? `Slept from ${sl.sleep} to ${sl.wake} (${calcDur})` : 'Not logged'}
+- Meals & Calories: ${meals.length ? meals.map(m=>`${m.name||'Meal'} (${m.cal||0} cal)`).join(', ') : 'Not logged'}
+- Expenses: ${exps.length ? exps.map(e=>`₹${e.amount} on ${e.category}`).join(', ') : 'No expenses logged'}
+- Completed Tasks: ${todos.filter(t=>t.done).map(t=>t.text).join('; ') || 'None'}
+- Journal Notes & Mood: ${journals.map(j=>j.text).join('; ') || 'None'}
+- Key Insights: ${insights.map(i=>i.text).join('; ') || 'None'}
+- Thoughts: ${thoughts.map(t=>t.text).join('; ') || 'None'}
+${todayChallenge ? `- Daily Challenge Completed: Day ${todayChallenge.day} (${todayChallenge.phase}) - ${todayChallenge.task}` : ''}
+${brandingInstructions}
+
+CRITICAL FORMATTING & STYLE RULES:
+- Format as a high-retention 2-minute personal daily vlog script.
+- Tone: Authentic, motivational, self-reflective, and engaging.
+- Language: Natural "Hinglish" as spoken by top Indian creators (Hindi words in Devanagari script, English words in Roman script).
+- Hindi words MUST be in Devanagari (e.g. आज, काम, लक्ष्य).
+- English words MUST be in Roman script (e.g. productivity, routine, goals, sleep, focus).
+- Structure with timestamps for a 2-minute video:
+  ⏱️ 0:00-0:10 | [THE HOOK] - Catchy opening reflecting today's mood and key highlight
+  ⏱️ 0:10-0:40 | [HEALTH & ROUTINE] - Sleep, calories, energy level & morning start
+  ⏱️ 0:40-1:20 | [WORK & ACCOMPLISHMENTS] - Tasks completed, money/expenses tracked & challenges won
+  ⏱️ 1:20-1:45 | [DAILY REFLECTION & INSIGHT] - Core takeaway or mindset insight from journal/thoughts
+  ⏱️ 1:45-2:00 | [OUTRO + MOTIVATION] - Closing motivation for tomorrow & CTA
+
+Return ONLY the complete daily blog script formatted with time markers.`;
+
+  try {
+    let resultText = '';
+    if (typeof callGemini === 'function') {
+      resultText = await callGemini([{ role: 'user', parts: [{ text: prompt }] }]);
+    } else if (typeof callGeminiWithSearch === 'function') {
+      const resp = await callGeminiWithSearch(prompt);
+      resultText = resp.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    }
+
+    if (!resultText || !resultText.trim()) {
+      throw new Error('Empty response from AI engine.');
+    }
+
+    const scriptText = resultText.trim();
+    const dateFormatted = typeof formatDateShort === 'function' ? formatDateShort(d) : d;
+    const displayTopic = `📖 [Daily Blog] ${dateFormatted}`;
+
+    const newScript = {
+      id: 'content_' + Date.now(),
+      date: new Date().toLocaleString('en-IN'),
+      topic: displayTopic,
+      script: scriptText,
+      read: false
+    };
+
+    state.contentScripts = state.contentScripts || [];
+    state.contentScripts.unshift(newScript);
+    if (state.contentScripts.length > 20) {
+      state.contentScripts = state.contentScripts.slice(0, 20);
+    }
+
+    // Also update state.dailyLogs for this date so Daily Log panel stays in sync
+    state.dailyLogs = state.dailyLogs || {};
+    state.dailyLogs[d] = {
+      score: Math.min(100, 70 + todos.filter(t=>t.done).length * 5 + (sl.wake ? 10 : 0)),
+      blog: scriptText,
+      vlog: scriptText,
+      todosCount: todos.filter(t=>t.done).length,
+      cal: meals.reduce((s,m)=>s+(m.cal||0),0),
+      exp: exps.reduce((s,e)=>s+(e.amount||0),0),
+      sleep: sl.wake ? calcDur : '—'
+    };
+
+    saveState();
+    if (typeof triggerDriveSync === 'function') triggerDriveSync();
+
+    // Render results & history script
+    openHistoryScript(newScript.id);
+    renderContentHistory();
+    if (typeof showToast === 'function') {
+      showToast('📖 Today\'s Blog Script generated! Ready to listen / download audio.');
+    }
+  } catch (err) {
+    console.error('Error generating daily blog script:', err);
+    if (typeof showToast === 'function') {
+      showToast(`❌ Script Generation Error: ${err.message || 'Unknown error'}`);
+    }
+  } finally {
+    if (generateBtn) generateBtn.disabled = false;
+    if (dramaticBtn) dramaticBtn.disabled = false;
+    if (storyBtn) storyBtn.disabled = false;
+    if (dailyBlogBtn) dailyBlogBtn.disabled = false;
+    if (loadingDiv) loadingDiv.style.display = 'none';
   }
 }
 
