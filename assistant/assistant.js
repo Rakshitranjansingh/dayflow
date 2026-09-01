@@ -140,10 +140,11 @@ LIVE USER APP DATA & STATS SNAPSHOT:
 • Job Hunt: ${huntSummary}
 
 INSTRUCTIONS FOR ${personaName.toUpperCase()}:
-1. Answer any question about the user's stats, sleep, calories, expenses, todos, or learning with precise numbers from the snapshot above.
-2. Answer any general knowledge, latest news, programming, web search, or general info query asked by the user intelligently and clearly.
+1. Answer any question about the user's stats, sleep, calories, expenses, todos, or learning with precise numbers from the snapshot above — BUT ONLY when the user asks about them directly.
+2. Answer any general knowledge, programming, advice, or general info query intelligently and clearly.
 3. Keep spoken responses concise (2-4 sentences max per reply) so verbal voice conversations flow smoothly.
-4. Maintain a warm, friendly Indian Hinglish tone like a real personal assistant.]\n\n`;
+4. Maintain a warm, friendly Indian Hinglish tone like a real personal assistant.
+5. CRITICAL — DO NOT proactively bring up habits, todos, sleep, nutrition, expenses or any app data unless the user explicitly asks. Just have a natural conversation. Never give unsolicited advice or reminders about the user's pending tasks or habits.]\n\n`;
 }
 
 function switchChatTabMode(mode) {
@@ -696,8 +697,8 @@ async function sendChat() {
     contents[contents.length - 1].parts[0].text +=
       '\n\n[After your response add exactly two lines at the end:' +
       '\nINSIGHT: <one line key takeaway or NONE>' +
-      '\nTODOS: <comma-separated action items the user should do, or NONE>' +
-      '\nOnly add a TODOS line when the conversation contains clear action items to do.]';
+      '\nTODOS: <comma-separated tasks to add, or NONE>' +
+      '\nIMPORTANT: Only set TODOS to something other than NONE if the user EXPLICITLY asked you to add, create, or remind them of a specific task. Never auto-generate todos from the conversation context.]';
 
     const onChunk = (partialText) => {
       const lines = partialText.split('\n');
@@ -756,10 +757,13 @@ async function sendChat() {
 
       let addedCount = 0;
       detectedTodos.forEach(todoText => {
-        // Avoid duplicate todos (same text already exists for today)
-        const alreadyExists = (state.todos || []).some(
-          t => t.text.toLowerCase().trim() === todoText.toLowerCase().trim()
-        );
+        // Avoid duplicate todos — check both exact and partial/similar matches
+        const tLow = todoText.toLowerCase().trim();
+        const alreadyExists = (state.todos || []).some(t => {
+          const eLow = t.text.toLowerCase().trim();
+          // Exact match OR one contains the other (handles rephrasing like "Exercise" vs "Exercise daily")
+          return eLow === tLow || eLow.includes(tLow) || tLow.includes(eLow);
+        });
         if (!alreadyExists) {
           state.todos = state.todos || [];
           state.todos.push({
