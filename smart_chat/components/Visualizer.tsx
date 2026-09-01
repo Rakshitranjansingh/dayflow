@@ -38,7 +38,7 @@ export const Visualizer: React.FC<VisualizerProps> = ({ status, callDuration }) 
     <div className="flex flex-col items-center justify-center my-8">
       <div className={`${baseClasses} ${statusClasses[status]}`}>
         <div className="absolute inset-0 rounded-full border-2 border-purple-400/30 animate-pulse"></div>
-        {status === 'listening' && (
+        {(status === 'listening' || status === 'speaking') && (
              <div className="absolute inset-0 rounded-full bg-blue-400/30 scale-75 animate-ping"></div>
         )}
         {status === 'speaking' && (
