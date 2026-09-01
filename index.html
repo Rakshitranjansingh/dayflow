@@ -3528,15 +3528,19 @@ async function callGeminiStream(messages, onChunk, systemInstruction = '', model
   const reader = r.body.getReader();
   const decoder = new TextDecoder("utf-8");
   let fullText = '';
+  let sseBuffer = '';  // Buffer for partial SSE chunks across reads
   
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    const lines = chunk.split('\\n');
+    sseBuffer += decoder.decode(value, { stream: true });
+    // SSE lines are separated by \n or \r\n
+    const lines = sseBuffer.split(/\r?\n/);
+    // Keep the last (potentially incomplete) line in the buffer
+    sseBuffer = lines.pop() || '';
     for (const line of lines) {
       if (line.startsWith('data: ')) {
-        const dataStr = line.slice(6);
+        const dataStr = line.slice(6).trim();
         if (dataStr === '[DONE]') continue;
         try {
           const data = JSON.parse(dataStr);

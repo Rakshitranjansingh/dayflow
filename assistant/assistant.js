@@ -359,6 +359,35 @@ async function speakWithGeminiTTS(text, persona, signal) {
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal }
   );
 
+  if (r.status === 429) {
+    // Rate limited on TTS — wait 2 seconds and retry once before falling back to WebSpeech
+    await new Promise(res => setTimeout(res, 2000));
+    const r2 = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${activeKey}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal }
+    );
+    if (!r2.ok) throw new Error(`Gemini TTS ${r2.status}`);
+    const data2 = await r2.json();
+    const b64_2 = data2?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!b64_2) throw new Error('No audio data from Gemini TTS (retry)');
+    const pcmRetry = Uint8Array.from(atob(b64_2), c => c.charCodeAt(0)).buffer;
+    const ctxR = getAudioContext();
+    if (_audioUnlockPromise) { try { await _audioUnlockPromise; } catch(e) {} }
+    const audioBufRetry = await ctxR.decodeAudioData(pcmToWav(new Uint8Array(pcmRetry), 24000, 1, 16));
+    return new Promise((resolve) => {
+      const src = ctxR.createBufferSource();
+      src.buffer = audioBufRetry;
+      src.connect(ctxR.destination);
+      const name = persona === 'sonu' ? 'Sonu' : 'Khushi';
+      const equalizer = document.getElementById('chat-speech-equalizer');
+      const label = document.getElementById('chat-speech-label');
+      if (equalizer) equalizer.style.display = 'flex';
+      if (label) label.textContent = `🔊 ${name} Speaking...`;
+      src.onended = () => { if (equalizer) equalizer.style.display = 'none'; resolve(); };
+      src.start(0);
+      currentPlayingAudio = src;
+    });
+  }
   if (!r.ok) {
     const errMsg = `Voice error (${r.status}). Check API key or try again.`;
     if (typeof showToast === 'function') showToast('🔇 ' + errMsg);
