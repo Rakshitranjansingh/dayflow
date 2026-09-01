@@ -697,8 +697,8 @@ async function sendChat() {
     contents[contents.length - 1].parts[0].text +=
       '\n\n[After your response add exactly two lines at the end:' +
       '\nINSIGHT: <one line key takeaway or NONE>' +
-      '\nTODOS: <comma-separated tasks to add, or NONE>' +
-      '\nIMPORTANT: Only set TODOS to something other than NONE if the user EXPLICITLY asked you to add, create, or remind them of a specific task. Never auto-generate todos from the conversation context.]';
+      '\nTODOS: <comma-separated action items the user should do, or NONE>' +
+      '\nOnly add TODOS when the conversation clearly implies specific action items the user needs to do. Keep it to max 2-3 items. Do NOT repeat todos already mentioned earlier in the conversation.]';
 
     const onChunk = (partialText) => {
       const lines = partialText.split('\n');
@@ -753,7 +753,8 @@ async function sendChat() {
       const detectedTodos = todosRaw
         .split(',')
         .map(t => t.trim())
-        .filter(t => t.length > 2 && t.toLowerCase() !== 'none');
+        .filter(t => t.length > 2 && t.toLowerCase() !== 'none')
+        .slice(0, 3);  // Hard cap: max 3 todos per message to prevent overpopulation
 
       let addedCount = 0;
       detectedTodos.forEach(todoText => {
