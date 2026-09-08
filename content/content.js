@@ -787,8 +787,8 @@ function copyContentScript() {
 
 function triggerDriveSync() {
   if (typeof state !== 'undefined' && state.driveConnected && typeof backupToDrive === 'function') {
-    // Perform drive backup asynchronously without blocking UI
-    backupToDrive().catch(err => console.error('Drive Content backup failed:', err));
+    // Always silent — never interrupt user or show Drive auth popup during auto-sync
+    backupToDrive(true).catch(err => console.error('Drive Content backup failed:', err));
   }
 }
 

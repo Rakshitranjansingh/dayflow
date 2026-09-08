@@ -1329,8 +1329,15 @@ async function deleteTodoFromSupabase(todoId) {
 
 const GOOGLE_CLIENT_ID = '852975752976-hoeb7acq7caan225i4kjp4t4an58dno5.apps.googleusercontent.com';// Drive Client ID placeholder 
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email';
+// localStorage keys for persisted Drive token
+const DRIVE_TOKEN_KEY = 'df_drive_token';
+const DRIVE_TOKEN_EXP_KEY = 'df_drive_token_exp';
 let driveTokenClient = null;
 let driveAccessToken = null;
+// Guards for backup loop prevention and in-flight deduplication
+let _driveBackupHash = null;
+let _isBackingUp = false;
+let _tokenRefreshTimer = null;
 
 // ============================================================
 // APPROVED COURSE PUBLISHERS / CREATORS
@@ -1604,6 +1611,12 @@ function initDriveClient() {
       callback: async (resp) => {
         if (resp.error) { showToast('Drive connection failed. Try again.'); return; }
         driveAccessToken = resp.access_token;
+        // Persist token + expiry to localStorage so next page load is popup-free
+        const expiresIn = resp.expires_in || 3600;
+        localStorage.setItem(DRIVE_TOKEN_KEY, driveAccessToken);
+        localStorage.setItem(DRIVE_TOKEN_EXP_KEY, String(Date.now() + expiresIn * 1000));
+        // Schedule a proactive silent refresh before expiry
+        scheduleTokenRefresh(expiresIn);
         state.driveConnected = true;
         saveState();
         
@@ -1672,6 +1685,46 @@ function initDriveClient() {
   } catch (e) {}
 }
 
+/**
+ * Restore a previously saved Drive access token from localStorage.
+ * Called at page load so the first background backup can proceed without any popup.
+ */
+function loadPersistedDriveToken() {
+  try {
+    const tok = localStorage.getItem(DRIVE_TOKEN_KEY);
+    const exp = parseInt(localStorage.getItem(DRIVE_TOKEN_EXP_KEY) || '0', 10);
+    const remainingMs = exp - Date.now();
+    // Only restore if more than 5 minutes remain (safety margin)
+    if (tok && remainingMs > 5 * 60 * 1000) {
+      driveAccessToken = tok;
+      scheduleTokenRefresh(Math.floor(remainingMs / 1000));
+    } else {
+      // Token missing or expired — clear stale keys
+      localStorage.removeItem(DRIVE_TOKEN_KEY);
+      localStorage.removeItem(DRIVE_TOKEN_EXP_KEY);
+    }
+  } catch(e) {}
+}
+
+/**
+ * Schedule a proactive silent token refresh ~5 minutes before expiry.
+ * Uses GIS requestAccessToken with prompt:'' — completely invisible to user
+ * as long as their Google session is active.
+ */
+function scheduleTokenRefresh(expiresInSeconds) {
+  if (_tokenRefreshTimer) clearTimeout(_tokenRefreshTimer);
+  // Refresh 5 min before expiry, at least 30s from now
+  const delayMs = Math.max((expiresInSeconds - 300) * 1000, 30000);
+  _tokenRefreshTimer = setTimeout(() => {
+    if (driveTokenClient && state.driveConnected) {
+      try {
+        // prompt:'' = no popup shown; reuses cached Google session silently
+        driveTokenClient.requestAccessToken({ prompt: '' });
+      } catch(e) {}
+    }
+  }, delayMs);
+}
+
 function requestDriveToken(promptConsent = true) {
   initDriveClient();
   if (driveTokenClient) {
@@ -1688,6 +1741,12 @@ function disconnectDrive() {
     google.accounts.oauth2.revoke(driveAccessToken, () => {});
   }
   driveAccessToken = null;
+  // Clear persisted token so no stale token is restored on next page load
+  localStorage.removeItem(DRIVE_TOKEN_KEY);
+  localStorage.removeItem(DRIVE_TOKEN_EXP_KEY);
+  // Cancel proactive refresh timer
+  if (_tokenRefreshTimer) { clearTimeout(_tokenRefreshTimer); _tokenRefreshTimer = null; }
+  _driveBackupHash = null;
   state.driveConnected = false;
   state.driveFolderId = null;
   delete state.userEmail;
@@ -1719,29 +1778,48 @@ async function ensureDriveFolder() {
 
 async function backupToDrive(silent = false) {
   if (!state.driveConnected) {
-    if (!silent) showToast('Please connect to Google Drive first.');
-    connectDrive();
+    if (!silent) { showToast('Please connect to Google Drive first.'); connectDrive(); }
     return;
   }
   if (!driveAccessToken) {
-    if (!silent) showToast('Re-authenticating with Google Drive...');
+    if (silent) {
+      // Never interrupt user with a popup during automatic background backup.
+      // The proactive token refresh timer will renew the token silently soon.
+      return;
+    }
+    // User-initiated backup: prompt re-auth
+    showToast('Re-authenticating with Google Drive...');
     window._pendingDriveAction = 'backup';
     requestDriveToken(false);
     return;
   }
+  // Prevent concurrent overlapping uploads
+  if (_isBackingUp) return;
   if (!state.driveFolderId) await ensureDriveFolder();
   if (!state.driveFolderId) {
     if (!silent) showToast('⚠️ Could not access or create BeCreator folder in Drive.');
     return;
   }
   try {
-    if (!silent) showToast('⏳ Backing up to Google Drive...');
     const exportState = { ...state };
     delete exportState.apiKey;
-    const content = JSON.stringify(exportState, null, 2);
+    const content = JSON.stringify(exportState);
+    // Skip upload if state hasn't changed since last successful Drive backup
+    if (silent && content === _driveBackupHash) return;
+    _isBackingUp = true;
+    if (!silent) showToast('⏳ Backing up to Google Drive...');
     const q = encodeURIComponent(`name='backup.json' and '${state.driveFolderId}' in parents and trashed=false`);
     const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`,
       { headers: { Authorization: `Bearer ${driveAccessToken}` } });
+    // Handle 401 Unauthorized — token expired; clear it so next attempt re-auths properly
+    if (searchRes.status === 401) {
+      driveAccessToken = null;
+      localStorage.removeItem(DRIVE_TOKEN_KEY);
+      localStorage.removeItem(DRIVE_TOKEN_EXP_KEY);
+      _isBackingUp = false;
+      if (!silent) showToast('🔐 Drive session expired. Please reconnect.');
+      return;
+    }
     const searchData = await searchRes.json();
     const existingId = searchData.files?.[0]?.id;
     if (existingId) {
@@ -1758,13 +1836,18 @@ async function backupToDrive(silent = false) {
         method: 'POST', headers: { Authorization: `Bearer ${driveAccessToken}` }, body: form
       });
     }
+    _driveBackupHash = content;
     state.lastDriveBackup = new Date().toLocaleString('en-IN');
-    saveState();
+    // Write lastDriveBackup directly to localStorage — DO NOT call saveState() here
+    // to avoid re-triggering triggerAutoDriveBackup() and creating an infinite loop.
+    try { localStorage.setItem(DB_KEY, JSON.stringify(state)); } catch(e) {}
     if (!silent) showToast('✅ Backed up to Google Drive!');
     if (currentPanel === 'settings') openPanel('settings');
   } catch(e) {
     console.error('Backup error:', e);
     if (!silent) showToast('❌ Drive backup failed. Try re-connecting Drive.');
+  } finally {
+    _isBackingUp = false;
   }
 }
 
@@ -3909,11 +3992,12 @@ window.addEventListener('load', () => {
   }
 
   setTimeout(() => {
-    if (!window.google) return;
     if (state.driveConnected && state.setupDone) {
-      initDriveClient(true);
+      // Restore persisted token from localStorage — avoids Drive popup on page load
+      loadPersistedDriveToken();
+      if (window.google) initDriveClient();
     }
-  }, 1000);
+  }, 500);
 });
 
 window.addEventListener('message', (e) => {
