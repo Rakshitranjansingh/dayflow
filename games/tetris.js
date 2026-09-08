@@ -258,8 +258,11 @@
     isPaused = !isPaused;
     const pauseOverlay = document.getElementById('tetris-pause-overlay');
     if (pauseOverlay) pauseOverlay.style.display = isPaused ? 'flex' : 'none';
-    const btn = document.getElementById('tetris-pause-btn');
-    if (btn) btn.textContent = isPaused ? '▶' : '⏸';
+    // Update both possible pause button locations
+    ['tetris-pause-btn', 'games-pause-btn'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) btn.textContent = isPaused ? '▶' : '⏸';
+    });
 
     if (!isPaused) {
       lastTime = 0;
@@ -340,7 +343,9 @@
       renderBoard(t);
       if (t >= 1) {
         completeLineClear();
-      } else {
+      }
+      // Always schedule next frame (unless game ended inside completeLineClear)
+      if (isPlaying && !isGameOver) {
         animFrame = requestAnimationFrame(gameLoop);
       }
       return;
@@ -382,12 +387,12 @@
     const W = blockSize * COLS;
     const H = blockSize * ROWS;
 
-    // Background
-    ctx.fillStyle = '#080808';
+    // Light background
+    ctx.fillStyle = '#F8F8F6';
     ctx.fillRect(0, 0, W, H);
 
-    // Faint grid lines
-    ctx.strokeStyle = 'rgba(255,255,255,0.035)';
+    // Faint dark grid lines
+    ctx.strokeStyle = 'rgba(0,0,0,0.055)';
     ctx.lineWidth = 0.5;
     for (let c = 0; c <= COLS; c++) {
       ctx.beginPath(); ctx.moveTo(c * blockSize, 0); ctx.lineTo(c * blockSize, H); ctx.stroke();
@@ -408,12 +413,12 @@
         if (!board[r][c]) continue;
         const clearing = clearingRows && clearingRows.includes(r);
         if (clearing) {
-          // Flash green → fade out
-          const alpha = Math.max(0.1, 1 - clearAnimT * 0.9);
-          const green = Math.floor(255 * clearAnimT);
-          drawBlock(c, r, `rgba(${255 - green * 2}, 255, ${green}, ${alpha})`, true);
+          // Flash green on clear
+          const alpha = Math.max(0.15, 1 - clearAnimT * 0.85);
+          const g = Math.floor(200 * (1 - clearAnimT));
+          drawBlock(c, r, `rgba(34, ${197 - g}, 94, ${alpha})`, true);
         } else {
-          drawBlock(c, r, '#DEDEDE', false);
+          drawBlock(c, r, '#2A2A2A', false);
         }
       }
     }
@@ -426,7 +431,7 @@
           if (!s[r][c]) continue;
           const row = currentPiece.y + r;
           if (row < 0 || row >= ROWS) continue;
-          drawBlock(currentPiece.x + c, row, '#FFFFFF', false);
+          drawBlock(currentPiece.x + c, row, '#1A1A18', false);
         }
       }
     }
@@ -442,12 +447,12 @@
     ctx.fillRect(x + pad, y + pad, inner, inner);
 
     if (!isClearing) {
-      // Top-left highlight
-      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      // Top-left highlight (lighter)
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
       ctx.fillRect(x + pad, y + pad, inner, 3);
       ctx.fillRect(x + pad, y + pad, 3, inner);
-      // Bottom-right shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      // Bottom-right shadow (darker)
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
       ctx.fillRect(x + pad + inner - 3, y + pad, 3, inner);
       ctx.fillRect(x + pad, y + pad + inner - 3, inner, 3);
     }
@@ -455,7 +460,7 @@
 
   function drawGhost(ghostY) {
     const s = currentPiece.shape;
-    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
     ctx.lineWidth = 1;
     for (let r = 0; r < s.length; r++) {
       for (let c = 0; c < s[r].length; c++) {
@@ -474,9 +479,9 @@
 
   function renderNext() {
     if (!nextCtx || !nextCanvas || !nextPiece) return;
-    const bs = 16;
+    const bs = 14;
     const W = nextCanvas.width, H = nextCanvas.height;
-    nextCtx.fillStyle = '#080808';
+    nextCtx.fillStyle = '#F8F8F6';
     nextCtx.fillRect(0, 0, W, H);
     const s = nextPiece.shape;
     const cols = s[0].length, rows = s.length;
@@ -486,11 +491,11 @@
       for (let c = 0; c < cols; c++) {
         if (!s[r][c]) continue;
         const x = offX + c * bs, y = offY + r * bs;
-        nextCtx.fillStyle = '#BBBBBB';
+        nextCtx.fillStyle = '#2A2A2A';
         nextCtx.fillRect(x + 1, y + 1, bs - 2, bs - 2);
         nextCtx.fillStyle = 'rgba(255,255,255,0.2)';
-        nextCtx.fillRect(x + 1, y + 1, bs - 2, 3);
-        nextCtx.fillRect(x + 1, y + 1, 3, bs - 2);
+        nextCtx.fillRect(x + 1, y + 1, bs - 2, 2);
+        nextCtx.fillRect(x + 1, y + 1, 2, bs - 2);
       }
     }
   }
@@ -572,14 +577,16 @@
   function calcBlockSize() {
     const container = document.getElementById('games-container');
     if (!container) return 26;
-    const availW = Math.min(container.clientWidth - 24, 380);
-    const scoreH = 66;   // score panel + gap
-    const dpadH = 120;   // controls + gap
-    const padding = 24;
-    const availH = window.innerHeight - 50 - scoreH - dpadH - padding;
+    // Use container width as the constraint (fills screen width properly)
+    const availW = container.clientWidth - 32; // 16px padding each side
+    const scoreH = 72;    // score panel height + gap
+    const dpadH  = 110;   // d-pad controls + gap
+    const headerH = 50;   // games header
+    const padding = 20;
+    const availH = window.innerHeight - headerH - scoreH - dpadH - padding;
     const byW = Math.floor(availW / COLS);
     const byH = Math.floor(availH / ROWS);
-    return Math.max(Math.min(byW, byH, 30), 18);
+    return Math.max(Math.min(byW, byH, 32), 18);
   }
 
   // ============================================================
@@ -590,39 +597,49 @@
     if (!container) return;
 
     blockSize = calcBlockSize();
-    const cw = blockSize * COLS;
+    const cw = blockSize * COLS;   // canvas / board width
     const ch = blockSize * ROWS;
+    const gameW = cw + 2;          // +2 for canvas-wrap border
+
+    // Inject pause button into header
+    const hdrRight = document.querySelector('.games-header-right');
+    if (hdrRight) {
+      hdrRight.innerHTML = `<button class="games-pause-btn" id="games-pause-btn" onclick="window._tPause && window._tPause()">⏸</button>`;
+    }
 
     container.innerHTML = `
       <div class="tetris-layout">
 
-        <!-- Stats strip -->
-        <div class="tetris-score-panel">
+        <!-- Stats strip — exact board width -->
+        <div class="tetris-score-panel" style="width:${gameW}px">
           <div class="tetris-score-group">
             <div class="tetris-stat-label">SCORE</div>
             <div class="tetris-stat-value" id="tetris-score">0</div>
           </div>
+          <div class="tetris-score-sep"></div>
           <div class="tetris-score-group">
             <div class="tetris-stat-label">BEST</div>
             <div class="tetris-stat-value" id="tetris-best">0</div>
           </div>
+          <div class="tetris-score-sep"></div>
           <div class="tetris-score-group">
             <div class="tetris-stat-label">LVL</div>
             <div class="tetris-stat-value" id="tetris-level">1</div>
           </div>
+          <div class="tetris-score-sep"></div>
           <div class="tetris-score-group">
             <div class="tetris-stat-label">LINES</div>
             <div class="tetris-stat-value" id="tetris-lines">0</div>
           </div>
-          <div class="tetris-score-group" style="flex:0;min-width:auto">
+          <div class="tetris-score-sep"></div>
+          <div class="tetris-score-group" style="align-items:center">
             <div class="tetris-stat-label">NEXT</div>
-            <canvas id="tetris-next-canvas" width="60" height="48"></canvas>
+            <canvas id="tetris-next-canvas" width="52" height="40"></canvas>
           </div>
-          <button class="tetris-pause-btn" id="tetris-pause-btn" onclick="window._tPause()">⏸</button>
         </div>
 
-        <!-- Board -->
-        <div class="tetris-canvas-wrap" style="width:${cw}px">
+        <!-- Board — canvas -->
+        <div class="tetris-canvas-wrap" style="width:${gameW}px;height:${ch + 2}px">
           <canvas id="tetris-canvas" width="${cw}" height="${ch}" style="width:${cw}px;height:${ch}px"></canvas>
 
           <!-- Pause overlay -->
@@ -637,9 +654,9 @@
           <div id="tetris-gameover-overlay" class="tetris-overlay" style="display:none">
             <div class="tetris-overlay-card">
               <div class="tetris-overlay-title">GAME OVER</div>
-              <div class="tetris-overlay-sub" style="margin-top:4px">SCORE</div>
+              <div class="tetris-overlay-sub" style="margin-top:6px">YOUR SCORE</div>
               <div class="tetris-overlay-score" id="tetris-final-score">0</div>
-              <div class="tetris-overlay-sub" style="font-size:7px;margin-top:2px">BEST</div>
+              <div class="tetris-overlay-sub" style="margin-top:2px">BEST</div>
               <div class="tetris-overlay-score" style="font-size:13px" id="tetris-final-best">0</div>
               <button class="tetris-play-btn" onclick="window._tStart()">▶ PLAY AGAIN</button>
             </div>
@@ -650,23 +667,25 @@
             <div class="tetris-overlay-card">
               <div class="tetris-overlay-emoji">🕹️</div>
               <div class="tetris-overlay-title">TETRIS</div>
-              <div class="tetris-overlay-sub">Stack blocks. Clear lines.</div>
-              <button class="tetris-play-btn" onclick="window._tStart()">▶ START GAME</button>
-              <div class="tetris-overlay-hint">TAP = Rotate&nbsp;&nbsp;SWIPE = Move<br>SWIPE DOWN = Drop</div>
+              <div class="tetris-overlay-sub">Stack &amp; clear lines</div>
+              <button class="tetris-play-btn" onclick="window._tStart()">▶ START</button>
+              <div class="tetris-overlay-hint">Tap canvas = Rotate&nbsp;&nbsp;|&nbsp;&nbsp;Swipe = Move<br>Use buttons below to play</div>
             </div>
           </div>
         </div>
 
-        <!-- D-Pad Controls -->
-        <div class="tetris-dpad">
-          <div class="tetris-dpad-row">
-            <button class="tetris-dpad-btn tetris-dpad-rotate" onclick="window._tRotate()" aria-label="Rotate">↺</button>
-            <button class="tetris-dpad-btn tetris-dpad-hard" onclick="window._tHard()" aria-label="Hard Drop">▼▼ DROP</button>
-          </div>
+        <!-- D-Pad — 2 rows, board width -->
+        <div class="tetris-dpad" style="width:${gameW}px">
+          <!-- Row 1: Left | Rotate | Right | Hard Drop -->
           <div class="tetris-dpad-row">
             <button class="tetris-dpad-btn" onclick="window._tLeft()" aria-label="Left">◀</button>
-            <button class="tetris-dpad-btn tetris-dpad-soft" onclick="window._tSoft()" aria-label="Soft Drop">▼</button>
+            <button class="tetris-dpad-btn tetris-dpad-rotate" onclick="window._tRotate()" aria-label="Rotate">↺</button>
             <button class="tetris-dpad-btn" onclick="window._tRight()" aria-label="Right">▶</button>
+            <button class="tetris-dpad-btn tetris-dpad-hard" onclick="window._tHard()" aria-label="Hard Drop">▼▼</button>
+          </div>
+          <!-- Row 2: Soft drop full width -->
+          <div class="tetris-dpad-row">
+            <button class="tetris-dpad-btn tetris-dpad-soft-wide" onclick="window._tSoft()" aria-label="Soft Drop">▼ SOFT DROP</button>
           </div>
         </div>
 
@@ -679,7 +698,7 @@
     nextCanvas = document.getElementById('tetris-next-canvas');
     nextCtx = nextCanvas ? nextCanvas.getContext('2d') : null;
 
-    // Wire global callbacks for onclick attributes
+    // Wire global callbacks
     window._tStart  = startGame;
     window._tPause  = togglePause;
     window._tLeft   = moveLeft;
