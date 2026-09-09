@@ -371,6 +371,11 @@
       lockTimer += delta;
       if (lockTimer >= LOCK_DELAY) {
         lockPiece();
+        // Restart loop after natural lock (gravity-triggered)
+        if (isPlaying && !isGameOver) {
+          lastTime = 0;
+          animFrame = requestAnimationFrame(gameLoop);
+        }
         return;
       }
     }
@@ -601,11 +606,8 @@
     const ch = blockSize * ROWS;
     const gameW = cw + 2;          // +2 for canvas-wrap border
 
-    // Inject pause button into header
-    const hdrRight = document.querySelector('.games-header-right');
-    if (hdrRight) {
-      hdrRight.innerHTML = `<button class="games-pause-btn" id="games-pause-btn" onclick="window._tPause && window._tPause()">⏸</button>`;
-    }
+    // Inject pause button into header — pause btn is now static in HTML
+    // (no injection needed)
 
     container.innerHTML = `
       <div class="tetris-layout">
@@ -674,18 +676,13 @@
           </div>
         </div>
 
-        <!-- D-Pad — 2 rows, board width -->
+        <!-- D-Pad — 1 row: Left | Rotate | Right | Hard Drop -->
         <div class="tetris-dpad" style="width:${gameW}px">
-          <!-- Row 1: Left | Rotate | Right | Hard Drop -->
           <div class="tetris-dpad-row">
             <button class="tetris-dpad-btn" onclick="window._tLeft()" aria-label="Left">◀</button>
             <button class="tetris-dpad-btn tetris-dpad-rotate" onclick="window._tRotate()" aria-label="Rotate">↺</button>
             <button class="tetris-dpad-btn" onclick="window._tRight()" aria-label="Right">▶</button>
             <button class="tetris-dpad-btn tetris-dpad-hard" onclick="window._tHard()" aria-label="Hard Drop">▼▼</button>
-          </div>
-          <!-- Row 2: Soft drop full width -->
-          <div class="tetris-dpad-row">
-            <button class="tetris-dpad-btn tetris-dpad-soft-wide" onclick="window._tSoft()" aria-label="Soft Drop">▼ SOFT DROP</button>
           </div>
         </div>
 
@@ -703,7 +700,6 @@
     window._tPause  = togglePause;
     window._tLeft   = moveLeft;
     window._tRight  = moveRight;
-    window._tSoft   = softDrop;
     window._tHard   = hardDrop;
     window._tRotate = () => tryRotate(1);
 
