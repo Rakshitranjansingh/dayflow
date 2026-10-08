@@ -969,6 +969,81 @@ tr:last-child td { border-bottom: none; }
   pointer-events: none;
 }
 .toast-msg.show { transform: translateX(-50%) translateY(0); }
+
+/* 2-Day Miss Warning Banner */
+.miss-warning-banner {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1.5px solid rgba(239, 68, 68, 0.35);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--fire-red);
+  margin-bottom: 16px;
+  line-height: 1.45;
+  animation: pulseWarn 2s infinite alternate;
+}
+@keyframes pulseWarn {
+  from { border-color: rgba(239, 68, 68, 0.25); }
+  to { border-color: rgba(239, 68, 68, 0.65); }
+}
+
+/* 2-Day Miss Reset Modal */
+.reset-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.reset-modal-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  max-width: 440px;
+  width: 100%;
+  padding: 26px 22px;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes modalPop {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+.reset-modal-card h2 {
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 800;
+  color: var(--fire-red);
+  margin: 10px 0 8px;
+}
+.reset-modal-card p {
+  font-size: 13.5px;
+  color: var(--text2);
+  line-height: 1.55;
+  margin-bottom: 18px;
+}
+.restart-now-btn {
+  background: var(--fire-gradient);
+  border: none;
+  color: #FFFFFF;
+  padding: 12px 24px;
+  border-radius: var(--radius-pill);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 16px var(--fire-glow);
+  width: 100%;
+}
+.restart-now-btn:hover { filter: brightness(1.08); }
 </style>
 </head>
 <body>
@@ -1027,7 +1102,14 @@ tr:last-child td { border-bottom: none; }
       <span class="master-lbl">Warrior Rank</span>
       <span class="master-val" id="masterRank" style="font-size:13px; font-weight:700;">Level 1</span>
     </div>
+    <div class="master-col">
+      <span class="master-lbl">Discipline Rule</span>
+      <span class="master-val" style="font-size:12px; font-weight:700; color:var(--fire-red);">⚡ 2-Day Reset</span>
+    </div>
   </div>
+
+  <!-- 2-Day Miss Danger Warning Banner -->
+  <div class="miss-warning-banner" id="missWarningBanner"></div>
 
   <!-- ==========================================================
        VIEW 1: DAILY QUEST (ONE DAY AT A TIME)
@@ -1138,6 +1220,14 @@ tr:last-child td { border-bottom: none; }
       </div>
       <p style="font-size:12.5px; color:var(--text2); line-height:1.5;"><b>🚫 Golden Rules:</b> Zero refined sugar, zero soft drinks/cold drinks, avoid fried snacks and sweets. One mindful flexible meal permitted weekly.</p>
     </div>
+
+    <!-- The 2-Day Iron Discipline Rule Card -->
+    <div class="card-box" style="border-left: 4px solid var(--fire-red);">
+      <h3 style="color:var(--fire-red); margin-bottom:8px;"><span>⚡</span> The 2-Day Iron Discipline Rule</h3>
+      <p style="font-size:13px; color:var(--text2); line-height:1.6;">
+        <b>"Never miss twice."</b> Missing one day is a slip; missing two consecutive days is the start of a broken habit. If you miss <b>2 consecutive days</b> in the 42-day timeline, your progress is automatically <b>reset back to Day 1</b>. Protect your streak every single day!
+      </p>
+    </div>
   </div>
 
   <!-- Global Footer Tools -->
@@ -1157,6 +1247,16 @@ tr:last-child td { border-bottom: none; }
 </main>
 
 <div class="toast-msg" id="toast"></div>
+
+<!-- 2-Day Miss Reset Notification Modal -->
+<div class="reset-modal-overlay" id="resetModalOverlay">
+  <div class="reset-modal-card">
+    <div style="font-size:46px; margin-bottom:8px;">⚡</div>
+    <h2>2-Day Rule Triggered!</h2>
+    <p>You missed <b>2 consecutive days</b> without completing habits. In accordance with the <b>2-Day Iron Rule</b>, the 6-Week Challenge demands unbreakable discipline and has reset your progress back to <b>Day 1</b>.<br><br>Learn from the slip, refocus, and restart stronger today!</p>
+    <button class="restart-now-btn" onclick="dismissResetModal()">I Understand & Restart Day 1 🚀</button>
+  </div>
+</div>
 
 <script>
 // 9 Daily Habits
@@ -1285,6 +1385,74 @@ function isDone(i) {
   return t.length > 0 && t.every(function(x) { return a.indexOf(x[0]) > -1; });
 }
 
+// Today index relative to challenge start
+function getTodayDayIndex() {
+  var now = new Date();
+  var todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var p = S.start.split("-");
+  var startDate = new Date(+p[0], +p[1] - 1, +p[2]);
+  return Math.floor((todayDate - startDate) / 864e5);
+}
+
+// 2-Day Miss Rule Evaluator: missing 2 consecutive days resets challenge to Day 1
+function evaluateTwoDayMissRule() {
+  if (freeMode) return false;
+  var todayIdx = getTodayDayIndex();
+  var banner = document.getElementById("missWarningBanner");
+
+  // Check elapsed calendar days strictly before today
+  var consecutiveMisses = 0;
+  var triggered = false;
+
+  for (var i = 0; i < Math.min(todayIdx, 42); i++) {
+    if (!isDone(i)) {
+      consecutiveMisses++;
+      if (consecutiveMisses >= 2) {
+        triggered = true;
+        break;
+      }
+    } else {
+      consecutiveMisses = 0;
+    }
+  }
+
+  if (triggered) {
+    // 2 consecutive missed days -> Automatic Reset to Day 1
+    S.start = iso(new Date());
+    S.done = {};
+    S.unlocked = 0;
+    activeDay = 0;
+    save();
+    showResetModal();
+    if (banner) banner.style.display = "none";
+    return true;
+  }
+
+  // 1-strike warning if yesterday was missed
+  if (todayIdx >= 1 && !isDone(todayIdx - 1)) {
+    if (banner) {
+      banner.style.display = "flex";
+      banner.innerHTML = "<span>⚠️</span> <span><b>1 Strike Warning:</b> Yesterday (Day " + todayIdx + ") was missed! In accordance with the <b>2-Day Rule</b>, missing 2 consecutive days resets your progress back to Day 1. Complete today's habits to stay on track!</span>";
+    }
+  } else {
+    if (banner) banner.style.display = "none";
+  }
+  return false;
+}
+
+function showResetModal() {
+  var modal = document.getElementById("resetModalOverlay");
+  if (modal) modal.style.display = "flex";
+}
+
+function dismissResetModal() {
+  var modal = document.getElementById("resetModalOverlay");
+  if (modal) modal.style.display = "none";
+  renderDaysStrip();
+  renderActiveDay();
+  updateMasterBar();
+}
+
 // Compute max unlocked day index (0 to 41)
 function getMaxUnlocked() {
   if (freeMode) return 41;
@@ -1312,6 +1480,7 @@ function initActiveDay() {
   activeDay = Math.min(41, maxU);
 }
 
+evaluateTwoDayMissRule();
 initActiveDay();
 
 function showToast(msg) {
@@ -1598,6 +1767,7 @@ function updateMasterBar() {
   else if (n >= 15) rankName = "Level 3: Catalyst 🔥";
   else if (n >= 8)  rankName = "Level 2: Momentum ⚡";
   document.getElementById("masterRank").textContent = rankName;
+  evaluateTwoDayMissRule();
 }
 
 // ==========================================================
