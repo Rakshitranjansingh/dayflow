@@ -775,6 +775,11 @@
       <div class="tool-icon">✅</div><div class="tool-name">To-Do</div>
       <div class="tool-badge" id="todo-badge-feat" style="display:none"></div>
     </div>
+    <div class="tool-btn" onclick="openSixWeekChallengeApp()">
+      <div class="tool-icon">🔥</div>
+      <div class="tool-name">6-Week Challenge</div>
+      <div class="tool-badge" id="sixweek-badge-feat" style="background: linear-gradient(135deg, #f97316, #ef4444); color: #fff;">42D</div>
+    </div>
     <div class="tool-btn" onclick="openSplitEasyApp()"><div class="tool-icon">₹</div><div class="tool-name">SplitEase</div></div>
   </div>
 
@@ -806,6 +811,11 @@
     <div class="tool-btn" id="platform-hunt" onclick="openHuntApp()">
       <div class="tool-icon">🎯</div>
       <div class="tool-name">Hunt</div>
+    </div>
+    <div class="tool-btn" onclick="openSixWeekChallengeApp()">
+      <div class="tool-icon">🔥</div>
+      <div class="tool-name">Ultimate 6-Week</div>
+      <div class="tool-badge" id="sixweek-badge-grow" style="background: linear-gradient(135deg, #f97316, #ef4444); color: #fff;">42D</div>
     </div>
     <div class="tool-btn" id="platform-add-course" style="display:none;" onclick="openAddCourseApp()">
       <div class="tool-icon">🎓➕</div>
@@ -1100,6 +1110,22 @@
 <!-- RETRO RADIO PLAYER PLATFORM SCREEN -->
 <div id="radio-app" style="display:none; position:fixed; top:0; left:0; width:100%; height:100vh; z-index:99999; background:var(--bg);">
   <iframe id="radio-iframe" src="util/player.html" style="width:100%; height:100%; border:none;" allow="autoplay"></iframe>
+</div>
+
+<!-- ULTIMATE 6-WEEK FAT LOSS CHALLENGE SCREEN -->
+<div id="six-week-app" style="display:none; position:fixed; top:0; left:0; width:100%; height:100vh; z-index:99999; background:var(--bg); flex-direction:column;">
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 16px; background:rgba(255,255,255,0.92); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100;">
+    <button onclick="closeSixWeekChallengeApp()" style="display:inline-flex; align-items:center; gap:6px; background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:6px 14px; font-size:13px; font-weight:700; color:var(--text); cursor:pointer; font-family:var(--font);">
+      ← 🌊 BeCreator
+    </button>
+    <div style="font-size:14px; font-weight:800; color:var(--text); display:flex; align-items:center; gap:6px; font-family:var(--font);">
+      <span style="font-size:16px;">🔥</span> Ultimate 6-Week Challenge
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <a href="challenge/6-Week%20Fat%20Loss%20Tracker.html" target="_blank" title="Open full screen" style="display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:10px; background:var(--surface2); border:1px solid var(--border); font-size:14px; text-decoration:none; color:var(--text2);">↗️</a>
+    </div>
+  </div>
+  <iframe id="six-week-iframe" src="challenge/6-Week%20Fat%20Loss%20Tracker.html" style="width:100%; height:calc(100vh - 53px); border:none; flex:1;" allow="autoplay"></iframe>
 </div>
 
 <!-- SIDE PANEL -->
@@ -1490,6 +1516,17 @@ function loadState() {
           }
         });
       }
+
+      // Sync 6-Week Challenge stats into DayFlow state
+      state.fatloss = state.fatloss || {};
+      try {
+        const rawF = localStorage.getItem('fatloss6w');
+        if (rawF) {
+          state.fatloss = JSON.parse(rawF);
+        } else if (state.fatloss && state.fatloss.start) {
+          localStorage.setItem('fatloss6w', JSON.stringify(state.fatloss));
+        }
+      } catch(e) {}
     }
   } catch(e) {}
 }
@@ -1916,6 +1953,9 @@ function initApp() {
   if (typeof updateHomepageChallengeCard === 'function') {
     updateHomepageChallengeCard();
   }
+  if (typeof updateSixWeekChallengeBadges === 'function') {
+    updateSixWeekChallengeBadges();
+  }
   initHeroSlider();
   if (state.driveConnected && driveAccessToken) {
     setTimeout(() => { backupToDrive(true); }, 2000);
@@ -2269,6 +2309,47 @@ function closeRadioPlayerApp() {
   if (radioApp) radioApp.style.display = 'none';
   const mainApp = document.getElementById('app');
   if (mainApp) mainApp.style.display = 'block';
+}
+
+function openSixWeekChallengeApp() {
+  const mainApp = document.getElementById('app');
+  if (mainApp) mainApp.style.display = 'none';
+  const swApp = document.getElementById('six-week-app');
+  if (swApp) swApp.style.display = 'flex';
+  const iframe = document.getElementById('six-week-iframe');
+  if (iframe && iframe.contentWindow && typeof iframe.contentWindow.render === 'function') {
+    try { iframe.contentWindow.render(); } catch(e){}
+  }
+}
+
+function closeSixWeekChallengeApp() {
+  const swApp = document.getElementById('six-week-app');
+  if (swApp) swApp.style.display = 'none';
+  const mainApp = document.getElementById('app');
+  if (mainApp) mainApp.style.display = 'block';
+  updateSixWeekChallengeBadges();
+}
+
+function updateSixWeekChallengeBadges() {
+  try {
+    let data = state.fatloss;
+    if (!data || !data.done) {
+      const raw = localStorage.getItem('fatloss6w');
+      if (raw) data = JSON.parse(raw);
+    }
+    if (!data) return;
+    let doneDays = 0;
+    if (data && data.done) {
+      Object.keys(data.done).forEach(k => {
+        if (data.done[k] && data.done[k].length >= 8) doneDays++;
+      });
+    }
+    const txt = doneDays > 0 ? (doneDays + '/42D') : '42D';
+    const b1 = document.getElementById('sixweek-badge-feat');
+    const b2 = document.getElementById('sixweek-badge-grow');
+    if (b1) { b1.textContent = txt; b1.style.display = 'block'; }
+    if (b2) { b2.textContent = txt; b2.style.display = 'block'; }
+  } catch(e) {}
 }
 
 function openPanel(name) {
@@ -4004,6 +4085,12 @@ window.addEventListener('load', () => {
     openLearnApp();
   } else if (pageParam === 'add-course' && typeof openAddCourseApp === 'function') {
     openAddCourseApp();
+  } else if ((pageParam === '6week' || pageParam === 'fatloss' || pageParam === 'challenge6w') && typeof openSixWeekChallengeApp === 'function') {
+    openSixWeekChallengeApp();
+  }
+
+  if (typeof updateSixWeekChallengeBadges === 'function') {
+    updateSixWeekChallengeBadges();
   }
 
   setTimeout(() => {
@@ -4019,6 +4106,14 @@ window.addEventListener('message', (e) => {
   if (e.data?.type === 'quoteHeight') {
     const frame = document.getElementById('quotes-frame');
     if (frame) frame.style.height = (e.data.height + 4) + 'px';
+  }
+  if (e.data?.action === 'closeSixWeekChallenge') {
+    if (typeof closeSixWeekChallengeApp === 'function') closeSixWeekChallengeApp();
+  }
+  if (e.data?.type === 'SYNC_FATLOSS_DATA') {
+    state.fatloss = e.data.data;
+    saveState();
+    if (typeof updateSixWeekChallengeBadges === 'function') updateSixWeekChallengeBadges();
   }
 });
 
